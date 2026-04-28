@@ -420,7 +420,7 @@ def quota_alerts():
             enrollment.student_id,
             {
                 "student": enrollment.student,
-                "items": [],
+                "subjects": [],
                 "problem_subject_count": 0,
                 "zero_subject_count": 0,
                 "minus_subject_count": 0,
@@ -428,7 +428,7 @@ def quota_alerts():
             },
         )
 
-        bucket["items"].append(
+        bucket["subjects"].append(
             {
                 "enrollment": enrollment,
                 "subject": enrollment.subject,
@@ -452,8 +452,8 @@ def quota_alerts():
         key=lambda item: item["student"].name.lower() if item.get("student") else "",
     )
     for item in alerts:
-        item["items"] = sorted(
-            item["items"],
+        item["subjects"] = sorted(
+            item["subjects"],
             key=lambda row: row["subject"].name.lower() if row.get("subject") else "",
         )
 

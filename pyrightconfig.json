@@ -1,0 +1,9 @@
+{
+  "include": ["app", "run.py", "config.py"],
+  "exclude": ["**/__pycache__", "**/*.pyc"],
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportAttributeAccessIssue": "none",
+  "typeCheckingMode": "basic",
+  "pythonVersion": "3.11"
+}

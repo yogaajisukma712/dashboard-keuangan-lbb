@@ -49,26 +49,30 @@
                 {% for item in alerts %}
                 <tr>
                     <td class="text-muted small">{{ loop.index }}</td>
+
                     <td>
                         <div class="fw-semibold">{{ item.student.name }}</div>
                         <div class="text-muted small">
                             {{ item.student.student_code }}
                         </div>
                     </td>
+
                     <td>
                         <div class="d-flex flex-wrap gap-1">
-                            {% for sub in item.items %} {% if sub.remaining < 0
-                            %}
-                            <span class="badge bg-danger">
-                                {{ sub.subject.name }} ({{ sub.remaining }})
-                            </span>
+                            {% for sub in item.subjects %} {% if sub.remaining <
+                            0 %}
+                            <span class="badge bg-danger"
+                                >{{ sub.subject.name }} ({{ sub.remaining
+                                }})</span
+                            >
                             {% else %}
-                            <span class="badge bg-warning text-dark">
-                                {{ sub.subject.name }} (habis)
-                            </span>
+                            <span class="badge bg-warning text-dark"
+                                >{{ sub.subject.name }} (habis)</span
+                            >
                             {% endif %} {% endfor %}
                         </div>
                     </td>
+
                     <td class="text-center">
                         <span class="badge bg-warning text-dark"
                             >{{ item.zero_subject_count }}</span
@@ -84,6 +88,7 @@
                             >{{ item.total_debt_sessions }}</span
                         >
                     </td>
+
                     <td class="text-center">
                         <a
                             href="{{ url_for('quota_invoice.student_quota_detail', student_id=item.student.id) }}"

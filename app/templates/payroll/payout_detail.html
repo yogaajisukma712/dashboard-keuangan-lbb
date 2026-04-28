@@ -44,6 +44,7 @@ Breadcrumb ───────────────────────
                 );
             "
         >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <button type="submit" class="btn btn-outline-danger btn-sm">
                 <i class="bi bi-trash me-1"></i> Hapus
             </button>
@@ -301,6 +302,11 @@ Breadcrumb ───────────────────────
                     enctype="multipart/form-data"
                     id="uploadForm"
                 >
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token() }}"
+                    />
                     <div class="mb-3">
                         <label for="proof_file" class="form-label fw-semibold">
                             File Bukti <span class="text-danger">*</span>

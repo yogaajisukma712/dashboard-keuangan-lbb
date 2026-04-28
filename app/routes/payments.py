@@ -233,6 +233,85 @@ def get_student_enrollments(student_id):
     )
 
 
+@payments_bp.route("/<int:payment_id>/invoice", methods=["GET"])
+@login_required
+def payment_invoice(payment_id):
+    """Tampilkan & unduh invoice sebagai PNG untuk sebuah pembayaran siswa."""
+    from collections import OrderedDict
+    from datetime import date as dt_date
+
+    from flask import current_app
+
+    payment = StudentPayment.query.get_or_404(payment_id)
+
+    # Urutkan payment lines: service_month dulu, lalu enrollment_id
+    raw_lines = payment.payment_lines.all()
+    lines = sorted(
+        raw_lines,
+        key=lambda l: (l.service_month or dt_date.min, l.enrollment_id or 0),
+    )
+
+    # Kelompokkan per service_month (OrderedDict menjaga urutan)
+    lines_by_month = OrderedDict()
+    for line in lines:
+        lines_by_month.setdefault(line.service_month, []).append(line)
+
+    # Program = nama-nama mapel unik, digabung " & "
+    seen, subjects = set(), []
+    for line in lines:
+        if line.enrollment and line.enrollment.subject:
+            n = line.enrollment.subject.name
+            if n not in seen:
+                seen.add(n)
+                subjects.append(n)
+    program = " & ".join(subjects) if subjects else "—"
+
+    # Kelas = grade + level dari enrollment pertama
+    grade_level = "—"
+    for line in lines:
+        if line.enrollment:
+            g = line.enrollment.grade or ""
+            lv = line.enrollment.level.name if line.enrollment.level else ""
+            grade_level = f"{g} {lv}".strip() or "—"
+            break
+
+    reg_fee = current_app.config.get("DEFAULT_REGISTRATION_FEE", 0)
+    bank_str = current_app.config.get("INSTITUTION_BANK_ACCOUNTS", "")
+    bank_accounts = [b.strip() for b in bank_str.split("|") if b.strip()]
+
+    MONTHS_ID = [
+        "",
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+    ]
+
+    return render_template(
+        "payments/invoice.html",
+        payment=payment,
+        lines_by_month=lines_by_month,
+        program=program,
+        grade_level=grade_level,
+        reg_fee=reg_fee,
+        bank_accounts=bank_accounts,
+        MONTHS_ID=MONTHS_ID,
+        institution_name=current_app.config.get("INSTITUTION_NAME", "LBB Super Smart"),
+        institution_phone=current_app.config.get("INSTITUTION_PHONE", ""),
+        institution_city=current_app.config.get("INSTITUTION_CITY", "Surabaya"),
+        ceo_name=current_app.config.get("INSTITUTION_CEO_NAME", ""),
+        ceo_title=current_app.config.get("INSTITUTION_CEO_TITLE", "CEO"),
+    )
+
+
 @payments_bp.route("/monthly-summary", methods=["GET"])
 @login_required
 def monthly_summary():

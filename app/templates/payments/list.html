@@ -144,6 +144,10 @@
               {% endif %}
             </td>
             <td class="text-center pe-3">
+              <a href="{{ url_for('payments.payment_invoice', payment_id=payment.id) }}"
+                 class="btn btn-sm btn-outline-info me-1" title="Invoice">
+                <i class="bi bi-file-earmark-text"></i>
+              </a>
               <a href="{{ url_for('payments.detail_payment', payment_id=payment.id) }}"
                  class="btn btn-sm btn-outline-primary me-1" title="Detail">
                 <i class="bi bi-eye"></i>

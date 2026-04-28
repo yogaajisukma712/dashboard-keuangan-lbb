@@ -2,10 +2,11 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-from flask import Flask
+from flask import Flask, jsonify, render_template, request
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf.csrf import CSRFError, CSRFProtect
 
 from config import config
 
@@ -13,6 +14,7 @@ from config import config
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
+csrf = CSRFProtect()
 
 
 def create_app(config_name=None):
@@ -31,6 +33,7 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
+    csrf.init_app(app)
     login_manager.login_view = "auth.login"
     login_manager.login_message = "Silakan login terlebih dahulu"
 
@@ -40,8 +43,15 @@ def create_app(config_name=None):
     # Register blueprints
     register_blueprints(app)
 
+    # Exempt selected JSON/AJAX endpoints that currently post without CSRF token
+    if "payroll.api_quick_pay" in app.view_functions:
+        csrf.exempt(app.view_functions["payroll.api_quick_pay"])
+
     # Register context processors
     register_context_processors(app)
+
+    # Register response hooks
+    register_response_hooks(app)
 
     # Register error handlers
     register_error_handlers(app)
@@ -149,22 +159,91 @@ def register_context_processors(app):
             return {"quota_alert_count": 0}
 
 
+def register_response_hooks(app):
+    """Register response hooks such as anti-cache headers for HTML pages."""
+
+    @app.after_request
+    def apply_no_cache_headers(response):
+        content_type = (response.content_type or "").lower()
+        if (
+            content_type.startswith("text/html")
+            or content_type.startswith("text/css")
+            or "javascript" in content_type
+            or request.path.startswith("/static/")
+        ):
+            response.headers["Cache-Control"] = (
+                "no-store, no-cache, must-revalidate, max-age=0, private"
+            )
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
+
+def _request_wants_json():
+    """Return True if the current request expects a JSON response."""
+    if request.path.startswith("/dashboard/api") or request.path.startswith("/api/"):
+        return True
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return True
+    best = request.accept_mimetypes.best_match(["application/json", "text/html"])
+    if (
+        best == "application/json"
+        and request.accept_mimetypes["application/json"]
+        > request.accept_mimetypes["text/html"]
+    ):
+        return True
+    if request.is_json:
+        return True
+    return False
+
+
 def register_error_handlers(app):
     """Register error handlers"""
 
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(error):
+        db.session.rollback()
+        if _request_wants_json():
+            return jsonify(
+                {"error": "CSRF token tidak valid atau sudah kedaluwarsa"}
+            ), 400
+        try:
+            return render_template("errors/403.html", error=str(error)), 400
+        except Exception:
+            return jsonify(
+                {"error": "CSRF token tidak valid atau sudah kedaluwarsa"}
+            ), 400
+
     @app.errorhandler(404)
     def not_found(error):
-        return {"error": "Halaman tidak ditemukan"}, 404
+        if _request_wants_json():
+            return jsonify({"error": "Halaman tidak ditemukan"}), 404
+        try:
+            return render_template("errors/404.html", error=error), 404
+        except Exception:
+            return jsonify({"error": "Halaman tidak ditemukan"}), 404
 
     @app.errorhandler(500)
     def internal_error(error):
+        import traceback
+
         db.session.rollback()
-        app.logger.error(f"Server error: {error}")
-        return {"error": "Terjadi kesalahan pada server"}, 500
+        app.logger.error(f"Server error: {error}\n{traceback.format_exc()}")
+        if _request_wants_json():
+            return jsonify({"error": "Terjadi kesalahan pada server"}), 500
+        try:
+            return render_template("errors/500.html", error=str(error)), 500
+        except Exception:
+            return jsonify({"error": "Terjadi kesalahan pada server"}), 500
 
     @app.errorhandler(403)
     def forbidden(error):
-        return {"error": "Anda tidak memiliki akses ke halaman ini"}, 403
+        if _request_wants_json():
+            return jsonify({"error": "Anda tidak memiliki akses ke halaman ini"}), 403
+        try:
+            return render_template("errors/403.html", error=error), 403
+        except Exception:
+            return jsonify({"error": "Anda tidak memiliki akses ke halaman ini"}), 403
 
 
 def setup_logging(app):

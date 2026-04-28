@@ -1,46 +1,187 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %} {% block title %}Registrasi Awal — LBB Super
+Smart{% endblock %} {% block head %}
+<style>
+    html,
+    body {
+        background: #f0f4fb;
+        min-height: 100vh;
+    }
 
-{% block title %}Registrasi Awal{% endblock %}
+    .register-wrapper {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+    }
 
-{% block content %}
-<div class="row justify-content-center">
-  <div class="col-lg-5 col-md-7">
-    <div class="card shadow-sm border-0">
-      <div class="card-body p-4">
-        <h1 class="h4 text-center mb-3">Registrasi Pengguna Pertama</h1>
-        <p class="text-muted text-center mb-4">Halaman ini digunakan untuk membuat akun awal sistem.</p>
+    .register-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow:
+            0 4px 24px rgba(0, 0, 0, 0.08),
+            0 1px 4px rgba(0, 0, 0, 0.06);
+        padding: 2.5rem 2rem;
+        width: 100%;
+        max-width: 460px;
+    }
+
+    .register-logo {
+        width: 44px;
+        height: 44px;
+        background: #253b9b;
+        border-radius: 11px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #f4be18;
+        font-size: 1.4rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .register-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #1a1f36;
+        margin-bottom: 0.25rem;
+    }
+
+    .register-subtitle {
+        font-size: 0.84rem;
+        color: #6b7280;
+        margin-bottom: 1.75rem;
+    }
+
+    .field-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.35rem;
+        display: block;
+    }
+
+    .form-control {
+        font-size: 0.9rem;
+        border-color: #e5e7eb;
+        border-radius: 8px;
+        padding: 0.55rem 0.85rem;
+    }
+
+    .form-control:focus {
+        border-color: #253b9b;
+        box-shadow: 0 0 0 3px rgba(37, 59, 155, 0.1);
+    }
+
+    #submitBtn {
+        background: #253b9b;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 0.65rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        transition:
+            background 0.18s,
+            transform 0.12s;
+    }
+
+    #submitBtn:hover {
+        background: #1a2c75;
+        transform: translateY(-1px);
+    }
+    #submitBtn:active {
+        transform: translateY(0);
+    }
+
+    .back-link {
+        font-size: 0.82rem;
+        color: #253b9b;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .back-link:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %} {% block body %}
+<div class="register-wrapper">
+    <div class="register-card">
+        <!-- Logo -->
+        <div class="register-logo">
+            <i class="bi bi-mortarboard-fill"></i>
+        </div>
+
+        <h1 class="register-title">Buat Akun Pertama</h1>
+        <p class="register-subtitle">
+            Halaman ini digunakan untuk membuat akun awal sistem LBB Super
+            Smart.
+        </p>
+
         <form method="post" novalidate>
-          {{ form.hidden_tag() }}
-          <div class="mb-3">
-            <label class="form-label" for="{{ form.full_name.id }}">Nama Lengkap</label>
-            {{ form.full_name(class="form-control", placeholder="Masukkan nama lengkap") }}
-            {% for error in form.full_name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="{{ form.username.id }}">Username</label>
-            {{ form.username(class="form-control", placeholder="Masukkan username") }}
-            {% for error in form.username.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="{{ form.email.id }}">Email</label>
-            {{ form.email(class="form-control", placeholder="Masukkan email") }}
-            {% for error in form.email.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="{{ form.password.id }}">Password</label>
-            {{ form.password(class="form-control", placeholder="Masukkan password") }}
-            {% for error in form.password.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="mb-4">
-            <label class="form-label" for="{{ form.password_confirm.id }}">Konfirmasi Password</label>
-            {{ form.password_confirm(class="form-control", placeholder="Ulangi password") }}
-            {% for error in form.password_confirm.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="d-grid">{{ form.submit(class="btn btn-primary") }}</div>
+            {{ form.hidden_tag() }}
+
+            <div class="mb-3">
+                <label class="field-label" for="{{ form.full_name.id }}"
+                    >Nama Lengkap</label
+                >
+                {{ form.full_name(class="form-control", placeholder="Masukkan
+                nama lengkap") }} {% for error in form.full_name.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="mb-3">
+                <label class="field-label" for="{{ form.username.id }}"
+                    >Username</label
+                >
+                {{ form.username(class="form-control", placeholder="Masukkan
+                username") }} {% for error in form.username.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="mb-3">
+                <label class="field-label" for="{{ form.email.id }}"
+                    >Email</label
+                >
+                {{ form.email(class="form-control", placeholder="Masukkan
+                email") }} {% for error in form.email.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="mb-3">
+                <label class="field-label" for="{{ form.password.id }}"
+                    >Password</label
+                >
+                {{ form.password(class="form-control", placeholder="Masukkan
+                password") }} {% for error in form.password.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="mb-4">
+                <label class="field-label" for="{{ form.password_confirm.id }}"
+                    >Konfirmasi Password</label
+                >
+                {{ form.password_confirm(class="form-control",
+                placeholder="Ulangi password") }} {% for error in
+                form.password_confirm.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="d-grid">
+                {{ form.submit(class="btn w-100", id="submitBtn") }}
+            </div>
         </form>
-      </div>
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('auth.login') }}" class="back-link">
+                <i class="bi bi-arrow-left me-1"></i>Kembali ke Login
+            </a>
+        </div>
     </div>
-    <div class="text-center mt-3"><a href="{{ url_for("auth.login") }}">Kembali ke login</a></div>
-  </div>
 </div>
 {% endblock %}

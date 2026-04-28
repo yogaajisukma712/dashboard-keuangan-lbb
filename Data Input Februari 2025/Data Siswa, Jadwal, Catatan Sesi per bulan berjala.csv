@@ -1,0 +1,101 @@
+Id Siswa,Tahun Masuk,Bulan Masuk,Kurikulum,Jenjang,Kelas,Nama Siswa,Mata Pelajaran,Hari,Jam,Nama Tutor,ID Tutor & Nama,Id Tutor,Email,Jumlah Pertemuan,Jumlah saat ini,Sisa,les,tidak les
+2402010207002,2024,Februari,Nasional,SMP,7,Gita Tiara Janessa,Matematika,01 Senin,9:00,Crysant Aquilera Sihombing,241003002 - Crysant Aquilera Sihombing,241003002,crysantas15@gmail.com,4,2,2,FALSE,FALSE
+2411020101001,2024,November,Nasional Plus,SD,3,Athallah Rafael Santoso,Matematika,01 Senin,16:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,6,6,0,FALSE,FALSE
+2410020219010,2024,Oktober,Nasional Plus,SMP,7,Selvino Sean,Matematika,01 Senin,17:00,Crysant Aquilera Sihombing,241003002 - Crysant Aquilera Sihombing,241003002,crysantas15@gmail.com,6,4,2,FALSE,FALSE
+2411010223003,2024,November,Internasional 2,SMP,8,Wayne Nicolaet El Fatta Brilliant,Matematika,01 Senin,17:00,Muhammad Ridho Ramadhan,241113001 - Muhammad Ridho Ramadhan,241113001,mathridoridu@gmail.com,5,4,1,FALSE,FALSE
+2410010118004,2024,Oktober,Nasional,SD,5,Rafael Auristo,Matematika,01 Senin,18:00,Reysta Ayu Leosty Subagyo,240918008 - Reysta Ayu Leosty Subagyo,240918008,reysta.leosty@gmail.com,5,4,1,FALSE,FALSE
+2409010201009,2024,September,Nasional,SMP,7,Atanasius Aquila Puruhita Raya,Bahasa Inggris,01 Senin,18:00,Windi Krismonika,240823008 - Windi Krismonika,240823008,krismonikawindi@gmail.com,0,0,0,FALSE,FALSE
+2402010301004,2024,Februari,Nasional,SMA,10,Alysha Putri Pramadya,Kimia,01 Senin,18:00,Anggi Sapitri Irawan,250201001 - Anggi Sapitri Irawan,250201001,anggisapitri@gmail.com,4,1,3,FALSE,FALSE
+2402030103001,2024,Februari,Internasional,SD,3,Camellia Cristata Widjaja,Matematika,01 Senin,19:00,Latifa Nurul Huda,241112002 - Latifa Nurul Huda,241112002,tivaanh@gmail.com,2,2,0,FALSE,FALSE
+2410010104007,2024,Oktober,Nasional,SD,5,Dzaky Nurmansah,Matematika,01 Senin,19:00,Leiliya Umi Nadhiroh,240812004 - Leiliya Umi Nadhiroh,240812004,leilyauminadhiroh@gmail.com,4,4,0,FALSE,FALSE
+2411010301002,2024,November,Nasional,SMA,11,Arya Syahputra Pahlevy,Matematika,01 Senin,19:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,7,5,2,FALSE,FALSE
+2410010311011,2024,Oktober,Nasional,SMA,10,Kiyara Almira Pahlevy,Matematika,01 Senin,19:00,Rini Fauziah Sari,240818016 - Rini Fauziah Sari,240818016,rinifauziah07@gmail.com,6,4,2,FALSE,FALSE
+2409010211016,2024,September,Internasional,SMP,8,Kenzo Lionel Lim,Bahasa Inggris,01 Senin,19:00,Windi Krismonika,240823008 - Windi Krismonika,240823008,krismonikawindi@gmail.com,0,0,0,FALSE,FALSE
+2410010113002,2024,Oktober,Nasional,SD,4,M Athaillah,Bahasa Inggris,01 Senin,19:00,Yaumil Akmalia,240825013 - Yaumil Akmalia,240825013,amaliahabdulrasyidyahya@gmail.com,4,4,0,FALSE,FALSE
+2409010205001,2024,September,Nasional,SMP,7,Ezekiel Terrence,Matematika,01 Senin,20:00,Crysant Aquilera Sihombing,241003002 - Crysant Aquilera Sihombing,241003002,crysantas15@gmail.com,8,5,3,FALSE,FALSE
+2410030207013,2024,Oktober,Internasional,SMP,7,Gilbert Justin,Matematika,01 Senin,20:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,0,0,0,FALSE,FALSE
+2409010320024,2024,September,Nasional,SMA,11,Theodore Reginald Nauli,Fisika,01 Senin,20:00,Reysta Ayu Leosty Subagyo,240918008 - Reysta Ayu Leosty Subagyo,240918008,reysta.leosty@gmail.com,3,3,0,FALSE,FALSE
+2402010309003,2024,Februari,Nasional,SMA,12,Irsyadatussarie,Kimia,01 Senin,20:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,2,1,1,FALSE,FALSE
+2408030103013,2024,Agustus,Internasional,SD,5,chloe eunice lie,Matematika,02 Selasa,16:00,Ajeng Almira Tarisha Asri,240801012 - Ajeng Almira Tarisha Asri,240801012,ajengalmiratarisha@gmail.com,0,0,0,FALSE,FALSE
+2409040120010,2024,September,Nasional Olim,SD,4,Tristan Edmund Ozzias,Olim IPA,02 Selasa,16:00,Amri Suganda Sianturi,240801007 - Amri Suganda Sianturi,240801007,amrisuganda99@gmail.com,5,3,2,FALSE,FALSE
+2409040311013,2024,September,Nasional Olim,SMA,11,Karuna,Matematika,02 Selasa,16:00,Muhammad Ridho Ramadhan,241113001 - Muhammad Ridho Ramadhan,241113001,mathridoridu@gmail.com,5,5,0,FALSE,FALSE
+2401010101003,2024,Januari,Nasional,SD,6,Aurora Lady,Matematika,02 Selasa,16:00,Rini Fauziah Sari,240818016 - Rini Fauziah Sari,240818016,rinifauziah07@gmail.com,8,4,4,FALSE,FALSE
+2409010108020,2024,September,Nasional,SD,1,Hamizan Alvis Kaszena,Bahasa Inggris,02 Selasa,16:00,Yaumil Akmalia,240825013 - Yaumil Akmalia,240825013,amaliahabdulrasyidyahya@gmail.com,0,0,0,FALSE,FALSE
+2409030201006,2024,September,Internasional,SMP,7,Amanda Jeslyn Baruno,Science,02 Selasa,17:00,Amri Suganda Sianturi,240801007 - Amri Suganda Sianturi,240801007,amrisuganda99@gmail.com,10,3,7,FALSE,FALSE
+2410020219010,2024,Oktober,Nasional Plus,SMP,7,Selvino Sean,Fisika,02 Selasa,17:00,Crysant Aquilera Sihombing,241003002 - Crysant Aquilera Sihombing,241003002,crysantas15@gmail.com,6,4,2,FALSE,FALSE
+2411010313008,2024,November,Nasional,SMA,10,Mustika Nurlaila,Fisika,02 Selasa,18:00,Dea Ayu Sukma Putri Utami,240904007 - Dea Ayu Sukma Putri Utami,240904007,deaayusukmapu@gmail.com,0,0,0,FALSE,FALSE
+2409010213002,2024,September,Nasional,SMP,7,Moch Satrya Yusuf Aminulloh,IPA,02 Selasa,18:00,Listya Gandhini,241012006 - Listya Gandhini,241012006,,4,3,1,FALSE,FALSE
+2408010114001,2024,Agustus,Nasional,SD,6,Nessya Princessa Wuwungan,Bahasa Inggris,02 Selasa,18:00,Novi Fatati Syihamun Nahdiyah,241014005 - Novi Fatati Syihamun Nahdiyah,241014005,novifsn.astrophile@gmail.com,4,4,0,FALSE,FALSE
+2410020103009,2024,Oktober,Nasional Plus,SD,5,Callista Graciella,Matematika,02 Selasa,18:00,Tyas Wisnuwardani,250220004 - Tyas Wisnuwardani,250220004,tyaswisnuw@gmail.com,6,4,2,FALSE,FALSE
+2409010123011,2024,September,Nasional,SMP,7,Wayan Aditya Semaranjana,Matematika,02 Selasa,18:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,2,2,0,FALSE,FALSE
+2410010119001,2024,Oktober,Nasional,SD,5,Shakila Azalea Putri,Matematika,02 Selasa,18:00,Stephanie Sisilia Br Sembiring,240819018 - Stephanie Sisilia Br Sembiring,240819018,sisiliastephanie@gmail.com,-1,0,-1,FALSE,FALSE
+2409010201009,2024,September,Nasional,SMP,7,Atanasius Aquila Puruhita Raya,Bahasa Inggris,02 Selasa,18:00,Windi Krismonika,240823008 - Windi Krismonika,240823008,krismonikawindi@gmail.com,0,0,0,FALSE,FALSE
+2410010113002,2024,Oktober,Nasional,SD,4,M Athaillah,Matematika,02 Selasa,19:00,Crysant Aquilera Sihombing,241003002 - Crysant Aquilera Sihombing,241003002,crysantas15@gmail.com,4,4,0,FALSE,FALSE
+2411030319007,2024,November,Internasional,SMA (90m),10,Sarah Nur Azizah,Matematika,02 Selasa,19:00,Latifa Nurul Huda,241112002 - Latifa Nurul Huda,241112002,tivaanh@gmail.com,0,0,0,FALSE,FALSE
+2402030103001,2024,Februari,Internasional,SD,3,Camellia Cristata Widjaja,Matematika,02 Selasa,19:00,Latifa Nurul Huda,241112002 - Latifa Nurul Huda,241112002,tivaanh@gmail.com,2,2,0,FALSE,FALSE
+2410010311011,2024,Oktober,Nasional,SMA,10,Kiyara Almira Pahlevy,Kimia,02 Selasa,19:00,Listya Gandhini,241012006 - Listya Gandhini,241012006,,6,4,2,FALSE,FALSE
+2411010218005,2024,November,Nasional,SMP,8,Rakha Zhafran,Matematika,02 Selasa,19:00,Muhammad Ridho Ramadhan,241113001 - Muhammad Ridho Ramadhan,241113001,mathridoridu@gmail.com,6,5,1,FALSE,FALSE
+2409010314003,2024,September,Nasional,SMA,10,Nadine,Matematika,02 Selasa,19:00,Tyas Wisnuwardani,250220004 - Tyas Wisnuwardani,250220004,tyaswisnuw@gmail.com,4,4,0,FALSE,FALSE
+2410010215008,2024,Oktober,Nasional,SMP,8,ORKHAN ZAEEM,IPA,02 Selasa,20:00,Crysant Aquilera Sihombing,241003002 - Crysant Aquilera Sihombing,241003002,crysantas15@gmail.com,4,4,0,FALSE,FALSE
+2409010120008,2024,September,Nasional,SD,3,Tsaqib Hanif Muhammad,Bahasa Inggris,02 Selasa,20:00,Yaumil Akmalia,240825013 - Yaumil Akmalia,240825013,amaliahabdulrasyidyahya@gmail.com,5,3,2,FALSE,FALSE
+2412010114001,2024,Desember,Nasional,SMP,7,Nayyara Husna Aqila,Bahasa Inggris,03 Rabu,16:00,Novi Fatati Syihamun Nahdiyah,241014005 - Novi Fatati Syihamun Nahdiyah,241014005,novifsn.astrophile@gmail.com,5,4,1,FALSE,FALSE
+2411020101001,2024,November,Nasional Plus,SD,3,Athallah Rafael Santoso,Bahasa Inggris,03 Rabu,16:00,Windi Krismonika,240823008 - Windi Krismonika,240823008,krismonikawindi@gmail.com,5,5,0,FALSE,FALSE
+2411010223003,2024,November,Internasional 2,SMP,8,Wayne Nicolaet El Fatta Brilliant,Bahasa Inggris,03 Rabu,17:00,Windi Krismonika,240823008 - Windi Krismonika,240823008,krismonikawindi@gmail.com,5,5,0,FALSE,FALSE
+2411010801009,2024,November,Nasional,TK,1,Aneska,Bahasa Inggris,03 Rabu,17:00,Yaumil Akmalia,240825013 - Yaumil Akmalia,240825013,amaliahabdulrasyidyahya@gmail.com,5,4,1,FALSE,FALSE
+2409030318022,2024,September,Internasional,SMA,11,Rana Akilah,Fisika,03 Rabu,18:00,Rozi Prima Yenni,241018001 - Rozi Prima Yenni,241018001,roziprimayenni@gmail.com,6,2,4,FALSE,FALSE
+2410010119001,2024,Oktober,Nasional,SD,5,Shakila Azalea Putri,Matematika,03 Rabu,18:00,Stephanie Sisilia Br Sembiring,240819018 - Stephanie Sisilia Br Sembiring,240819018,sisiliastephanie@gmail.com,0,0,0,FALSE,FALSE
+2409010314003,2024,September,Nasional,SMA,10,Nadine,Fisika,03 Rabu,19:00,Crysant Aquilera Sihombing,241003002 - Crysant Aquilera Sihombing,241003002,crysantas15@gmail.com,4,3,1,FALSE,FALSE
+2409010113025,2024,September,Nasional,SD,4,Made Ratih Pradnya Swari,Bahasa Inggris,03 Rabu,19:00,Yaumil Akmalia,240825013 - Yaumil Akmalia,240825013,amaliahabdulrasyidyahya@gmail.com,2,3,-1,FALSE,FALSE
+2409010320024,2024,September,Nasional,SMA,11,Theodore Reginald Nauli,Matematika,03 Rabu,19:00,Windi Lestari,250223003 - Windi Lestari,250223003,windi28lestari@gmail.com,3,3,0,FALSE,FALSE
+2409010205001,2024,September,Nasional,SMP,7,Ezekiel Terrence,Fisika,03 Rabu,20:00,Crysant Aquilera Sihombing,241003002 - Crysant Aquilera Sihombing,241003002,crysantas15@gmail.com,8,5,3,FALSE,FALSE
+2410010301005,2024,Oktober,Nasional,SMA,10,Anggum Nurul Firdasari,Matematika,03 Rabu,20:00,Hanifah,240908011 - Hanifah,240908011,hanifahhann00@gmail.com,0,0,0,FALSE,FALSE
+2409010320024,2024,September,Nasional,SMA,11,Theodore Reginald Nauli,Kimia,03 Rabu,20:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,3,3,0,FALSE,FALSE
+2411060713006,2024,November,Umum,Umum 1,1,Mom Arsya,Bahasa Inggris,03 Rabu,20:00,Windi Krismonika,240823008 - Windi Krismonika,240823008,krismonikawindi@gmail.com,3,1,2,FALSE,FALSE
+2408030103013,2024,Agustus,Internasional,SD,5,chloe eunice lie,Matematika,04 Kamis,16:00,Ajeng Almira Tarisha Asri,240801012 - Ajeng Almira Tarisha Asri,240801012,ajengalmiratarisha@gmail.com,0,0,0,FALSE,FALSE
+2409040120010,2024,September,Nasional Olim,SD,4,Tristan Edmund Ozzias,Olim IPA,04 Kamis,16:00,Amri Suganda Sianturi,240801007 - Amri Suganda Sianturi,240801007,amrisuganda99@gmail.com,5,2,3,FALSE,FALSE
+2409010108020,2024,September,Nasional,SD,1,Hamizan Alvis Kaszena,PKN,04 Kamis,16:00,Sulis Tri Lestari,240919004 - Sulis Tri Lestari,240919004,sulistrilestari9@gmail.com,0,0,0,FALSE,FALSE
+2409010314003,2024,September,Nasional,SMA,10,Nadine,Kimia,04 Kamis,18:00,Anggi Sapitri Irawan,250201001 - Anggi Sapitri Irawan,250201001,anggisapitri@gmail.com,4,4,0,FALSE,FALSE
+2409010213002,2024,September,Nasional,SMP,7,Moch Satrya Yusuf Aminulloh,Matematika,04 Kamis,18:00,Leiliya Umi Nadhiroh,240812004 - Leiliya Umi Nadhiroh,240812004,leilyauminadhiroh@gmail.com,4,4,0,FALSE,FALSE
+2408010114001,2024,Agustus,Nasional,SD,6,Nessya Princessa Wuwungan,Bahasa Inggris,04 Kamis,18:00,Novi Fatati Syihamun Nahdiyah,241014005 - Novi Fatati Syihamun Nahdiyah,241014005,novifsn.astrophile@gmail.com,4,4,0,FALSE,FALSE
+2410010311011,2024,Oktober,Nasional,SMA,10,Kiyara Almira Pahlevy,Fisika,04 Kamis,19:00,Crysant Aquilera Sihombing,241003002 - Crysant Aquilera Sihombing,241003002,crysantas15@gmail.com,5,4,1,FALSE,FALSE
+2401060708001,2024,Januari,Umum,Umum 2,2,Hafiz pradana gemilang,Bahasa Inggris,04 Kamis,19:00,Windi Krismonika,240823008 - Windi Krismonika,240823008,krismonikawindi@gmail.com,1,0,1,FALSE,FALSE
+2409010320024,2024,September,Nasional,SMA,11,Theodore Reginald Nauli,Matematika,04 Kamis,19:00,Windi Lestari,250223003 - Windi Lestari,250223003,windi28lestari@gmail.com,1,1,0,FALSE,FALSE
+2410010215008,2024,Oktober,Nasional,SMP,8,ORKHAN ZAEEM,IPA,04 Kamis,20:00,Crysant Aquilera Sihombing,241003002 - Crysant Aquilera Sihombing,241003002,crysantas15@gmail.com,4,4,0,FALSE,FALSE
+2410030207013,2024,Oktober,Internasional,SMP,7,Gilbert Justin,Matematika,04 Kamis,20:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,0,0,0,FALSE,FALSE
+2402010309003,2024,Februari,Nasional,SMA,12,Irsyadatussarie,Matematika,04 Kamis,20:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,2,1,1,FALSE,FALSE
+2408020119014,2024,Agustus,Nasional Plus,SD,3,Syafeera Aini Usman,Matematika,05 Jumat,14:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,5,3,2,FALSE,FALSE
+2409010104023,2024,September,Nasional,SD,1,Dzoya nazira alifiana hasan,Bahasa Inggris,05 Jumat,15:00,Yaumil Akmalia,240825013 - Yaumil Akmalia,240825013,amaliahabdulrasyidyahya@gmail.com,0,0,0,FALSE,FALSE
+2409030201006,2024,September,Internasional,SMP,7,Amanda Jeslyn Baruno,Science,05 Jumat,16:00,Amri Suganda Sianturi,240801007 - Amri Suganda Sianturi,240801007,amrisuganda99@gmail.com,10,2,8,FALSE,FALSE
+2408040101004,2024,Agustus,Nasional Olim,SD,2,Ahmad Arsyad,Olim Matematika,05 Jumat,16:00,Teguh Wibawa Pasarai,240820003 - Teguh Wibawa Pasarai,240820003,gugunbraar3@gmail.com,4,4,0,FALSE,FALSE
+2409010226012,2024,September,Nasional Olim,SMP,7,Zara Abigail Lasut,Matematika,05 Jumat,17:00,Crysant Aquilera Sihombing,241003002 - Crysant Aquilera Sihombing,241003002,crysantas15@gmail.com,5,3,2,FALSE,FALSE
+2411010223003,2024,November,Internasional 2,SMP,8,Wayne Nicolaet El Fatta Brilliant,Science,05 Jumat,17:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,4,4,0,FALSE,FALSE
+2410010213012,2024,Oktober,Nasional,SMP,7,Muh zaaid Al Ghifari,IPA,05 Jumat,17:00,Stephanie Sisilia Br Sembiring,240819018 - Stephanie Sisilia Br Sembiring,240819018,sisiliastephanie@gmail.com,5,4,1,FALSE,FALSE
+2409010123011,2024,September,Nasional,SMP,7,Wayan Aditya Semaranjana,Bahasa Inggris,05 Jumat,17:00,Yaumil Akmalia,240825013 - Yaumil Akmalia,240825013,amaliahabdulrasyidyahya@gmail.com,4,4,0,FALSE,FALSE
+2402010113005,2024,Februari,Nasional,SD,3,Muhammad Zhafran Alkhalifi,Matematika,05 Jumat,17:00,Elisabeth Sabrina Purnama Sari Sipayung,250205005 - Elisabeth Sabrina Purnama Sari Sipayung,250205005,elisabethsabrinabusiness@gmail.com,4,1,3,FALSE,FALSE
+2411010111004,2024,November,Nasional,SD,5,Khayla Batrisya Hana Mutaqqin,Matematika,06 Sabtu,9:00,Durroh Faradis,250204002 - Durroh Faradis,250204002,faradis1904@gmail.com,6,3,3,FALSE,FALSE
+2410010213012,2024,Oktober,Nasional,SMP,7,Muh zaaid Al Ghifari,Matematika,06 Sabtu,9:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,6,4,2,FALSE,FALSE
+2409010211016,2024,September,Internasional,SMP,8,Kenzo Lionel Lim,Kimia,06 Sabtu,13:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,4,2,2,FALSE,FALSE
+2401040216002,2024,Januari,Nasional 2,SMP,8,Parama dan Payoga,Olim Matematika,06 Sabtu,13:00,Stephanie Sisilia Br Sembiring,240819018 - Stephanie Sisilia Br Sembiring,240819018,sisiliastephanie@gmail.com,12,10,2,FALSE,FALSE
+2409040311013,2024,September,Nasional Olim,SMA,11,Karuna,Fisika,06 Sabtu,13:00,Teguh Wibawa Pasarai,240820003 - Teguh Wibawa Pasarai,240820003,gugunbraar3@gmail.com,8,1,7,FALSE,FALSE
+2409010313007,2024,September,Nasional,SMA,10,M Arsyadul Kahfi Prawira,Matematika,06 Sabtu,14:00,Horas Tua Nopriadi Tampubolon,240808011 - Horas Tua Nopriadi Tampubolon,240808011,horastmarketing1@gmail.com,5,5,0,FALSE,FALSE
+2409010213002,2024,September,Nasional,SMP,7,Moch Satrya Yusuf Aminulloh,IPS,06 Sabtu,15:00,Qathrunnada Asri Pertiwi,240917002 - Qathrunnada Asri Pertiwi,240917002,nadaasri2002@gmail.com,4,4,0,FALSE,FALSE
+2409010303019,2024,September,Nasional Olim,SMA,11,Cyfanda Laksono,Fisika,06 Sabtu,16:00,Reysta Ayu Leosty Subagyo,240918008 - Reysta Ayu Leosty Subagyo,240918008,reysta.leosty@gmail.com,3,3,0,FALSE,FALSE
+2410010118004,2024,Oktober,Nasional,SD,5,Rafael Auristo,Matematika,06 Sabtu,18:00,Reysta Ayu Leosty Subagyo,240918008 - Reysta Ayu Leosty Subagyo,240918008,reysta.leosty@gmail.com,5,4,1,FALSE,FALSE
+2411010801009,2024,November,Nasional,TK,1,Aneska,Calistung,07 Minggu,10:00,Asa Viradillah,240901010 - Asa Viradillah,240901010,aviradillah@gmail.com,6,3,3,FALSE,FALSE
+2409010213002,2024,September,Nasional,SMP,7,Moch Satrya Yusuf Aminulloh,Bahasa Inggris,07 Minggu,10:00,Windi Krismonika,240823008 - Windi Krismonika,240823008,krismonikawindi@gmail.com,4,4,0,FALSE,FALSE
+2409010313007,2024,September,Nasional,SMA,10,M Arsyadul Kahfi Prawira,Fisika,07 Minggu,14:00,Teguh Wibawa Pasarai,240820003 - Teguh Wibawa Pasarai,240820003,gugunbraar3@gmail.com,4,3,1,FALSE,FALSE
+2409010104023,2024,September,Nasional,SD,1,Dzoya nazira alifiana hasan,Persiapan UTS,07 Minggu,15:00,Sulis Tri Lestari,240919004 - Sulis Tri Lestari,240919004,sulistrilestari9@gmail.com,0,0,0,FALSE,FALSE
+2409010213002,2024,September,Nasional,SMP,7,Moch Satrya Yusuf Aminulloh,Bahasa Indonesia,07 Minggu,16:00,Asa Viradillah,240901010 - Asa Viradillah,240901010,aviradillah@gmail.com,4,4,0,FALSE,FALSE
+2409010303019,2024,September,Nasional Olim,SMA,11,Cyfanda Laksono,Kimia,07 Minggu,17:00,Listya Gandhini,241012006 - Listya Gandhini,241012006,,4,4,0,FALSE,FALSE
+2409040311013,2024,September,Nasional Olim,SMA,11,Karuna,Kimia,07 Minggu,18:00,Rendi Aprian,240818009 - Rendi Aprian,240818009,rendiapriansei@gmail.com,3,3,0,FALSE,FALSE
+2409030318022,2024,September,Internasional,SMA,11,Rana Akilah,Matematika,07 Minggu,19:00,Fadillah Halim,241106004 - Fadillah Halim,241106004,fadillahhalim@mhs.unimed.ac.id,0,0,0,FALSE,FALSE
+2410020104003,2024,Oktober,Nasional Plus,SD,3,Dominique Valerie Lim,Matematika,,,,,,,1,1,0,FALSE,FALSE
+2410020104003,2024,Oktober,Nasional Plus,SD,3,Dominique Valerie Lim,Matematika,,,,,,,1,1,0,FALSE,FALSE
+2409010310014,2024,September,Nasional,SMA,12,JOSHUA EBEN HAEZER,Matematika,,,,,,,0,0,0,FALSE,FALSE
+2408020206015,2024,Agustus,Nasional Plus,SMP,6,Fathir Usman,Matematika,,,,,,,4,0,4,FALSE,FALSE
+2409010302005,2024,September,Nasional,SMA,10,Ben Michael Persulessy,Matematika,,,,,,,0,0,0,FALSE,FALSE
+2409010302005,2024,September,Nasional,SMA,10,Ben Michael Persulessy,Fisika,,,,,,,1,0,1,FALSE,FALSE
+2409010201004,2024,September,Nasional,SMP,9,Armischa Zeera Persulessy,Matematika,,,,,,,1,0,1,FALSE,FALSE
+2409010201004,2024,September,Nasional,SMP,9,Armischa Zeera Persulessy,Matematika,,,,,,,1,0,1,FALSE,FALSE
+2408010201011,2024,Agustus,Nasional,SMP,9,Athoillah Baghiz Yaasir,Bahasa Inggris,,,,,,,2,0,2,FALSE,FALSE
+2409020114021,2024,September,Nasional Plus,SD,6,Nicholas J.M. Sinaga,Bahasa Inggris,,,,,,,3,0,3,FALSE,FALSE

@@ -14,9 +14,15 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional
 
+from app.models import Curriculum, Level, Subject
+
 
 class StudentForm(FlaskForm):
     """Form for creating/editing student"""
+
+    _nullable_int = staticmethod(
+        lambda value: int(value) if value not in (None, "", "None") else None
+    )
 
     student_code = StringField(
         "Kode Siswa", validators=[DataRequired(), Length(min=3, max=50)]
@@ -24,8 +30,10 @@ class StudentForm(FlaskForm):
     name = StringField(
         "Nama Siswa", validators=[DataRequired(), Length(min=3, max=120)]
     )
-    curriculum_id = SelectField("Kurikulum", coerce=int, validators=[Optional()])
-    level_id = SelectField("Jenjang", coerce=int, validators=[Optional()])
+    curriculum_id = SelectField(
+        "Kurikulum", coerce=_nullable_int, validators=[Optional()]
+    )
+    level_id = SelectField("Jenjang", coerce=_nullable_int, validators=[Optional()])
     grade = StringField("Kelas", validators=[Optional(), Length(max=20)])
     phone = StringField("No. Telepon", validators=[Optional(), Length(max=20)])
     email = StringField("Email", validators=[Optional(), Email()])
@@ -37,6 +45,15 @@ class StudentForm(FlaskForm):
     )
     address = TextAreaField("Alamat", validators=[Optional()])
     submit = SubmitField("Simpan")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.curriculum_id.choices = [(None, "-- Pilih Kurikulum --")] + [
+            (c.id, c.name) for c in Curriculum.query.order_by(Curriculum.name).all()
+        ]
+        self.level_id.choices = [(None, "-- Pilih Jenjang --")] + [
+            (l.id, l.name) for l in Level.query.order_by(Level.name).all()
+        ]
 
 
 class TutorForm(FlaskForm):
@@ -92,9 +109,17 @@ class CurriculumForm(FlaskForm):
 class PricingRuleForm(FlaskForm):
     """Form for creating/editing pricing rule"""
 
-    curriculum_id = SelectField("Kurikulum", coerce=int, validators=[Optional()])
-    level_id = SelectField("Jenjang", coerce=int, validators=[Optional()])
-    subject_id = SelectField("Mata Pelajaran", coerce=int, validators=[Optional()])
+    _nullable_int = staticmethod(
+        lambda value: int(value) if value not in (None, "", "None") else None
+    )
+
+    curriculum_id = SelectField(
+        "Kurikulum", coerce=_nullable_int, validators=[Optional()]
+    )
+    level_id = SelectField("Jenjang", coerce=_nullable_int, validators=[Optional()])
+    subject_id = SelectField(
+        "Mata Pelajaran", coerce=_nullable_int, validators=[Optional()]
+    )
     grade = StringField("Kelas", validators=[Optional(), Length(max=20)])
     student_rate_per_meeting = DecimalField(
         "Tarif Siswa per Pertemuan",
@@ -110,3 +135,15 @@ class PricingRuleForm(FlaskForm):
         "Kuota Pertemuan Default", validators=[Optional(), NumberRange(min=1)]
     )
     submit = SubmitField("Simpan")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.curriculum_id.choices = [(None, "-- Semua Kurikulum --")] + [
+            (c.id, c.name) for c in Curriculum.query.order_by(Curriculum.name).all()
+        ]
+        self.level_id.choices = [(None, "-- Semua Jenjang --")] + [
+            (l.id, l.name) for l in Level.query.order_by(Level.name).all()
+        ]
+        self.subject_id.choices = [(None, "-- Semua Mapel --")] + [
+            (s.id, s.name) for s in Subject.query.order_by(Subject.name).all()
+        ]

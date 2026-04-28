@@ -1,0 +1,776 @@
+{% extends "base.html" %} {% block title %}Dashboard Pemasukan — LBB Super
+Smart{% endblock %} {% block head %}
+<style>
+    /* ── Quick action buttons ── */
+    .quick-action-btn {
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.4rem 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        white-space: nowrap;
+        transition: all 0.18s;
+    }
+
+    /* ── Period navigation bar ── */
+    .period-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 0.35rem 0.75rem;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+    .period-nav a {
+        color: #253b9b;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+        transition: background 0.15s;
+    }
+    .period-nav a:hover {
+        background: #eef0ff;
+    }
+    .period-nav .period-label {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #1a1f36;
+        padding: 0 0.4rem;
+    }
+    .period-nav .period-sep {
+        color: #d1d5db;
+    }
+
+    /* ── Month / Year picker ── */
+    .month-form select {
+        font-size: 0.78rem;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        padding: 0.3rem 0.5rem;
+        color: #374151;
+        cursor: pointer;
+    }
+    .month-form button {
+        font-size: 0.78rem;
+        padding: 0.3rem 0.75rem;
+        border-radius: 8px;
+    }
+
+    /* ── Income table (shared) ── */
+    .income-table th {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #6b7280;
+        background: #f9fafb;
+        font-weight: 600;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 0.6rem 0.9rem;
+    }
+    .income-table td {
+        font-size: 0.85rem;
+        vertical-align: middle;
+        color: #374151;
+        padding: 0.6rem 0.9rem;
+    }
+    .income-table tbody tr:hover td {
+        background: #f9fafb;
+    }
+    .income-table tfoot td {
+        padding: 0.65rem 0.9rem;
+        border-top: 2px solid #e5e7eb;
+    }
+
+    /* ── Rank badge (student) ── */
+    .rank-badge-student {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: rgba(37, 59, 155, 0.08);
+        color: #253b9b;
+        border: 1px solid rgba(37, 59, 155, 0.2);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    /* ── Rank badge (subject) ── */
+    .rank-badge-subject {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: rgba(6, 182, 212, 0.08);
+        color: #0891b2;
+        border: 1px solid rgba(6, 182, 212, 0.2);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    /* ── Progress bar track for income rows ── */
+    .income-bar-track {
+        height: 5px;
+        border-radius: 99px;
+        background: #f3f4f6;
+        overflow: hidden;
+        margin-top: 3px;
+    }
+    .income-bar-fill-student {
+        height: 100%;
+        border-radius: 99px;
+        background: linear-gradient(90deg, #253b9b, #3b52cc);
+    }
+    .income-bar-fill-subject {
+        height: 100%;
+        border-radius: 99px;
+        background: linear-gradient(90deg, #0891b2, #06b6d4);
+    }
+
+    /* ── Meta info card (curriculum / level) ── */
+    .meta-info-card {
+        border: none;
+        border-radius: 0.9rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+    .meta-info-card .card-header {
+        padding: 0.85rem 1.1rem;
+        font-size: 0.88rem;
+        font-weight: 600;
+        border-bottom: none;
+    }
+    .meta-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        font-size: 0.85rem;
+        color: #374151;
+    }
+    .meta-stat:last-child {
+        border-bottom: none;
+    }
+    .meta-stat-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+    }
+    .meta-stat-count {
+        margin-left: auto;
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: #1a1f36;
+    }
+</style>
+{% endblock %} {% block content %} {% set ms = monthly_summary or {} %} {# ──
+KPI card macro (angka Rupiah) ── #} {% macro kpi_card(label, value, icon,
+border_color, icon_bg, icon_color, col="col-md-6 col-xl-4") %}
+<div class="{{ col }}">
+    <div
+        class="kpi-card card h-100"
+        style="border-left: 4px solid {{ border_color }};"
+    >
+        <div
+            class="card-body d-flex align-items-start justify-content-between p-3"
+        >
+            <div class="flex-grow-1 overflow-hidden pe-2">
+                <div class="kpi-label">{{ label }}</div>
+                <div class="kpi-value mt-1">
+                    Rp {{ "{:,.0f}".format(value or 0) }}
+                </div>
+            </div>
+            <div
+                class="kpi-icon flex-shrink-0"
+                style="background: {{ icon_bg }}; color: {{ icon_color }};"
+            >
+                <i class="bi {{ icon }}"></i>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %} {# ══════════════════════════════════════════ HEADER + PERIOD
+NAVIGATION ══════════════════════════════════════════ #}
+<div
+    class="d-flex flex-wrap align-items-start align-items-sm-center justify-content-between gap-3 mb-3"
+>
+    <div>
+        <h4 class="fw-bold mb-0" style="color: #1a1f36">
+            <i class="bi bi-graph-up-arrow me-2" style="color: #10b981"></i
+            >Dashboard Pemasukan
+        </h4>
+        <small class="text-muted">
+            Ringkasan pemasukan bulan {{ current_month_name }} {{ current_year
+            }}
+        </small>
+    </div>
+
+    {# ── Period navigation ── #}
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="period-nav">
+            <a
+                href="{{ url_for('dashboard.income_dashboard', month=prev_month, year=prev_year) }}"
+                title="Bulan sebelumnya"
+            >
+                <i class="bi bi-chevron-left"></i>
+            </a>
+            <span class="period-sep">|</span>
+            <span class="period-label"
+                >{{ current_month_name }} {{ current_year }}</span
+            >
+            <span class="period-sep">|</span>
+            <a
+                href="{{ url_for('dashboard.income_dashboard', month=next_month, year=next_year) }}"
+                title="Bulan berikutnya"
+            >
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+
+        {# ── Month / Year picker ── #}
+        <div class="d-flex align-items-center gap-1 month-form">
+            <select
+                aria-label="Bulan"
+                id="incomeMonthPicker"
+                class="month-form"
+            >
+                <option value="1">Januari</option>
+                <option value="2">Februari</option>
+                <option value="3">Maret</option>
+                <option value="4">April</option>
+                <option value="5">Mei</option>
+                <option value="6">Juni</option>
+                <option value="7">Juli</option>
+                <option value="8">Agustus</option>
+                <option value="9">September</option>
+                <option value="10">Oktober</option>
+                <option value="11">November</option>
+                <option value="12">Desember</option>
+            </select>
+            <select aria-label="Tahun" id="incomeYearPicker" class="month-form">
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="incomeGoBtn">Go</button>
+        </div>
+        <script>
+            (function () {
+                var mp = document.getElementById("incomeMonthPicker");
+                var yp = document.getElementById("incomeYearPicker");
+                var btn = document.getElementById("incomeGoBtn");
+                if (mp) mp.value = "{{ current_month }}";
+                if (yp) yp.value = "{{ current_year }}";
+                if (btn)
+                    btn.addEventListener("click", function () {
+                        var m = mp ? mp.value : "{{ current_month }}";
+                        var y = yp ? yp.value : "{{ current_year }}";
+                        window.location.href =
+                            window.location.pathname +
+                            "?month=" +
+                            m +
+                            "&year=" +
+                            y;
+                    });
+            })();
+        </script>
+    </div>
+</div>
+
+{# ── Error alert ── #} {% if error %}
+<div
+    class="alert alert-danger d-flex align-items-center gap-2 mb-3"
+    role="alert"
+>
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+    <span>{{ error }}</span>
+</div>
+{% endif %} {# ══════════════════════════════════════════ QUICK ACTIONS
+══════════════════════════════════════════ #}
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <a
+        href="/payments/"
+        class="btn btn-outline-success quick-action-btn btn-sm"
+    >
+        <i class="bi bi-cash-stack"></i>Catat Pembayaran
+    </a>
+    <a
+        href="/payments/"
+        class="btn btn-outline-primary quick-action-btn btn-sm"
+    >
+        <i class="bi bi-list-ul"></i>Riwayat Pembayaran
+    </a>
+    <a
+        href="/master/students"
+        class="btn btn-outline-secondary quick-action-btn btn-sm"
+    >
+        <i class="bi bi-people"></i>Data Siswa
+    </a>
+</div>
+
+{# ══════════════════════════════════════════ KPI SUMMARY CARDS
+══════════════════════════════════════════ #}
+<div class="row g-3 mb-4">
+    {{ kpi_card( "Pemasukan Siswa", ms.get('student_income', 0) or 0,
+    "bi-person-check-fill", "#253b9b", "#253b9b15", "#253b9b" ) }} {{ kpi_card(
+    "Pemasukan Lain", ms.get('other_income', 0) or 0, "bi-plus-circle-fill",
+    "#06b6d4", "#06b6d415", "#06b6d4" ) }} {{ kpi_card( "Total Pemasukan",
+    ms.get('total_income', 0) or 0, "bi-graph-up-arrow", "#10b981", "#10b98115",
+    "#10b981" ) }}
+</div>
+
+{# ══════════════════════════════════════════ TABEL TOP SISWA & TOP MATA
+PELAJARAN ══════════════════════════════════════════ #} {# Hitung max value
+untuk progress bar #} {% set max_student = namespace(val=1) %} {% for item in
+income_by_student %} {% if (item.income or 0) > max_student.val %} {% set
+max_student.val = item.income %} {% endif %} {% endfor %} {% set max_subject =
+namespace(val=1) %} {% for item in income_by_subject %} {% if (item.income or 0)
+> max_subject.val %} {% set max_subject.val = item.income %} {% endif %} {%
+endfor %}
+
+<div class="row g-4 mb-4">
+    {# ── Top Pemasukan per Siswa ── #}
+    <div class="col-lg-6">
+        <div class="card table-card h-100">
+            <div
+                class="card-header fw-semibold text-white py-3"
+                style="
+                    background: linear-gradient(
+                        135deg,
+                        #253b9b 0%,
+                        #3b52cc 100%
+                    );
+                "
+            >
+                <i class="bi bi-person-check-fill me-2"></i>
+                Top Pemasukan per Siswa — {{ current_month_name }} {{
+                current_year }}
+            </div>
+            <div class="card-body p-0">
+                {% if income_by_student %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 income-table">
+                        <thead>
+                            <tr>
+                                <th class="ps-3" style="width: 2.5rem">#</th>
+                                <th>Nama Siswa</th>
+                                <th class="text-end">Pemasukan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in income_by_student %} {% set pct =
+                            ((student.income or 0) / max_student.val * 100) |
+                            round(1) %}
+                            <tr>
+                                <td class="ps-3">
+                                    <div class="rank-badge-student">
+                                        {{ loop.index }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div
+                                        class="fw-medium text-truncate"
+                                        style="max-width: 200px"
+                                    >
+                                        {{ student.name }}
+                                    </div>
+                                    <div class="income-bar-track">
+                                        <div
+                                            class="income-bar-fill-student"
+                                            style="width: {{ pct }}%;"
+                                        ></div>
+                                    </div>
+                                </td>
+                                <td
+                                    class="text-end fw-semibold"
+                                    style="color: #253b9b; white-space: nowrap"
+                                >
+                                    Rp {{ "{:,.0f}".format(student.income or 0)
+                                    }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #f0f4ff">
+                                <td
+                                    class="ps-3"
+                                    colspan="2"
+                                    style="
+                                        font-size: 0.82rem;
+                                        font-weight: 700;
+                                        color: #374151;
+                                    "
+                                >
+                                    Total ({{ income_by_student | length }}
+                                    siswa)
+                                </td>
+                                <td
+                                    class="text-end fw-bold"
+                                    style="
+                                        color: #253b9b;
+                                        font-size: 0.9rem;
+                                        white-space: nowrap;
+                                    "
+                                >
+                                    Rp {{
+                                    "{:,.0f}".format(ms.get('student_income', 0)
+                                    or 0) }}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div
+                    class="d-flex flex-column align-items-center justify-content-center py-5 text-muted"
+                >
+                    <i
+                        class="bi bi-people"
+                        style="font-size: 2.8rem; opacity: 0.3"
+                    ></i>
+                    <p class="mt-2 mb-0" style="font-size: 0.88rem">
+                        Belum ada data pemasukan siswa untuk periode ini.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# ── Top Pemasukan per Mata Pelajaran ── #}
+    <div class="col-lg-6">
+        <div class="card table-card h-100">
+            <div
+                class="card-header fw-semibold text-white py-3"
+                style="
+                    background: linear-gradient(
+                        135deg,
+                        #0891b2 0%,
+                        #06b6d4 100%
+                    );
+                "
+            >
+                <i class="bi bi-book-fill me-2"></i>
+                Top Pemasukan per Mata Pelajaran — {{ current_month_name }} {{
+                current_year }}
+            </div>
+            <div class="card-body p-0">
+                {% if income_by_subject %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 income-table">
+                        <thead>
+                            <tr>
+                                <th class="ps-3" style="width: 2.5rem">#</th>
+                                <th>Mata Pelajaran</th>
+                                <th class="text-end">Pemasukan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for subject in income_by_subject %} {% set pct =
+                            ((subject.income or 0) / max_subject.val * 100) |
+                            round(1) %}
+                            <tr>
+                                <td class="ps-3">
+                                    <div class="rank-badge-subject">
+                                        {{ loop.index }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div
+                                        class="fw-medium text-truncate"
+                                        style="max-width: 200px"
+                                    >
+                                        {{ subject.name }}
+                                    </div>
+                                    <div class="income-bar-track">
+                                        <div
+                                            class="income-bar-fill-subject"
+                                            style="width: {{ pct }}%;"
+                                        ></div>
+                                    </div>
+                                </td>
+                                <td
+                                    class="text-end fw-semibold"
+                                    style="color: #0891b2; white-space: nowrap"
+                                >
+                                    Rp {{ "{:,.0f}".format(subject.income or 0)
+                                    }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #f0fbff">
+                                <td
+                                    class="ps-3"
+                                    colspan="2"
+                                    style="
+                                        font-size: 0.82rem;
+                                        font-weight: 700;
+                                        color: #374151;
+                                    "
+                                >
+                                    Total ({{ income_by_subject | length }} mata
+                                    pelajaran)
+                                </td>
+                                <td
+                                    class="text-end fw-bold"
+                                    style="
+                                        color: #0891b2;
+                                        font-size: 0.9rem;
+                                        white-space: nowrap;
+                                    "
+                                >
+                                    Rp {{
+                                    "{:,.0f}".format(ms.get('student_income', 0)
+                                    or 0) }}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div
+                    class="d-flex flex-column align-items-center justify-content-center py-5 text-muted"
+                >
+                    <i
+                        class="bi bi-book"
+                        style="font-size: 2.8rem; opacity: 0.3"
+                    ></i>
+                    <p class="mt-2 mb-0" style="font-size: 0.88rem">
+                        Belum ada data pemasukan per mata pelajaran untuk
+                        periode ini.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════ INFO KURIKULUM & JENJANG
+══════════════════════════════════════════ #}
+<div class="row g-4">
+    <div class="col-12">
+        <div class="meta-info-card card">
+            <div
+                class="card-header d-flex align-items-center gap-2 text-white"
+                style="
+                    background: linear-gradient(
+                        135deg,
+                        #4f46e5 0%,
+                        #6366f1 100%
+                    );
+                "
+            >
+                <i class="bi bi-layers-fill"></i>
+                <span
+                    >Ringkasan Data Kurikulum &amp; Jenjang — {{
+                    current_month_name }} {{ current_year }}</span
+                >
+            </div>
+            <div class="card-body p-0">
+                <div class="row g-0">
+                    {# ── Kurikulum ── #}
+                    <div
+                        class="col-md-6"
+                        style="border-right: 1px solid rgba(0, 0, 0, 0.06)"
+                    >
+                        <div class="meta-stat">
+                            <div
+                                class="meta-stat-icon"
+                                style="
+                                    background: rgba(79, 70, 229, 0.08);
+                                    color: #4f46e5;
+                                "
+                            >
+                                <i class="bi bi-journal-bookmark-fill"></i>
+                            </div>
+                            <div>
+                                <div
+                                    style="
+                                        font-weight: 600;
+                                        font-size: 0.85rem;
+                                        color: #374151;
+                                    "
+                                >
+                                    Data Kurikulum
+                                </div>
+                                <div
+                                    class="text-muted"
+                                    style="font-size: 0.78rem"
+                                >
+                                    Rekap pemasukan per kurikulum tersedia
+                                </div>
+                            </div>
+                            <span class="meta-stat-count">
+                                {{ income_by_curriculum | length }}
+                                <small
+                                    class="fw-normal text-muted"
+                                    style="font-size: 0.72rem"
+                                    >kurikulum</small
+                                >
+                            </span>
+                        </div>
+
+                        {% if income_by_curriculum %}
+                        <div class="px-3 pb-3">
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for item in income_by_curriculum %}
+                                <div
+                                    class="d-flex align-items-center gap-1 px-2 py-1 rounded"
+                                    style="
+                                        background: rgba(79, 70, 229, 0.06);
+                                        font-size: 0.78rem;
+                                    "
+                                >
+                                    <i
+                                        class="bi bi-circle-fill"
+                                        style="
+                                            font-size: 0.35rem;
+                                            color: #4f46e5;
+                                        "
+                                    ></i>
+                                    <span style="color: #374151"
+                                        >{{ item.name }}</span
+                                    >
+                                    <span
+                                        class="fw-semibold"
+                                        style="color: #4f46e5"
+                                    >
+                                        &mdash; Rp {{
+                                        "{:,.0f}".format(item.income or 0) }}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="px-3 pb-3">
+                            <span class="text-muted" style="font-size: 0.8rem">
+                                <i class="bi bi-dash-circle me-1"></i>Belum ada
+                                data untuk periode ini.
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {# ── Jenjang ── #}
+                    <div class="col-md-6">
+                        <div class="meta-stat">
+                            <div
+                                class="meta-stat-icon"
+                                style="
+                                    background: rgba(16, 185, 129, 0.08);
+                                    color: #10b981;
+                                "
+                            >
+                                <i class="bi bi-bar-chart-steps"></i>
+                            </div>
+                            <div>
+                                <div
+                                    style="
+                                        font-weight: 600;
+                                        font-size: 0.85rem;
+                                        color: #374151;
+                                    "
+                                >
+                                    Data Jenjang
+                                </div>
+                                <div
+                                    class="text-muted"
+                                    style="font-size: 0.78rem"
+                                >
+                                    Rekap pemasukan per jenjang tersedia
+                                </div>
+                            </div>
+                            <span class="meta-stat-count">
+                                {{ income_by_level | length }}
+                                <small
+                                    class="fw-normal text-muted"
+                                    style="font-size: 0.72rem"
+                                    >jenjang</small
+                                >
+                            </span>
+                        </div>
+
+                        {% if income_by_level %}
+                        <div class="px-3 pb-3">
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for item in income_by_level %}
+                                <div
+                                    class="d-flex align-items-center gap-1 px-2 py-1 rounded"
+                                    style="
+                                        background: rgba(16, 185, 129, 0.06);
+                                        font-size: 0.78rem;
+                                    "
+                                >
+                                    <i
+                                        class="bi bi-circle-fill"
+                                        style="
+                                            font-size: 0.35rem;
+                                            color: #10b981;
+                                        "
+                                    ></i>
+                                    <span style="color: #374151"
+                                        >{{ item.name }}</span
+                                    >
+                                    <span
+                                        class="fw-semibold"
+                                        style="color: #059669"
+                                    >
+                                        &mdash; Rp {{
+                                        "{:,.0f}".format(item.income or 0) }}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="px-3 pb-3">
+                            <span class="text-muted" style="font-size: 0.8rem">
+                                <i class="bi bi-dash-circle me-1"></i>Belum ada
+                                data untuk periode ini.
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {# /row g-0 #}
+            </div>
+            <div
+                class="card-footer bg-white py-2 px-3"
+                style="
+                    border-top: 1px solid #e9e8ff;
+                    font-size: 0.78rem;
+                    color: #6b7280;
+                "
+            >
+                <i class="bi bi-info-circle me-1" style="color: #4f46e5"></i>
+                Data kurikulum dan jenjang diambil dari sesi belajar yang sudah
+                direkam pada bulan ini. Untuk detail lebih lanjut, buka laporan
+                lengkap.
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

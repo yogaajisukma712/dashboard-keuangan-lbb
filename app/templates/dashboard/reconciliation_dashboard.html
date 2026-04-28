@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Rekonsiliasi — LBB Super Smart{% endblock %}
+
+{% block head %}
+<style>
+    /* ── Period navigation pill ── */
+    .period-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 0.35rem 0.75rem;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+    .period-nav a {
+        color: #253b9b;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+        transition: background 0.15s;
+    }
+    .period-nav a:hover {
+        background: #eef0ff;
+    }
+    .period-nav .period-label {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #1a1f36;
+        padding: 0 0.4rem;
+    }
+    .period-nav .period-sep {
+        color: #d1d5db;
+    }
+
+    /* ── Month/year picker ── */
+    .month-form select {
+        font-size: 0.78rem;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        padding: 0.3rem 0.5rem;
+        color: #374151;
+        cursor: pointer;
+    }
+    .month-form button {
+        font-size: 0.78rem;
+        padding: 0.3rem 0.75rem;
+        border-radius: 8px;
+    }
+
+    /* ── Gap analysis card ── */
+    .gap-analysis-card {
+        border: none;
+        border-radius: var(--card-radius);
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+    }
+    .gap-analysis-card .card-header {
+        background: #1a2c75;
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.88rem;
+        letter-spacing: 0.01em;
+        padding: 0.75rem 1.1rem;
+        border-bottom: none;
+    }
+
+    /* ── Gap value display ── */
+    .gap-value {
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1.15;
+        letter-spacing: -0.01em;
+    }
+    .gap-badge-pill {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.3rem 0.75rem;
+        border-radius: 999px;
+        letter-spacing: 0.03em;
+    }
+    .gap-explanation {
+        font-size: 0.82rem;
+        color: #6b7280;
+        line-height: 1.5;
+    }
+
+    /* ── Reconciliation table ── */
+    .recon-table th {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #6b7280;
+        background: #f9fafb;
+        border-top: none;
+        white-space: nowrap;
+        padding: 0.65rem 1rem;
+    }
+    .recon-table td {
+        font-size: 0.83rem;
+        padding: 0.65rem 1rem;
+        vertical-align: middle;
+        color: #374151;
+    }
+    .recon-table tbody tr:hover {
+        background: #f3f4f6;
+    }
+    .recon-table .tutor-name {
+        font-weight: 600;
+        color: #1a1f36;
+    }
+    .amount-cell {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+    .gap-cell-positive {
+        color: #d97706;
+        font-weight: 700;
+    }
+    .gap-cell-zero {
+        color: #059669;
+        font-weight: 700;
+    }
+    .gap-cell-negative {
+        color: #dc2626;
+        font-weight: 700;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 2.5rem 1rem;
+        color: #9ca3af;
+        font-size: 0.85rem;
+    }
+    .empty-state i {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 0.5rem;
+        opacity: 0.4;
+    }
+
+    /* ── Quick-link button ── */
+    .quick-action-btn {
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.4rem 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        white-space: nowrap;
+        transition: all 0.18s;
+    }
+
+    /* ── Section divider label ── */
+    .section-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #9ca3af;
+        margin-bottom: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{# ── convenience aliases ── #}
+{% set r  = reconciliation  or {} %}
+{% set g  = gap_analysis    or {} %}
+{% set tutors = tutor_reconciliation or [] %}
+
+{# ── gap colour logic ── #}
+{% set gap_val = g.get('gap', 0) or 0 %}
+{% if gap_val > 0 %}
+    {% set gap_color      = '#d97706' %}
+    {% set gap_bg         = '#fef3c715' %}
+    {% set gap_badge_cls  = 'warning'  %}
+    {% set gap_icon       = 'bi-exclamation-circle-fill' %}
+    {% set gap_label      = 'Surplus Koleksi' %}
+    {% set gap_desc       = 'Total koleksi dari siswa lebih besar dibandingkan akrual gaji dari presensi. Ada selisih yang perlu diverifikasi.' %}
+{% elif gap_val < 0 %}
+    {% set gap_color      = '#dc2626' %}
+    {% set gap_bg         = '#fee2e215' %}
+    {% set gap_badge_cls  = 'danger'   %}
+    {% set gap_icon       = 'bi-x-circle-fill' %}
+    {% set gap_label      = 'Defisit — Hutang Melebihi Koleksi' %}
+    {% set gap_desc       = 'Hutang tutor lebih tinggi dari koleksi. Pastikan ada pembayaran siswa yang belum tercatat, atau cek ulang sesi presensi.' %}
+{% else %}
+    {% set gap_color      = '#059669' %}
+    {% set gap_bg         = '#d1fae515' %}
+    {% set gap_badge_cls  = 'success'  %}
+    {% set gap_icon       = 'bi-check-circle-fill' %}
+    {% set gap_label      = 'Seimbang' %}
+    {% set gap_desc       = 'Koleksi dari siswa sudah sesuai dengan akrual gaji tutor. Tidak ada selisih.' %}
+{% endif %}
+
+{# ══════════════ HEADER + PERIOD NAVIGATION ══════════════ #}
+<div class="d-flex flex-wrap align-items-start align-items-sm-center justify-content-between gap-3 mb-3">
+    <div>
+        <h4 class="fw-bold mb-0" style="color: #1a1f36;">
+            <i class="bi bi-arrow-left-right me-2" style="color: #253b9b;"></i>Dashboard Rekonsiliasi
+        </h4>
+        <small class="text-muted">
+            Rekonsiliasi hutang &amp; akrual gaji tutor — {{ current_month_name }} {{ current_year }}
+        </small>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        {# ── prev / label / next ── #}
+        <div class="period-nav">
+            <a href="{{ url_for('dashboard.reconciliation_dashboard', month=prev_month, year=prev_year) }}"
+               title="Bulan sebelumnya">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+            <span class="period-sep">|</span>
+            <span class="period-label">{{ current_month_name }} {{ current_year }}</span>
+            <span class="period-sep">|</span>
+            <a href="{{ url_for('dashboard.reconciliation_dashboard', month=next_month, year=next_year) }}"
+               title="Bulan berikutnya">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+
+        {# ── Month / Year picker ── #}
+        <div class="d-flex align-items-center gap-1 month-form">
+            <select id="reconMonthPicker" aria-label="Pilih Bulan">
+                <option value="1">Januari</option>
+                <option value="2">Februari</option>
+                <option value="3">Maret</option>
+                <option value="4">April</option>
+                <option value="5">Mei</option>
+                <option value="6">Juni</option>
+                <option value="7">Juli</option>
+                <option value="8">Agustus</option>
+                <option value="9">September</option>
+                <option value="10">Oktober</option>
+                <option value="11">November</option>
+                <option value="12">Desember</option>
+            </select>
+            <select id="reconYearPicker" aria-label="Pilih Tahun">
+                <option value="2023">2023</option>
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="reconGoBtn">Go</button>
+        </div>
+        <script>
+            (function () {
+                var mp  = document.getElementById("reconMonthPicker");
+                var yp  = document.getElementById("reconYearPicker");
+                var btn = document.getElementById("reconGoBtn");
+                if (mp)  mp.value  = "{{ current_month }}";
+                if (yp)  yp.value  = "{{ current_year }}";
+                if (btn) btn.addEventListener("click", function () {
+                    var m = mp ? mp.value : "{{ current_month }}";
+                    var y = yp ? yp.value : "{{ current_year }}";
+                    window.location.href = window.location.pathname + "?month=" + m + "&year=" + y;
+                });
+            })();
+        </script>
+    </div>
+</div>
+
+{# ══════════════ ERROR ALERT ══════════════ #}
+{% if error %}
+<div class="alert alert-danger d-flex align-items-start gap-2 mb-4" role="alert">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+    <div>
+        <strong>Terjadi kesalahan saat memuat data.</strong>
+        <div class="mt-1" style="font-size: 0.85rem;">{{ error }}</div>
+    </div>
+</div>
+{% endif %}
+
+{# ══════════════ KPI SUMMARY — 3 CARDS ══════════════ #}
+{% if not error %}
+<p class="section-label mb-2">Ringkasan Bulan Ini</p>
+<div class="row g-3 mb-4">
+
+    {# Card 1 — Hutang Tutor (dari Koleksi) #}
+    <div class="col-12 col-md-4">
+        <div class="kpi-card card h-100" style="border-left: 4px solid #f59e0b;">
+            <div class="card-body d-flex align-items-start justify-content-between p-3">
+                <div class="flex-grow-1 overflow-hidden pe-2">
+                    <div class="kpi-label">Hutang Tutor (dari Koleksi)</div>
+                    <div class="kpi-value mt-1">
+                        Rp {{ "{:,.0f}".format(r.get('payable_from_collection', 0) or 0) }}
+                    </div>
+                    <small class="text-muted" style="font-size: 0.72rem;">
+                        Porsi koleksi siswa yang harus dibayar ke tutor
+                    </small>
+                </div>
+                <div class="kpi-icon flex-shrink-0"
+                     style="background: #f59e0b15; color: #f59e0b;">
+                    <i class="bi bi-person-badge-fill"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Card 2 — Akrual Gaji (dari Presensi) #}
+    <div class="col-12 col-md-4">
+        <div class="kpi-card card h-100" style="border-left: 4px solid #8b5cf6;">
+            <div class="card-body d-flex align-items-start justify-content-between p-3">
+                <div class="flex-grow-1 overflow-hidden pe-2">
+                    <div class="kpi-label">Akrual Gaji (dari Presensi)</div>
+                    <div class="kpi-value mt-1">
+                        Rp {{ "{:,.0f}".format(r.get('accrual_from_attendance', 0) or 0) }}
+                    </div>
+                    <small class="text-muted" style="font-size: 0.72rem;">
+                        Estimasi gaji berdasarkan sesi hadir tutor
+                    </small>
+                </div>
+                <div class="kpi-icon flex-shrink-0"
+                     style="background: #8b5cf615; color: #8b5cf6;">
+                    <i class="bi bi-calculator-fill"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Card 3 — Total Payout Tutor #}
+    <div class="col-12 col-md-4">
+        <div class="kpi-card card h-100" style="border-left: 4px solid #059669;">
+            <div class="card-body d-flex align-items-start justify-content-between p-3">
+                <div class="flex-grow-1 overflow-hidden pe-2">
+                    <div class="kpi-label">Total Payout Tutor</div>
+                    <div class="kpi-value mt-1">
+                        Rp {{ "{:,.0f}".format(r.get('total_payout', 0) or 0) }}
+                    </div>
+                    <small class="text-muted" style="font-size: 0.72rem;">
+                        Total pembayaran yang telah direalisasikan
+                    </small>
+                </div>
+                <div class="kpi-icon flex-shrink-0"
+                     style="background: #05966915; color: #059669;">
+                    <i class="bi bi-cash-coin"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{# ══════════════ GAP ANALYSIS ══════════════ #}
+<p class="section-label mb-2">Analisis Selisih (Gap)</p>
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="gap-analysis-card card">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-bar-chart-line-fill"></i>
+                Gap Analysis — {{ current_month_name }} {{ current_year }}
+            </div>
+            <div class="card-body p-0">
+                <div class="row g-0">
+
+                    {# ── Left: gap value ── #}
+                    <div class="col-12 col-lg-5 d-flex flex-column justify-content-center align-items-center
+                                text-center p-4"
+                         style="border-right: 1px solid #f3f4f6; background: {{ gap_bg }};">
+                        <i class="bi {{ gap_icon }} mb-2"
+                           style="font-size: 2.2rem; color: {{ gap_color }};"></i>
+                        <div class="gap-value" style="color: {{ gap_color }};">
+                            {% if gap_val > 0 %}+{% endif %}Rp {{ "{:,.0f}".format(gap_val) }}
+                        </div>
+                        <span class="gap-badge-pill mt-2 bg-{{ gap_badge_cls }}
+                                     {% if gap_badge_cls == 'warning' %}text-dark{% else %}text-white{% endif %}">
+                            <i class="bi {{ gap_icon }} me-1"></i>{{ gap_label }}
+                        </span>
+                    </div>
+
+                    {# ── Right: detail & explanation ── #}
+                    <div class="col-12 col-lg-7 p-4">
+                        <div class="row g-3 mb-3">
+
+                            {# Gap Percentage #}
+                            <div class="col-6">
+                                <div class="p-3 rounded-3 h-100"
+                                     style="background: #f9fafb; border: 1px solid #e5e7eb;">
+                                    <div class="kpi-label mb-1">Gap Persentase</div>
+                                    <div style="font-size: 1.5rem; font-weight: 800;
+                                                color: {{ gap_color }}; line-height: 1.2;">
+                                        {% if gap_val > 0 %}+{% endif %}{{ "{:,.2f}".format(g.get('gap_percentage', 0) or 0) }}%
+                                    </div>
+                                    <small class="text-muted" style="font-size: 0.72rem;">
+                                        Relatif terhadap koleksi
+                                    </small>
+                                </div>
+                            </div>
+
+                            {# Breakdown #}
+                            <div class="col-6">
+                                <div class="p-3 rounded-3 h-100"
+                                     style="background: #f9fafb; border: 1px solid #e5e7eb;">
+                                    <div class="kpi-label mb-1">Rumus Gap</div>
+                                    <div style="font-size: 0.78rem; color: #374151; line-height: 1.6;">
+                                        <span class="fw-semibold" style="color: #f59e0b;">Koleksi</span>
+                                        <span class="text-muted mx-1">−</span>
+                                        <span class="fw-semibold" style="color: #8b5cf6;">Akrual</span>
+                                        <span class="text-muted mx-1">=</span>
+                                        <span class="fw-bold" style="color: {{ gap_color }};">Selisih</span>
+                                    </div>
+                                    <div style="font-size: 0.76rem; color: #6b7280; margin-top: 0.4rem;">
+                                        Rp {{ "{:,.0f}".format(r.get('payable_from_collection', 0) or 0) }}
+                                        &minus;
+                                        Rp {{ "{:,.0f}".format(r.get('accrual_from_attendance', 0) or 0) }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {# Explanation #}
+                        <div class="d-flex align-items-start gap-2 p-3 rounded-3"
+                             style="background: {{ gap_bg }}; border: 1px solid rgba(0,0,0,0.05);">
+                            <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"
+                               style="color: {{ gap_color }}; font-size: 0.9rem;"></i>
+                            <p class="gap-explanation mb-0">{{ gap_desc }}</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ══════════════ TUTOR RECONCILIATION TABLE ══════════════ #}
+<p class="section-label mb-2">Detail Rekonsiliasi per Tutor</p>
+<div class="table-card card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between py-3 px-4"
+         style="background: #fff; border-bottom: 1px solid #f0f2f5;">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-people-fill" style="color: #253b9b;"></i>
+            <span class="fw-semibold" style="font-size: 0.88rem; color: #1a1f36;">
+                Rincian per Tutor — {{ current_month_name }} {{ current_year }}
+            </span>
+        </div>
+        <span class="badge rounded-pill"
+              style="background: #eef0ff; color: #253b9b; font-size: 0.72rem; font-weight: 700;">
+            {{ tutors | length }} Tutor
+        </span>
+    </div>
+    <div class="card-body p-0">
+        {% if tutors %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 recon-table">
+                <thead>
+                    <tr>
+                        <th style="width: 3rem;">#</th>
+                        <th>Nama Tutor</th>
+                        <th class="text-end">Hutang (Koleksi)</th>
+                        <th class="text-end">Akrual (Presensi)</th>
+                        <th class="text-end">Selisih</th>
+                        <th class="text-center" style="width: 8rem;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tutor in tutors %}
+                    {% set t_gap = tutor.gap or 0 %}
+                    <tr>
+                        {# No. #}
+                        <td class="text-muted" style="font-size: 0.78rem;">{{ loop.index }}</td>
+
+                        {# Nama Tutor #}
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                     style="width: 30px; height: 30px;
+                                            background: #eef0ff; color: #253b9b;
+                                            font-size: 0.72rem; font-weight: 700;">
+                                    {{ tutor.tutor_name[:1] | upper if tutor.tutor_name else '?' }}
+                                </div>
+                                <div>
+                                    <div class="tutor-name">{{ tutor.tutor_name or '—' }}</div>
+                                    <div style="font-size: 0.7rem; color: #9ca3af;">
+                                        ID #{{ tutor.tutor_id }}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+
+                        {# Hutang dari Koleksi #}
+                        <td class="text-end amount-cell" style="color: #d97706;">
+                            Rp {{ "{:,.0f}".format(tutor.payable_from_collection or 0) }}
+                        </td>
+
+                        {# Akrual dari Presensi #}
+                        <td class="text-end amount-cell" style="color: #8b5cf6;">
+                            Rp {{ "{:,.0f}".format(tutor.accrual_from_attendance or 0) }}
+                        </td>
+
+                        {# Selisih #}
+                        <td class="text-end
+                            {% if t_gap == 0 %}gap-cell-zero
+                            {% elif t_gap > 0 %}gap-cell-positive
+                            {% else %}gap-cell-negative{% endif %}">
+                            {% if t_gap > 0 %}
+                                <i class="bi bi-arrow-up-short"></i>+Rp {{ "{:,.0f}".format(t_gap) }}
+                            {% elif t_gap < 0 %}
+                                <i class="bi bi-arrow-down-short"></i>Rp {{ "{:,.0f}".format(t_gap) }}
+                            {% else %}
+                                <i class="bi bi-dash"></i> Rp 0
+                            {% endif %}
+                        </td>
+
+                        {# Status Badge #}
+                        <td class="text-center">
+                            {% if t_gap == 0 %}
+                            <span class="badge rounded-pill bg-success-subtle text-success"
+                                  style="font-size: 0.68rem; font-weight: 700;">
+                                <i class="bi bi-check-circle me-1"></i>Seimbang
+                            </span>
+                            {% elif t_gap > 0 %}
+                            <span class="badge rounded-pill bg-warning-subtle text-warning"
+                                  style="font-size: 0.68rem; font-weight: 700;">
+                                <i class="bi bi-exclamation me-1"></i>Surplus
+                            </span>
+                            {% else %}
+                            <span class="badge rounded-pill bg-danger-subtle text-danger"
+                                  style="font-size: 0.68rem; font-weight: 700;">
+                                <i class="bi bi-x-circle me-1"></i>Defisit
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="background: #f9fafb; border-top: 2px solid #e5e7eb;">
+                        <td colspan="2" class="fw-bold px-4"
+                            style="font-size: 0.8rem; color: #374151;">
+                            <i class="bi bi-calculator me-1" style="color: #253b9b;"></i>Total
+                        </td>
+                        <td class="text-end amount-cell fw-bold" style="color: #d97706;">
+                            Rp {{ "{:,.0f}".format(r.get('payable_from_collection', 0) or 0) }}
+                        </td>
+                        <td class="text-end amount-cell fw-bold" style="color: #8b5cf6;">
+                            Rp {{ "{:,.0f}".format(r.get('accrual_from_attendance', 0) or 0) }}
+                        </td>
+                        <td class="text-end fw-bold
+                            {% if gap_val == 0 %}gap-cell-zero
+                            {% elif gap_val > 0 %}gap-cell-positive
+                            {% else %}gap-cell-negative{% endif %}">
+                            {% if gap_val > 0 %}+{% endif %}Rp {{ "{:,.0f}".format(gap_val) }}
+                        </td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            Belum ada data rekonsiliasi tutor untuk periode
+            {{ current_month_name }} {{ current_year }}.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ══════════════ QUICK LINK ══════════════ #}
+<div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+    <span class="section-label mb-0">Aksi Cepat</span>
+</div>
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <a href="/payroll/tutor-summary"
+       class="btn btn-outline-primary quick-action-btn btn-sm">
+        <i class="bi bi-wallet2"></i> Rekap Gaji Tutor
+    </a>
+    <a href="{{ url_for('dashboard.payroll_dashboard', month=current_month, year=current_year) }}"
+       class="btn btn-outline-secondary quick-action-btn btn-sm">
+        <i class="bi bi-bar-chart-steps"></i> Dashboard Payroll
+    </a>
+    <a href="{{ url_for('dashboard.owner_dashboard', month=current_month, year=current_year) }}"
+       class="btn btn-outline-secondary quick-action-btn btn-sm">
+        <i class="bi bi-speedometer2"></i> Dashboard Keuangan
+    </a>
+    <a href="/payroll/transfer-list"
+       class="btn btn-outline-secondary quick-action-btn btn-sm">
+        <i class="bi bi-bank"></i> Daftar Transfer
+    </a>
+</div>
+{% endif %}{# end {% if not error %} #}
+
+{% endblock %}

@@ -24,11 +24,12 @@ with app.app_context():
     print("[entrypoint] Base schema ready.")
 PYEOF
 
-  echo "[entrypoint] Applying extra DDL (student_invoices, proof columns)..."
+  echo "[entrypoint] Applying extra DDL (schema patches for all versions)..."
   python - <<'PYEOF'
 from run import app
 from app import db
 EXTRA_DDL = [
+    # student_invoices — raw SQL table, not managed by ORM
     """
     CREATE TABLE IF NOT EXISTS student_invoices (
         id            SERIAL PRIMARY KEY,
@@ -45,13 +46,30 @@ EXTRA_DDL = [
     """,
     "CREATE INDEX IF NOT EXISTS ix_student_invoices_student_id    ON student_invoices(student_id)",
     "CREATE INDEX IF NOT EXISTS ix_student_invoices_enrollment_id ON student_invoices(enrollment_id)",
+    # Payroll proof of transfer
     "ALTER TABLE tutor_payouts ADD COLUMN IF NOT EXISTS proof_image  VARCHAR(500)",
     "ALTER TABLE tutor_payouts ADD COLUMN IF NOT EXISTS proof_notes  TEXT",
+    # Students — possibly added after initial deploy
+    "ALTER TABLE students ADD COLUMN IF NOT EXISTS status    VARCHAR(20)  DEFAULT 'active'",
+    "ALTER TABLE students ADD COLUMN IF NOT EXISTS is_active BOOLEAN      DEFAULT TRUE",
+    # Tutors
+    "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS status    VARCHAR(20)  DEFAULT 'active'",
+    "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS is_active BOOLEAN      DEFAULT TRUE",
+    # Enrollments
+    "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS is_active                BOOLEAN  DEFAULT TRUE",
+    "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS meeting_quota_per_month  INTEGER  DEFAULT 4",
+    # Student payments — verification workflow
+    "ALTER TABLE student_payments ADD COLUMN IF NOT EXISTS is_verified  BOOLEAN   DEFAULT FALSE",
+    "ALTER TABLE student_payments ADD COLUMN IF NOT EXISTS verified_by  INTEGER   REFERENCES users(id)",
+    "ALTER TABLE student_payments ADD COLUMN IF NOT EXISTS verified_at  TIMESTAMP",
+    # Pricing rules
+    "ALTER TABLE pricing_rules ADD COLUMN IF NOT EXISTS is_active              BOOLEAN  DEFAULT TRUE",
+    "ALTER TABLE pricing_rules ADD COLUMN IF NOT EXISTS default_meeting_quota  INTEGER  DEFAULT 4",
 ]
 with app.app_context():
     for stmt in EXTRA_DDL:
         try:
-            db.session.execute(db.text(stmt))
+            db.session.execute(db.text(stmt.strip()))
         except Exception as exc:
             print(f"[entrypoint] DDL warning (skipping): {exc}")
             db.session.rollback()

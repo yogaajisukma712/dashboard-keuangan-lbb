@@ -1,67 +1,546 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %} {% block title %}Login — LBB Super Smart{%
+endblock %} {% block head %}
+<style>
+    /* ── Reset for full-screen split ── */
+    html,
+    body {
+        overflow: hidden;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: #ffffff; /* override base_auth gradient */
+    }
 
-{% block title %}Login - Dashboard Keuangan LBB Super Smart{% endblock %}
+    /* ══════════════════════════════════════════
+     LEFT PANEL — Brand
+  ══════════════════════════════════════════ */
+    .brand-panel {
+        background: linear-gradient(
+            150deg,
+            #0d1b4e 0%,
+            #1a2c75 40%,
+            #253b9b 100%
+        );
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem 2.5rem;
+        min-height: 100vh;
+    }
 
-{% block content %}
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-lg-5 col-md-7">
-      <div class="card shadow-sm border-0">
-        <div class="card-body p-4">
-          <div class="text-center mb-4">
-            <h1 class="h3 mb-2">Login</h1>
-            <p class="text-muted mb-0">Masuk ke Dashboard Keuangan LBB Super Smart</p>
-          </div>
+    /* Decorative circles */
+    .deco-circle {
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+    }
 
-          <form method="post" novalidate>
-            {{ form.hidden_tag() }}
+    /* Brand icon */
+    .brand-icon {
+        font-size: 4.5rem;
+        color: #f4be18;
+        line-height: 1;
+        margin-bottom: 1.25rem;
+        position: relative;
+        z-index: 1;
+    }
 
-            <div class="mb-3">
-              <label for="{{ form.username.id }}" class="form-label">Username</label>
-              {{ form.username(class="form-control", placeholder="Masukkan username") }}
-              {% if form.username.errors %}
-                <div class="text-danger small mt-1">
-                  {% for error in form.username.errors %}
-                    <div>{{ error }}</div>
-                  {% endfor %}
+    /* App name */
+    .brand-name {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #fff;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.3rem;
+        text-align: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Tagline */
+    .brand-tagline {
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        color: #f4be18;
+        text-transform: uppercase;
+        margin-bottom: 2rem;
+        text-align: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Gold divider */
+    .brand-divider {
+        width: 40px;
+        height: 3px;
+        background: #f4be18;
+        border-radius: 3px;
+        margin: 0 auto;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Features list */
+    .feature-list {
+        list-style: none;
+        padding: 0;
+        margin: 1.5rem 0 0;
+        width: 100%;
+        max-width: 300px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .feature-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        color: #c8d9ff;
+        font-size: 0.85rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .feature-icon {
+        width: 22px;
+        height: 22px;
+        min-width: 22px;
+        border-radius: 50%;
+        background: rgba(244, 190, 24, 0.15);
+        color: #f4be18;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+
+    /* Copyright */
+    .brand-copyright {
+        position: absolute;
+        bottom: 1.5rem;
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: rgba(255, 255, 255, 0.35);
+        font-size: 0.72rem;
+        z-index: 1;
+    }
+
+    /* ══════════════════════════════════════════
+     RIGHT PANEL — Form
+  ══════════════════════════════════════════ */
+    .form-panel {
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 2rem 1.5rem;
+    }
+
+    .form-box {
+        max-width: 380px;
+        width: 100%;
+        padding: 2.5rem;
+    }
+
+    /* Mini logo area */
+    .form-logo-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 9px;
+        background: #253b9b;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+
+    .form-logo-name {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #253b9b;
+        line-height: 1.2;
+    }
+
+    .form-logo-sub {
+        font-size: 0.7rem;
+        color: #9ca3af;
+        font-weight: 500;
+        line-height: 1;
+    }
+
+    /* Heading */
+    .form-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #1a1f36;
+        margin-bottom: 0.25rem;
+    }
+
+    .form-subtitle {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-bottom: 2rem;
+    }
+
+    /* Input groups */
+    .input-group-text.input-icon {
+        background: #f9fafb;
+        border-right: none;
+        color: #9ca3af;
+        border-color: #e5e7eb;
+    }
+
+    .form-control.border-start-0 {
+        border-left: none !important;
+        border-color: #e5e7eb;
+        background: #f9fafb;
+    }
+
+    .form-control.border-start-0:focus {
+        box-shadow: none;
+        background: #fff;
+        border-color: #253b9b;
+    }
+
+    .input-group:focus-within .input-group-text.input-icon {
+        border-color: #253b9b;
+        background: #fff;
+    }
+
+    /* Password toggle */
+    .btn-toggle-pw {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-left: none;
+        color: #9ca3af;
+        cursor: pointer;
+        padding: 0 0.75rem;
+        transition: color 0.15s;
+    }
+
+    .btn-toggle-pw:hover,
+    .btn-toggle-pw:focus {
+        color: #253b9b;
+        background: #f9fafb;
+        box-shadow: none;
+        outline: none;
+    }
+
+    .input-group:focus-within .btn-toggle-pw {
+        border-color: #253b9b;
+    }
+
+    /* Form label */
+    .field-label {
+        font-size: 0.83rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.4rem;
+    }
+
+    /* Remember me */
+    .form-check-input:checked {
+        background-color: #253b9b;
+        border-color: #253b9b;
+    }
+
+    .form-check-label {
+        font-size: 0.85rem;
+        color: #374151;
+    }
+
+    /* Submit */
+    #submitBtn {
+        background: #253b9b;
+        color: #fff;
+        padding: 0.7rem 1rem;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        font-size: 0.92rem;
+        transition:
+            background 0.2s,
+            transform 0.1s;
+        letter-spacing: 0.01em;
+    }
+
+    #submitBtn:hover {
+        background: #1a2c75;
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    #submitBtn:active {
+        transform: translateY(0);
+    }
+</style>
+{% endblock %} {% block body %}
+<div class="container-fluid p-0">
+    <div class="row g-0 min-vh-100">
+        {# ═══════════════════════════════════ LEFT PANEL — Brand
+        ═══════════════════════════════════ #}
+        <div class="col-lg-6 d-none d-lg-flex">
+            <div class="brand-panel w-100">
+                {# Decorative background circles #}
+                <div
+                    class="deco-circle"
+                    style="
+                        width: 500px;
+                        height: 500px;
+                        background: rgba(244, 190, 24, 0.06);
+                        top: -140px;
+                        right: -160px;
+                    "
+                ></div>
+                <div
+                    class="deco-circle"
+                    style="
+                        width: 300px;
+                        height: 300px;
+                        background: rgba(244, 190, 24, 0.08);
+                        bottom: -90px;
+                        left: -90px;
+                    "
+                ></div>
+                <div
+                    class="deco-circle"
+                    style="
+                        width: 180px;
+                        height: 180px;
+                        background: rgba(255, 255, 255, 0.04);
+                        top: 38%;
+                        right: -50px;
+                    "
+                ></div>
+                <div
+                    class="deco-circle"
+                    style="
+                        width: 120px;
+                        height: 120px;
+                        background: rgba(244, 190, 24, 0.12);
+                        top: 13%;
+                        left: 8%;
+                    "
+                ></div>
+                <div
+                    class="deco-circle"
+                    style="
+                        width: 70px;
+                        height: 70px;
+                        background: rgba(244, 190, 24, 0.15);
+                        bottom: 18%;
+                        right: 12%;
+                    "
+                ></div>
+
+                {# Brand content #}
+                <div
+                    style="
+                        position: relative;
+                        z-index: 1;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        text-align: center;
+                    "
+                >
+                    <i class="bi bi-mortarboard-fill brand-icon"></i>
+                    <div class="brand-name">LBB Super Smart</div>
+                    <div class="brand-tagline">Being Smart for Future</div>
+                    <div class="brand-divider"></div>
+
+                    <ul class="feature-list mt-4">
+                        <li class="feature-item">
+                            <span class="feature-icon"
+                                ><i class="bi bi-check-lg"></i
+                            ></span>
+                            Dashboard Keuangan Real-time
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-icon"
+                                ><i class="bi bi-check-lg"></i
+                            ></span>
+                            Manajemen Siswa &amp; Tutor
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-icon"
+                                ><i class="bi bi-check-lg"></i
+                            ></span>
+                            Presensi &amp; Rekap Sesi Otomatis
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-icon"
+                                ><i class="bi bi-check-lg"></i
+                            ></span>
+                            Payroll &amp; Fee Slip Tutor
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-icon"
+                                ><i class="bi bi-check-lg"></i
+                            ></span>
+                            Quota &amp; Invoice Terintegrasi
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-icon"
+                                ><i class="bi bi-check-lg"></i
+                            ></span>
+                            Laporan Keuangan Bulanan
+                        </li>
+                    </ul>
                 </div>
-              {% endif %}
-            </div>
 
-            <div class="mb-3">
-              <label for="{{ form.password.id }}" class="form-label">Password</label>
-              {{ form.password(class="form-control", placeholder="Masukkan password") }}
-              {% if form.password.errors %}
-                <div class="text-danger small mt-1">
-                  {% for error in form.password.errors %}
-                    <div>{{ error }}</div>
-                  {% endfor %}
-                </div>
-              {% endif %}
+                {# Copyright #}
+                <div class="brand-copyright">© 2025 LBB Super Smart</div>
             </div>
-
-            <div class="form-check mb-3">
-              {{ form.remember_me(class="form-check-input") }}
-              <label class="form-check-label" for="{{ form.remember_me.id }}">
-                Ingat saya
-              </label>
-            </div>
-
-            <div class="d-grid">
-              {{ form.submit(class="btn btn-primary") }}
-            </div>
-          </form>
-
-          {% if not current_user.is_authenticated %}
-            <div class="text-center mt-4">
-              <small class="text-muted">
-                Jika ini setup awal dan belum ada user, gunakan halaman registrasi awal bila masih dibuka.
-              </small>
-            </div>
-          {% endif %}
         </div>
-      </div>
+
+        {# ═══════════════════════════════════ RIGHT PANEL — Login Form
+        ═══════════════════════════════════ #}
+        <div class="col-lg-6 col-12">
+            <div class="form-panel">
+                <div class="form-box">
+                    {# Mini logo #}
+                    <div class="d-flex align-items-center gap-2 mb-4">
+                        <div class="form-logo-icon">
+                            <i class="bi bi-mortarboard-fill"></i>
+                        </div>
+                        <div>
+                            <div class="form-logo-name">Super Smart</div>
+                            <div class="form-logo-sub">LBB Super Smart</div>
+                        </div>
+                    </div>
+
+                    {# Heading #}
+                    <h1 class="form-title">Selamat Datang 👋</h1>
+                    <p class="form-subtitle">
+                        Masuk ke sistem manajemen keuangan
+                    </p>
+
+                    {# Flash messages #} {% with messages =
+                    get_flashed_messages(with_categories=true) %} {% if messages
+                    %} {% for category, message in messages %}
+                    <div
+                        class="alert alert-{{ 'warning' if category == 'message' else category }} alert-dismissible fade show py-2 mb-3"
+                        role="alert"
+                    >
+                        {{ message }}
+                        <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="alert"
+                        ></button>
+                    </div>
+                    {% endfor %} {% endif %} {% endwith %} {# Login form #}
+                    <form method="post" novalidate>
+                        {{ form.hidden_tag() }} {# ── Username ── #}
+                        <div class="mb-3">
+                            <label
+                                for="{{ form.username.id }}"
+                                class="field-label"
+                                >Username</label
+                            >
+                            <div class="input-group">
+                                <span class="input-group-text input-icon">
+                                    <i class="bi bi-person"></i>
+                                </span>
+                                {{ form.username(class="form-control
+                                border-start-0", placeholder="Masukkan
+                                username") }}
+                            </div>
+                            {% if form.username.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.username.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {# ── Password ── #}
+                        <div class="mb-3">
+                            <label
+                                for="{{ form.password.id }}"
+                                class="field-label"
+                                >Password</label
+                            >
+                            <div class="input-group">
+                                <span class="input-group-text input-icon">
+                                    <i class="bi bi-lock"></i>
+                                </span>
+                                {{ form.password(class="form-control
+                                border-start-0", placeholder="Masukkan
+                                password", id="passwordInput") }}
+                                <button
+                                    class="btn-toggle-pw"
+                                    type="button"
+                                    id="togglePassword"
+                                    tabindex="-1"
+                                    aria-label="Tampilkan/sembunyikan password"
+                                >
+                                    <i class="bi bi-eye" id="eyeIcon"></i>
+                                </button>
+                            </div>
+                            {% if form.password.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.password.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {# ── Remember me ── #}
+                        <div class="form-check mb-3">
+                            {{ form.remember_me(class="form-check-input") }}
+                            <label
+                                class="form-check-label"
+                                for="{{ form.remember_me.id }}"
+                            >
+                                Ingat saya
+                            </label>
+                        </div>
+
+                        {# ── Submit ── #} {{ form.submit(class="btn w-100
+                        mt-2", id="submitBtn") }}
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 </div>
+
+<script>
+    (function () {
+        const toggleBtn = document.getElementById("togglePassword");
+        const pwInput = document.getElementById("passwordInput");
+        const eyeIcon = document.getElementById("eyeIcon");
+
+        if (toggleBtn && pwInput && eyeIcon) {
+            toggleBtn.addEventListener("click", function () {
+                if (pwInput.type === "password") {
+                    pwInput.type = "text";
+                    eyeIcon.classList.replace("bi-eye", "bi-eye-slash");
+                    toggleBtn.setAttribute(
+                        "aria-label",
+                        "Sembunyikan password",
+                    );
+                } else {
+                    pwInput.type = "password";
+                    eyeIcon.classList.replace("bi-eye-slash", "bi-eye");
+                    toggleBtn.setAttribute("aria-label", "Tampilkan password");
+                }
+                pwInput.focus();
+            });
+        }
+    })();
+</script>
 {% endblock %}

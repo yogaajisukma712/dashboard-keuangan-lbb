@@ -1,66 +1,371 @@
-{% extends "base.html" %}
+{% extends "base.html" %} {% block title %}Dashboard Owner — LBB Super Smart{%
+endblock %} {% block head %}
+<style>
+    .quick-action-btn {
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.4rem 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        white-space: nowrap;
+        transition: all 0.18s;
+    }
+    .top-card {
+        border: none;
+        border-radius: 0.9rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+        overflow: hidden;
+        height: 100%;
+    }
+    .top-card .card-header {
+        padding: 0.85rem 1.1rem;
+        font-size: 0.88rem;
+        letter-spacing: 0.01em;
+        border-bottom: none;
+    }
+    .top-list-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.55rem 1rem;
+        font-size: 0.85rem;
+        transition: background 0.12s;
+    }
+    .top-list-item:not(:last-child) {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    .top-list-item:hover {
+        background: #f9fafb;
+    }
+    .rank-badge {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        font-size: 0.7rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .rank-badge-student {
+        background: rgba(37, 59, 155, 0.08);
+        color: #253b9b;
+        border: 1px solid rgba(37, 59, 155, 0.2);
+    }
+    .rank-badge-subject {
+        background: rgba(139, 92, 246, 0.08);
+        color: #8b5cf6;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    .top-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #374151;
+    }
+    .top-amount-student {
+        font-weight: 600;
+        color: #059669;
+        font-size: 0.82rem;
+        white-space: nowrap;
+    }
+    .top-amount-subject {
+        font-weight: 600;
+        color: #8b5cf6;
+        font-size: 0.82rem;
+        white-space: nowrap;
+    }
+    .period-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 0.35rem 0.75rem;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+    .period-nav a {
+        color: #253b9b;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+        transition: background 0.15s;
+    }
+    .period-nav a:hover {
+        background: #eef0ff;
+    }
+    .period-nav .period-label {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #1a1f36;
+        padding: 0 0.4rem;
+    }
+    .period-nav .period-sep {
+        color: #d1d5db;
+    }
+    .month-form select {
+        font-size: 0.78rem;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        padding: 0.3rem 0.5rem;
+        color: #374151;
+        cursor: pointer;
+    }
+    .month-form button {
+        font-size: 0.78rem;
+        padding: 0.3rem 0.75rem;
+        border-radius: 8px;
+    }
+</style>
+{% endblock %} {% block content %} {% set k = kpi or {} %} {# ── KPI card macro
+── #} {% macro kpi_card(label, value, icon, border_color, icon_bg, icon_color,
+col="col-md-6 col-xl-4") %}
+<div class="{{ col }}">
+    <div
+        class="kpi-card card h-100"
+        style="border-left: 4px solid {{ border_color }};"
+    >
+        <div
+            class="card-body d-flex align-items-start justify-content-between p-3"
+        >
+            <div class="flex-grow-1 overflow-hidden pe-2">
+                <div class="kpi-label">{{ label }}</div>
+                <div class="kpi-value mt-1">
+                    Rp {{ "{:,.0f}".format(value or 0) }}
+                </div>
+            </div>
+            <div
+                class="kpi-icon flex-shrink-0"
+                style="background: {{ icon_bg }}; color: {{ icon_color }};"
+            >
+                <i class="bi {{ icon }}"></i>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %} {# ══════════════ HEADER + PERIOD NAVIGATION ══════════════ #}
+<div
+    class="d-flex flex-wrap align-items-start align-items-sm-center justify-content-between gap-3 mb-3"
+>
+    <div>
+        <h4 class="fw-bold mb-0" style="color: #1a1f36">Dashboard Keuangan</h4>
+        <small class="text-muted"
+            >Ringkasan keuangan bulan {{ current_month_name }} {{ current_year
+            }}</small
+        >
+    </div>
 
-{% block title %}Dashboard Owner{% endblock %}
+    {# ── Period navigation ── #}
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="period-nav">
+            <a
+                href="{{ url_for('dashboard.owner_dashboard', month=prev_month, year=prev_year) }}"
+                title="Bulan sebelumnya"
+            >
+                <i class="bi bi-chevron-left"></i>
+            </a>
+            <span class="period-sep">|</span>
+            <span class="period-label"
+                >{{ current_month_name }} {{ current_year }}</span
+            >
+            <span class="period-sep">|</span>
+            {% if not is_current_period %}
+            <a
+                href="{{ url_for('dashboard.owner_dashboard', month=next_month, year=next_year) }}"
+                title="Bulan berikutnya"
+            >
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            {% else %}
+            <span style="color: #d1d5db; padding: 0.2rem 0.5rem"
+                ><i class="bi bi-chevron-right"></i
+            ></span>
+            {% endif %}
+        </div>
 
-{% block content %}
-{% set k = kpi or {} %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h1 class="h3 mb-1">Dashboard Owner</h1>
-    <p class="text-muted mb-0">Ringkasan keuangan periode {{ current_month }}/{{ current_year }}</p>
-  </div>
+        {# ── Month/Year picker (JS navigation, no form element) ── #}
+        <div class="d-flex align-items-center gap-1 month-form">
+            <select aria-label="Bulan" id="dashMonthPicker" class="month-form">
+                <option value="1">Januari</option>
+                <option value="2">Februari</option>
+                <option value="3">Maret</option>
+                <option value="4">April</option>
+                <option value="5">Mei</option>
+                <option value="6">Juni</option>
+                <option value="7">Juli</option>
+                <option value="8">Agustus</option>
+                <option value="9">September</option>
+                <option value="10">Oktober</option>
+                <option value="11">November</option>
+                <option value="12">Desember</option>
+            </select>
+            <select aria-label="Tahun" id="dashYearPicker" class="month-form">
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="dashGoBtn">Go</button>
+        </div>
+        <script>
+            (function () {
+                var mp = document.getElementById("dashMonthPicker");
+                var yp = document.getElementById("dashYearPicker");
+                if (mp) mp.value = "{{ current_month }}";
+                if (yp) yp.value = "{{ current_year }}";
+                var btn = document.getElementById("dashGoBtn");
+                if (btn)
+                    btn.addEventListener("click", function () {
+                        var m = mp ? mp.value : "{{ current_month }}";
+                        var y = yp ? yp.value : "{{ current_year }}";
+                        window.location.href =
+                            window.location.pathname +
+                            "?month=" +
+                            m +
+                            "&year=" +
+                            y;
+                    });
+            })();
+        </script>
+
+        {% if not is_current_period %}
+        <a
+            href="{{ url_for('dashboard.owner_dashboard') }}"
+            class="btn btn-outline-secondary btn-sm"
+            style="font-size: 0.78rem; border-radius: 8px"
+        >
+            <i class="bi bi-arrow-clockwise"></i> Bulan Ini
+        </a>
+        {% endif %}
+    </div>
 </div>
 
-{% if error %}
-<div class="alert alert-danger">{{ error }}</div>
-{% endif %}
+{# ── Error alert ── #} {% if error %}
+<div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+    <span>{{ error }}</span>
+</div>
+{% endif %} {# ══════════════ QUICK ACTIONS ══════════════ #}
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <a
+        href="/attendance/bulk-add"
+        class="btn btn-outline-primary quick-action-btn btn-sm"
+        ><i class="bi bi-calendar-plus"></i>Presensi Baru</a
+    >
+    <a href="/payments/" class="btn btn-outline-success quick-action-btn btn-sm"
+        ><i class="bi bi-cash-stack"></i>Catat Pembayaran</a
+    >
+    <a
+        href="/quota/alerts"
+        class="btn btn-outline-warning quick-action-btn btn-sm"
+        ><i class="bi bi-exclamation-triangle-fill"></i>Alert Quota</a
+    >
+    <a
+        href="/payroll/tutor-summary"
+        class="btn btn-outline-secondary quick-action-btn btn-sm"
+        ><i class="bi bi-wallet2"></i>Rekap Gaji</a
+    >
+</div>
 
+{# ══════════════ KPI CARDS ══════════════ #}
 <div class="row g-3 mb-4">
-  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Saldo Awal</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("opening_balance", 0) or 0) }}</div></div></div></div>
-  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Pemasukan Siswa</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("total_income_this_month", 0) or 0) }}</div></div></div></div>
-  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Pengeluaran</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("total_expenses_this_month", 0) or 0) }}</div></div></div></div>
-  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Hutang Tutor dari Collection</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("tutor_payable_from_collection", 0) or 0) }}</div></div></div></div>
-  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Margin Bulan Ini</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("margin_this_month", 0) or 0) }}</div></div></div></div>
-  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Accrual Gaji Tutor</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("tutor_salary_accrual", 0) or 0) }}</div></div></div></div>
-  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Grand Tutor Payable</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("grand_tutor_payable", 0) or 0) }}</div></div></div></div>
-  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Estimasi Profit</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("estimated_profit", 0) or 0) }}</div></div></div></div>
-  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Cash Balance</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("cash_balance", 0) or 0) }}</div></div></div></div>
-  <div class="col-md-6 col-xl-6"><div class="card h-100"><div class="card-body"><div class="muted-label">Grand Profit</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("grand_profit", 0) or 0) }}</div></div></div></div>
-  <div class="col-md-6 col-xl-6"><div class="card h-100"><div class="card-body"><div class="muted-label">Estimasi Sisa Saldo</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("estimated_remaining_balance", 0) or 0) }}</div></div></div></div>
+    {# Row 1 — Pemasukan #} {{ kpi_card("Saldo Awal Bulan",
+    k.get("opening_balance", 0) or 0, "bi-bank", "#64748b", "#64748b15",
+    "#64748b") }} {{ kpi_card("Pemasukan Siswa",
+    k.get("total_income_this_month", 0) or 0,
+    "bi-arrow-down-circle-fill","#10b981", "#10b98115", "#10b981") }} {{
+    kpi_card("Pemasukan Lain-Lain", k.get("other_income_this_month", 0) or 0,
+    "bi-plus-circle-fill", "#06b6d4", "#06b6d415", "#06b6d4") }} {# Row 2 —
+    Pengeluaran & Tutor #} {{ kpi_card("Pengeluaran Operasional",
+    k.get("total_expenses_this_month", 0) or 0, "bi-arrow-up-circle-fill",
+    "#ef4444", "#ef444415", "#ef4444") }} {{ kpi_card("Hutang Tutor (Koleksi)",
+    k.get("tutor_payable_from_collection", 0) or 0,
+    "bi-person-badge-fill","#f59e0b", "#f59e0b15", "#f59e0b") }} {{
+    kpi_card("Margin Bulan Ini", k.get("margin_this_month", 0) or 0,
+    "bi-graph-up-arrow", "#3b82f6", "#3b82f615", "#3b82f6") }} {# Row 3 — Saldo
+    & Tutor Accrual #} {{ kpi_card("Saldo Bulan Ini", k.get("monthly_cash_flow",
+    0) or 0, "bi-wallet-fill", "#0ea5e9", "#0ea5e915", "#0ea5e9") }} {{
+    kpi_card("Estimasi Gaji Tutor", k.get("tutor_salary_accrual", 0) or 0,
+    "bi-calculator-fill", "#8b5cf6", "#8b5cf615", "#8b5cf6") }} {{
+    kpi_card("Estimasi Profit Bulan Ini",k.get("estimated_profit", 0) or 0,
+    "bi-piggy-bank", "#14b8a6", "#14b8a615", "#14b8a6") }} {# Row 4 — Grand /
+    Kumulatif (wider cards) #} {{ kpi_card("Grand Total Saldo",
+    k.get("cash_balance", 0) or 0, "bi-safe2-fill", "#6366f1", "#6366f115",
+    "#6366f1", "col-md-6 col-xl-3") }} {{ kpi_card("Grand Hutang Gaji",
+    k.get("grand_tutor_payable", 0) or 0, "bi-cash-stack", "#f97316",
+    "#f9731615", "#f97316", "col-md-6 col-xl-3") }} {{ kpi_card("Grand Profit",
+    k.get("grand_profit", 0) or 0, "bi-piggy-bank-fill", "#059669", "#05966915",
+    "#059669", "col-md-6 col-xl-3") }} {{ kpi_card("Estimasi Sisa Saldo",
+    k.get("estimated_remaining_balance", 0) or 0,"bi-database-fill", "#253b9b",
+    "#253b9b15", "#253b9b", "col-md-6 col-xl-3") }}
 </div>
 
+{# ══════════════ BOTTOM — Top Siswa & Top Mata Pelajaran ══════════════ #}
 <div class="row g-4">
-  <div class="col-lg-6">
-    <div class="card">
-      <div class="card-header">Top Siswa</div>
-      <div class="card-body">
-        {% if top_students %}
-        <ul class="mb-0">
-          {% for student in top_students %}
-          <li>{{ student.name }} - Rp {{ "{:,.2f}".format(student.income or 0) }}</li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-muted mb-0">Belum ada data siswa.</p>
-        {% endif %}
-      </div>
+    {# ─── Top Siswa ─── #}
+    <div class="col-lg-6">
+        <div class="top-card card">
+            <div
+                class="card-header fw-semibold text-white"
+                style="background: #253b9b"
+            >
+                🏆 Top Siswa — {{ current_month_name }} {{ current_year }}
+            </div>
+            <div class="card-body p-0">
+                {% if top_students %} {% for student in top_students %}
+                <div class="top-list-item">
+                    <div class="rank-badge rank-badge-student">
+                        {{ loop.index }}
+                    </div>
+                    <span class="top-name">{{ student.name }}</span>
+                    <span class="top-amount-student"
+                        >Rp {{ "{:,.0f}".format(student.income or 0) }}</span
+                    >
+                </div>
+                {% endfor %} {% else %}
+                <p class="text-muted mb-0 px-3 py-3" style="font-size: 0.85rem">
+                    Belum ada data.
+                </p>
+                {% endif %}
+            </div>
+        </div>
     </div>
-  </div>
-  <div class="col-lg-6">
-    <div class="card">
-      <div class="card-header">Top Mata Pelajaran</div>
-      <div class="card-body">
-        {% if top_subjects %}
-        <ul class="mb-0">
-          {% for subject in top_subjects %}
-          <li>{{ subject.name }} - Rp {{ "{:,.2f}".format(subject.income or 0) }}</li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-muted mb-0">Belum ada data mata pelajaran.</p>
-        {% endif %}
-      </div>
+
+    {# ─── Top Mata Pelajaran ─── #}
+    <div class="col-lg-6">
+        <div class="top-card card">
+            <div
+                class="card-header fw-semibold text-white"
+                style="background: #253b9b"
+            >
+                📊 Top Mata Pelajaran — {{ current_month_name }} {{ current_year
+                }}
+            </div>
+            <div class="card-body p-0">
+                {% if top_subjects %} {% for subject in top_subjects %}
+                <div class="top-list-item">
+                    <div class="rank-badge rank-badge-subject">
+                        {{ loop.index }}
+                    </div>
+                    <span class="top-name">{{ subject.name }}</span>
+                    <span class="top-amount-subject"
+                        >Rp {{ "{:,.0f}".format(subject.income or 0) }}</span
+                    >
+                </div>
+                {% endfor %} {% else %}
+                <p class="text-muted mb-0 px-3 py-3" style="font-size: 0.85rem">
+                    Belum ada data.
+                </p>
+                {% endif %}
+            </div>
+        </div>
     </div>
-  </div>
 </div>
 {% endblock %}

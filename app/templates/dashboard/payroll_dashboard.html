@@ -1,0 +1,486 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Payroll Tutor — LBB Super Smart{% endblock %}
+
+{% block head %}
+<style>
+    /* ── Quick action buttons ── */
+    .quick-action-btn {
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.4rem 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        white-space: nowrap;
+        transition: all 0.18s;
+    }
+
+    /* ── Period navigation bar ── */
+    .period-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 0.35rem 0.75rem;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+    .period-nav a {
+        color: #253b9b;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+        transition: background 0.15s;
+    }
+    .period-nav a:hover {
+        background: #eef0ff;
+    }
+    .period-nav .period-label {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #1a1f36;
+        padding: 0 0.4rem;
+    }
+    .period-nav .period-sep {
+        color: #d1d5db;
+    }
+
+    /* ── Month / Year picker ── */
+    .month-form select {
+        font-size: 0.78rem;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        padding: 0.3rem 0.5rem;
+        color: #374151;
+        cursor: pointer;
+    }
+    .month-form button {
+        font-size: 0.78rem;
+        padding: 0.3rem 0.75rem;
+        border-radius: 8px;
+    }
+
+    /* ── Tutor table ── */
+    .tutor-table th {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #6b7280;
+        background: #f9fafb;
+        font-weight: 600;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 0.6rem 0.9rem;
+    }
+    .tutor-table td {
+        font-size: 0.85rem;
+        vertical-align: middle;
+        color: #374151;
+        padding: 0.6rem 0.9rem;
+    }
+    .tutor-table tbody tr:hover td {
+        background: #f9fafb;
+    }
+    .tutor-table tfoot td {
+        padding: 0.65rem 0.9rem;
+        border-top: 2px solid #e5e7eb;
+    }
+
+    /* ── Status badges ── */
+    .badge-lunas {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background-color: #d1fae5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.28em 0.7em;
+        border-radius: 6px;
+        white-space: nowrap;
+    }
+    .badge-belum {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background-color: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fde68a;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.28em 0.7em;
+        border-radius: 6px;
+        white-space: nowrap;
+    }
+
+    /* ── Tutor avatar circle ── */
+    .tutor-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: rgba(37, 59, 155, 0.08);
+        color: #253b9b;
+        border: 1px solid rgba(37, 59, 155, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.72rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    /* ── Warning section card ── */
+    .card-warn-header {
+        background: #fffbeb;
+        border-bottom: 1px solid #fde68a;
+        color: #78350f;
+        font-weight: 600;
+        font-size: 0.88rem;
+        padding: 0.85rem 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set s = payroll_summary or {} %}
+{% set unpaid_id_list = unpaid_tutors | map(attribute='tutor_id') | list %}
+
+{# ── KPI card macro (angka Rupiah) ── #}
+{% macro kpi_card(label, value, icon, border_color, icon_bg, icon_color, col="col-md-6 col-xl-3") %}
+<div class="{{ col }}">
+    <div class="kpi-card card h-100" style="border-left: 4px solid {{ border_color }};">
+        <div class="card-body d-flex align-items-start justify-content-between p-3">
+            <div class="flex-grow-1 overflow-hidden pe-2">
+                <div class="kpi-label">{{ label }}</div>
+                <div class="kpi-value mt-1">Rp {{ "{:,.0f}".format(value or 0) }}</div>
+            </div>
+            <div class="kpi-icon flex-shrink-0" style="background: {{ icon_bg }}; color: {{ icon_color }};">
+                <i class="bi {{ icon }}"></i>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# ══════════════════════════════════════════
+   HEADER + PERIOD NAVIGATION
+══════════════════════════════════════════ #}
+<div class="d-flex flex-wrap align-items-start align-items-sm-center justify-content-between gap-3 mb-3">
+    <div>
+        <h4 class="fw-bold mb-0" style="color: #1a1f36">
+            <i class="bi bi-wallet2 me-2" style="color: #8b5cf6;"></i>Dashboard Payroll Tutor
+        </h4>
+        <small class="text-muted">
+            Ringkasan gaji tutor bulan {{ current_month_name }} {{ current_year }}
+        </small>
+    </div>
+
+    {# ── Period navigation ── #}
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="period-nav">
+            <a href="{{ url_for('dashboard.payroll_dashboard', month=prev_month, year=prev_year) }}"
+               title="Bulan sebelumnya">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+            <span class="period-sep">|</span>
+            <span class="period-label">{{ current_month_name }} {{ current_year }}</span>
+            <span class="period-sep">|</span>
+            <a href="{{ url_for('dashboard.payroll_dashboard', month=next_month, year=next_year) }}"
+               title="Bulan berikutnya">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+
+        {# ── Month / Year picker ── #}
+        <div class="d-flex align-items-center gap-1 month-form">
+            <select aria-label="Bulan" id="payrollMonthPicker" class="month-form">
+                <option value="1">Januari</option>
+                <option value="2">Februari</option>
+                <option value="3">Maret</option>
+                <option value="4">April</option>
+                <option value="5">Mei</option>
+                <option value="6">Juni</option>
+                <option value="7">Juli</option>
+                <option value="8">Agustus</option>
+                <option value="9">September</option>
+                <option value="10">Oktober</option>
+                <option value="11">November</option>
+                <option value="12">Desember</option>
+            </select>
+            <select aria-label="Tahun" id="payrollYearPicker" class="month-form">
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="payrollGoBtn">Go</button>
+        </div>
+        <script>
+            (function () {
+                var mp  = document.getElementById("payrollMonthPicker");
+                var yp  = document.getElementById("payrollYearPicker");
+                var btn = document.getElementById("payrollGoBtn");
+                if (mp) mp.value = "{{ current_month }}";
+                if (yp) yp.value = "{{ current_year }}";
+                if (btn)
+                    btn.addEventListener("click", function () {
+                        var m = mp ? mp.value : "{{ current_month }}";
+                        var y = yp ? yp.value : "{{ current_year }}";
+                        window.location.href =
+                            window.location.pathname + "?month=" + m + "&year=" + y;
+                    });
+            })();
+        </script>
+    </div>
+</div>
+
+{# ── Error alert ── #}
+{% if error %}
+<div class="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+    <span>{{ error }}</span>
+</div>
+{% endif %}
+
+{# ══════════════════════════════════════════
+   QUICK ACTIONS
+══════════════════════════════════════════ #}
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <a href="/payroll/tutor-summary"
+       class="btn btn-outline-secondary quick-action-btn btn-sm">
+        <i class="bi bi-wallet2"></i>Rekap Gaji Tutor
+    </a>
+    <a href="/payroll/"
+       class="btn btn-outline-primary quick-action-btn btn-sm">
+        <i class="bi bi-cash-coin"></i>Kelola Payroll
+    </a>
+    <a href="/attendance/"
+       class="btn btn-outline-info quick-action-btn btn-sm">
+        <i class="bi bi-calendar-check"></i>Data Presensi
+    </a>
+</div>
+
+{# ══════════════════════════════════════════
+   KPI CARDS
+══════════════════════════════════════════ #}
+<div class="row g-3 mb-4">
+    {{ kpi_card(
+        "Total Payable",
+        s.get('total_payable', 0) or 0,
+        "bi-cash-stack",
+        "#8b5cf6", "#8b5cf615", "#8b5cf6"
+    ) }}
+    {{ kpi_card(
+        "Total Dibayar",
+        s.get('total_paid', 0) or 0,
+        "bi-check-circle-fill",
+        "#10b981", "#10b98115", "#10b981"
+    ) }}
+    {{ kpi_card(
+        "Total Belum Dibayar",
+        s.get('total_unpaid', 0) or 0,
+        "bi-exclamation-circle-fill",
+        "#f59e0b", "#f59e0b15", "#f59e0b"
+    ) }}
+
+    {# Jumlah Tutor — angka bukan Rupiah, dibuat manual ── #}
+    <div class="col-md-6 col-xl-3">
+        <div class="kpi-card card h-100" style="border-left: 4px solid #3b82f6;">
+            <div class="card-body d-flex align-items-start justify-content-between p-3">
+                <div class="flex-grow-1 overflow-hidden pe-2">
+                    <div class="kpi-label">Jumlah Tutor</div>
+                    <div class="kpi-value mt-1">
+                        {{ s.get('tutor_count', 0) or 0 }}
+                        <small class="fw-normal text-muted" style="font-size: 0.75rem;">tutor</small>
+                    </div>
+                </div>
+                <div class="kpi-icon flex-shrink-0" style="background: #3b82f615; color: #3b82f6;">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════
+   TABEL DETAIL PER TUTOR
+══════════════════════════════════════════ #}
+<div class="row g-4">
+
+    {# ── Full list — semua tutor ── #}
+    <div class="col-12">
+        <div class="card table-card">
+            <div class="card-header d-flex align-items-center justify-content-between fw-semibold text-white py-3"
+                 style="background: linear-gradient(135deg, #253b9b 0%, #3b52cc 100%);">
+                <span>
+                    <i class="bi bi-person-badge-fill me-2"></i>
+                    Detail Payroll per Tutor — {{ current_month_name }} {{ current_year }}
+                </span>
+                {% if unpaid_tutors %}
+                <span class="badge bg-warning text-dark" style="font-size: 0.7rem; font-weight: 700;">
+                    <i class="bi bi-clock-fill me-1"></i>{{ unpaid_tutors | length }} belum dibayar
+                </span>
+                {% else %}
+                <span class="badge bg-success" style="font-size: 0.7rem; font-weight: 700;">
+                    <i class="bi bi-check-all me-1"></i>Semua Lunas
+                </span>
+                {% endif %}
+            </div>
+
+            <div class="card-body p-0">
+                {% if tutor_details %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 tutor-table">
+                        <thead>
+                            <tr>
+                                <th class="ps-3" style="width: 2.8rem">#</th>
+                                <th>Nama Tutor</th>
+                                <th class="text-end">Total Payable</th>
+                                <th class="text-center" style="width: 9rem">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tutor in tutor_details %}
+                            {% set is_unpaid = tutor.tutor_id in unpaid_id_list %}
+                            <tr>
+                                <td class="ps-3 text-muted" style="font-size: 0.78rem;">
+                                    {{ loop.index }}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="tutor-avatar">
+                                            {{ (tutor.tutor_name or '?')[0] | upper }}
+                                        </div>
+                                        <span class="fw-medium">{{ tutor.tutor_name }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-end fw-semibold" style="color: #8b5cf6;">
+                                    Rp {{ "{:,.0f}".format(tutor.payable or 0) }}
+                                </td>
+                                <td class="text-center">
+                                    {% if is_unpaid %}
+                                    <span class="badge-belum">
+                                        <i class="bi bi-clock-fill"></i>Belum Dibayar
+                                    </span>
+                                    {% else %}
+                                    <span class="badge-lunas">
+                                        <i class="bi bi-check-circle-fill"></i>Lunas
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #f9fafb;">
+                                <td class="ps-3" colspan="2"
+                                    style="font-size: 0.82rem; font-weight: 700; color: #374151;">
+                                    Total
+                                </td>
+                                <td class="text-end fw-bold" style="color: #8b5cf6; font-size: 0.9rem;">
+                                    Rp {{ "{:,.0f}".format(s.get('total_payable', 0) or 0) }}
+                                </td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="d-flex flex-column align-items-center justify-content-center py-5 text-muted">
+                    <i class="bi bi-inbox" style="font-size: 2.8rem; opacity: 0.3;"></i>
+                    <p class="mt-2 mb-0" style="font-size: 0.88rem;">
+                        Belum ada data payroll untuk periode ini.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="card-footer bg-white py-2 px-3" style="border-top: 1px solid #f0f0f0;">
+                <a href="/payroll/tutor-summary"
+                   class="btn btn-sm btn-outline-primary"
+                   style="font-size: 0.78rem; border-radius: 8px;">
+                    <i class="bi bi-arrow-right-circle me-1"></i>Lihat Rekap Lengkap
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {# ── Daftar tutor yang BELUM dibayar (hanya tampil jika ada) ── #}
+    {% if unpaid_tutors %}
+    <div class="col-12">
+        <div class="card table-card">
+            <div class="card-warn-header d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill" style="color: #d97706; font-size: 1rem;"></i>
+                <span>
+                    Tutor Belum Dibayar
+                    <span class="ms-1 badge bg-warning text-dark" style="font-size: 0.68rem; font-weight: 700;">
+                        {{ unpaid_tutors | length }}
+                    </span>
+                </span>
+                <span class="ms-auto text-muted" style="font-size: 0.78rem; font-weight: 400;">
+                    Total: Rp {{ "{:,.0f}".format(s.get('total_unpaid', 0) or 0) }}
+                </span>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 tutor-table">
+                        <thead>
+                            <tr>
+                                <th class="ps-3" style="width: 2.8rem">#</th>
+                                <th>Nama Tutor</th>
+                                <th class="text-end">Sisa Harus Dibayar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tutor in unpaid_tutors %}
+                            <tr>
+                                <td class="ps-3 text-muted" style="font-size: 0.78rem;">
+                                    {{ loop.index }}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="tutor-avatar"
+                                             style="background: rgba(217,119,6,0.08); color: #d97706; border-color: rgba(217,119,6,0.2);">
+                                            {{ (tutor.tutor_name or '?')[0] | upper }}
+                                        </div>
+                                        <span class="fw-medium">{{ tutor.tutor_name }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-end fw-semibold" style="color: #d97706;">
+                                    Rp {{ "{:,.0f}".format(tutor.payable or 0) }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #fffbeb;">
+                                <td class="ps-3" colspan="2"
+                                    style="font-size: 0.82rem; font-weight: 700; color: #374151;">
+                                    Total Belum Dibayar
+                                </td>
+                                <td class="text-end fw-bold" style="color: #d97706; font-size: 0.9rem;">
+                                    Rp {{ "{:,.0f}".format(s.get('total_unpaid', 0) or 0) }}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card-footer bg-white py-2 px-3" style="border-top: 1px solid #fde68a;">
+                <a href="/payroll/tutor-summary"
+                   class="btn btn-sm btn-outline-warning"
+                   style="font-size: 0.78rem; border-radius: 8px; color: #92400e; border-color: #d97706;">
+                    <i class="bi bi-cash-coin me-1"></i>Proses Pembayaran
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>{# /row #}
+{% endblock %}

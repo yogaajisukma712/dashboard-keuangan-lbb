@@ -1,5 +1,5 @@
 {% extends "base.html" %} {% block title %}Detail Quota — {{ student.name }} —
-{{ super() }}{% endblock %} {% block content %}
+{{ super() }}{% endblock %} {% block content %} {# ── Header ── #}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h4 class="mb-0">📊 Detail Quota Siswa</h4>
@@ -30,28 +30,21 @@
     </div>
 </div>
 
+{# ── Filter bulan ── #}
 <div class="card shadow-sm mb-4">
     <div class="card-body py-2">
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-auto">
                 <label class="form-label muted-label mb-1">Bulan</label>
                 <select name="month" class="form-select form-select-sm">
-                    {% for m in range(1, 13) %}
-                    <option
-                        value="{{ m }}"
-                        {%
-                        if
-                        m=""
-                        ="service_month.month"
-                        %}selected{%
-                        endif
-                        %}
-                    >
-                        {{
-                        ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][m-1]
-                        }}
-                    </option>
-                    {% endfor %}
+                    {% set bulan =
+                    ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
+                    %} {% for m in range(1, 13) %} {% if m ==
+                    service_month.month %}
+                    <option value="{{ m }}" selected>{{ bulan[m-1] }}</option>
+                    {% else %}
+                    <option value="{{ m }}">{{ bulan[m-1] }}</option>
+                    {% endif %} {% endfor %}
                 </select>
             </div>
             <div class="col-auto">
@@ -75,6 +68,7 @@
     </div>
 </div>
 
+{# ── Info siswa + Ringkasan ── #}
 <div class="row g-4 mb-4">
     <div class="col-lg-8">
         <div class="card shadow-sm h-100">
@@ -127,23 +121,23 @@
             <div class="card-body">
                 <div class="row g-3 text-center">
                     <div class="col-6">
-                        <div class="border rounded p-3 h-100">
+                        <div class="border rounded p-3">
                             <div class="fs-4 fw-bold text-primary">
                                 {{ summary.total_enrollments }}
                             </div>
-                            <div class="muted-label">Total Mapel Aktif</div>
+                            <div class="muted-label">Mapel Aktif</div>
                         </div>
                     </div>
                     <div class="col-6">
-                        <div class="border rounded p-3 h-100">
+                        <div class="border rounded p-3">
                             <div class="fs-4 fw-bold text-danger">
                                 {{ summary.problem_subject_count }}
                             </div>
-                            <div class="muted-label">Mapel Bermasalah</div>
+                            <div class="muted-label">Bermasalah</div>
                         </div>
                     </div>
                     <div class="col-6">
-                        <div class="border rounded p-3 h-100">
+                        <div class="border rounded p-3">
                             <div class="fs-4 fw-bold text-warning">
                                 {{ summary.zero_subject_count }}
                             </div>
@@ -151,7 +145,7 @@
                         </div>
                     </div>
                     <div class="col-6">
-                        <div class="border rounded p-3 h-100">
+                        <div class="border rounded p-3">
                             <div class="fs-4 fw-bold text-dark">
                                 {{ summary.total_debt_sessions }}
                             </div>
@@ -162,12 +156,12 @@
                 <hr />
                 <div class="small text-muted">
                     <div>
-                        <strong>Pra Bayar:</strong> default 4 / 8 / 12 sesi,
-                        tetapi tetap bisa Anda ubah per mapel.
+                        <strong>Pra Bayar:</strong> tambah sesi baru (default
+                        4/8/12, bisa diubah per mapel).
                     </div>
-                    <div class="mt-2">
-                        <strong>Pasca Bayar:</strong> otomatis menagihkan semua
-                        sesi yang sudah minus pada mapel yang Anda pilih.
+                    <div class="mt-1">
+                        <strong>Pasca Bayar:</strong> tagihkan sesi minus secara
+                        otomatis.
                     </div>
                 </div>
             </div>
@@ -175,6 +169,7 @@
     </div>
 </div>
 
+{# ── Kartu quota per mapel ── #}
 <h5 class="mb-3">
     Quota Bulan <span class="text-primary">{{ service_month_label }}</span>
 </h5>
@@ -182,14 +177,14 @@
 {% if not quota_details %}
 <div class="alert alert-info">Siswa ini tidak memiliki enrollment aktif.</div>
 {% else %}
-<div class="row g-4">
+<div class="row g-4 mb-4">
     {% for item in quota_details %}
     <div class="col-md-6 col-xl-4">
         <div
-            class="card shadow-sm h-100 {% if item.remaining < 0 %}border-danger{% elif item.remaining == 0 %}border-warning{% else %}border-success{% endif %}"
+            class="card shadow-sm h-100 {% if item.remaining < 0 %}border-danger {% elif item.remaining == 0 %}border-warning {% else %}border-success{% endif %}"
         >
             <div
-                class="card-header fw-semibold d-flex justify-content-between align-items-center {% if item.remaining < 0 %}bg-danger text-white{% elif item.remaining == 0 %}bg-warning text-dark{% else %}bg-success text-white{% endif %}"
+                class="card-header fw-semibold d-flex justify-content-between align-items-center {% if item.remaining < 0 %}bg-danger text-white {% elif item.remaining == 0 %}bg-warning text-dark {% else %}bg-success text-white{% endif %}"
             >
                 <span>{{ item.subject.name }}</span>
                 {% if item.remaining < 0 %}
@@ -231,7 +226,7 @@
                     <div class="col-4">
                         <div class="border rounded py-2">
                             <div
-                                class="fs-5 fw-bold {% if item.remaining < 0 %}text-danger{% elif item.remaining == 0 %}text-warning{% else %}text-success{% endif %}"
+                                class="fs-5 fw-bold {% if item.remaining < 0 %}text-danger {% elif item.remaining == 0 %}text-warning {% else %}text-success{% endif %}"
                             >
                                 {{ item.remaining }}
                             </div>
@@ -252,7 +247,7 @@
                     <div
                         class="progress-bar {% if pct >= 100 %}bg-danger{% elif pct >= 75 %}bg-warning{% else %}bg-success{% endif %}"
                         role="progressbar"
-                        style="width: {{ pct }}%"
+                        style="width:{{ pct }}%"
                         aria-valuenow="{{ pct }}"
                         aria-valuemin="0"
                         aria-valuemax="100"
@@ -268,8 +263,7 @@
                 </div>
                 {% elif item.remaining == 0 %}
                 <div class="alert alert-warning py-2 px-3 small mt-3 mb-0">
-                    Quota tepat habis. Cocok untuk penagihan pra bayar sesi
-                    berikutnya.
+                    Quota habis — cocok untuk pra bayar sesi berikutnya.
                 </div>
                 {% endif %}
             </div>
@@ -277,7 +271,7 @@
     </div>
     {% endfor %}
 </div>
-{% endif %} {% if quota_details %}
+{% endif %} {# ── Modal: Buat Invoice per Siswa ── #} {% if quota_details %}
 <div
     class="modal fade"
     id="modalInvoiceBuilder"
@@ -308,6 +302,7 @@
                     value="{{ service_month.strftime('%Y-%m') }}"
                 />
 
+                {# ── Modal header ── #}
                 <div class="modal-header bg-primary text-white">
                     <div>
                         <h5
@@ -327,13 +322,15 @@
                     ></button>
                 </div>
 
+                {# ── Modal body ── #}
                 <div class="modal-body">
+                    {# Tipe penagihan + preset #}
                     <div class="row g-3 mb-3">
                         <div class="col-lg-7">
-                            <label class="form-label fw-semibold d-block"
+                            <label class="form-label fw-semibold"
                                 >Tipe Penagihan</label
                             >
-                            <div class="d-flex flex-wrap gap-3">
+                            <div class="d-flex flex-wrap gap-3 mt-1">
                                 <div class="form-check">
                                     <input
                                         class="form-check-input billing-type-radio"
@@ -349,8 +346,8 @@
                                     >
                                         <strong>Pra Bayar</strong>
                                         <span class="text-muted small d-block"
-                                            >Tambah sesi baru saat quota habis /
-                                            ingin top up.</span
+                                            >Tambah sesi baru (quota habis / top
+                                            up).</span
                                         >
                                     </label>
                                 </div>
@@ -368,18 +365,18 @@
                                     >
                                         <strong>Pasca Bayar</strong>
                                         <span class="text-muted small d-block"
-                                            >Tagihkan semua sesi yang sudah
-                                            minus pada mapel terpilih.</span
+                                            >Tagihkan sesi terhutang /
+                                            minus.</span
                                         >
                                     </label>
                                 </div>
                             </div>
                         </div>
                         <div class="col-lg-5">
-                            <label class="form-label fw-semibold d-block"
+                            <label class="form-label fw-semibold"
                                 >Preset Sesi Pra Bayar</label
                             >
-                            <div class="btn-group w-100" role="group">
+                            <div class="btn-group w-100 mt-1" role="group">
                                 <button
                                     type="button"
                                     class="btn btn-outline-primary preset-btn"
@@ -403,12 +400,13 @@
                                 </button>
                             </div>
                             <div class="form-text">
-                                Preset hanya untuk mode pra bayar, dan masih
-                                bisa Anda ubah manual per mapel.
+                                Preset hanya untuk pra bayar, bisa diubah manual
+                                per mapel.
                             </div>
                         </div>
                     </div>
 
+                    {# Tabel mapel #}
                     <div class="table-responsive border rounded">
                         <table
                             class="table align-middle mb-0"
@@ -416,14 +414,19 @@
                         >
                             <thead class="table-light">
                                 <tr>
-                                    <th style="width: 52px">Pilih</th>
+                                    <th style="width: 48px">Pilih</th>
                                     <th>Mapel</th>
                                     <th>Tutor</th>
                                     <th class="text-center">Dibayar</th>
                                     <th class="text-center">Terpakai</th>
                                     <th class="text-center">Sisa</th>
-                                    <th class="text-center">Sesi Ditagihkan</th>
-                                    <th class="text-end">Tarif / Sesi</th>
+                                    <th
+                                        class="text-center"
+                                        style="width: 130px"
+                                    >
+                                        Sesi Ditagihkan
+                                    </th>
+                                    <th class="text-end">Tarif/Sesi</th>
                                     <th class="text-end">Subtotal</th>
                                 </tr>
                             </thead>
@@ -438,29 +441,27 @@
                                     data-default-quota="{{ item.enrollment.meeting_quota_per_month or 4 }}"
                                 >
                                     <td>
-                                        <div class="form-check mb-0">
-                                            <input
-                                                class="form-check-input invoice-check"
-                                                type="checkbox"
-                                                name="selected_enrollment_ids"
-                                                value="{{ item.enrollment.id }}"
-                                                id="enrollmentCheck{{ item.enrollment.id }}"
-                                            />
-                                        </div>
+                                        <input
+                                            class="form-check-input invoice-check"
+                                            type="checkbox"
+                                            name="selected_enrollment_ids"
+                                            value="{{ item.enrollment.id }}"
+                                            id="ec{{ item.enrollment.id }}"
+                                        />
                                     </td>
                                     <td>
                                         <label
                                             class="fw-semibold mb-0"
-                                            for="enrollmentCheck{{ item.enrollment.id }}"
+                                            for="ec{{ item.enrollment.id }}"
                                             >{{ item.subject.name }}</label
                                         >
                                         <div class="small text-muted">
-                                            Quota standar: {{
+                                            Std: {{
                                             item.enrollment.meeting_quota_per_month
                                             or 4 }} sesi
                                         </div>
                                     </td>
-                                    <td>{{ item.tutor.name }}</td>
+                                    <td class="small">{{ item.tutor.name }}</td>
                                     <td class="text-center">
                                         <span class="badge bg-secondary"
                                             >{{ item.paid }}</span
@@ -503,7 +504,7 @@
                                             ada hutang{% endif %}
                                         </div>
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end small">
                                         Rp {{
                                         '{:,.0f}'.format(item.enrollment.student_rate_per_meeting
                                         | float) }}
@@ -548,13 +549,12 @@
                         ></textarea>
                     </div>
                 </div>
-
+                {# /modal-body #} {# ── Modal footer ── #}
                 <div class="modal-footer justify-content-between">
                     <div class="small text-muted">
-                        <strong>Pra bayar:</strong> Anda pilih mapel lalu
-                        tentukan jumlah sesi.
-                        <strong>Pasca bayar:</strong> sistem otomatis mengambil
-                        semua sesi minus per mapel terpilih.
+                        <strong>Pra bayar:</strong> pilih mapel &amp; tentukan
+                        jumlah sesi. &nbsp; <strong>Pasca bayar:</strong> sistem
+                        otomatis ambil sesi minus.
                     </div>
                     <div class="d-flex gap-2">
                         <button
@@ -574,144 +574,136 @@
     </div>
 </div>
 
+{# ── JS: kalkulasi live di modal ── #}
 <script>
     (function () {
-        const form = document.getElementById("studentInvoiceForm");
+        var form = document.getElementById("studentInvoiceForm");
         if (!form) return;
 
-        const currency = new Intl.NumberFormat("id-ID");
-        const rows = Array.from(form.querySelectorAll(".invoice-row"));
-        const totalEl = document.getElementById("invoiceGrandTotal");
-        const billingRadios = Array.from(
-            form.querySelectorAll(".billing-type-radio"),
-        );
-        const presetButtons = Array.from(form.querySelectorAll(".preset-btn"));
+        var fmt = new Intl.NumberFormat("id-ID");
+        var rows = Array.from(form.querySelectorAll(".invoice-row"));
+        var totalEl = document.getElementById("invoiceGrandTotal");
 
         function billingType() {
-            const active = form.querySelector(".billing-type-radio:checked");
-            return active ? active.value : "prepaid";
+            var el = form.querySelector(".billing-type-radio:checked");
+            return el ? el.value : "prepaid";
         }
 
-        function formatCurrency(value) {
-            return "Rp " + currency.format(Math.round(Number(value || 0)));
+        function currency(v) {
+            return "Rp " + fmt.format(Math.round(Number(v || 0)));
         }
 
         function updateRow(row) {
-            const type = billingType();
-            const checkbox = row.querySelector(".invoice-check");
-            const qtyInput = row.querySelector(".invoice-qty");
-            const subtotalEl = row.querySelector(".invoice-subtotal");
-            const hintEl = row.querySelector(".debt-hint");
-            const deficit = parseInt(row.dataset.deficit || "0", 10);
-            const defaultQuota = parseInt(row.dataset.defaultQuota || "4", 10);
-            const rate = parseFloat(row.dataset.rate || "0");
+            var type = billingType();
+            var chk = row.querySelector(".invoice-check");
+            var qty = row.querySelector(".invoice-qty");
+            var sub = row.querySelector(".invoice-subtotal");
+            var hint = row.querySelector(".debt-hint");
+            var deficit = parseInt(row.dataset.deficit || "0", 10);
+            var defaultQuota = parseInt(row.dataset.defaultQuota || "4", 10);
+            var rate = parseFloat(row.dataset.rate || "0");
 
             if (type === "postpaid") {
-                qtyInput.readOnly = true;
-                qtyInput.classList.add("bg-light");
-                qtyInput.value = deficit > 0 ? deficit : 0;
-                hintEl.textContent =
+                qty.readOnly = true;
+                qty.classList.add("bg-light");
+                qty.value = deficit > 0 ? deficit : 0;
+                hint.textContent =
                     deficit > 0
-                        ? `Akan ditagihkan otomatis ${deficit} sesi minus`
-                        : "Tidak ada sesi minus untuk mapel ini";
-            } else {
-                qtyInput.readOnly = false;
-                qtyInput.classList.remove("bg-light");
-                if (!qtyInput.value || parseInt(qtyInput.value, 10) <= 0) {
-                    qtyInput.value = defaultQuota;
+                        ? "Tagih otomatis " + deficit + " sesi minus"
+                        : "Tidak ada sesi minus";
+                if (deficit <= 0) {
+                    qty.value = 0;
+                    chk.checked = false;
+                    chk.disabled = true;
+                    row.classList.add("table-light");
+                } else {
+                    chk.disabled = false;
+                    row.classList.remove("table-light");
                 }
-                hintEl.textContent = `Default pra bayar ${defaultQuota} sesi, bisa diubah manual`;
-            }
-
-            if (type === "postpaid" && deficit <= 0) {
-                qtyInput.value = 0;
-                checkbox.checked = false;
-                checkbox.disabled = true;
-                row.classList.add("table-light");
             } else {
-                checkbox.disabled = false;
+                qty.readOnly = false;
+                qty.classList.remove("bg-light");
+                chk.disabled = false;
                 row.classList.remove("table-light");
+                if (!qty.value || parseInt(qty.value, 10) <= 0)
+                    qty.value = defaultQuota;
+                hint.textContent =
+                    "Default " + defaultQuota + " sesi, bisa diubah";
             }
 
-            const qty = parseInt(qtyInput.value || "0", 10);
-            const subtotal = checkbox.checked ? qty * rate : 0;
-            subtotalEl.textContent = formatCurrency(subtotal);
+            var count = parseInt(qty.value || "0", 10) || 0;
+            sub.textContent = currency(chk.checked ? count * rate : 0);
         }
 
-        function updateAllRows() {
+        function updateAll() {
             rows.forEach(updateRow);
-            const total = rows.reduce((sum, row) => {
-                const checkbox = row.querySelector(".invoice-check");
-                const qtyInput = row.querySelector(".invoice-qty");
-                const rate = parseFloat(row.dataset.rate || "0");
-                if (!checkbox.checked) return sum;
-                return sum + (parseInt(qtyInput.value || "0", 10) || 0) * rate;
+            var total = rows.reduce(function (acc, row) {
+                var chk = row.querySelector(".invoice-check");
+                var qty = row.querySelector(".invoice-qty");
+                var rate = parseFloat(row.dataset.rate || "0");
+                if (!chk.checked) return acc;
+                return acc + (parseInt(qty.value || "0", 10) || 0) * rate;
             }, 0);
-            totalEl.textContent = formatCurrency(total);
+            totalEl.textContent = currency(total);
         }
 
-        function applyPreset(count) {
+        function applyPreset(n) {
             if (billingType() !== "prepaid") return;
-            rows.forEach((row) => {
-                const qtyInput = row.querySelector(".invoice-qty");
-                if (!qtyInput.readOnly) {
-                    qtyInput.value = count;
-                }
+            rows.forEach(function (row) {
+                var qty = row.querySelector(".invoice-qty");
+                if (!qty.readOnly) qty.value = n;
             });
-            updateAllRows();
+            updateAll();
         }
 
-        billingRadios.forEach((radio) => {
-            radio.addEventListener("change", updateAllRows);
+        form.querySelectorAll(".billing-type-radio").forEach(function (r) {
+            r.addEventListener("change", updateAll);
         });
-
-        presetButtons.forEach((btn) => {
+        form.querySelectorAll(".preset-btn").forEach(function (btn) {
             btn.addEventListener("click", function () {
                 applyPreset(parseInt(btn.dataset.count || "4", 10));
             });
         });
-
-        rows.forEach((row) => {
+        rows.forEach(function (row) {
             row.querySelector(".invoice-check").addEventListener(
                 "change",
-                updateAllRows,
+                updateAll,
             );
             row.querySelector(".invoice-qty").addEventListener(
                 "input",
-                updateAllRows,
+                updateAll,
             );
         });
 
-        form.addEventListener("submit", function (event) {
-            const checkedRows = rows.filter((row) => {
-                const checkbox = row.querySelector(".invoice-check");
-                return checkbox.checked && !checkbox.disabled;
+        form.addEventListener("submit", function (e) {
+            var checked = rows.filter(function (row) {
+                var chk = row.querySelector(".invoice-check");
+                return chk.checked && !chk.disabled;
             });
-
-            if (!checkedRows.length) {
-                event.preventDefault();
-                window.alert("Pilih minimal satu mapel yang ingin ditagihkan.");
+            if (!checked.length) {
+                e.preventDefault();
+                alert("Pilih minimal satu mapel yang ingin ditagihkan.");
                 return;
             }
-
             if (billingType() === "prepaid") {
-                const invalid = checkedRows.some((row) => {
-                    const qty = parseInt(
-                        row.querySelector(".invoice-qty").value || "0",
-                        10,
+                var bad = checked.some(function (row) {
+                    return (
+                        parseInt(
+                            row.querySelector(".invoice-qty").value || "0",
+                            10,
+                        ) <= 0
                     );
-                    return qty <= 0;
                 });
-                if (invalid) {
-                    event.preventDefault();
-                    window.alert(
+                if (bad) {
+                    e.preventDefault();
+                    alert(
                         "Jumlah sesi pra bayar harus lebih dari 0 untuk semua mapel yang dipilih.",
                     );
                 }
             }
         });
 
-        updateAllRows();
+        updateAll();
     })();
 </script>
 {% endif %} {% endblock %}

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Riwayat Invoice — {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">🧾 Riwayat Invoice</h4>
+  <a href="{{ url_for('quota_invoice.quota_alerts') }}" class="btn btn-outline-secondary btn-sm">
+    ← Alert Quota
+  </a>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-sm-3">
+        <label class="form-label muted-label mb-1">Siswa</label>
+        <select name="student_id" class="form-select form-select-sm">
+          <option value="">— Semua Siswa —</option>
+          {% for s in students %}
+          <option value="{{ s.id }}"{% if filters.student_id == s.id %} selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label muted-label mb-1">Status</label>
+        <select name="status" class="form-select form-select-sm">
+          <option value="">— Semua —</option>
+          <option value="draft"{% if filters.status == 'draft' %} selected{% endif %}>Draft</option>
+          <option value="paid"{% if filters.status == 'paid' %} selected{% endif %}>Lunas</option>
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label muted-label mb-1">Tipe</label>
+        <select name="billing_type" class="form-select form-select-sm">
+          <option value="">— Semua —</option>
+          <option value="prepaid"{% if filters.billing_type == 'prepaid' %} selected{% endif %}>Pra Bayar</option>
+          <option value="postpaid"{% if filters.billing_type == 'postpaid' %} selected{% endif %}>Pasca Bayar</option>
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label muted-label mb-1">Bulan</label>
+        <select name="month" class="form-select form-select-sm">
+          <option value="">— Semua —</option>
+          {% set bulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'] %}
+          {% for m in range(1,13) %}
+          <option value="{{ m }}"{% if filters.month == m %} selected{% endif %}>{{ bulan[m-1] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label muted-label mb-1">Tahun</label>
+        <input type="number" name="year" class="form-control form-control-sm"
+               value="{{ filters.year or current_year }}" min="2020" max="2099">
+      </div>
+      <div class="col-sm-1">
+        <button type="submit" class="btn btn-primary btn-sm w-100">🔍</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if not invoices %}
+<div class="alert alert-info">Belum ada invoice ditemukan untuk filter ini.</div>
+{% else %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <div class="text-muted small">Menampilkan {{ invoices|length }} dari {{ total }} invoice</div>
+</div>
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Siswa</th>
+          <th>Bulan Layanan</th>
+          <th class="text-center">Tipe</th>
+          <th class="text-center">Status</th>
+          <th class="text-center">Mapel</th>
+          <th class="text-end">Nominal</th>
+          <th class="text-muted small">Dibuat</th>
+          <th class="text-center">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr>
+          <td class="text-muted small">{{ inv.id }}</td>
+          <td>
+            <div class="fw-semibold">{{ inv.student_name }}</div>
+            <div class="text-muted small">{{ inv.student_code }}</div>
+          </td>
+          <td>{{ inv.service_month.strftime('%B %Y') if inv.service_month else '—' }}</td>
+          <td class="text-center">
+            {% if inv.billing_type == 'postpaid' %}
+            <span class="badge bg-warning text-dark">Pasca Bayar</span>
+            {% else %}
+            <span class="badge bg-primary">Pra Bayar</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if inv.status == 'paid' %}
+            <span class="badge bg-success">✅ Lunas</span>
+            {% else %}
+            <span class="badge bg-warning text-dark">🕐 Draft</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <span class="badge bg-secondary">{{ inv.line_count }}</span>
+          </td>
+          <td class="text-end fw-semibold">Rp {{ '{:,.0f}'.format(inv.amount | float) }}</td>
+          <td class="text-muted small">{{ inv.created_at.strftime('%d/%m/%Y') if inv.created_at else '—' }}</td>
+          <td class="text-center">
+            <div class="d-flex gap-1 justify-content-center">
+              <a href="{{ url_for('quota_invoice.invoice_detail', invoice_id=inv.id) }}"
+                 class="btn btn-sm btn-outline-primary" title="Detail">
+                <i class="bi bi-eye"></i>
+              </a>
+              <a href="{{ url_for('quota_invoice.invoice_print', invoice_id=inv.id) }}"
+                 class="btn btn-sm btn-outline-success" title="Download PNG" target="_blank">
+                <i class="bi bi-file-earmark-image"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if total_pages > 1 %}
+<nav class="mt-3">
+  <ul class="pagination pagination-sm justify-content-center">
+    {% if page > 1 %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page-1 }}&student_id={{ filters.student_id or '' }}&status={{ filters.status or '' }}&billing_type={{ filters.billing_type or '' }}&month={{ filters.month or '' }}&year={{ filters.year or '' }}">←</a>
+    </li>
+    {% endif %}
+    {% for p in range(1, total_pages+1) %}
+    <li class="page-item{% if p == page %} active{% endif %}">
+      <a class="page-link" href="?page={{ p }}&student_id={{ filters.student_id or '' }}&status={{ filters.status or '' }}&billing_type={{ filters.billing_type or '' }}&month={{ filters.month or '' }}&year={{ filters.year or '' }}">{{ p }}</a>
+    </li>
+    {% endfor %}
+    {% if page < total_pages %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page+1 }}&student_id={{ filters.student_id or '' }}&status={{ filters.status or '' }}&billing_type={{ filters.billing_type or '' }}&month={{ filters.month or '' }}&year={{ filters.year or '' }}">→</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endif %}
+{% endblock %}

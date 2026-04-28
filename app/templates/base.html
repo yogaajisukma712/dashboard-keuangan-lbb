@@ -548,7 +548,7 @@
 
             <a
                 href="/quota/alerts"
-                class="sidebar-link {% if 'quota' in request.path %}active{% endif %}"
+                class="sidebar-link {% if request.path == '/quota/alerts' %}active{% endif %}"
             >
                 <i class="bi bi-exclamation-triangle-fill text-warning"></i>
                 Alert Quota {% if quota_alert_count and quota_alert_count > 0 %}
@@ -556,6 +556,13 @@
                     >{{ quota_alert_count }}</span
                 >
                 {% endif %}
+            </a>
+
+            <a
+                href="/quota/invoices"
+                class="sidebar-link {% if 'quota/invoices' in request.path or 'quota/invoice' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-receipt"></i> Riwayat Invoice
             </a>
 
             <!-- ── Laporan & Closing ── -->

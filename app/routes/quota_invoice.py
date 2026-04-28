@@ -760,3 +760,166 @@ def invoice_detail(invoice_id):
         total_meetings=sum(int(line["meeting_count"] or 0) for line in invoice_lines),
         total_subjects=len(invoice_lines),
     )
+
+
+@quota_invoice_bp.route("/invoices", methods=["GET"])
+@login_required
+def invoice_list():
+    """Daftar semua invoice dengan filter dan pagination."""
+    from flask import current_app
+
+    page = request.args.get("page", 1, type=int)
+    per_page = current_app.config.get("PAGINATION_PER_PAGE", 20)
+    student_id = request.args.get("student_id", type=int)
+    status = request.args.get("status", "").strip()
+    billing_type = request.args.get("billing_type", "").strip()
+    month = request.args.get("month", type=int)
+    year = request.args.get("year", type=int)
+
+    where_parts = ["1=1"]
+    params: dict = {}
+
+    if student_id:
+        where_parts.append("si.student_id = :student_id")
+        params["student_id"] = student_id
+    if status:
+        where_parts.append("si.status = :status")
+        params["status"] = status
+    if billing_type:
+        where_parts.append("COALESCE(si.billing_type,'prepaid') = :billing_type")
+        params["billing_type"] = billing_type
+    if month:
+        where_parts.append("EXTRACT(MONTH FROM si.service_month) = :month")
+        params["month"] = month
+    if year:
+        where_parts.append("EXTRACT(YEAR FROM si.service_month) = :year")
+        params["year"] = year
+
+    where_sql = " AND ".join(where_parts)
+
+    count_row = db.session.execute(
+        db.text(f"SELECT COUNT(*) FROM student_invoices si WHERE {where_sql}"),
+        params,
+    ).scalar()
+    total = int(count_row or 0)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    offset = (page - 1) * per_page
+
+    rows = (
+        db.session.execute(
+            db.text(
+                f"""
+            SELECT si.*, s.name AS student_name, s.student_code
+            FROM student_invoices si
+            JOIN students s ON s.id = si.student_id
+            WHERE {where_sql}
+            ORDER BY si.created_at DESC
+            LIMIT :limit OFFSET :offset
+            """
+            ),
+            {**params, "limit": per_page, "offset": offset},
+        )
+        .mappings()
+        .all()
+    )
+
+    invoices = [dict(r) for r in rows]
+
+    # Hitung jumlah line per invoice
+    for inv in invoices:
+        cnt = db.session.execute(
+            db.text(
+                "SELECT COUNT(*) FROM student_invoice_lines WHERE invoice_id = :id"
+            ),
+            {"id": inv["id"]},
+        ).scalar()
+        inv["line_count"] = int(cnt or 0)
+
+    students = Student.query.filter_by(is_active=True).order_by(Student.name).all()
+
+    today = date.today()
+    return render_template(
+        "quota/invoice_list.html",
+        invoices=invoices,
+        students=students,
+        page=page,
+        per_page=per_page,
+        total=total,
+        total_pages=total_pages,
+        filters={
+            "student_id": student_id,
+            "status": status,
+            "billing_type": billing_type,
+            "month": month,
+            "year": year,
+        },
+        BILLING_TYPE_LABELS=BILLING_TYPE_LABELS,
+        current_year=today.year,
+    )
+
+
+@quota_invoice_bp.route("/invoice/<int:invoice_id>/print", methods=["GET"])
+@login_required
+def invoice_print(invoice_id):
+    """Render invoice dalam format cetak / download PNG."""
+    from flask import current_app
+
+    invoice = _fetch_invoice(invoice_id)
+    if not invoice:
+        flash("Invoice tidak ditemukan.", "danger")
+        return redirect(url_for("quota_invoice.quota_alerts"))
+
+    student = Student.query.get(invoice["student_id"])
+    invoice_lines = _fetch_invoice_lines(invoice_id)
+    if not invoice_lines:
+        invoice_lines = _build_legacy_invoice_lines(invoice)
+
+    total_amount = sum(float(line["nominal_amount"] or 0) for line in invoice_lines)
+    total_meetings = sum(int(line["meeting_count"] or 0) for line in invoice_lines)
+
+    # Program = daftar nama mapel unik
+    seen_subj, subjects = set(), []
+    for line in invoice_lines:
+        n = line.get("subject_name") or ""
+        if n and n not in seen_subj:
+            seen_subj.add(n)
+            subjects.append(n)
+    program = " & ".join(subjects) if subjects else "—"
+
+    # Kelas = grade + level dari line pertama
+    grade_level = "—"
+    for line in invoice_lines:
+        g = line.get("grade") or ""
+        lv = line.get("level_name") or ""
+        grade_level = (g + " " + lv).strip() or "—"
+        break
+
+    bank_str = current_app.config.get("INSTITUTION_BANK_ACCOUNTS", "")
+    bank_accounts = [b.strip() for b in bank_str.split("|") if b.strip()]
+    reg_fee = current_app.config.get("DEFAULT_REGISTRATION_FEE", 0)
+
+    created_at = invoice.get("created_at") or datetime.utcnow()
+
+    return render_template(
+        "quota/invoice_print.html",
+        invoice=invoice,
+        student=student,
+        invoice_lines=invoice_lines,
+        total_amount=total_amount,
+        total_meetings=total_meetings,
+        program=program,
+        grade_level=grade_level,
+        reg_fee=reg_fee,
+        billing_type_label=BILLING_TYPE_LABELS.get(
+            invoice.get("billing_type") or "prepaid", "Pra Bayar"
+        ),
+        service_month_label=_month_label(invoice["service_month"]),
+        bank_accounts=bank_accounts,
+        MONTHS_ID=MONTHS_ID,
+        institution_name=current_app.config.get("INSTITUTION_NAME", "LBB Super Smart"),
+        institution_phone=current_app.config.get("INSTITUTION_PHONE", ""),
+        institution_city=current_app.config.get("INSTITUTION_CITY", "Surabaya"),
+        ceo_name=current_app.config.get("INSTITUTION_CEO_NAME", ""),
+        ceo_title=current_app.config.get("INSTITUTION_CEO_TITLE", "CEO"),
+        created_at=created_at,
+    )

@@ -1,0 +1,388 @@
+{% extends "base.html" %} {% block title %}Invoice #{{ invoice.id }} — {{
+student.name if student else 'Siswa' }} — LBB Super Smart{% endblock %} {% block
+head %}
+<style>
+    /* =============================================
+   INVOICE QUOTA — style sama persis dengan payments/invoice.html
+   ============================================= */
+    .inv-page-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    #invoiceCard {
+        background: #ffffff;
+        border: 2.5px solid #1a3068;
+        border-radius: 18px;
+        padding: 28px 28px 24px;
+        width: 430px;
+        min-width: 430px;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 13px;
+        color: #111111;
+        line-height: 1.45;
+        box-sizing: border-box;
+    }
+    .inv-hdr {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+    .inv-brand-sm {
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 2px;
+    }
+    .inv-big-title {
+        font-size: 44px;
+        font-weight: 900;
+        color: #1a3068;
+        line-height: 1;
+        letter-spacing: -1.5px;
+    }
+    .inv-logo-img {
+        max-height: 78px;
+        max-width: 158px;
+        object-fit: contain;
+        display: block;
+    }
+    .inv-billing {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+        gap: 8px;
+    }
+    .inv-bill-lbl {
+        font-weight: 700;
+        font-size: 14px;
+        margin-bottom: 3px;
+    }
+    .inv-from-wrap {
+        text-align: right;
+    }
+    .inv-from-line {
+        font-size: 12px;
+        line-height: 1.75;
+    }
+    .inv-details {
+        margin-bottom: 16px;
+    }
+    .inv-det-row {
+        display: flex;
+        line-height: 2.05;
+    }
+    .inv-det-lbl {
+        font-weight: 700;
+        min-width: 62px;
+        display: inline-block;
+    }
+    .inv-tbl-wrap {
+        border: 1.5px solid #1a3068;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 18px;
+    }
+    .inv-tbl {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+    .inv-tbl thead th {
+        padding: 8px 10px;
+        font-weight: 700;
+        text-align: center;
+        border-bottom: 1.5px solid #1a3068;
+    }
+    .inv-tbl thead th:not(:last-child) {
+        border-right: 1px solid #1a3068;
+    }
+    .inv-tbl tbody td {
+        padding: 7px 10px;
+        vertical-align: middle;
+        border-bottom: 1px solid #d0d9ea;
+    }
+    .inv-tbl tbody tr:last-child td {
+        border-bottom: none;
+    }
+    .inv-tbl tbody td:not(:last-child) {
+        border-right: 1px solid #1a3068;
+    }
+    .inv-tbl .row-sec td {
+        font-weight: 700;
+        background: #f4f6fb;
+        border-bottom: 1px solid #d0d9ea !important;
+    }
+    .inv-tbl .row-sec td {
+        border-right: none !important;
+    }
+    .inv-tbl tfoot td {
+        padding: 8px 10px;
+        font-weight: 700;
+        border-top: 1.5px solid #1a3068;
+    }
+    .inv-tbl tfoot td:not(:last-child) {
+        border-right: 1px solid #1a3068;
+    }
+    .td-desc {
+        width: 58%;
+    }
+    .td-qty {
+        width: 14%;
+        text-align: center;
+    }
+    .td-price {
+        width: 28%;
+        text-align: right;
+    }
+    .inv-banks {
+        font-size: 11.5px;
+        line-height: 1.9;
+        margin-bottom: 14px;
+    }
+    .inv-banks-lbl {
+        font-weight: 700;
+        margin-bottom: 2px;
+    }
+    .inv-sig-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+    .inv-illus img {
+        max-height: 85px;
+        max-width: 120px;
+        object-fit: contain;
+        opacity: 0.9;
+    }
+    .inv-sig-block {
+        text-align: center;
+        font-size: 12px;
+    }
+    .inv-sig-city {
+        margin-bottom: 46px;
+        font-size: 12px;
+    }
+    .inv-sig-name {
+        font-weight: 700;
+        font-size: 12.5px;
+    }
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        nav,
+        #sidebar,
+        .navbar,
+        .topbar {
+            display: none !important;
+        }
+        #main-content {
+            padding: 0 !important;
+        }
+        body,
+        html {
+            background: #fff !important;
+        }
+    }
+</style>
+{% endblock %} {% block content %} {# ── Tombol aksi (tidak ikut ter-capture
+PNG) ── #}
+<div class="no-print d-flex flex-wrap gap-2 mb-3">
+    <button id="btnDownloadPNG" class="btn btn-primary">
+        <i class="bi bi-file-earmark-image me-1"></i>Download PNG
+    </button>
+    <button onclick="window.print()" class="btn btn-outline-secondary">
+        <i class="bi bi-printer me-1"></i>Print
+    </button>
+    <a
+        href="{{ url_for('quota_invoice.invoice_detail', invoice_id=invoice.id) }}"
+        class="btn btn-outline-secondary"
+    >
+        <i class="bi bi-arrow-left me-1"></i>Kembali ke Detail Invoice
+    </a>
+    <a
+        href="{{ url_for('quota_invoice.invoice_list') }}"
+        class="btn btn-outline-secondary"
+    >
+        <i class="bi bi-list-ul me-1"></i>Riwayat Invoice
+    </a>
+</div>
+
+<div class="inv-page-wrap">
+    {# ══════════════════════════════════════════════════════ INVOICE CARD —
+    ditangkap html2canvas ══════════════════════════════════════════════════════
+    #}
+    <div id="invoiceCard">
+        {# ── Header ── #}
+        <div class="inv-hdr">
+            <div>
+                <div class="inv-brand-sm">{{ institution_name }}</div>
+                <div class="inv-big-title">INVOICE</div>
+            </div>
+            <div>
+                <img
+                    class="inv-logo-img"
+                    src="{{ url_for('static', filename='branding/logo_super_smart.svg') }}"
+                    alt="Logo LBB Super Smart"
+                    crossorigin="anonymous"
+                />
+            </div>
+        </div>
+
+        {# ── Bill To / From ── #}
+        <div class="inv-billing">
+            <div>
+                <div class="inv-bill-lbl">Bill To:</div>
+                <div>{{ student.name if student else '—' }}</div>
+            </div>
+            <div class="inv-from-wrap">
+                <div class="inv-bill-lbl">Form:</div>
+                <div class="inv-from-line">
+                    {{ institution_name }}<br />
+                    {{ institution_phone }}<br />
+                    {{ institution_city }}
+                </div>
+            </div>
+        </div>
+
+        {# ── Detail: Date / Program / Kelas ── #}
+        <div class="inv-details">
+            <div class="inv-det-row">
+                <span class="inv-det-lbl">Date</span>
+                <span
+                    >: {{ created_at.strftime('%d') }} {{
+                    MONTHS_ID[created_at.month] }} {{ created_at.year }}</span
+                >
+            </div>
+            <div class="inv-det-row">
+                <span class="inv-det-lbl">Program</span>
+                <span>: {{ program }}</span>
+            </div>
+            <div class="inv-det-row">
+                <span class="inv-det-lbl">Kelas</span>
+                <span>: {{ grade_level }}</span>
+            </div>
+        </div>
+
+        {# ── Tabel Item ── #}
+        <div class="inv-tbl-wrap">
+            <table class="inv-tbl">
+                <thead>
+                    <tr>
+                        <th class="td-desc">Description</th>
+                        <th class="td-qty">QTY</th>
+                        <th class="td-price">Price (Rp)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# Biaya pendaftaran #}
+                    <tr>
+                        <td class="td-desc">biaya pendaftaran</td>
+                        <td class="td-qty">1</td>
+                        <td class="td-price">
+                            {{ "{:,.0f}".format(reg_fee | float) | replace(",",
+                            ".") }}
+                        </td>
+                    </tr>
+
+                    {# Baris per mapel ── service_month sudah sama semua (satu
+                    invoice satu bulan) #} {% for line in invoice_lines %}
+                    <tr>
+                        <td class="td-desc">
+                            {{ line.subject_name or '—' }} {{
+                            MONTHS_ID[invoice.service_month.month] }}
+                        </td>
+                        <td class="td-qty">{{ line.meeting_count }}</td>
+                        <td class="td-price">
+                            {{ "{:,.0f}".format(line.nominal_amount | float) |
+                            replace(",", ".") }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td class="td-desc">Total</td>
+                        <td class="td-qty"></td>
+                        <td class="td-price">
+                            {{ "{:,.0f}".format(total_amount | float) |
+                            replace(",", ".") }}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        {# ── Rekening Pembayaran ── #}
+        <div class="inv-banks">
+            <div class="inv-banks-lbl">Rekening Pembayaran:</div>
+            {% for bank in bank_accounts %}
+            <div>&#x1F3E6; {{ bank }}</div>
+            {% endfor %}
+        </div>
+
+        {# ── Ilustrasi + Tanda Tangan ── #}
+        <div class="inv-sig-row">
+            <div class="inv-illus">
+                <img
+                    src="{{ url_for('static', filename='branding/logo_super_smart.svg') }}"
+                    alt=""
+                    crossorigin="anonymous"
+                />
+            </div>
+            <div class="inv-sig-block">
+                <div class="inv-sig-city">
+                    {{ institution_city }}, {{ created_at.strftime('%d') }} {{
+                    MONTHS_ID[created_at.month] }} {{ created_at.year }}
+                </div>
+                <div class="inv-sig-name">{{ ceo_name }}</div>
+                <div>{{ ceo_title }}</div>
+            </div>
+        </div>
+    </div>
+    {# /#invoiceCard #}
+</div>
+{# /.inv-page-wrap #} {# ── html2canvas ── #}
+<script
+    src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+></script>
+<script>
+    document
+        .getElementById("btnDownloadPNG")
+        .addEventListener("click", async function () {
+            var btn = this;
+            var orig = btn.innerHTML;
+            btn.innerHTML =
+                '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Memproses...';
+            btn.disabled = true;
+            try {
+                var el = document.getElementById("invoiceCard");
+                var canvas = await html2canvas(el, {
+                    scale: 2.5,
+                    useCORS: true,
+                    allowTaint: false,
+                    backgroundColor: "#ffffff",
+                    logging: false,
+                    imageTimeout: 10000,
+                    windowWidth: el.scrollWidth,
+                    windowHeight: el.scrollHeight,
+                });
+                var link = document.createElement("a");
+                link.download =
+                    'invoice-{{ invoice.id }}-{{ (student.name or "siswa") | replace(" ","_") }}.png';
+                link.href = canvas.toDataURL("image/png", 1.0);
+                link.click();
+            } catch (err) {
+                console.error(err);
+                alert("Gagal membuat PNG: " + err.message);
+            } finally {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+            }
+        });
+</script>
+{% endblock %}

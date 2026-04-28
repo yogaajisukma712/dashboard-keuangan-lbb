@@ -279,51 +279,50 @@
     aria-labelledby="modalInvoiceBuilderLabel"
     aria-hidden="true"
 >
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div
+        class="modal-dialog modal-xl modal-dialog-scrollable"
+        style="max-height: 90vh"
+    >
         <div class="modal-content">
-            <form
-                method="POST"
-                action="{{ url_for('quota_invoice.create_invoice') }}"
-                id="studentInvoiceForm"
-            >
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                />
-                <input
-                    type="hidden"
-                    name="student_id"
-                    value="{{ student.id }}"
-                />
-                <input
-                    type="hidden"
-                    name="service_month"
-                    value="{{ service_month.strftime('%Y-%m') }}"
-                />
-
-                {# ── Modal header ── #}
-                <div class="modal-header bg-primary text-white">
-                    <div>
-                        <h5
-                            class="modal-title mb-0"
-                            id="modalInvoiceBuilderLabel"
-                        >
-                            🧾 Buat Invoice per Siswa
-                        </h5>
-                        <div class="small opacity-75 mt-1">
-                            {{ student.name }} · {{ service_month_label }}
-                        </div>
+            {# ── Modal header ── #}
+            <div class="modal-header bg-primary text-white">
+                <div>
+                    <h5 class="modal-title mb-0" id="modalInvoiceBuilderLabel">
+                        🧾 Buat Invoice per Siswa
+                    </h5>
+                    <div class="small opacity-75 mt-1">
+                        {{ student.name }} · {{ service_month_label }}
                     </div>
-                    <button
-                        type="button"
-                        class="btn-close btn-close-white"
-                        data-bs-dismiss="modal"
-                    ></button>
                 </div>
+                <button
+                    type="button"
+                    class="btn-close btn-close-white"
+                    data-bs-dismiss="modal"
+                ></button>
+            </div>
 
-                {# ── Modal body ── #}
-                <div class="modal-body">
+            {# ── Modal body ── #}
+            <div class="modal-body" style="overflow-y: auto">
+                <form
+                    id="studentInvoiceForm"
+                    method="POST"
+                    action="{{ url_for('quota_invoice.create_invoice') }}"
+                >
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token() }}"
+                    />
+                    <input
+                        type="hidden"
+                        name="student_id"
+                        value="{{ student.id }}"
+                    />
+                    <input
+                        type="hidden"
+                        name="service_month"
+                        value="{{ service_month.strftime('%Y-%m') }}"
+                    />
                     {# Tipe penagihan + preset #}
                     <div class="row g-3 mb-3">
                         <div class="col-lg-7">
@@ -548,28 +547,32 @@
                             placeholder="Contoh: tagihan bulan {{ service_month_label }}"
                         ></textarea>
                     </div>
+                </form>
+            </div>
+            {# ── Modal footer ── #}
+            <div class="modal-footer justify-content-between">
+                <div class="small text-muted">
+                    <strong>Pra bayar:</strong> pilih mapel &amp; tentukan
+                    jumlah sesi. &nbsp; <strong>Pasca bayar:</strong> sistem
+                    otomatis ambil sesi minus.
                 </div>
-                {# /modal-body #} {# ── Modal footer ── #}
-                <div class="modal-footer justify-content-between">
-                    <div class="small text-muted">
-                        <strong>Pra bayar:</strong> pilih mapel &amp; tentukan
-                        jumlah sesi. &nbsp; <strong>Pasca bayar:</strong> sistem
-                        otomatis ambil sesi minus.
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button
-                            type="button"
-                            class="btn btn-secondary"
-                            data-bs-dismiss="modal"
-                        >
-                            Batal
-                        </button>
-                        <button type="submit" class="btn btn-primary">
-                            💾 Simpan Invoice
-                        </button>
-                    </div>
+                <div class="d-flex gap-2">
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        type="submit"
+                        form="studentInvoiceForm"
+                        class="btn btn-primary"
+                    >
+                        💾 Simpan Invoice
+                    </button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>

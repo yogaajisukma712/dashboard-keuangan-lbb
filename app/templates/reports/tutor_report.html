@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Laporan Tutor — LBB Super Smart{% endblock %}
+
+{% block content %}
+{% set MONTHS = ['','Januari','Februari','Maret','April','Mei','Juni',
+                 'Juli','Agustus','September','Oktober','November','Desember'] %}
+
+{# ── Page Header ─────────────────────────────────────────────────────────── #}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="h4 mb-0"><i class="bi bi-person-badge me-2 text-primary"></i>Laporan Tutor</h2>
+    <p class="text-muted mb-0 small">Ringkasan gaji, payroll, dan aktivitas tutor per periode</p>
+  </div>
+  <a href="{{ url_for('payroll.tutor_summary') }}" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-wallet2 me-1"></i>Payroll Summary
+  </a>
+</div>
+
+{# ── Filter Form ──────────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white py-3">
+    <span class="fw-semibold">
+      <i class="bi bi-funnel me-2 text-secondary"></i>Filter Periode
+    </span>
+  </div>
+  <div class="card-body py-3">
+    <form method="GET" action="{{ url_for('reports.tutor_report') }}" class="row g-2 align-items-end">
+
+      {# Bulan #}
+      <div class="col-12 col-sm-auto">
+        <label class="form-label small fw-semibold mb-1" for="month">Bulan</label>
+        <select id="month" name="month" class="form-select form-select-sm" style="min-width:140px">
+          <option value="">— Semua Bulan —</option>
+          {% for i in range(1, 13) %}
+            <option value="{{ i }}"
+              {% if request.args.get('month', type=int) == i %}selected{% endif %}>
+              {{ MONTHS[i] }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Tahun #}
+      <div class="col-12 col-sm-auto">
+        <label class="form-label small fw-semibold mb-1" for="year">Tahun</label>
+        <input
+          type="number"
+          id="year"
+          name="year"
+          class="form-control form-control-sm"
+          placeholder="Contoh: 2025"
+          min="2020"
+          max="2099"
+          value="{{ request.args.get('year', '') }}"
+          style="min-width:120px"
+        >
+      </div>
+
+      {# Tombol Submit #}
+      <div class="col-12 col-sm-auto">
+        <button type="submit" class="btn btn-primary btn-sm w-100">
+          <i class="bi bi-search me-1"></i>Tampilkan Laporan
+        </button>
+      </div>
+
+      {# Reset Filter #}
+      {% if request.args.get('month') or request.args.get('year') %}
+      <div class="col-12 col-sm-auto">
+        <a href="{{ url_for('reports.tutor_report') }}" class="btn btn-outline-secondary btn-sm w-100">
+          <i class="bi bi-x-circle me-1"></i>Reset Filter
+        </a>
+      </div>
+      {% endif %}
+
+    </form>
+  </div>
+</div>
+
+{# ── Periode Aktif Info ───────────────────────────────────────────────────── #}
+{% set sel_month = request.args.get('month', type=int) %}
+{% set sel_year  = request.args.get('year',  type=int) %}
+{% if sel_month or sel_year %}
+<div class="alert alert-primary border-0 shadow-sm d-flex align-items-center gap-2 mb-4" role="alert">
+  <i class="bi bi-calendar3-event-fill flex-shrink-0 fs-5"></i>
+  <div>
+    Menampilkan laporan tutor untuk periode:
+    <strong>
+      {% if sel_month %}{{ MONTHS[sel_month] }}{% endif %}
+      {% if sel_year %}{{ sel_year }}{% endif %}
+    </strong>
+  </div>
+</div>
+{% endif %}
+
+{# ── Quick Links ──────────────────────────────────────────────────────────── #}
+<div class="row g-3 mb-4">
+
+  <div class="col-12 col-sm-6 col-md-4">
+    <a href="{{ url_for('payroll.tutor_summary') }}"
+       class="card border-0 shadow-sm text-decoration-none h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="rounded-3 bg-warning-subtle p-3">
+          <i class="bi bi-wallet2 fs-4 text-warning"></i>
+        </div>
+        <div>
+          <div class="fw-semibold text-dark">Payroll Summary</div>
+          <div class="small text-muted">Ringkasan gaji semua tutor</div>
+        </div>
+        <i class="bi bi-chevron-right text-muted ms-auto"></i>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-12 col-sm-6 col-md-4">
+    <a href="{{ url_for('master.tutors_list') }}"
+       class="card border-0 shadow-sm text-decoration-none h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="rounded-3 bg-primary-subtle p-3">
+          <i class="bi bi-person-badge fs-4 text-primary"></i>
+        </div>
+        <div>
+          <div class="fw-semibold text-dark">Data Tutor</div>
+          <div class="small text-muted">Master data seluruh tutor</div>
+        </div>
+        <i class="bi bi-chevron-right text-muted ms-auto"></i>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-12 col-sm-6 col-md-4">
+    <a href="{{ url_for('attendance.attendance_list') }}"
+       class="card border-0 shadow-sm text-decoration-none h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="rounded-3 bg-success-subtle p-3">
+          <i class="bi bi-calendar-check fs-4 text-success"></i>
+        </div>
+        <div>
+          <div class="fw-semibold text-dark">Presensi Tutor</div>
+          <div class="small text-muted">Data kehadiran dan sesi mengajar</div>
+        </div>
+        <i class="bi bi-chevron-right text-muted ms-auto"></i>
+      </div>
+    </a>
+  </div>
+
+</div>
+
+{# ── Placeholder Laporan ──────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">
+      <i class="bi bi-table me-2 text-secondary"></i>Data Laporan Tutor
+    </span>
+    {% if sel_month or sel_year %}
+      <span class="badge bg-primary rounded-pill px-3">
+        {% if sel_month %}{{ MONTHS[sel_month] }}{% endif %}
+        {% if sel_year %}{{ sel_year }}{% endif %}
+      </span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+
+    <div class="text-center py-5">
+
+      <div class="mb-4">
+        <span class="d-inline-flex align-items-center justify-content-center
+                     rounded-circle bg-warning-subtle"
+              style="width:80px;height:80px;">
+          <i class="bi bi-person-badge display-5 text-warning"></i>
+        </span>
+      </div>
+
+      <h5 class="fw-semibold mb-2">Laporan Akan Ditampilkan Setelah Data Tersedia</h5>
+      <p class="text-muted mb-4" style="max-width:480px;margin:0 auto;">
+        Fitur laporan tutor sedang dalam pengembangan. Data gaji, presensi, dan
+        performa tutor akan ditampilkan di sini setelah integrasi selesai.
+        Sementara itu, gunakan Payroll Summary untuk informasi lengkap.
+      </p>
+
+      <div class="d-flex flex-wrap justify-content-center gap-2">
+        <a href="{{ url_for('payroll.tutor_summary') }}" class="btn btn-warning btn-sm text-dark">
+          <i class="bi bi-wallet2 me-1"></i>Buka Payroll Summary
+        </a>
+        <a href="{{ url_for('master.tutors_list') }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-person-badge me-1"></i>Data Tutor
+        </a>
+        <a href="{{ url_for('attendance.attendance_list') }}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-calendar-check me-1"></i>Data Presensi
+        </a>
+      </div>
+
+    </div>
+
+  </div>
+
+  {# ── Footer Status ──────────────────────────────────────────────────────── #}
+  <div class="card-footer bg-white border-top py-2 d-flex align-items-center gap-2">
+    <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-3">
+      <i class="bi bi-hourglass-split me-1"></i>Dalam Pengembangan
+    </span>
+    <span class="text-muted small">
+      Gunakan
+      <a href="{{ url_for('payroll.tutor_summary') }}" class="text-decoration-none fw-semibold">
+        Payroll Summary
+      </a>
+      untuk data tutor saat ini
+    </span>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Auto-fill tahun sekarang sebagai placeholder
+  (function () {
+    const yearInput = document.getElementById('year');
+    if (yearInput && !yearInput.value) {
+      yearInput.placeholder = 'Contoh: ' + new Date().getFullYear();
+    }
+  })();
+</script>
+{% endblock %}

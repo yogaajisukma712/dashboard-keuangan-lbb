@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Laporan Rekonsiliasi — LBB Super Smart{% endblock %}
+
+{% block content %}
+{% set MONTHS = ['','Januari','Februari','Maret','April','Mei','Juni',
+                 'Juli','Agustus','September','Oktober','November','Desember'] %}
+
+{# ── Page Header ─────────────────────────────────────────────────────────── #}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="h4 mb-0">
+      <i class="bi bi-arrow-left-right me-2 text-primary"></i>Laporan Rekonsiliasi
+    </h2>
+    <p class="text-muted mb-0 small">Rekonsiliasi antara pembayaran siswa dan presensi kehadiran</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('dashboard.owner_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-speedometer2 me-1"></i>Dashboard
+    </a>
+  </div>
+</div>
+
+{# ── Filter Form ──────────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white py-3">
+    <span class="fw-semibold">
+      <i class="bi bi-funnel me-2 text-secondary"></i>Filter Periode Rekonsiliasi
+    </span>
+  </div>
+  <div class="card-body py-3">
+    <form method="GET" action="{{ url_for('reports.reconciliation_report') }}" class="row g-2 align-items-end">
+
+      {# Bulan #}
+      <div class="col-12 col-sm-auto">
+        <label class="form-label small fw-semibold mb-1" for="month">Bulan</label>
+        <select id="month" name="month" class="form-select form-select-sm" style="min-width:140px">
+          <option value="">— Semua Bulan —</option>
+          {% for i in range(1, 13) %}
+            <option value="{{ i }}"
+              {% if request.args.get('month', type=int) == i %}selected{% endif %}>
+              {{ MONTHS[i] }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Tahun #}
+      <div class="col-12 col-sm-auto">
+        <label class="form-label small fw-semibold mb-1" for="year">Tahun</label>
+        <input
+          type="number"
+          id="year"
+          name="year"
+          class="form-control form-control-sm"
+          placeholder="Contoh: 2025"
+          min="2020"
+          max="2099"
+          value="{{ request.args.get('year', '') }}"
+          style="min-width:120px"
+        >
+      </div>
+
+      {# Tombol Generate #}
+      <div class="col-12 col-sm-auto">
+        <button type="submit" class="btn btn-primary btn-sm w-100">
+          <i class="bi bi-search me-1"></i>Rekonsiliasi
+        </button>
+      </div>
+
+      {# Reset #}
+      {% if request.args.get('month') or request.args.get('year') %}
+      <div class="col-12 col-sm-auto">
+        <a href="{{ url_for('reports.reconciliation_report') }}"
+           class="btn btn-outline-secondary btn-sm w-100">
+          <i class="bi bi-x-circle me-1"></i>Reset
+        </a>
+      </div>
+      {% endif %}
+
+    </form>
+  </div>
+</div>
+
+{# ── Periode Aktif Banner ─────────────────────────────────────────────────── #}
+{% set sel_month = request.args.get('month', type=int) %}
+{% set sel_year  = request.args.get('year',  type=int) %}
+{% if sel_month or sel_year %}
+<div class="alert alert-primary border-0 shadow-sm d-flex align-items-center gap-2 mb-4" role="alert">
+  <i class="bi bi-calendar3-event-fill flex-shrink-0 fs-5"></i>
+  <div>
+    Menampilkan rekonsiliasi untuk periode:
+    <strong>
+      {% if sel_month %}{{ MONTHS[sel_month] }}{% endif %}
+      {% if sel_year %}{{ sel_year }}{% endif %}
+    </strong>
+  </div>
+</div>
+{% endif %}
+
+{# ── Penjelasan Rekonsiliasi ───────────────────────────────────────────────── #}
+<div class="alert alert-info border-0 shadow-sm d-flex align-items-start gap-2 mb-4">
+  <i class="bi bi-info-circle-fill flex-shrink-0 mt-1 fs-5"></i>
+  <div>
+    <strong>Apa itu Rekonsiliasi?</strong><br>
+    Rekonsiliasi membandingkan <span class="fw-semibold">pembayaran yang diterima</span> dari siswa
+    dengan <span class="fw-semibold">sesi yang sudah dihadiri</span> berdasarkan data presensi.
+    Selisih antara keduanya mengindikasikan tagihan yang belum dibayar atau kelebihan bayar.
+    <a href="{{ url_for('dashboard.owner_dashboard') }}" class="alert-link ms-1">
+      Lihat di Dashboard <i class="bi bi-arrow-right"></i>
+    </a>
+  </div>
+</div>
+
+{# ── Quick Nav Cards ──────────────────────────────────────────────────────── #}
+<div class="row g-3 mb-4">
+
+  <div class="col-12 col-sm-6 col-md-3">
+    <a href="{{ url_for('dashboard.owner_dashboard') }}"
+       class="card border-0 shadow-sm text-decoration-none h-100">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-speedometer2 fs-2 text-primary mb-2 d-block"></i>
+        <div class="fw-semibold text-dark small">Dashboard</div>
+        <div class="text-muted" style="font-size:.78rem;">Rekonsiliasi real-time</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-12 col-sm-6 col-md-3">
+    <a href="{{ url_for('payments.payments_list') }}"
+       class="card border-0 shadow-sm text-decoration-none h-100">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-credit-card fs-2 text-success mb-2 d-block"></i>
+        <div class="fw-semibold text-dark small">Pembayaran</div>
+        <div class="text-muted" style="font-size:.78rem;">Data pembayaran siswa</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-12 col-sm-6 col-md-3">
+    <a href="{{ url_for('attendance.attendance_list') }}"
+       class="card border-0 shadow-sm text-decoration-none h-100">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-calendar-check fs-2 text-warning mb-2 d-block"></i>
+        <div class="fw-semibold text-dark small">Presensi</div>
+        <div class="text-muted" style="font-size:.78rem;">Data kehadiran sesi</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-12 col-sm-6 col-md-3">
+    <a href="{{ url_for('closings.monthly_closing') }}"
+       class="card border-0 shadow-sm text-decoration-none h-100">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-archive fs-2 text-secondary mb-2 d-block"></i>
+        <div class="fw-semibold text-dark small">Closing</div>
+        <div class="text-muted" style="font-size:.78rem;">Closing bulanan</div>
+      </div>
+    </a>
+  </div>
+
+</div>
+
+{# ── Area Hasil Rekonsiliasi ───────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">
+      <i class="bi bi-table me-2 text-secondary"></i>Hasil Rekonsiliasi
+      {% if sel_month or sel_year %}
+        <span class="text-muted fw-normal">
+          — {% if sel_month %}{{ MONTHS[sel_month] }}{% endif %}
+          {% if sel_year %}{{ sel_year }}{% endif %}
+        </span>
+      {% endif %}
+    </span>
+    {% if sel_month or sel_year %}
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-success btn-sm" disabled title="Segera hadir">
+          <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+        </button>
+        <button class="btn btn-outline-danger btn-sm" disabled title="Segera hadir">
+          <i class="bi bi-file-earmark-pdf me-1"></i>Export PDF
+        </button>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card-body">
+    {% if sel_month or sel_year %}
+      {# Periode dipilih — tampilkan placeholder tabel #}
+      <div class="text-center py-5">
+        <div class="mb-4">
+          <span class="d-inline-flex align-items-center justify-content-center
+                       rounded-circle bg-warning-subtle"
+                style="width:80px;height:80px;">
+            <i class="bi bi-hourglass-split display-5 text-warning"></i>
+          </span>
+        </div>
+        <h5 class="fw-semibold mb-2">Rekonsiliasi Sedang Dikembangkan</h5>
+        <p class="text-muted mb-4" style="max-width:480px;margin:0 auto;">
+          Fitur rekonsiliasi otomatis sedang dalam proses pengembangan.
+          Sementara itu, gunakan Dashboard untuk melihat perbandingan
+          pembayaran dan presensi secara manual.
+        </p>
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+          <a href="{{ url_for('dashboard.owner_dashboard') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-speedometer2 me-1"></i>Lihat Dashboard
+          </a>
+          <a href="{{ url_for('payments.payments_list') }}" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-credit-card me-1"></i>Data Pembayaran
+          </a>
+          <a href="{{ url_for('attendance.attendance_list') }}" class="btn btn-outline-warning btn-sm">
+            <i class="bi bi-calendar-check me-1"></i>Data Presensi
+          </a>
+        </div>
+      </div>
+
+    {% else %}
+      {# Belum ada filter — panduan penggunaan #}
+      <div class="text-center py-5">
+        <div class="mb-4">
+          <span class="d-inline-flex align-items-center justify-content-center
+                       rounded-circle bg-primary-subtle"
+                style="width:80px;height:80px;">
+            <i class="bi bi-arrow-left-right display-5 text-primary"></i>
+          </span>
+        </div>
+        <h5 class="fw-semibold mb-2">Pilih Periode untuk Memulai Rekonsiliasi</h5>
+        <p class="text-muted mb-4" style="max-width:440px;margin:0 auto;">
+          Gunakan filter di atas untuk memilih bulan dan tahun, lalu klik
+          <strong>Rekonsiliasi</strong> untuk melihat perbandingan data pembayaran
+          dengan presensi.
+        </p>
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+          <a href="{{ url_for('dashboard.owner_dashboard') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-speedometer2 me-1"></i>Lihat Dashboard
+          </a>
+          <a href="{{ url_for('closings.monthly_closing') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-archive me-1"></i>Lihat Closing
+          </a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card-footer bg-white border-top py-2 d-flex align-items-center gap-2">
+    <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-3">
+      <i class="bi bi-hourglass-split me-1"></i>Dalam Pengembangan
+    </span>
+    <span class="text-muted small">
+      Rekonsiliasi otomatis akan tersedia pada versi berikutnya
+    </span>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    // Auto-set tahun ke tahun sekarang jika kosong
+    const yearInput = document.getElementById('year');
+    if (yearInput && !yearInput.value) {
+      yearInput.placeholder = 'Contoh: ' + new Date().getFullYear();
+    }
+  })();
+</script>
+{% endblock %}

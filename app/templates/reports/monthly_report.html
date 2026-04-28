@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Laporan Keuangan Bulanan — LBB Super Smart{% endblock %}
+
+{% block content %}
+{% set MONTHS = ['','Januari','Februari','Maret','April','Mei','Juni',
+                 'Juli','Agustus','September','Oktober','November','Desember'] %}
+
+{# ── Page Header ─────────────────────────────────────────────────────────── #}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="h4 mb-0">
+      <i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i>Laporan Keuangan Bulanan
+    </h2>
+    <p class="text-muted mb-0 small">Ringkasan pemasukan, pengeluaran, dan profit per bulan</p>
+  </div>
+  <a href="{{ url_for('dashboard.owner_dashboard') }}" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-speedometer2 me-1"></i>Dashboard
+  </a>
+</div>
+
+{# ── Filter Form ──────────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white py-3">
+    <span class="fw-semibold">
+      <i class="bi bi-funnel me-2 text-secondary"></i>Filter Periode
+    </span>
+  </div>
+  <div class="card-body py-3">
+    <form method="GET" action="{{ url_for('reports.monthly_report') }}" class="row g-2 align-items-end">
+
+      {# Bulan #}
+      <div class="col-12 col-sm-auto">
+        <label class="form-label small fw-semibold mb-1" for="month">Bulan</label>
+        <select id="month" name="month" class="form-select form-select-sm" style="min-width:140px">
+          <option value="">— Semua Bulan —</option>
+          {% for i in range(1, 13) %}
+            <option value="{{ i }}"
+              {% if request.args.get('month', type=int) == i %}selected{% endif %}>
+              {{ MONTHS[i] }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Tahun #}
+      <div class="col-12 col-sm-auto">
+        <label class="form-label small fw-semibold mb-1" for="year">Tahun</label>
+        <input
+          type="number"
+          id="year"
+          name="year"
+          class="form-control form-control-sm"
+          style="min-width:110px"
+          placeholder="Contoh: 2025"
+          min="2020"
+          max="2099"
+          value="{{ request.args.get('year', '') }}"
+        >
+      </div>
+
+      {# Tombol #}
+      <div class="col-12 col-sm-auto">
+        <button type="submit" class="btn btn-primary btn-sm w-100">
+          <i class="bi bi-search me-1"></i>Generate Report
+        </button>
+      </div>
+      <div class="col-12 col-sm-auto">
+        <a href="{{ url_for('reports.monthly_report') }}" class="btn btn-outline-secondary btn-sm w-100">
+          <i class="bi bi-x-lg me-1"></i>Reset
+        </a>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+{# ── Info Banner ──────────────────────────────────────────────────────────── #}
+<div class="alert alert-info border-0 shadow-sm d-flex align-items-start gap-2 mb-4">
+  <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+  <div>
+    <strong>Sumber Data:</strong> Data laporan ini diambil langsung dari transaksi yang tercatat
+    di Dashboard Keuangan. Pastikan semua pemasukan dan pengeluaran sudah diinput sebelum
+    menghasilkan laporan.
+    <a href="{{ url_for('dashboard.owner_dashboard') }}" class="alert-link ms-1">
+      Buka Dashboard <i class="bi bi-arrow-right"></i>
+    </a>
+  </div>
+</div>
+
+{# ── Quick Nav Cards ──────────────────────────────────────────────────────── #}
+<div class="row g-3 mb-4">
+
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100 text-center p-3">
+      <i class="bi bi-arrow-down-circle-fill fs-2 text-success mb-2"></i>
+      <div class="muted-label mb-1">Pemasukan</div>
+      <a href="{{ url_for('dashboard.owner_dashboard') }}" class="stretched-link text-decoration-none">
+        <span class="small fw-semibold text-success">Lihat Detail</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100 text-center p-3">
+      <i class="bi bi-arrow-up-circle-fill fs-2 text-danger mb-2"></i>
+      <div class="muted-label mb-1">Pengeluaran</div>
+      <a href="{{ url_for('expenses.expenses_list') }}" class="stretched-link text-decoration-none">
+        <span class="small fw-semibold text-danger">Lihat Detail</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100 text-center p-3">
+      <i class="bi bi-wallet2 fs-2 text-warning mb-2"></i>
+      <div class="muted-label mb-1">Payroll Tutor</div>
+      <a href="{{ url_for('payroll.tutor_summary') }}" class="stretched-link text-decoration-none">
+        <span class="small fw-semibold text-warning">Lihat Detail</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100 text-center p-3">
+      <i class="bi bi-archive fs-2 text-primary mb-2"></i>
+      <div class="muted-label mb-1">Closing Bulanan</div>
+      <a href="{{ url_for('closings.monthly_closing') }}" class="stretched-link text-decoration-none">
+        <span class="small fw-semibold text-primary">Lihat Detail</span>
+      </a>
+    </div>
+  </div>
+
+</div>
+
+{# ── Placeholder / Report Area ────────────────────────────────────────────── #}
+{% if request.args.get('month') or request.args.get('year') %}
+  {# Periode dipilih — tampilkan placeholder hasil #}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+      <span class="fw-semibold">
+        <i class="bi bi-table me-2 text-secondary"></i>Hasil Laporan
+        {% if request.args.get('month', type=int) %}
+          — {{ MONTHS[request.args.get('month', type=int)] }}
+        {% endif %}
+        {% if request.args.get('year') %}
+          {{ request.args.get('year') }}
+        {% endif %}
+      </span>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-success btn-sm" disabled title="Segera hadir">
+          <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+        </button>
+        <button class="btn btn-outline-danger btn-sm" disabled title="Segera hadir">
+          <i class="bi bi-file-earmark-pdf me-1"></i>Export PDF
+        </button>
+      </div>
+    </div>
+    <div class="card-body text-center py-5">
+      <i class="bi bi-hourglass-split display-4 text-secondary opacity-50 d-block mb-3"></i>
+      <h5 class="fw-semibold text-secondary">Laporan Sedang Dikembangkan</h5>
+      <p class="text-muted small mb-4">
+        Fitur generate laporan keuangan bulanan sedang dalam proses pengembangan.<br>
+        Sementara itu, gunakan Dashboard untuk melihat ringkasan keuangan secara real-time.
+      </p>
+      <a href="{{ url_for('dashboard.owner_dashboard') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-speedometer2 me-1"></i>Buka Dashboard Keuangan
+      </a>
+    </div>
+  </div>
+
+{% else %}
+  {# Belum ada filter — tampilkan petunjuk #}
+  <div class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+      <i class="bi bi-file-earmark-bar-graph display-4 text-secondary opacity-50 d-block mb-3"></i>
+      <h5 class="fw-semibold text-secondary">Pilih Periode untuk Generate Laporan</h5>
+      <p class="text-muted small mb-4">
+        Gunakan filter di atas untuk memilih bulan dan tahun,<br>
+        lalu klik <strong>Generate Report</strong>.
+      </p>
+      <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <a href="{{ url_for('dashboard.owner_dashboard') }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-speedometer2 me-1"></i>Lihat Dashboard
+        </a>
+        <a href="{{ url_for('closings.monthly_closing') }}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-archive me-1"></i>Lihat Closing
+        </a>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Auto-set tahun ke tahun sekarang jika kosong
+  (function () {
+    const yearInput = document.getElementById('year');
+    if (yearInput && !yearInput.value) {
+      yearInput.placeholder = 'Contoh: ' + new Date().getFullYear();
+    }
+  })();
+</script>
+{% endblock %}

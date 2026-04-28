@@ -32,6 +32,8 @@ class TutorPayout(db.Model):
     status = db.Column(
         db.String(20), default="completed"
     )  # pending, completed, cancelled
+    proof_image = db.Column(db.String(500))  # path relatif ke UPLOAD_FOLDER
+    proof_notes = db.Column(db.Text)  # catatan bukti transfer
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

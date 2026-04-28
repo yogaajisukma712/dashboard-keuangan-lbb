@@ -17,6 +17,12 @@ class AttendanceSession(db.Model):
     enrollment_id = db.Column(
         db.Integer, db.ForeignKey("enrollments.id"), nullable=False, index=True
     )
+    student_id = db.Column(
+        db.Integer, db.ForeignKey("students.id"), nullable=False, index=True
+    )
+    tutor_id = db.Column(
+        db.Integer, db.ForeignKey("tutors.id"), nullable=False, index=True
+    )
     session_date = db.Column(db.Date, nullable=False, index=True)
     status = db.Column(
         db.String(20),
@@ -35,10 +41,11 @@ class AttendanceSession(db.Model):
 
     # Relationships
     enrollment = db.relationship(
-        "Enrollment", backref="attendance_sessions", lazy="joined"
+        "Enrollment", back_populates="attendance_sessions", lazy="joined"
     )
-    tutor = db.relationship("Tutor", backref="attendance_sessions")
-    subject = db.relationship("Subject", backref="attendance_sessions")
+    student = db.relationship("Student", backref="attendance_sessions")
+    tutor = db.relationship("Tutor", back_populates="attendance_sessions")
+    subject = db.relationship("Subject", back_populates="attendance_sessions")
 
     def __repr__(self):
         return f"<AttendanceSession {self.id} - {self.session_date}>"
@@ -62,17 +69,3 @@ class AttendanceSession(db.Model):
     def get_year(self):
         """Get year from session date"""
         return self.session_date.year
-
-    @property
-    def tutor_id(self):
-        """Get tutor_id from enrollment"""
-        if self.enrollment:
-            return self.enrollment.tutor_id
-        return None
-
-    @property
-    def student_id(self):
-        """Get student_id from enrollment"""
-        if self.enrollment:
-            return self.enrollment.student_id
-        return None

@@ -46,13 +46,13 @@ class Enrollment(db.Model):
     )
     attendance_sessions = db.relationship(
         "AttendanceSession",
-        backref="enrollment",
+        back_populates="enrollment",
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
     payment_lines = db.relationship(
         "StudentPaymentLine",
-        backref="enrollment",
+        back_populates="enrollment",
         lazy="dynamic",
         cascade="all, delete-orphan",
     )

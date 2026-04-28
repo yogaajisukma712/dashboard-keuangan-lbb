@@ -1,10 +1,12 @@
-import os
 import logging
+import os
 from logging.handlers import RotatingFileHandler
+
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from flask_login import LoginManager
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
+
 from config import config
 
 # Initialize extensions
@@ -12,24 +14,25 @@ db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 
+
 def create_app(config_name=None):
     """Application factory"""
     if config_name is None:
-        config_name = os.getenv('FLASK_ENV', 'development')
+        config_name = os.getenv("FLASK_ENV", "development")
 
     app = Flask(__name__)
     app.config.from_object(config[config_name])
 
     # Ensure upload folder exists
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    os.makedirs('logs', exist_ok=True)
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    os.makedirs("logs", exist_ok=True)
 
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
-    login_manager.login_view = 'auth.login'
-    login_manager.login_message = 'Silakan login terlebih dahulu'
+    login_manager.login_view = "auth.login"
+    login_manager.login_message = "Silakan login terlebih dahulu"
 
     # Configure logging
     setup_logging(app)
@@ -47,33 +50,65 @@ def create_app(config_name=None):
     @app.shell_context_processor
     def make_shell_context():
         from app.models import (
-            User, Student, Tutor, Subject, Curriculum, Level,
-            PricingRule, Enrollment, EnrollmentSchedule,
-            AttendanceSession, StudentPayment, StudentPaymentLine,
-            OtherIncome, Expense, TutorPayout, TutorPayoutLine, MonthlyClosing
+            AttendanceSession,
+            Curriculum,
+            Enrollment,
+            EnrollmentSchedule,
+            Expense,
+            Level,
+            MonthlyClosing,
+            OtherIncome,
+            PricingRule,
+            Student,
+            StudentPayment,
+            StudentPaymentLine,
+            Subject,
+            Tutor,
+            TutorPayout,
+            TutorPayoutLine,
+            User,
         )
+
         return {
-            'db': db,
-            'User': User, 'Student': Student, 'Tutor': Tutor,
-            'Subject': Subject, 'Curriculum': Curriculum, 'Level': Level,
-            'PricingRule': PricingRule, 'Enrollment': Enrollment,
-            'EnrollmentSchedule': EnrollmentSchedule,
-            'AttendanceSession': AttendanceSession,
-            'StudentPayment': StudentPayment, 'StudentPaymentLine': StudentPaymentLine,
-            'OtherIncome': OtherIncome, 'Expense': Expense,
-            'TutorPayout': TutorPayout, 'TutorPayoutLine': TutorPayoutLine,
-            'MonthlyClosing': MonthlyClosing
+            "db": db,
+            "User": User,
+            "Student": Student,
+            "Tutor": Tutor,
+            "Subject": Subject,
+            "Curriculum": Curriculum,
+            "Level": Level,
+            "PricingRule": PricingRule,
+            "Enrollment": Enrollment,
+            "EnrollmentSchedule": EnrollmentSchedule,
+            "AttendanceSession": AttendanceSession,
+            "StudentPayment": StudentPayment,
+            "StudentPaymentLine": StudentPaymentLine,
+            "OtherIncome": OtherIncome,
+            "Expense": Expense,
+            "TutorPayout": TutorPayout,
+            "TutorPayoutLine": TutorPayoutLine,
+            "MonthlyClosing": MonthlyClosing,
         }
 
     return app
 
+
 def register_blueprints(app):
     """Register all blueprints"""
     from app.routes import (
-        auth_bp, master_bp, enrollments_bp, attendance_bp,
-        payments_bp, incomes_bp, expenses_bp, payroll_bp,
-        dashboard_bp, reports_bp, closings_bp
+        attendance_bp,
+        auth_bp,
+        closings_bp,
+        dashboard_bp,
+        enrollments_bp,
+        expenses_bp,
+        incomes_bp,
+        master_bp,
+        payments_bp,
+        payroll_bp,
+        reports_bp,
     )
+    from app.routes.quota_invoice import quota_invoice_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(master_bp)
@@ -86,49 +121,69 @@ def register_blueprints(app):
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(closings_bp)
+    app.register_blueprint(quota_invoice_bp)
+
 
 def register_context_processors(app):
     """Register context processors for templates"""
+
     @app.context_processor
     def inject_config():
         return {
-            'app_name': 'Dashboard Keuangan LBB Super Smart',
-            'pagination_per_page': app.config['PAGINATION_PER_PAGE']
+            "app_name": "Dashboard Keuangan LBB Super Smart",
+            "pagination_per_page": app.config["PAGINATION_PER_PAGE"],
         }
+
+    @app.context_processor
+    def inject_quota_alert_count():
+        """Inject jumlah quota alert ke semua template untuk badge di navbar."""
+        from flask_login import current_user
+
+        if not current_user.is_authenticated:
+            return {"quota_alert_count": 0}
+        try:
+            from app.routes.quota_invoice import count_quota_alerts
+
+            return {"quota_alert_count": count_quota_alerts()}
+        except Exception:
+            return {"quota_alert_count": 0}
+
 
 def register_error_handlers(app):
     """Register error handlers"""
+
     @app.errorhandler(404)
     def not_found(error):
-        return {'error': 'Halaman tidak ditemukan'}, 404
+        return {"error": "Halaman tidak ditemukan"}, 404
 
     @app.errorhandler(500)
     def internal_error(error):
         db.session.rollback()
-        app.logger.error(f'Server error: {error}')
-        return {'error': 'Terjadi kesalahan pada server'}, 500
+        app.logger.error(f"Server error: {error}")
+        return {"error": "Terjadi kesalahan pada server"}, 500
 
     @app.errorhandler(403)
     def forbidden(error):
-        return {'error': 'Anda tidak memiliki akses ke halaman ini'}, 403
+        return {"error": "Anda tidak memiliki akses ke halaman ini"}, 403
+
 
 def setup_logging(app):
     """Setup application logging"""
     if not app.debug:
-        if not os.path.exists('logs'):
-            os.mkdir('logs')
+        if not os.path.exists("logs"):
+            os.mkdir("logs")
 
         file_handler = RotatingFileHandler(
-            app.config['LOG_FILE'],
-            maxBytes=10240000,
-            backupCount=10
+            app.config["LOG_FILE"], maxBytes=10240000, backupCount=10
         )
 
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-        ))
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"
+            )
+        )
 
-        file_handler.setLevel(getattr(logging, app.config['LOG_LEVEL']))
+        file_handler.setLevel(getattr(logging, app.config["LOG_LEVEL"]))
         app.logger.addHandler(file_handler)
-        app.logger.setLevel(getattr(logging, app.config['LOG_LEVEL']))
-        app.logger.info('Dashboard Keuangan LBB Super Smart startup')
+        app.logger.setLevel(getattr(logging, app.config["LOG_LEVEL"]))
+        app.logger.info("Dashboard Keuangan LBB Super Smart startup")

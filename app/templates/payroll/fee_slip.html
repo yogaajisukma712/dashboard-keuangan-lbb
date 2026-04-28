@@ -1,0 +1,677 @@
+{% extends "base.html" %}
+
+{% block title %}Fee Slip #{{ payout.id }} — {{ tutor.name }}{% endblock %}
+
+{% block content %}
+{% set MONTHS_ID = ['','Januari','Februari','Maret','April','Mei','Juni',
+                    'Juli','Agustus','September','Oktober','November','Desember'] %}
+{% set DAYS_ID   = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'] %}
+
+{# ── Action bar (hanya muncul di layar, disembunyikan saat print) ────────── #}
+<div class="no-print d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <a href="{{ url_for('payroll.payout_detail', payout_id=payout.id) }}"
+       class="btn btn-outline-secondary btn-sm me-1">
+      <i class="bi bi-arrow-left"></i> Kembali
+    </a>
+    <a href="{{ url_for('payroll.tutor_summary') }}"
+       class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-people"></i> Payroll
+    </a>
+  </div>
+  <div class="d-flex gap-2">
+    <button onclick="window.print()" class="btn btn-primary btn-sm">
+      <i class="bi bi-printer me-1"></i> Print
+    </button>
+    <a href="{{ url_for('payroll.fee_slip_pdf', payout_id=payout.id) }}"
+       class="btn btn-success btn-sm">
+      <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
+    </a>
+  </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# ── FEE SLIP DOCUMENT ────────────────────────────────────────────────────── #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="fee-slip-wrapper">
+  <div class="fee-slip-document">
+
+    {# ── HEADER ─────────────────────────────────────────────────────────── #}
+    <div class="slip-header">
+      <div class="slip-header-left">
+        {# Logo placeholder — ganti dengan img tag jika logo tersedia #}
+        <div class="slip-logo-area">
+          <div class="slip-logo-text">LBB</div>
+        </div>
+        <div class="slip-org-info">
+          <div class="slip-org-name">LEMBAGA BIMBINGAN BELAJAR</div>
+          <div class="slip-org-brand">SUPER SMART</div>
+          <div class="slip-org-address">Jl. Menur Pumpungan No 63, Sukolilo, Surabaya</div>
+          <div class="slip-org-contact">Email: lbbsupersmart@gmail.com</div>
+          <div class="slip-org-contact">Handphone: 0895-6359-07419</div>
+        </div>
+      </div>
+      <div class="slip-header-right">
+        <div class="slip-qr-box">
+          <img
+            src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ encoded_verify_url }}"
+            alt="QR Verifikasi"
+            width="100" height="100"
+            class="slip-qr-img"
+            onerror="this.style.display='none'"
+          >
+          <div class="slip-qr-label">Scan untuk<br>verifikasi</div>
+        </div>
+      </div>
+    </div>
+
+    {# ── DIVIDER ─────────────────────────────────────────────────────────── #}
+    <div class="slip-divider"></div>
+
+    {# ── JUDUL ───────────────────────────────────────────────────────────── #}
+    <div class="slip-title">Fee Tutor</div>
+
+    {# ── INFO TUTOR ──────────────────────────────────────────────────────── #}
+    <div class="slip-info-grid">
+      <div class="slip-info-row">
+        <div class="slip-info-label">Nama</div>
+        <div class="slip-info-sep">:</div>
+        <div class="slip-info-value">{{ tutor.name }}</div>
+        <div class="slip-info-label">Tanggal</div>
+        <div class="slip-info-sep">:</div>
+        <div class="slip-info-value">
+          {% if payout.payout_date %}
+            {{ payout.payout_date.day }}
+            {{ MONTHS_ID[payout.payout_date.month] }}
+            {{ payout.payout_date.year }}
+          {% else %}-{% endif %}
+        </div>
+      </div>
+      <div class="slip-info-row">
+        <div class="slip-info-label">Email</div>
+        <div class="slip-info-sep">:</div>
+        <div class="slip-info-value">{{ tutor.email or '-' }}</div>
+        <div class="slip-info-label">No. Rekening</div>
+        <div class="slip-info-sep">:</div>
+        <div class="slip-info-value mono">{{ tutor.bank_account_number or '-' }}</div>
+      </div>
+      <div class="slip-info-row">
+        <div class="slip-info-label">ID Tutor</div>
+        <div class="slip-info-sep">:</div>
+        <div class="slip-info-value mono">{{ tutor.tutor_code }}</div>
+        <div class="slip-info-label">Bank</div>
+        <div class="slip-info-sep">:</div>
+        <div class="slip-info-value">{{ tutor.bank_name or '-' }}</div>
+      </div>
+    </div>
+
+    {# ── SUMMARY BAR ─────────────────────────────────────────────────────── #}
+    <div class="slip-summary-bar">
+      <div class="slip-summary-sessions">
+        <span class="slip-count">{{ sessions | length }}</span> sesi
+      </div>
+      <div class="slip-summary-total">
+        Total: <span class="slip-total-amount">Rp {{ "{:,.0f}".format(total) }}</span>
+      </div>
+    </div>
+
+    {# ── TABEL SESI ──────────────────────────────────────────────────────── #}
+    {% if sessions %}
+    <table class="slip-table">
+      <thead>
+        <tr>
+          <th class="col-no">No</th>
+          <th class="col-date">Tanggal</th>
+          <th class="col-day">Hari</th>
+          <th class="col-student">Siswa</th>
+          <th class="col-curriculum">Kurikulum</th>
+          <th class="col-level">Jenjang</th>
+          <th class="col-subject">Mapel</th>
+          <th class="col-fee">Nominal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sess in sessions %}
+        <tr class="{{ 'row-alt' if loop.index is even }}">
+          <td class="col-no center">{{ loop.index }}</td>
+          <td class="col-date center">
+            {% if sess.session_date %}
+              {{ "%02d/%02d/%s" | format(
+                  sess.session_date.day,
+                  sess.session_date.month,
+                  sess.session_date.strftime('%y')
+              ) }}
+            {% else %}-{% endif %}
+          </td>
+          <td class="col-day center">
+            {% if sess.session_date %}
+              {{ DAYS_ID[sess.session_date.weekday()] }}
+            {% else %}-{% endif %}
+          </td>
+          <td class="col-student">
+            {{ sess.student.name if sess.student else '-' }}
+          </td>
+          <td class="col-curriculum center">
+            {% if sess.enrollment and sess.enrollment.curriculum %}
+              {{ sess.enrollment.curriculum.name }}
+            {% else %}-{% endif %}
+          </td>
+          <td class="col-level center">
+            {% if sess.enrollment and sess.enrollment.level %}
+              {{ sess.enrollment.level.name }}
+            {% else %}-{% endif %}
+          </td>
+          <td class="col-subject">
+            {{ sess.subject.name if sess.subject else '-' }}
+          </td>
+          <td class="col-fee right">
+            Rp {{ "{:,.0f}".format(sess.tutor_fee_amount or 0) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="7" class="right foot-label">Total</td>
+          <td class="right foot-total">Rp {{ "{:,.0f}".format(total) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+    {% else %}
+    <div class="slip-no-sessions">
+      Tidak ada sesi yang tercatat untuk periode ini.
+    </div>
+    {% endif %}
+
+    {# ── SEPARATOR ───────────────────────────────────────────────────────── #}
+    <div class="slip-divider" style="margin-top:18px"></div>
+
+    {# ── FOOTER ──────────────────────────────────────────────────────────── #}
+    <div class="slip-footer">
+      <div class="slip-footer-left">
+        <div class="slip-appreciation">
+          "We sincerely appreciate your hard work<br>
+          and dedication to our students."
+        </div>
+        <div class="slip-timestamp">
+          Dicetak: {{ now.strftime('%d/%m/%Y %H:%M') }}
+        </div>
+      </div>
+
+      <div class="slip-footer-right">
+        <div class="slip-sign-city">
+          Surabaya,
+          {% if payout.payout_date %}
+            {{ payout.payout_date.day }}
+            {{ MONTHS_ID[payout.payout_date.month] }}
+            {{ payout.payout_date.year }}
+          {% else %}{{ now.strftime('%d %B %Y') }}{% endif %}
+        </div>
+
+        {# QR tanda tangan #}
+        <div class="slip-sign-qr">
+          <img
+            src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data={{ encoded_verify_url }}"
+            alt="QR Tanda Tangan"
+            width="70" height="70"
+            onerror="this.style.display='none'"
+          >
+        </div>
+
+        <div class="slip-sign-name">Yoga Aji Sukma, S.Mat., M.Stat.</div>
+        <div class="slip-sign-title">CEO</div>
+      </div>
+    </div>
+
+    {# ── Payout Meta (opsional, kecil di sudut) ──────────────────────────── #}
+    <div class="slip-meta">
+      Dokumen No: SLIP-{{ "%05d" | format(payout.id) }} &nbsp;|&nbsp;
+      Status: {{ payout.status | upper }}
+      {% if payout.reference_number %}
+        &nbsp;|&nbsp; Ref: {{ payout.reference_number }}
+      {% endif %}
+    </div>
+
+  </div>{# /fee-slip-document #}
+</div>{# /fee-slip-wrapper #}
+{% endblock %}
+
+
+{% block scripts %}
+<style>
+  /* ═══════════════════════════════════════════════════════════════════
+     FEE SLIP STYLES — Screen + Print
+  ═══════════════════════════════════════════════════════════════════ */
+
+  :root {
+    --slip-gold:        #DAA520;
+    --slip-yellow:      #FFD700;
+    --slip-yellow-lt:   #FFFDE7;
+    --slip-yellow-mid:  #FFF9C4;
+    --slip-text:        #212529;
+    --slip-muted:       #6c757d;
+    --slip-border:      #DAA520;
+  }
+
+  /* ── Wrapper ─────────────────────────────────────────────────────── */
+  .fee-slip-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 0 0 40px;
+  }
+
+  .fee-slip-document {
+    width: 100%;
+    max-width: 860px;
+    background: #fff;
+    border: 2px solid var(--slip-border);
+    border-radius: 6px;
+    padding: 28px 32px 24px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.10);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 13px;
+    color: var(--slip-text);
+  }
+
+  /* ── Header ─────────────────────────────────────────────────────── */
+  .slip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: var(--slip-yellow);
+    border: 1.5px solid var(--slip-gold);
+    border-radius: 4px;
+    padding: 14px 18px;
+    margin-bottom: 0;
+  }
+
+  .slip-header-left {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .slip-logo-area {
+    width: 60px;
+    height: 60px;
+    background: #fff;
+    border: 2px solid var(--slip-gold);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .slip-logo-text {
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--slip-gold);
+    letter-spacing: 1px;
+  }
+
+  .slip-org-name {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .5px;
+    color: #1a1a1a;
+    line-height: 1.2;
+  }
+
+  .slip-org-brand {
+    font-size: 18px;
+    font-weight: 900;
+    color: #1a1a1a;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .slip-org-address,
+  .slip-org-contact {
+    font-size: 11.5px;
+    color: #333;
+    line-height: 1.5;
+  }
+
+  /* ── QR Box ─────────────────────────────────────────────────────── */
+  .slip-header-right {
+    flex-shrink: 0;
+    text-align: center;
+  }
+
+  .slip-qr-box {
+    background: #fff;
+    border: 1.5px solid var(--slip-gold);
+    border-radius: 4px;
+    padding: 6px 8px 4px;
+    display: inline-block;
+  }
+
+  .slip-qr-img {
+    display: block;
+    margin: 0 auto;
+  }
+
+  .slip-qr-label {
+    font-size: 10px;
+    color: var(--slip-muted);
+    margin-top: 3px;
+    line-height: 1.3;
+  }
+
+  /* ── Divider ─────────────────────────────────────────────────────── */
+  .slip-divider {
+    border-top: 2px solid var(--slip-gold);
+    margin: 14px 0;
+  }
+
+  /* ── Title ───────────────────────────────────────────────────────── */
+  .slip-title {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #1a1a1a;
+    margin-bottom: 14px;
+  }
+
+  /* ── Info Grid ───────────────────────────────────────────────────── */
+  .slip-info-grid {
+    background: var(--slip-yellow-lt);
+    border: 1px solid var(--slip-gold);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+  }
+
+  .slip-info-row {
+    display: grid;
+    grid-template-columns: 100px 10px 1fr 110px 10px 1fr;
+    gap: 2px 6px;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+
+  .slip-info-row:last-child { margin-bottom: 0; }
+
+  .slip-info-label {
+    font-weight: 700;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  .slip-info-sep {
+    color: var(--slip-muted);
+    font-size: 12.5px;
+  }
+
+  .slip-info-value {
+    font-size: 12.5px;
+  }
+
+  .slip-info-value.mono {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+  }
+
+  /* ── Summary Bar ─────────────────────────────────────────────────── */
+  .slip-summary-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--slip-yellow-mid);
+    border: 1px solid var(--slip-gold);
+    border-radius: 4px;
+    padding: 7px 14px;
+    margin-bottom: 8px;
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  .slip-count {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1a1a1a;
+  }
+
+  .slip-total-amount {
+    font-size: 16px;
+    font-weight: 800;
+    color: #1a4a00;
+  }
+
+  /* ── Tabel Sesi ──────────────────────────────────────────────────── */
+  .slip-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+
+  .slip-table thead tr {
+    background: var(--slip-yellow);
+  }
+
+  .slip-table thead th {
+    border: 1px solid var(--slip-gold);
+    padding: 6px 8px;
+    font-weight: 700;
+    font-size: 11.5px;
+    color: #1a1a1a;
+    white-space: nowrap;
+  }
+
+  .slip-table tbody td {
+    border: 1px solid var(--slip-gold);
+    padding: 5px 8px;
+    vertical-align: middle;
+  }
+
+  .slip-table tbody tr.row-alt td {
+    background: var(--slip-yellow-lt);
+  }
+
+  .slip-table tfoot td {
+    border: 1px solid var(--slip-gold);
+    padding: 6px 8px;
+    background: var(--slip-yellow-mid);
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  /* Column widths */
+  .col-no        { width: 32px;  text-align: center; }
+  .col-date      { width: 76px;  text-align: center; }
+  .col-day       { width: 58px;  text-align: center; }
+  .col-student   { width: auto; }
+  .col-curriculum{ width: 90px;  text-align: center; }
+  .col-level     { width: 60px;  text-align: center; }
+  .col-subject   { width: 90px; }
+  .col-fee       { width: 90px;  text-align: right; }
+
+  .center { text-align: center; }
+  .right  { text-align: right; }
+
+  .foot-label { font-weight: 700; }
+  .foot-total { font-weight: 800; color: #1a4a00; font-size: 13px; white-space: nowrap; }
+
+  .slip-no-sessions {
+    text-align: center;
+    padding: 24px;
+    color: var(--slip-muted);
+    border: 1px dashed var(--slip-gold);
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+
+  /* ── Footer ──────────────────────────────────────────────────────── */
+  .slip-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 18px;
+    gap: 12px;
+  }
+
+  .slip-footer-left {
+    flex: 1;
+  }
+
+  .slip-appreciation {
+    font-style: italic;
+    font-size: 12px;
+    color: #444;
+    line-height: 1.6;
+    border-left: 3px solid var(--slip-gold);
+    padding-left: 10px;
+    margin-bottom: 8px;
+  }
+
+  .slip-timestamp {
+    font-size: 10.5px;
+    color: var(--slip-muted);
+  }
+
+  .slip-footer-right {
+    text-align: center;
+    flex-shrink: 0;
+    min-width: 160px;
+  }
+
+  .slip-sign-city {
+    font-size: 12px;
+    margin-bottom: 6px;
+    color: #333;
+  }
+
+  .slip-sign-qr {
+    margin: 6px auto;
+    display: inline-block;
+    border: 1px solid var(--slip-gold);
+    border-radius: 4px;
+    padding: 4px;
+    background: #fff;
+  }
+
+  .slip-sign-name {
+    font-weight: 700;
+    font-size: 12.5px;
+    margin-top: 6px;
+    border-top: 1.5px solid var(--slip-gold);
+    padding-top: 5px;
+    color: #1a1a1a;
+  }
+
+  .slip-sign-title {
+    font-size: 11.5px;
+    color: var(--slip-muted);
+  }
+
+  /* ── Meta (bottom-right tiny) ─────────────────────────────────────── #}  */
+  .slip-meta {
+    margin-top: 14px;
+    font-size: 10px;
+    color: #aaa;
+    text-align: right;
+    border-top: 1px dashed #ddd;
+    padding-top: 6px;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     PRINT STYLES
+  ═══════════════════════════════════════════════════════════════════ */
+  @media print {
+    body {
+      background: #fff !important;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Sembunyikan semua kecuali dokumen slip */
+    nav,
+    .no-print,
+    footer {
+      display: none !important;
+    }
+
+    main.py-4 {
+      padding: 0 !important;
+    }
+
+    .container {
+      max-width: 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    .fee-slip-wrapper {
+      padding: 0;
+    }
+
+    .fee-slip-document {
+      max-width: 100%;
+      border: 1.5pt solid var(--slip-border);
+      box-shadow: none;
+      padding: 16pt 20pt 14pt;
+      font-size: 10pt;
+      page-break-inside: avoid;
+    }
+
+    .slip-header {
+      padding: 10pt 14pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .slip-logo-area {
+      width: 48pt;
+      height: 48pt;
+    }
+
+    .slip-org-brand { font-size: 14pt; }
+    .slip-org-name  { font-size: 11pt; }
+
+    .slip-title { font-size: 16pt; }
+
+    .slip-info-grid,
+    .slip-summary-bar,
+    .slip-table thead tr,
+    .slip-table tbody tr.row-alt td,
+    .slip-table tfoot td {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .slip-table {
+      font-size: 9pt;
+    }
+
+    .slip-table thead th,
+    .slip-table tbody td,
+    .slip-table tfoot td {
+      padding: 4pt 5pt;
+    }
+
+    .slip-footer {
+      margin-top: 12pt;
+    }
+
+    .slip-appreciation {
+      font-size: 9pt;
+    }
+
+    .slip-sign-name { font-size: 10pt; }
+
+    /* Paksa warna background tercetak */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    @page {
+      size: A4 landscape;
+      margin: 12mm 14mm;
+    }
+  }
+</style>
+{% endblock %}

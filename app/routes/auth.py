@@ -17,7 +17,7 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 def login():
     """Login route"""
     if current_user.is_authenticated:
-        return redirect(url_for("dashboard.index"))
+        return redirect(url_for("dashboard.owner_dashboard"))
 
     form = LoginForm()
     if form.validate_on_submit():
@@ -34,8 +34,8 @@ def login():
         login_user(user, remember=form.remember_me.data)
         next_page = request.args.get("next")
 
-        if not next_page or url_has_allowed_host_and_scheme(next_page):
-            next_page = url_for("dashboard.index")
+        if not next_page or not url_has_allowed_host_and_scheme(next_page):
+            next_page = url_for("dashboard.owner_dashboard")
 
         return redirect(next_page)
 
@@ -55,7 +55,14 @@ def logout():
 def register():
     """Register route - untuk setup awal atau admin only"""
     if current_user.is_authenticated:
-        return redirect(url_for("dashboard.index"))
+        return redirect(url_for("dashboard.owner_dashboard"))
+
+    if User.query.count() > 0:
+        flash(
+            "Registrasi publik sudah ditutup. Hubungi admin untuk pembuatan akun.",
+            "warning",
+        )
+        return redirect(url_for("auth.login"))
 
     form = RegisterForm()
     if form.validate_on_submit():

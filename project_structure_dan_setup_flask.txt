@@ -1,0 +1,1044 @@
+DOKUMEN KERANGKA PROYEK FLASK
+Dashboard Keuangan LBB Super Smart
+Teknologi: Flask + PostgreSQL + SQLAlchemy
+
+==================================================
+1. DAFTAR LENGKAP DEPENDENCIES
+==================================================
+
+1.1. Framework dan Core
+- Flask==2.3.3
+- Flask-SQLAlchemy==3.0.5
+- Flask-Migrate==4.0.5
+- Flask-Login==0.6.2
+- Flask-WTF==1.1.1
+- python-dotenv==1.0.0
+
+1.2. Database dan ORM
+- psycopg2-binary==2.9.7
+- SQLAlchemy==2.0.21
+
+1.3. Validasi dan Forms
+- WTForms==3.0.1
+- python-dateutil==2.8.2
+
+1.4. Authentication dan Security
+- Werkzeug==2.3.7
+- cryptography==41.0.4
+
+1.5. API dan Serialisasi
+- Flask-RESTful==0.3.10
+- marshmallow==3.20.1
+- marshmallow-sqlalchemy==0.29.0
+
+1.6. Utilities
+- click==8.1.7
+- jinja2==3.1.2
+
+1.7. Frontend (optional, jika pakai)
+- Flask-Bootstrap==3.3.7.1
+
+1.8. Testing
+- pytest==7.4.2
+- pytest-flask==1.2.0
+
+1.9. Development
+- flask-debugtoolbar==0.13.1
+
+==================================================
+2. STRUKTUR FOLDER PROJECT
+==================================================
+
+app_lembaga/
+├── .venv/                          # Virtual environment
+├── app/                            # Main application package
+│   ├── __init__.py
+│   ├── models/                     # SQLAlchemy models
+│   │   ├── __init__.py
+│   │   ├── master.py               # Student, Tutor, Subject, Curriculum, Level
+│   │   ├── enrollment.py           # Enrollment, EnrollmentSchedule
+│   │   ├── attendance.py           # AttendanceSession
+│   │   ├── payment.py              # StudentPayment, StudentPaymentLine
+│   │   ├── income.py               # OtherIncome
+│   │   ├── expense.py              # Expense
+│   │   ├── payroll.py              # TutorPayout, TutorPayoutLine
+│   │   ├── pricing.py              # PricingRule
+│   │   └── closing.py              # MonthlyClosing
+│   │
+│   ├── routes/                     # Routes/blueprints
+│   │   ├── __init__.py
+│   │   ├── auth.py                 # Login, logout, registration
+│   │   ├── master.py               # CRUD master data
+│   │   ├── enrollments.py          # CRUD enrollment
+│   │   ├── attendance.py           # CRUD presensi
+│   │   ├── payments.py             # CRUD pembayaran siswa
+│   │   ├── incomes.py              # CRUD pemasukan lain
+│   │   ├── expenses.py             # CRUD pengeluaran
+│   │   ├── payroll.py              # CRUD payout tutor
+│   │   ├── dashboard.py            # Dashboard dan KPI
+│   │   ├── reports.py              # Laporan detail
+│   │   └── closings.py             # Closing bulanan
+│   │
+│   ├── services/                   # Business logic layer
+│   │   ├── __init__.py
+│   │   ├── dashboard_service.py    # Hitung KPI dashboard
+│   │   ├── enrollment_service.py   # Logika enrollment
+│   │   ├── attendance_service.py   # Logika presensi
+│   │   ├── payment_service.py      # Logika pembayaran
+│   │   ├── payroll_service.py      # Logika payroll
+│   │   ├── reporting_service.py    # Hitung laporan detail
+│   │   └── reconciliation_service.py # Rekonsiliasi hutang gaji
+│   │
+│   ├── forms/                      # WTForms
+│   │   ├── __init__.py
+│   │   ├── auth_forms.py
+│   │   ├── master_forms.py
+│   │   ├── enrollment_forms.py
+│   │   ├── attendance_forms.py
+│   │   ├── payment_forms.py
+│   │   ├── expense_forms.py
+│   │   └── payroll_forms.py
+│   │
+│   ├── templates/                  # Jinja2 templates
+│   │   ├── base.html               # Base template
+│   │   ├── layout/
+│   │   │   ├── navbar.html
+│   │   │   └── sidebar.html
+│   │   ├── auth/
+│   │   │   ├── login.html
+│   │   │   └── register.html
+│   │   ├── dashboard/
+│   │   │   ├── owner_dashboard.html
+│   │   │   ├── payroll_dashboard.html
+│   │   │   ├── income_dashboard.html
+│   │   │   └── reconciliation_dashboard.html
+│   │   ├── master/
+│   │   │   ├── students_list.html
+│   │   │   ├── student_form.html
+│   │   │   ├── tutors_list.html
+│   │   │   ├── tutor_form.html
+│   │   │   ├── subjects_list.html
+│   │   │   └── pricing_list.html
+│   │   ├── enrollments/
+│   │   │   ├── list.html
+│   │   │   ├── form.html
+│   │   │   └── detail.html
+│   │   ├── attendance/
+│   │   │   ├── list.html
+│   │   │   ├── form.html
+│   │   │   └── monthly_summary.html
+│   │   ├── payments/
+│   │   │   ├── list.html
+│   │   │   ├── form.html
+│   │   │   └── student_payment_history.html
+│   │   ├── expenses/
+│   │   │   ├── list.html
+│   │   │   ├── form.html
+│   │   │   └── summary_by_category.html
+│   │   ├── payroll/
+│   │   │   ├── tutor_summary.html
+│   │   │   ├── payout_form.html
+│   │   │   ├── payout_list.html
+│   │   │   └── transfer_list.html
+│   │   └── reports/
+│   │       ├── monthly_report.html
+│   │       ├── tutor_report.html
+│   │       └── student_report.html
+│   │
+│   ├── static/                     # Static files
+│   │   ├── css/
+│   │   │   ├── bootstrap.min.css
+│   │   │   ├── style.css
+│   │   │   └── dashboard.css
+│   │   ├── js/
+│   │   │   ├── jquery.min.js
+│   │   │   ├── bootstrap.min.js
+│   │   │   ├── chart.js
+│   │   │   └── dashboard.js
+│   │   ├── images/
+│   │   └── fonts/
+│   │
+│   ├── utils/                      # Utility functions
+│   │   ├── __init__.py
+│   │   ├── decorators.py           # Login required, admin required
+│   │   ├── validators.py           # Custom validators
+│   │   ├── formatters.py           # Format currency, date
+│   │   ├── excel_export.py         # Export ke Excel
+│   │   └── pdf_export.py           # Export ke PDF
+│   │
+│   ├── config.py                   # Configuration
+│   └── extensions.py               # SQLAlchemy, Login Manager init
+│
+├── migrations/                      # Alembic migrations
+│   ├── versions/
+│   └── env.py
+│
+├── tests/                           # Unit tests
+│   ├── __init__.py
+│   ├── test_models.py
+│   ├── test_routes.py
+│   ├── test_services.py
+│   └── conftest.py
+│
+├── logs/                            # Application logs
+│   └── app.log
+│
+├── docs/                            # Documentation
+│   ├── api_endpoints.md
+│   ├── database_schema.md
+│   ├── deployment.md
+│   └── user_guide.md
+│
+├── .env.example                     # Environment variables template
+├── .gitignore                       # Git ignore
+├── requirements.txt                 # Python dependencies
+├── run.py                           # Application entry point
+├── config.py                        # Global configuration
+└── README.md                        # Project documentation
+
+==================================================
+3. FILE KONFIGURASI
+==================================================
+
+3.1. requirements.txt
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Flask-Migrate==4.0.5
+Flask-Login==0.6.2
+Flask-WTF==1.1.1
+python-dotenv==1.0.0
+psycopg2-binary==2.9.7
+SQLAlchemy==2.0.21
+WTForms==3.0.1
+python-dateutil==2.8.2
+Werkzeug==2.3.7
+cryptography==41.0.4
+Flask-RESTful==0.3.10
+marshmallow==3.20.1
+marshmallow-sqlalchemy==0.29.0
+click==8.1.7
+jinja2==3.1.2
+Flask-Bootstrap==3.3.7.1
+pytest==7.4.2
+pytest-flask==1.2.0
+flask-debugtoolbar==0.13.1
+openpyxl==3.1.2
+reportlab==4.0.7
+
+3.2. .env.example
+FLASK_APP=run.py
+FLASK_ENV=development
+SECRET_KEY=your-secret-key-here
+DATABASE_URL=postgresql://user:password@localhost:5432/lbb_db
+SQLALCHEMY_ECHO=False
+DEBUG=True
+LOG_LEVEL=INFO
+PAGINATION_PER_PAGE=20
+
+3.3. config.py (Global config file di root)
+import os
+from datetime import timedelta
+
+class Config:
+    """Base configuration"""
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://localhost/lbb_db'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Session
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+
+    # Pagination
+    PAGINATION_PER_PAGE = 20
+
+    # File upload
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
+
+class DevelopmentConfig(Config):
+    """Development configuration"""
+    DEBUG = True
+    TESTING = False
+    SQLALCHEMY_ECHO = True
+
+class ProductionConfig(Config):
+    """Production configuration"""
+    DEBUG = False
+    TESTING = False
+
+class TestingConfig(Config):
+    """Testing configuration"""
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'postgresql://localhost/lbb_test_db'
+    WTF_CSRF_ENABLED = False
+
+config = {
+    'development': DevelopmentConfig,
+    'production': ProductionConfig,
+    'testing': TestingConfig,
+    'default': DevelopmentConfig
+}
+
+3.4. app/__init__.py
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flask_login import LoginManager
+from config import config
+
+db = SQLAlchemy()
+migrate = Migrate()
+login_manager = LoginManager()
+
+def create_app(config_name='development'):
+    app = Flask(__name__)
+    app.config.from_object(config[config_name])
+
+    # Initialize extensions
+    db.init_app(app)
+    migrate.init_app(app, db)
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
+
+    # Register blueprints
+    from app.routes import (
+        auth_bp, master_bp, enrollments_bp, attendance_bp,
+        payments_bp, incomes_bp, expenses_bp, payroll_bp,
+        dashboard_bp, reports_bp, closings_bp
+    )
+
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(master_bp)
+    app.register_blueprint(enrollments_bp)
+    app.register_blueprint(attendance_bp)
+    app.register_blueprint(payments_bp)
+    app.register_blueprint(incomes_bp)
+    app.register_blueprint(expenses_bp)
+    app.register_blueprint(payroll_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(reports_bp)
+    app.register_blueprint(closings_bp)
+
+    # Shell context for flask shell
+    @app.shell_context_processor
+    def make_shell_context():
+        return {'db': db}
+
+    return app
+
+3.5. run.py
+import os
+from app import create_app, db
+
+app = create_app(os.getenv('FLASK_ENV', 'development'))
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True, host='0.0.0.0', port=5000)
+
+3.6. .gitignore
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.env
+.env.local
+.env.*.local
+instance/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+logs/
+uploads/
+*.log
+
+==================================================
+4. PERINTAH SETUP AWAL
+==================================================
+
+4.1. Inisialisasi project
+# Buat folder project
+mkdir app_lembaga
+cd app_lembaga
+
+# Buat virtual environment
+python -m venv .venv
+
+# Aktivasi virtual environment
+# Windows
+.venv\Scripts\activate
+# macOS/Linux
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+4.2. Setup database
+# Buat database PostgreSQL
+createdb lbb_db
+
+# Inisialisasi Alembic migrations
+flask db init
+
+# Buat migration pertama
+flask db migrate -m "Initial migration"
+
+# Apply migration
+flask db upgrade
+
+4.3. Jalankan aplikasi
+flask run
+# atau
+python run.py
+
+==================================================
+5. STRUKTUR MODEL DATABASE (models/)
+==================================================
+
+5.1. models/__init__.py
+from .master import Student, Tutor, Subject, Curriculum, Level
+from .pricing import PricingRule
+from .enrollment import Enrollment, EnrollmentSchedule
+from .attendance import AttendanceSession
+from .payment import StudentPayment, StudentPaymentLine
+from .income import OtherIncome
+from .expense import Expense
+from .payroll import TutorPayout, TutorPayoutLine
+from .closing import MonthlyClosing
+
+5.2. Struktur setiap model
+models/master.py
+- Student
+- Tutor
+- Subject
+- Curriculum
+- Level
+- User (untuk login)
+
+models/pricing.py
+- PricingRule
+
+models/enrollment.py
+- Enrollment
+- EnrollmentSchedule
+
+models/attendance.py
+- AttendanceSession
+
+models/payment.py
+- StudentPayment
+- StudentPaymentLine
+
+models/income.py
+- OtherIncome
+
+models/expense.py
+- Expense
+
+models/payroll.py
+- TutorPayout
+- TutorPayoutLine
+
+models/closing.py
+- MonthlyClosing
+
+==================================================
+6. STRUKTUR ROUTES/BLUEPRINTS (routes/)
+==================================================
+
+6.1. routes/__init__.py
+from .auth import auth_bp
+from .master import master_bp
+from .enrollments import enrollments_bp
+from .attendance import attendance_bp
+from .payments import payments_bp
+from .incomes import incomes_bp
+from .expenses import expenses_bp
+from .payroll import payroll_bp
+from .dashboard import dashboard_bp
+from .reports import reports_bp
+from .closings import closings_bp
+
+__all__ = [
+    'auth_bp', 'master_bp', 'enrollments_bp', 'attendance_bp',
+    'payments_bp', 'incomes_bp', 'expenses_bp', 'payroll_bp',
+    'dashboard_bp', 'reports_bp', 'closings_bp'
+]
+
+6.2. Struktur Blueprint Template
+routes/auth.py
+- @auth_bp.route('/login', methods=['GET', 'POST'])
+- @auth_bp.route('/logout')
+- @auth_bp.route('/register', methods=['GET', 'POST'])
+
+routes/master.py
+- @master_bp.route('/students')
+- @master_bp.route('/students/add', methods=['GET', 'POST'])
+- @master_bp.route('/students/<id>/edit', methods=['GET', 'POST'])
+- @master_bp.route('/students/<id>/delete', methods=['POST'])
+- @master_bp.route('/tutors')
+- (dan seterusnya untuk master data lainnya)
+
+routes/enrollments.py
+- @enrollments_bp.route('/list')
+- @enrollments_bp.route('/add', methods=['GET', 'POST'])
+- @enrollments_bp.route('/<id>/edit', methods=['GET', 'POST'])
+- @enrollments_bp.route('/<id>/delete', methods=['POST'])
+- @enrollments_bp.route('/<id>/detail')
+
+routes/attendance.py
+- @attendance_bp.route('/list')
+- @attendance_bp.route('/add', methods=['GET', 'POST'])
+- @attendance_bp.route('/<id>/edit', methods=['GET', 'POST'])
+- @attendance_bp.route('/monthly-summary')
+
+routes/payments.py
+- @payments_bp.route('/list')
+- @payments_bp.route('/add', methods=['GET', 'POST'])
+- @payments_bp.route('/<id>/detail')
+- @payments_bp.route('/<id>/delete', methods=['POST'])
+
+routes/expenses.py
+- @expenses_bp.route('/list')
+- @expenses_bp.route('/add', methods=['GET', 'POST'])
+- @expenses_bp.route('/<id>/edit', methods=['GET', 'POST'])
+- @expenses_bp.route('/<id>/delete', methods=['POST'])
+
+routes/payroll.py
+- @payroll_bp.route('/tutor-summary')
+- @payroll_bp.route('/payout/add', methods=['GET', 'POST'])
+- @payroll_bp.route('/payout/<id>/detail')
+- @payroll_bp.route('/transfer-list')
+
+routes/dashboard.py
+- @dashboard_bp.route('/')
+- @dashboard_bp.route('/owner')
+- @dashboard_bp.route('/payroll')
+- @dashboard_bp.route('/income')
+- @dashboard_bp.route('/reconciliation')
+
+routes/reports.py
+- @reports_bp.route('/monthly')
+- @reports_bp.route('/tutor')
+- @reports_bp.route('/student')
+- @reports_bp.route('/export/<format>')
+
+routes/closings.py
+- @closings_bp.route('/monthly-closing')
+- @closings_bp.route('/closing/create', methods=['GET', 'POST'])
+- @closings_bp.route('/closing/<month>/detail')
+
+==================================================
+7. STRUKTUR SERVICES (services/)
+==================================================
+
+services/dashboard_service.py
+- class DashboardService
+  - get_opening_balance()
+  - get_total_income_this_month()
+  - get_total_expenses_this_month()
+  - get_tutor_payable_from_collection()
+  - get_margin_this_month()
+  - get_tutor_salary_accrual()
+  - get_grand_tutor_payable()
+  - get_profit_this_month()
+  - get_cash_balance()
+  - get_grand_profit()
+  - get_monthly_summary()
+
+services/enrollment_service.py
+- class EnrollmentService
+  - create_enrollment()
+  - update_enrollment()
+  - get_enrollment_progress()
+  - calculate_remaining_meetings()
+  - deactivate_enrollment()
+
+services/attendance_service.py
+- class AttendanceService
+  - record_attendance()
+  - update_attendance()
+  - get_tutor_total_salary()
+  - get_attendance_by_month()
+  - get_attendance_by_tutor()
+
+services/payment_service.py
+- class PaymentService
+  - create_payment()
+  - record_payment_lines()
+  - calculate_margin()
+  - calculate_tutor_payable()
+  - get_student_payment_history()
+
+services/payroll_service.py
+- class PayrollService
+  - get_tutor_payable_summary()
+  - create_payout()
+  - get_payout_by_tutor()
+  - mark_as_paid()
+  - get_unpaid_tutor_amount()
+
+services/reporting_service.py
+- class ReportingService
+  - get_monthly_report()
+  - get_tutor_report()
+  - get_student_report()
+  - generate_reconciliation()
+
+services/reconciliation_service.py
+- class ReconciliationService
+  - get_payable_from_collection()
+  - get_accrual_from_attendance()
+  - get_total_payout()
+  - get_reconciliation_gap()
+
+==================================================
+8. STRUKTUR FORMS (forms/)
+==================================================
+
+forms/auth_forms.py
+- LoginForm
+- RegisterForm
+
+forms/master_forms.py
+- StudentForm
+- TutorForm
+- SubjectForm
+- CurriculumForm
+- PricingRuleForm
+
+forms/enrollment_forms.py
+- EnrollmentForm
+- EnrollmentScheduleForm
+
+forms/attendance_forms.py
+- AttendanceSessionForm
+- BulkAttendanceForm
+
+forms/payment_forms.py
+- StudentPaymentForm
+- StudentPaymentLineForm
+
+forms/expense_forms.py
+- ExpenseForm
+
+forms/payroll_forms.py
+- TutorPayoutForm
+
+==================================================
+9. STRUKTUR TEMPLATE (templates/)
+==================================================
+
+Layout structure:
+- base.html (extends)
+  ├── navbar.html (included)
+  ├── sidebar.html (included)
+  └── main content block
+
+Setiap page template:
+- title
+- breadcrumb
+- content
+- form/table
+- modal (jika ada)
+
+CSS classes yang digunakan:
+- Bootstrap 4
+- Custom CSS di static/css/style.css
+
+JS:
+- jQuery
+- Bootstrap JS
+- Chart.js (untuk dashboard)
+- Custom JS di static/js/dashboard.js
+
+==================================================
+10. UTILITIES DAN HELPERS (utils/)
+==================================================
+
+10.1. utils/decorators.py
+- @login_required_custom
+- @admin_required
+- @manager_required
+- @api_auth
+
+10.2. utils/validators.py
+- validate_date_range()
+- validate_numeric()
+- validate_enrollment()
+
+10.3. utils/formatters.py
+- format_currency()
+- format_date()
+- format_percentage()
+
+10.4. utils/excel_export.py
+- export_to_excel()
+- export_report_to_excel()
+
+10.5. utils/pdf_export.py
+- export_to_pdf()
+- generate_monthly_report_pdf()
+
+==================================================
+11. TESTING STRUCTURE (tests/)
+==================================================
+
+11.1. conftest.py
+- Pytest fixtures
+- Database setup
+- Test client
+
+11.2. test_models.py
+- Test model relationships
+- Test model methods
+
+11.3. test_routes.py
+- Test route access
+- Test form submission
+- Test authentication
+
+11.4. test_services.py
+- Test business logic
+- Test calculations
+
+Jalankan tests:
+pytest
+pytest -v
+pytest --cov
+
+==================================================
+12. ALUR IMPORT DAN STRUKTUR MODUL
+==================================================
+
+Import hierarchy:
+
+1. Config level
+   └── app/config.py
+
+2. Extension level
+   └── app/extensions.py
+       ├── db
+       ├── migrate
+       └── login_manager
+
+3. Model level
+   └── app/models/
+       ├── master.py
+       ├── enrollment.py
+       ├── attendance.py
+       ├── payment.py
+       ├── income.py
+       ├── expense.py
+       ├── payroll.py
+       └── closing.py
+
+4. Form level
+   └── app/forms/
+
+5. Service level
+   └── app/services/
+       ├── dashboard_service.py
+       ├── enrollment_service.py
+       ├── attendance_service.py
+       ├── payment_service.py
+       ├── payroll_service.py
+       └── reporting_service.py
+
+6. Route level
+   └── app/routes/
+       ├── auth.py
+       ├── master.py
+       ├── enrollments.py
+       ├── attendance.py
+       ├── payments.py
+       ├── payroll.py
+       ├── dashboard.py
+       └── reports.py
+
+7. Template level
+   └── app/templates/
+
+8. Static level
+   └── app/static/
+
+==================================================
+13. DATABASE MIGRATION WORKFLOW
+==================================================
+
+Pertama kali:
+flask db init
+
+Setiap kali ada perubahan model:
+flask db migrate -m "Deskripsi perubahan"
+flask db upgrade
+
+Rollback:
+flask db downgrade
+
+Lihat history:
+flask db history
+
+==================================================
+14. ENVIRONMENT VARIABLES
+==================================================
+
+Wajib di .env:
+- FLASK_APP=run.py
+- FLASK_ENV=development atau production
+- SECRET_KEY=random-string-panjang
+- DATABASE_URL=postgresql://user:pass@localhost/lbb_db
+
+Optional:
+- SQLALCHEMY_ECHO=True/False
+- DEBUG=True/False
+- LOG_LEVEL=INFO/DEBUG/WARNING
+
+==================================================
+15. PERINTAH DEVELOPMENT PENTING
+==================================================
+
+# Setup pertama
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+
+# Setup database
+createdb lbb_db
+flask db init
+flask db migrate -m "Initial"
+flask db upgrade
+
+# Run development server
+flask run
+# atau
+python run.py
+
+# Shell untuk test
+flask shell
+
+# Generate migration
+flask db migrate -m "Deskripsi"
+
+# Apply migration
+flask db upgrade
+
+# Lihat logs
+tail -f logs/app.log
+
+# Run tests
+pytest
+pytest -v --cov
+
+==================================================
+16. STRUKTUR DOKUMENTASI (docs/)
+==================================================
+
+docs/api_endpoints.md
+- Daftar semua endpoint
+- Method, path, parameter
+- Response example
+
+docs/database_schema.md
+- ERD
+- Deskripsi setiap tabel
+- Field dan relasi
+
+docs/deployment.md
+- Setup server
+- Konfigurasi production
+- Migration procedure
+
+docs/user_guide.md
+- Manual penggunaan aplikasi
+- Panduan setiap modul
+
+==================================================
+17. NAMING CONVENTIONS
+==================================================
+
+Database:
+- Table: lowercase, underscore_separated
+  Contoh: student_payments, attendance_sessions
+- Column: lowercase, underscore_separated
+  Contoh: student_id, created_at
+- FK: {table_name}_id
+  Contoh: student_id, enrollment_id
+
+Models (Python):
+- Class: PascalCase
+  Contoh: StudentPayment, AttendanceSession
+- Methods: snake_case
+  Contoh: get_monthly_summary(), create_payment()
+
+Routes/Blueprints:
+- Blueprint name: snake_case
+  Contoh: auth_bp, enrollments_bp
+- Route path: kebab-case
+  Contoh: /monthly-summary, /transfer-list
+
+Templates:
+- Filename: snake_case.html
+  Contoh: owner_dashboard.html, student_form.html
+- CSS class: kebab-case
+  Contoh: btn-primary, form-group
+
+Functions:
+- Function name: snake_case
+- Utility functions: module.function_name()
+
+==================================================
+18. BEST PRACTICES
+==================================================
+
+1. Separation of Concerns
+   - Routes hanya handle request/response
+   - Services handle business logic
+   - Models handle data structure
+
+2. Database Queries
+   - Gunakan ORM (SQLAlchemy)
+   - Hindari raw SQL kecuali complex query
+   - Batch operations jika banyak
+
+3. Error Handling
+   - Try-except di service
+   - Return informative error messages
+   - Log errors dengan detail
+
+4. Validation
+   - Validate di form level
+   - Validate di service level
+   - Validate di model level (constraints)
+
+5. Security
+   - Hash password dengan werkzeug
+   - CSRF protection di forms
+   - Input sanitization
+   - SQL injection prevention (ORM)
+
+6. Performance
+   - Use eager loading untuk relationships
+   - Index pada foreign keys
+   - Paginate large result sets
+   - Cache dashboard calculations
+
+7. Testing
+   - Unit test untuk services
+   - Integration test untuk routes
+   - Minimal 70% code coverage
+
+8. Logging
+   - Log important business events
+   - Log errors dengan stack trace
+   - Use INFO level untuk normal events
+
+==================================================
+19. NEXT STEPS IMPLEMENTATION
+==================================================
+
+Phase 1 - Setup
+☐ Create project structure
+☐ Setup virtual environment
+☐ Install dependencies
+☐ Configure PostgreSQL database
+
+Phase 2 - Models & Database
+☐ Create all model files
+☐ Setup relationships
+☐ Run migrations
+☐ Verify database schema
+
+Phase 3 - Authentication
+☐ Create User model
+☐ Create auth routes
+☐ Create login/register templates
+☐ Setup login_manager
+
+Phase 4 - Master Data CRUD
+☐ Create student model & routes
+☐ Create tutor model & routes
+☐ Create subject & curriculum
+☐ Create pricing rules
+
+Phase 5 - Enrollment Module
+☐ Create enrollment model
+☐ Create enrollment routes
+☐ Create enrollment forms
+☐ Create enrollment templates
+
+Phase 6 - Attendance Module
+☐ Create attendance model
+☐ Create attendance routes
+☐ Create attendance service
+☐ Create attendance templates
+
+Phase 7 - Payment Module
+☐ Create payment models
+☐ Create payment routes
+☐ Create payment service
+☐ Create payment templates
+
+Phase 8 - Financial Modules
+☐ Create expense module
+☐ Create income module
+☐ Create payroll module
+☐ Create closing module
+
+Phase 9 - Dashboard
+☐ Create dashboard service
+☐ Create dashboard routes
+☐ Create dashboard templates
+☐ Add charts and KPI cards
+
+Phase 10 - Reports
+☐ Create reporting service
+☐ Create report routes
+☐ Add Excel export
+☐ Add PDF export
+
+Phase 11 - Testing & Optimization
+☐ Write unit tests
+☐ Write integration tests
+☐ Performance optimization
+☐ Security review
+
+Phase 12 - Deployment
+☐ Production config
+☐ Server setup
+☐ SSL certificate
+☐ Database backup strategy
+
+==================================================
+20. FINAL CHECKLIST SEBELUM CODING
+==================================================
+
+Persiapan:
+☐ Baca context_dashboard_keuangan_lbb_super_smart.txt
+☐ Pahami alur bisnis dan formula
+☐ Sudah clear tentang requirement
+☐ Tentukan definisi setiap angka/KPI
+
+Setup:
+☐ PostgreSQL installed dan running
+☐ Python 3.9+ installed
+☐ Git initialized
+☐ Virtual environment created
+
+Code

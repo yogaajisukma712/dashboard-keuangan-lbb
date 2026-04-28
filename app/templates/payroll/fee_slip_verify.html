@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Verifikasi Fee Slip #{{ payout.id }}{% endblock %}
+
+{% block content %}
+{% set MONTHS_ID = ['','Januari','Februari','Maret','April','Mei','Juni',
+                    'Juli','Agustus','September','Oktober','November','Desember'] %}
+
+<div class="row justify-content-center mt-4">
+  <div class="col-md-8 col-lg-6">
+
+    {# ── Verified Badge ───────────────────────────────────────────────────── #}
+    <div class="text-center mb-4">
+      <div class="verify-badge">
+        <div class="verify-icon">&#10003;</div>
+      </div>
+      <h2 class="h4 mt-3 fw-bold text-success">Dokumen Terverifikasi</h2>
+      <p class="text-muted small">
+        Fee Slip ini adalah dokumen resmi yang dikeluarkan oleh<br>
+        <strong>LBB Super Smart</strong>.
+      </p>
+    </div>
+
+    {# ── Info Card ─────────────────────────────────────────────────────────── #}
+    <div class="card border-0 shadow-sm mb-4" style="border-top: 4px solid #DAA520 !important;">
+      <div class="card-header text-white fw-semibold" style="background:#DAA520;">
+        <i class="bi bi-file-earmark-check me-2"></i>
+        Detail Fee Slip — Dokumen No: SLIP-{{ "%05d" | format(payout.id) }}
+      </div>
+      <div class="card-body">
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr>
+              <th class="text-muted ps-0" style="width:40%">Nama Tutor</th>
+              <td>{{ tutor.name }}</td>
+            </tr>
+            <tr>
+              <th class="text-muted ps-0">ID Tutor</th>
+              <td class="font-monospace">{{ tutor.tutor_code }}</td>
+            </tr>
+            <tr>
+              <th class="text-muted ps-0">Email</th>
+              <td>{{ tutor.email or '-' }}</td>
+            </tr>
+            <tr>
+              <th class="text-muted ps-0">Bank</th>
+              <td>{{ tutor.bank_name or '-' }}</td>
+            </tr>
+            <tr>
+              <th class="text-muted ps-0">No. Rekening</th>
+              <td class="font-monospace">{{ tutor.bank_account_number or '-' }}</td>
+            </tr>
+            <tr>
+              <td colspan="2"><hr class="my-2"></td>
+            </tr>
+            <tr>
+              <th class="text-muted ps-0">Tanggal Payout</th>
+              <td>
+                {% if payout.payout_date %}
+                  {{ payout.payout_date.day }}
+                  {{ MONTHS_ID[payout.payout_date.month] }}
+                  {{ payout.payout_date.year }}
+                {% else %}-{% endif %}
+              </td>
+            </tr>
+            <tr>
+              <th class="text-muted ps-0">Jumlah Sesi</th>
+              <td><strong>{{ sessions | length }} sesi</strong></td>
+            </tr>
+            <tr>
+              <th class="text-muted ps-0">Total Pembayaran</th>
+              <td>
+                <span class="fw-bold text-success fs-5">
+                  Rp {{ "{:,.0f}".format(total) }}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <th class="text-muted ps-0">Status</th>
+              <td>
+                {% if payout.status == 'completed' %}
+                  <span class="badge bg-success">COMPLETED</span>
+                {% elif payout.status == 'pending' %}
+                  <span class="badge bg-warning text-dark">PENDING</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ payout.status | upper }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% if payout.reference_number %}
+            <tr>
+              <th class="text-muted ps-0">No. Referensi</th>
+              <td class="font-monospace">{{ payout.reference_number }}</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ── Bulan Layanan ─────────────────────────────────────────────────────── #}
+    {% set lines = payout.payout_lines.all() %}
+    {% if lines %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold border-bottom">
+        <i class="bi bi-calendar3 me-2" style="color:#DAA520"></i>Bulan Layanan
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Periode</th>
+              <th class="text-end pe-3">Nominal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for line in lines %}
+            <tr>
+              <td class="ps-3">
+                {% if line.service_month %}
+                  {{ MONTHS_ID[line.service_month.month] }} {{ line.service_month.year }}
+                {% else %}-{% endif %}
+              </td>
+              <td class="text-end pe-3 fw-semibold">Rp {{ "{:,.0f}".format(line.amount) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Issuer Info ───────────────────────────────────────────────────────── #}
+    <div class="card border-0 shadow-sm mb-4" style="background:#FFFDE7; border: 1px solid #DAA520 !important;">
+      <div class="card-body text-center py-3">
+        <div class="fw-bold mb-1" style="font-size:15px;">LEMBAGA BIMBINGAN BELAJAR SUPER SMART</div>
+        <div class="text-muted small">Jl. Menur Pumpungan No 63, Sukolilo, Surabaya</div>
+        <div class="text-muted small">lbbsupersmart@gmail.com &nbsp;|&nbsp; 0895-6359-07419</div>
+        <hr class="my-2" style="border-color:#DAA520">
+        <div class="small text-muted">
+          Diverifikasi pada: {{ now.strftime('%d %B %Y, %H:%M') }} WIB
+        </div>
+      </div>
+    </div>
+
+    {# ── Back link ─────────────────────────────────────────────────────────── #}
+    <div class="text-center text-muted small mt-2">
+      <a href="/" class="text-muted">Kembali ke Dashboard</a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .verify-badge {
+    width: 80px;
+    height: 80px;
+    background: #198754;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(25,135,84,.30);
+  }
+  .verify-icon {
+    color: #fff;
+    font-size: 42px;
+    font-weight: 900;
+    line-height: 1;
+    margin-top: -4px;
+  }
+</style>
+{% endblock %}

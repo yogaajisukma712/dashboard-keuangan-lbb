@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name or "Dashboard Keuangan LBB Super Smart" }}{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    body { background: #f8f9fa; }
+    .muted-label { font-size: .8rem; text-transform: uppercase; color: #6c757d; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('dashboard.owner_dashboard') }}">
+        {{ app_name or "Dashboard Keuangan LBB Super Smart" }}
+      </a>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        {% if current_user.is_authenticated %}
+          <!-- Quota Alert link dengan badge jumlah alert -->
+          <a class="nav-link text-white position-relative px-2" href="/quota/alerts">
+            &#9888;&#65039; Quota
+            {% if quota_alert_count and quota_alert_count > 0 %}
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                  style="font-size:.65rem;">
+              {{ quota_alert_count }}
+              <span class="visually-hidden">quota alerts</span>
+            </span>
+            {% endif %}
+          </a>
+          <span class="text-white">{{ current_user.full_name or current_user.username }}</span>
+          <a class="btn btn-light btn-sm" href="{{ url_for('auth.logout') }}">Logout</a>
+        {% else %}
+          <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.login') }}">Login</a>
+          <a class="btn btn-light btn-sm" href="{{ url_for('auth.register') }}">Register</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <main class="py-4">
+    <div class="container">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'warning' if category == 'message' else category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

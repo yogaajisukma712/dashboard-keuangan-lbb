@@ -6,7 +6,7 @@ This package contains all WTForms form classes.
 from .attendance_forms import AttendanceSessionForm, BulkAttendanceForm
 from .auth_forms import LoginForm, RegisterForm
 from .enrollment_forms import EnrollmentForm, EnrollmentScheduleForm
-from .expense_forms import ExpenseForm
+from .expense_forms import ExpenseForm, IncomeForm
 from .master_forms import (
     CurriculumForm,
     PricingRuleForm,
@@ -32,5 +32,6 @@ __all__ = [
     "StudentPaymentForm",
     "StudentPaymentLineForm",
     "ExpenseForm",
+    "IncomeForm",
     "TutorPayoutForm",
 ]

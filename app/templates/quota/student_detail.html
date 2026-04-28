@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block title %}Detail Quota — {{ student.name }} — {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="mb-0">📊 Detail Quota Siswa</h4>
+    <div class="text-muted small mt-1">
+      {{ student.name }}
+      <span class="ms-2 badge bg-secondary">{{ student.student_code }}</span>
+    </div>
+  </div>
+  <a href="{{ url_for('quota_invoice.quota_alerts') }}" class="btn btn-outline-secondary btn-sm">
+    ← Kembali ke Alert Quota
+  </a>
+</div>
+
+<!-- Filter bulan -->
+<div class="card shadow-sm mb-4">
+  <div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label muted-label mb-1">Bulan</label>
+        <select name="month" class="form-select form-select-sm">
+          {% for m in range(1, 13) %}
+            <option value="{{ m }}" {% if m == service_month.month %}selected{% endif %}>
+              {{ ['Januari','Februari','Maret','April','Mei','Juni',
+                  'Juli','Agustus','September','Oktober','November','Desember'][m-1] }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label muted-label mb-1">Tahun</label>
+        <input type="number" name="year" class="form-control form-control-sm"
+               value="{{ service_month.year }}" min="2020" max="2099" style="width:90px">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary btn-sm">🔍 Tampilkan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Info siswa -->
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-light fw-semibold">👤 Info Siswa</div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-sm-4">
+        <div class="muted-label">Nama</div>
+        <div class="fw-semibold">{{ student.name }}</div>
+      </div>
+      <div class="col-sm-4">
+        <div class="muted-label">Kode Siswa</div>
+        <div>{{ student.student_code }}</div>
+      </div>
+      <div class="col-sm-4">
+        <div class="muted-label">Kelas / Grade</div>
+        <div>{{ student.grade or '—' }}</div>
+      </div>
+      {% if student.parent_name %}
+      <div class="col-sm-4">
+        <div class="muted-label">Nama Orang Tua</div>
+        <div>{{ student.parent_name }}</div>
+      </div>
+      {% endif %}
+      {% if student.parent_phone %}
+      <div class="col-sm-4">
+        <div class="muted-label">No. HP Orang Tua</div>
+        <div>{{ student.parent_phone }}</div>
+      </div>
+      {% endif %}
+      <div class="col-sm-4">
+        <div class="muted-label">Status</div>
+        <div>
+          {% if student.is_active %}
+            <span class="badge bg-success">Aktif</span>
+          {% else %}
+            <span class="badge bg-secondary">Tidak Aktif</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Heading bulan -->
+<h5 class="mb-3">
+  Quota Bulan
+  <span class="text-primary">{{ service_month.strftime('%B %Y') }}</span>
+</h5>
+
+{% if not quota_details %}
+  <div class="alert alert-info">
+    Siswa ini tidak memiliki enrollment aktif.
+  </div>
+{% else %}
+  <div class="row g-4">
+    {% for item in quota_details %}
+    <div class="col-md-6 col-xl-4">
+      <div class="card shadow-sm h-100
+        {% if item.remaining < 0 %}border-danger
+        {% elif item.remaining == 0 %}border-warning
+        {% else %}border-success{% endif %}">
+
+        <!-- Header kartu -->
+        <div class="card-header fw-semibold d-flex justify-content-between align-items-center
+          {% if item.remaining < 0 %}bg-danger text-white
+          {% elif item.remaining == 0 %}bg-warning text-dark
+          {% else %}bg-success text-white{% endif %}">
+          <span>{{ item.subject.name }}</span>
+          {% if item.remaining < 0 %}
+            <span class="badge bg-white text-danger">{{ item.remaining }}</span>
+          {% elif item.remaining == 0 %}
+            <span class="badge bg-dark text-warning">Habis</span>
+          {% else %}
+            <span class="badge bg-white text-success">+{{ item.remaining }}</span>
+          {% endif %}
+        </div>
+
+        <div class="card-body">
+          <!-- Tutor -->
+          <div class="mb-3">
+            <span class="muted-label">Tutor</span>
+            <div class="fw-semibold">{{ item.tutor.name }}</div>
+          </div>
+
+          <!-- Statistik quota -->
+          <div class="row text-center g-2 mb-3">
+            <div class="col-4">
+              <div class="border rounded py-2">
+                <div class="fs-5 fw-bold text-success">{{ item.paid }}</div>
+                <div class="muted-label">Dibayar</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="border rounded py-2">
+                <div class="fs-5 fw-bold text-info">{{ item.used }}</div>
+                <div class="muted-label">Terpakai</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="border rounded py-2">
+                <div class="fs-5 fw-bold
+                  {% if item.remaining < 0 %}text-danger
+                  {% elif item.remaining == 0 %}text-warning
+                  {% else %}text-success{% endif %}">
+                  {{ item.remaining }}
+                </div>
+                <div class="muted-label">Sisa</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Progress bar -->
+          {% if item.paid > 0 %}
+            {% set pct = [(item.used / item.paid * 100), 100] | min | int %}
+            <div class="mb-1 d-flex justify-content-between">
+              <span class="muted-label">Pemakaian</span>
+              <span class="muted-label">{{ item.used }}/{{ item.paid }}</span>
+            </div>
+            <div class="progress" style="height: 8px;">
+              <div class="progress-bar
+                {% if pct >= 100 %}bg-danger
+                {% elif pct >= 75 %}bg-warning
+                {% else %}bg-success{% endif %}"
+                role="progressbar"
+                style="width: {{ pct }}%"
+                aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100">
+              </div>
+            </div>
+          {% else %}
+            <div class="text-muted small text-center">Belum ada quota dibayar bulan ini.</div>
+          {% endif %}
+        </div>
+
+        <!-- Footer: tombol buat invoice -->
+        {% if item.remaining <= 0 %}
+        <div class="card-footer bg-light">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary w-100"
+            data-bs-toggle="modal"
+            data-bs-target="#modalInvoice"
+            data-enrollment-id="{{ item.enrollment.id }}"
+            data-student-name="{{ student.name }}"
+            data-subject-name="{{ item.subject.name }}"
+            data-student-rate="{{ item.enrollment.student_rate_per_meeting }}"
+            data-quota="{{ item.enrollment.meeting_quota_per_month }}"
+            data-service-month="{{ service_month.strftime('%Y-%m') }}">
+            🧾 Buat Invoice
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<!-- ============================================================
+     Modal: Buat Invoice
+     ============================================================ -->
+<div class="modal fade" id="modalInvoice" tabindex="-1" aria-labelledby="modalInvoiceLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('quota_invoice.create_invoice') }}">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="modalInvoiceLabel">🧾 Buat Invoice</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <input type="hidden" name="enrollment_id" id="inp_enrollment_id">
+
+          <div class="mb-3">
+            <label class="form-label muted-label">Siswa</label>
+            <div id="disp_student" class="fw-semibold">{{ student.name }}</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label muted-label">Mata Pelajaran</label>
+            <div id="disp_subject" class="fw-semibold"></div>
+          </div>
+
+          <div class="mb-3">
+            <label for="inp_service_month" class="form-label">
+              Bulan Layanan <span class="text-danger">*</span>
+            </label>
+            <input type="month" class="form-control" id="inp_service_month"
+                   name="service_month" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="inp_amount" class="form-label">
+              Nominal Invoice (Rp) <span class="text-danger">*</span>
+            </label>
+            <input type="number" class="form-control" id="inp_amount"
+                   name="amount" min="0" step="1000" required>
+            <div class="form-text" id="disp_rate_hint"></div>
+          </div>
+
+          <div class="mb-3">
+            <label for="inp_notes" class="form-label">Catatan</label>
+            <textarea class="form-control" id="inp_notes" name="notes" rows="2"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary">💾 Simpan Invoice</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  const modalEl = document.getElementById('modalInvoice');
+  if (modalEl) {
+    modalEl.addEventListener('show.bs.modal', function (event) {
+      const btn = event.relatedTarget;
+
+      const enrollmentId = btn.dataset.enrollmentId;
+      const subjectName  = btn.dataset.subjectName;
+      const studentRate  = parseFloat(btn.dataset.studentRate) || 0;
+      const quota        = parseInt(btn.dataset.quota) || 4;
+      const serviceMonth = btn.dataset.serviceMonth;
+
+      document.getElementById('inp_enrollment_id').value  = enrollmentId;
+      document.getElementById('disp_subject').textContent = subjectName;
+      document.getElementById('inp_service_month').value  = serviceMonth;
+
+      const defaultAmount = quota * studentRate;
+      document.getElementById('inp_amount').value = defaultAmount > 0 ? defaultAmount : '';
+
+      if (studentRate > 0) {
+        const rateFormatted = studentRate.toLocaleString('id-ID');
+        document.getElementById('disp_rate_hint').textContent =
+          `Tarif/pertemuan: Rp ${rateFormatted}  ·  Quota standar: ${quota}×`;
+      } else {
+        document.getElementById('disp_rate_hint').textContent = '';
+      }
+    });
+  }
+</script>
+{% endblock %}

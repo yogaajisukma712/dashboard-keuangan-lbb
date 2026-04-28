@@ -114,7 +114,7 @@ class Subject(db.Model):
     )
     attendance_sessions = db.relationship(
         "AttendanceSession",
-        backref="subject",
+        back_populates="subject",
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
@@ -198,7 +198,7 @@ class Tutor(db.Model):
     )
     attendance_sessions = db.relationship(
         "AttendanceSession",
-        backref="tutor",
+        back_populates="tutor",
         lazy="dynamic",
         cascade="all, delete-orphan",
     )

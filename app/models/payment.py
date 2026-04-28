@@ -88,7 +88,7 @@ class StudentPaymentLine(db.Model):
     )
 
     # Relationships
-    enrollment = db.relationship("Enrollment", backref="payment_lines")
+    enrollment = db.relationship("Enrollment", back_populates="payment_lines")
 
     def __repr__(self):
         return f"<StudentPaymentLine payment_id={self.student_payment_id} enrollment_id={self.enrollment_id}>"

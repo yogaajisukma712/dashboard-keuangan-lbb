@@ -1,36 +1,72 @@
-.venv/
+# ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
-env/
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ── Virtual environments ─────────────────────────────────────────────────────
+.venv/
 venv/
+env/
 ENV/
+
+# ── Environment / Secrets ────────────────────────────────────────────────────
 .env
 .env.local
 .env.*.local
-instance/
+.env.docker
+.env.docker.local
+# Keep .env.example and .env.railway committed
+
+# ── Logs & uploads ───────────────────────────────────────────────────────────
+logs/
+uploads/
+*.log
+
+# ── Database ─────────────────────────────────────────────────────────────────
+*.sqlite
+*.sqlite3
+*.db
+
+# ── Testing & coverage ───────────────────────────────────────────────────────
 .pytest_cache/
 .coverage
 htmlcov/
-dist/
-build/
-*.egg-info/
-.DS_Store
+verify_calculations.py
+
+# ── Type-checking / IDE ──────────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
 .vscode/
 .idea/
 *.swp
 *.swo
-logs/
-uploads/
-*.log
-.sqlite
-.sqlite3
-*.db
-*.sqlite
-.flake8
-.mypy_cache/
-.dmypy.json
-dmypy.json
+.DS_Store
+
+# ── Node (if any frontend tooling) ───────────────────────────────────────────
 node_modules/
+
+# ── Reference / acuan (Excel screenshots – bukan kode) ──────────────────────
+acuan perhitungan/
+
+# ── One-off push/utility scripts (Windows) ───────────────────────────────────
+push.ps1
+push_to_github.ps1
+push_to_github.py
+push_to_github.sh
+git_push_script.ps1
+GITHUB_PUSH_SUMMARY.txt
+
+# ── Loose image files di root (bukan aset aplikasi) ─────────────────────────
+Athallah Rafael Santoso 1.png
+
+# ── Temporary / misc ─────────────────────────────────────────────────────────
+*.tmp
+*.bak
+instance/

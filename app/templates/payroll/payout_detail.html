@@ -1,0 +1,671 @@
+{% extends "base.html" %} {% block title %}Detail Payout #{{ payout.id }}{%
+endblock %} {% block content %} {% set MONTHS =
+['','Januari','Februari','Maret','April','Mei','Juni',
+'Juli','Agustus','September','Oktober','November','Desember'] %} {# ──
+Breadcrumb ─────────────────────────────────────────────────────────── #}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a href="{{ url_for('payroll.tutor_summary') }}">Payroll</a>
+        </li>
+        <li class="breadcrumb-item active">Detail Payout #{{ payout.id }}</li>
+    </ol>
+</nav>
+
+{# ── Page Header ─────────────────────────────────────────────────────────── #}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="h4 mb-1">Detail Payout #{{ payout.id }}</h2>
+        <p class="text-muted mb-0 small">
+            Dibuat: {{ payout.created_at.strftime('%d %B %Y, %H:%M') if
+            payout.created_at else '-' }}
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a
+            href="{{ url_for('payroll.fee_slip', payout_id=payout.id) }}"
+            class="btn btn-outline-primary btn-sm"
+            target="_blank"
+        >
+            <i class="bi bi-file-earmark-text me-1"></i> Lihat Fee Slip
+        </a>
+        <a
+            href="{{ url_for('payroll.fee_slip_pdf', payout_id=payout.id) }}"
+            class="btn btn-outline-success btn-sm"
+        >
+            <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
+        </a>
+        <form
+            method="POST"
+            action="{{ url_for('payroll.delete_payout', payout_id=payout.id) }}"
+            onsubmit="
+                return confirm(
+                    'Yakin hapus payout ini? Tindakan tidak dapat dibatalkan.',
+                );
+            "
+        >
+            <button type="submit" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-trash me-1"></i> Hapus
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4">
+    {# ── Kolom Kiri: Info Payout + Bukti ──────────────────────────────────────
+    #}
+    <div class="col-lg-7">
+        {# ── Info Tutor & Payout
+        ──────────────────────────────────────────────── #}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white fw-semibold border-bottom">
+                <i class="bi bi-person-badge me-2 text-primary"></i>Informasi
+                Payout
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    {# Status badge #}
+                    <div class="col-12 mb-1">
+                        {% if payout.status == 'completed' %}
+                        <span class="badge bg-success fs-6 px-3 py-2">
+                            <i class="bi bi-check-circle me-1"></i> Completed
+                        </span>
+                        {% elif payout.status == 'pending' %}
+                        <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+                            <i class="bi bi-clock me-1"></i> Pending
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary fs-6 px-3 py-2"
+                            >{{ payout.status }}</span
+                        >
+                        {% endif %}
+                    </div>
+
+                    <div class="col-sm-6">
+                        <div
+                            class="text-muted small fw-semibold text-uppercase mb-1"
+                        >
+                            Tutor
+                        </div>
+                        <div class="fw-semibold">{{ payout.tutor.name }}</div>
+                        <div class="text-muted small">
+                            {{ payout.tutor.tutor_code }}
+                        </div>
+                    </div>
+
+                    <div class="col-sm-6">
+                        <div
+                            class="text-muted small fw-semibold text-uppercase mb-1"
+                        >
+                            Tanggal Payout
+                        </div>
+                        <div class="fw-semibold">
+                            {{ payout.payout_date.strftime('%d %B %Y') if
+                            payout.payout_date else '-' }}
+                        </div>
+                    </div>
+
+                    <div class="col-sm-6">
+                        <div
+                            class="text-muted small fw-semibold text-uppercase mb-1"
+                        >
+                            Nominal
+                        </div>
+                        <div class="fw-bold fs-5 text-success">
+                            Rp {{ "{:,.0f}".format(payout.amount) }}
+                        </div>
+                    </div>
+
+                    <div class="col-sm-6">
+                        <div
+                            class="text-muted small fw-semibold text-uppercase mb-1"
+                        >
+                            Metode Pembayaran
+                        </div>
+                        <div class="fw-semibold text-capitalize">
+                            {{ payout.payment_method or '-' }}
+                        </div>
+                    </div>
+
+                    <div class="col-sm-6">
+                        <div
+                            class="text-muted small fw-semibold text-uppercase mb-1"
+                        >
+                            Bank
+                        </div>
+                        <div>
+                            {{ payout.bank_name or payout.tutor.bank_name or '-'
+                            }}
+                        </div>
+                    </div>
+
+                    <div class="col-sm-6">
+                        <div
+                            class="text-muted small fw-semibold text-uppercase mb-1"
+                        >
+                            Nomor Rekening
+                        </div>
+                        <div class="font-monospace">
+                            {{ payout.account_number or
+                            payout.tutor.bank_account_number or '-' }}
+                        </div>
+                    </div>
+
+                    {% if payout.reference_number %}
+                    <div class="col-sm-6">
+                        <div
+                            class="text-muted small fw-semibold text-uppercase mb-1"
+                        >
+                            No. Referensi
+                        </div>
+                        <div class="font-monospace">
+                            {{ payout.reference_number }}
+                        </div>
+                    </div>
+                    {% endif %} {% if payout.notes %}
+                    <div class="col-12">
+                        <div
+                            class="text-muted small fw-semibold text-uppercase mb-1"
+                        >
+                            Catatan
+                        </div>
+                        <div class="text-break">{{ payout.notes }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+                {# /row #}
+            </div>
+        </div>
+
+        {# ── Payout Lines (Bulan Layanan)
+        ─────────────────────────────────────── #} {% set lines =
+        payout.payout_lines.all() %} {% if lines %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white fw-semibold border-bottom">
+                <i class="bi bi-calendar3 me-2 text-primary"></i>Rincian Bulan
+                Layanan
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Bulan Layanan</th>
+                            <th class="text-end">Nominal</th>
+                            <th>Catatan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line in lines %}
+                        <tr>
+                            <td class="ps-3">
+                                {% if line.service_month %} {{
+                                MONTHS[line.service_month.month] }} {{
+                                line.service_month.year }} {% else %} - {% endif
+                                %}
+                            </td>
+                            <td class="text-end fw-semibold">
+                                Rp {{ "{:,.0f}".format(line.amount) }}
+                            </td>
+                            <td class="text-muted small">
+                                {{ line.notes or '-' }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th class="ps-3">Total</th>
+                            <th class="text-end">
+                                Rp {{ "{:,.0f}".format(lines |
+                                sum(attribute='amount')) }}
+                            </th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {# /col-lg-7 #} {# ── Kolom Kanan: Bukti Transfer
+    ─────────────────────────────────────────── #}
+    <div class="col-lg-5">
+        {# ── Upload Bukti Transfer
+        ────────────────────────────────────────────── #}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white fw-semibold border-bottom">
+                <i class="bi bi-image me-2 text-primary"></i>Bukti Transfer
+            </div>
+            <div class="card-body">
+                {# Tampilkan gambar jika sudah ada #} {% if payout.proof_image
+                %}
+                <div class="mb-3">
+                    <div
+                        class="text-muted small fw-semibold text-uppercase mb-2"
+                    >
+                        Bukti yang Diupload
+                    </div>
+                    {% set proof_ext = payout.proof_image.rsplit('.',
+                    1)[-1].lower() %} {% if proof_ext in ['png', 'jpg', 'jpeg',
+                    'gif', 'webp'] %}
+                    <div
+                        class="border rounded overflow-hidden mb-2"
+                        style="max-height: 280px"
+                    >
+                        <img
+                            src="{{ url_for('static', filename='../uploads/' + payout.proof_image) }}"
+                            class="img-fluid w-100"
+                            style="object-fit: contain; max-height: 280px"
+                            alt="Bukti transfer"
+                            onerror="
+                                this.closest('.border').innerHTML =
+                                    '<div class=\'p-3 text-muted small\'>Gambar tidak dapat ditampilkan.</div>'
+                            "
+                        />
+                    </div>
+                    {% elif proof_ext == 'pdf' %}
+                    <div
+                        class="alert alert-info py-2 mb-2 d-flex align-items-center gap-2"
+                    >
+                        <i class="bi bi-file-earmark-pdf fs-5 text-danger"></i>
+                        <span class="small">File PDF telah diupload.</span>
+                        <a
+                            href="/uploads/{{ payout.proof_image }}"
+                            target="_blank"
+                            class="btn btn-sm btn-outline-danger ms-auto"
+                            >Buka</a
+                        >
+                    </div>
+                    {% endif %} {% if payout.proof_notes %}
+                    <div
+                        class="text-muted small fw-semibold text-uppercase mb-1"
+                    >
+                        Catatan Bukti
+                    </div>
+                    <p class="mb-0 small">{{ payout.proof_notes }}</p>
+                    {% endif %}
+                </div>
+                <hr class="my-3" />
+                <div class="text-muted small fw-semibold mb-2">
+                    Ganti Bukti Transfer
+                </div>
+                {% else %}
+                <p class="text-muted small mb-3">
+                    Belum ada bukti transfer yang diupload. Upload gambar atau
+                    PDF bukti transfer di bawah ini.
+                </p>
+                {% endif %} {# Form upload #}
+                <form
+                    method="POST"
+                    action="{{ url_for('payroll.upload_proof', payout_id=payout.id) }}"
+                    enctype="multipart/form-data"
+                    id="uploadForm"
+                >
+                    <div class="mb-3">
+                        <label for="proof_file" class="form-label fw-semibold">
+                            File Bukti <span class="text-danger">*</span>
+                        </label>
+                        <input
+                            type="file"
+                            name="proof_file"
+                            id="proof_file"
+                            class="form-control"
+                            accept=".png,.jpg,.jpeg,.gif,.pdf"
+                            required
+                        />
+                        <div class="form-text">
+                            Format: PNG, JPG, GIF, atau PDF. Maks 16 MB.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="proof_notes" class="form-label fw-semibold"
+                            >Catatan (opsional)</label
+                        >
+                        <textarea
+                            name="proof_notes"
+                            id="proof_notes"
+                            class="form-control"
+                            rows="2"
+                            placeholder="Nomor transaksi, bank, waktu transfer, dll."
+                        >
+{{ payout.proof_notes or '' }}</textarea
+                        >
+                    </div>
+
+                    <div id="preview-wrapper" class="mb-3 d-none">
+                        <div class="text-muted small fw-semibold mb-1">
+                            Preview
+                        </div>
+                        <div
+                            class="border rounded overflow-hidden"
+                            style="max-height: 220px"
+                        >
+                            <img
+                                id="img-preview"
+                                class="img-fluid w-100"
+                                style="object-fit: contain; max-height: 220px"
+                                alt="Preview"
+                            />
+                        </div>
+                        <!-- Status OCR -->
+                        <div
+                            id="ocr-status"
+                            class="small text-muted mt-1"
+                        ></div>
+                        <!-- Sugesti tutor dari OCR -->
+                        <div
+                            id="ocr-result"
+                            class="mt-2 border rounded p-2 bg-light d-none"
+                        ></div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary w-100"
+                        id="uploadBtn"
+                    >
+                        <i class="bi bi-cloud-upload me-1"></i>
+                        {{ 'Ganti Bukti Transfer' if payout.proof_image else
+                        'Upload Bukti Transfer' }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {# ── Quick Links
+        ──────────────────────────────────────────────────────── #}
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-semibold border-bottom">
+                <i class="bi bi-link-45deg me-2 text-primary"></i>Tautan Cepat
+            </div>
+            <div class="list-group list-group-flush">
+                <a
+                    href="{{ url_for('payroll.fee_slip', payout_id=payout.id) }}"
+                    class="list-group-item list-group-item-action d-flex align-items-center gap-2"
+                    target="_blank"
+                >
+                    <i class="bi bi-file-earmark-text text-primary"></i>
+                    <span>Lihat Fee Slip (HTML Print)</span>
+                    <i
+                        class="bi bi-box-arrow-up-right ms-auto text-muted small"
+                    ></i>
+                </a>
+                <a
+                    href="{{ url_for('payroll.fee_slip_pdf', payout_id=payout.id) }}"
+                    class="list-group-item list-group-item-action d-flex align-items-center gap-2"
+                >
+                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                    <span>Download Fee Slip PDF</span>
+                    <i class="bi bi-download ms-auto text-muted small"></i>
+                </a>
+                <a
+                    href="{{ url_for('payroll.tutor_summary', month=payout.payout_date.month if payout.payout_date else '', year=payout.payout_date.year if payout.payout_date else '') }}"
+                    class="list-group-item list-group-item-action d-flex align-items-center gap-2"
+                >
+                    <i class="bi bi-people text-success"></i>
+                    <span>Kembali ke Ringkasan Payroll</span>
+                    <i class="bi bi-arrow-left ms-auto text-muted small"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    {# /col-lg-5 #}
+</div>
+{# /row #} {% endblock %} {% block scripts %}
+<!-- Tesseract.js untuk OCR browser-side -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<script>
+    (function () {
+        "use strict";
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // UTILITAS
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        /** Normalisasi string: hapus spasi ganda, lowercase */
+        function normalize(s) {
+            return (s || "").toLowerCase().replace(/\s+/g, " ").trim();
+        }
+
+        /**
+         * Hitung Levenshtein distance antara dua string.
+         * Digunakan untuk fuzzy-matching nama tutor dari hasil OCR.
+         */
+        function levenshtein(a, b) {
+            const m = a.length,
+                n = b.length;
+            const dp = Array.from({ length: m + 1 }, (_, i) =>
+                Array.from({ length: n + 1 }, (_, j) =>
+                    i === 0 ? j : j === 0 ? i : 0,
+                ),
+            );
+            for (let i = 1; i <= m; i++)
+                for (let j = 1; j <= n; j++)
+                    dp[i][j] =
+                        a[i - 1] === b[j - 1]
+                            ? dp[i - 1][j - 1]
+                            : 1 +
+                              Math.min(
+                                  dp[i - 1][j],
+                                  dp[i][j - 1],
+                                  dp[i - 1][j - 1],
+                              );
+            return dp[m][n];
+        }
+
+        /**
+         * Skor kemiripan antara dua string (0–1, semakin besar semakin mirip).
+         */
+        function similarity(a, b) {
+            const na = normalize(a),
+                nb = normalize(b);
+            if (!na || !nb) return 0;
+            const maxLen = Math.max(na.length, nb.length);
+            return 1 - levenshtein(na, nb) / maxLen;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // DATA TUTOR (diambil sekali dari API)
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        let tutorList = []; // [{id, name, bank_name, account_number, …}]
+
+        async function loadTutorList() {
+            try {
+                const res = await fetch("/payroll/api/tutors-for-ocr");
+                if (res.ok) tutorList = await res.json();
+            } catch (_) {
+                /* silent */
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // MATCH TEKS OCR → TUTOR
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        /**
+         * Cari tutor yang paling cocok dengan teks OCR.
+         * Strategi:
+         *  1. Cek apakah nomor rekening tutor muncul di teks (exact substring).
+         *  2. Cek fuzzy match nama tutor / account_holder.
+         *  3. Cek nama bank muncul di teks.
+         * Setiap kriteria mendapat bobot, kembalikan 3 kandidat teratas.
+         */
+        function matchTutors(ocrText) {
+            const text = normalize(ocrText);
+            const scored = tutorList.map((t) => {
+                let score = 0;
+
+                // ── Nomor rekening (exact substring, bobot tinggi) ──────────────────
+                const accNorm = (t.account_number || "").replace(/[\s\-]/g, "");
+                if (accNorm.length >= 6 && text.includes(accNorm)) score += 60;
+
+                // ── Nama tutor / account holder (fuzzy) ────────────────────────────
+                const nameSim = Math.max(
+                    similarity(t.name, text.slice(0, 200)),
+                    similarity(t.account_holder || t.name, text.slice(0, 200)),
+                );
+                score += nameSim * 30;
+
+                // ── Nama bank muncul di teks ────────────────────────────────────────
+                if (t.bank_name && text.includes(normalize(t.bank_name)))
+                    score += 10;
+
+                // ── Kode tutor muncul di teks ───────────────────────────────────────
+                if (t.tutor_code && text.includes(normalize(t.tutor_code)))
+                    score += 15;
+
+                return { tutor: t, score };
+            });
+
+            return scored
+                .filter((s) => s.score > 5)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 3);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // UI: OCR STATUS & SUGESTI
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        const ocrStatusEl = document.getElementById("ocr-status");
+        const ocrResultEl = document.getElementById("ocr-result");
+
+        function setOcrStatus(msg, type = "info") {
+            if (!ocrStatusEl) return;
+            const colours = {
+                info: "text-muted",
+                success: "text-success",
+                warning: "text-warning",
+                danger: "text-danger",
+            };
+            ocrStatusEl.className = `small ${colours[type] || "text-muted"} mt-1`;
+            ocrStatusEl.textContent = msg;
+        }
+
+        function showOcrSuggestions(candidates) {
+            if (!ocrResultEl) return;
+            if (!candidates.length) {
+                ocrResultEl.innerHTML =
+                    '<p class="small text-muted mb-0">Tidak ada tutor yang cocok ditemukan.</p>';
+                ocrResultEl.classList.remove("d-none");
+                return;
+            }
+
+            let html =
+                '<p class="small fw-semibold mb-2">Sugesti Tutor dari OCR:</p><div class="list-group list-group-flush">';
+            candidates.forEach(({ tutor, score }) => {
+                const pct = Math.round(Math.min(score, 100));
+                html += `
+        <div class="list-group-item px-0 py-2 border-0">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold">${tutor.name}</div>
+              <div class="small text-muted">
+                ${tutor.bank_name || "-"} · ${tutor.account_number || "-"}
+              </div>
+            </div>
+            <span class="badge ${pct >= 50 ? "bg-success" : "bg-secondary"} ms-2">
+              ${pct}%
+            </span>
+          </div>
+        </div>`;
+            });
+            html += "</div>";
+            ocrResultEl.innerHTML = html;
+            ocrResultEl.classList.remove("d-none");
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // OCR RUNNER
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        async function runOcr(dataUrl) {
+            setOcrStatus("⏳ Memproses OCR, mohon tunggu…", "info");
+            if (ocrResultEl) ocrResultEl.classList.add("d-none");
+
+            try {
+                const {
+                    data: { text },
+                } = await Tesseract.recognize(
+                    dataUrl,
+                    "ind+eng", // Bahasa Indonesia + Inggris
+                    { logger: () => {} },
+                );
+
+                if (!text || text.trim().length < 5) {
+                    setOcrStatus(
+                        "⚠️ Teks tidak terdeteksi dari gambar.",
+                        "warning",
+                    );
+                    return;
+                }
+
+                setOcrStatus("✅ OCR selesai. Mencocokkan tutor…", "success");
+                const candidates = matchTutors(text);
+                showOcrSuggestions(candidates);
+            } catch (err) {
+                setOcrStatus("❌ OCR gagal: " + err.message, "danger");
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // MAIN: Preview + OCR on file select
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        const fileInput = document.getElementById("proof_file");
+        const previewWrap = document.getElementById("preview-wrapper");
+        const imgPreview = document.getElementById("img-preview");
+        const uploadBtn = document.getElementById("uploadBtn");
+
+        // Pre-load tutor list as soon as page loads
+        loadTutorList();
+
+        if (fileInput) {
+            fileInput.addEventListener("change", function () {
+                const file = this.files[0];
+                if (!file) {
+                    previewWrap && previewWrap.classList.add("d-none");
+                    return;
+                }
+
+                const imgTypes = [
+                    "image/png",
+                    "image/jpeg",
+                    "image/gif",
+                    "image/webp",
+                ];
+                if (imgTypes.includes(file.type)) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        if (imgPreview) imgPreview.src = e.target.result;
+                        if (previewWrap) previewWrap.classList.remove("d-none");
+
+                        // Jalankan OCR setelah preview tampil
+                        runOcr(e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    if (previewWrap) previewWrap.classList.add("d-none");
+                    setOcrStatus(
+                        "ℹ️ OCR hanya mendukung file gambar (PNG/JPG/GIF).",
+                        "info",
+                    );
+                }
+            });
+        }
+
+        // ── Loading state saat submit ─────────────────────────────────────────────
+        const uploadForm = document.getElementById("uploadForm");
+        if (uploadForm && uploadBtn) {
+            uploadForm.addEventListener("submit", function () {
+                uploadBtn.disabled = true;
+                uploadBtn.innerHTML =
+                    '<span class="spinner-border spinner-border-sm me-1"></span> Mengupload...';
+            });
+        }
+    })();
+</script>
+{% endblock %}

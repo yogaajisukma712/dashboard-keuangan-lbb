@@ -35,6 +35,8 @@ class AttendanceService:
 
             session = AttendanceSession(
                 enrollment_id=enrollment_id,
+                student_id=enrollment.student_id,
+                tutor_id=enrollment.tutor_id,
                 session_date=session_date,
                 status="attended",
                 student_present=True,
@@ -134,11 +136,18 @@ class AttendanceService:
             Count of created sessions
         """
         try:
+            if isinstance(enrollment_ids, str):
+                enrollment_ids = [
+                    int(item.strip())
+                    for item in enrollment_ids.split(",")
+                    if item.strip()
+                ]
+
             count = 0
             for enrollment_id in enrollment_ids:
                 if enrollment_id:
                     AttendanceService.record_attendance(
-                        enrollment_id, session_date, tutor_fee_amount
+                        int(enrollment_id), session_date, tutor_fee_amount
                     )
                     count += 1
             return count

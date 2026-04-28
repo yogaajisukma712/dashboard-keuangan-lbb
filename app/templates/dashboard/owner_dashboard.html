@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Owner{% endblock %}
+
+{% block content %}
+{% set k = kpi or {} %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">Dashboard Owner</h1>
+    <p class="text-muted mb-0">Ringkasan keuangan periode {{ current_month }}/{{ current_year }}</p>
+  </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Saldo Awal</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("opening_balance", 0) or 0) }}</div></div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Pemasukan Siswa</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("total_income_this_month", 0) or 0) }}</div></div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Pengeluaran</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("total_expenses_this_month", 0) or 0) }}</div></div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Hutang Tutor dari Collection</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("tutor_payable_from_collection", 0) or 0) }}</div></div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Margin Bulan Ini</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("margin_this_month", 0) or 0) }}</div></div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Accrual Gaji Tutor</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("tutor_salary_accrual", 0) or 0) }}</div></div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Grand Tutor Payable</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("grand_tutor_payable", 0) or 0) }}</div></div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Estimasi Profit</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("estimated_profit", 0) or 0) }}</div></div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><div class="muted-label">Cash Balance</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("cash_balance", 0) or 0) }}</div></div></div></div>
+  <div class="col-md-6 col-xl-6"><div class="card h-100"><div class="card-body"><div class="muted-label">Grand Profit</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("grand_profit", 0) or 0) }}</div></div></div></div>
+  <div class="col-md-6 col-xl-6"><div class="card h-100"><div class="card-body"><div class="muted-label">Estimasi Sisa Saldo</div><div class="fs-4 fw-semibold">Rp {{ "{:,.2f}".format(k.get("estimated_remaining_balance", 0) or 0) }}</div></div></div></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Top Siswa</div>
+      <div class="card-body">
+        {% if top_students %}
+        <ul class="mb-0">
+          {% for student in top_students %}
+          <li>{{ student.name }} - Rp {{ "{:,.2f}".format(student.income or 0) }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Belum ada data siswa.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Top Mata Pelajaran</div>
+      <div class="card-body">
+        {% if top_subjects %}
+        <ul class="mb-0">
+          {% for subject in top_subjects %}
+          <li>{{ subject.name }} - Rp {{ "{:,.2f}".format(subject.income or 0) }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Belum ada data mata pelajaran.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

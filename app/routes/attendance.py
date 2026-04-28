@@ -72,13 +72,17 @@ def add_attendance():
 
     if form.validate_on_submit():
         try:
+            enrollment = Enrollment.query.get_or_404(form.enrollment_id.data)
+
             session = AttendanceSession(
                 enrollment_id=form.enrollment_id.data,
+                student_id=enrollment.student_id,
+                tutor_id=enrollment.tutor_id,
                 session_date=form.session_date.data,
                 status="attended",
                 student_present=form.student_present.data,
                 tutor_present=form.tutor_present.data,
-                subject_id=form.subject_id.data,
+                subject_id=enrollment.subject_id,
                 tutor_fee_amount=form.tutor_fee_amount.data,
                 notes=form.notes.data,
             )
@@ -112,11 +116,15 @@ def edit_attendance(session_id):
 
     if form.validate_on_submit():
         try:
+            enrollment = Enrollment.query.get_or_404(form.enrollment_id.data)
+
             session.enrollment_id = form.enrollment_id.data
+            session.student_id = enrollment.student_id
+            session.tutor_id = enrollment.tutor_id
             session.session_date = form.session_date.data
             session.student_present = form.student_present.data
             session.tutor_present = form.tutor_present.data
-            session.subject_id = form.subject_id.data
+            session.subject_id = enrollment.subject_id
             session.tutor_fee_amount = form.tutor_fee_amount.data
             session.notes = form.notes.data
             session.updated_at = datetime.utcnow()

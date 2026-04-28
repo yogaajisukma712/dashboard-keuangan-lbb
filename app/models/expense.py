@@ -13,6 +13,7 @@ class Expense(db.Model):
 
     __tablename__ = "expenses"
 
+    id = db.Column(db.Integer, primary_key=True)
     expense_date = db.Column(
         db.DateTime, default=datetime.utcnow, nullable=False, index=True
     )
@@ -29,7 +30,6 @@ class Expense(db.Model):
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     creator = db.relationship("User", backref="expenses_created")

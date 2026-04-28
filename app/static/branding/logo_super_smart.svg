@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 340" role="img" aria-labelledby="title desc">
+  <title id="title">Super Smart Logo</title>
+  <desc id="desc">Blue graduation cap above golden book rays with SUPER SMART wordmark and tagline.</desc>
+
+  <defs>
+    <style>
+      .blue { fill: #253b9b; }
+      .gold { fill: #f4be18; }
+      .wordmark {
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: 800;
+        letter-spacing: 2px;
+      }
+      .tagline {
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: 700;
+        letter-spacing: 8px;
+      }
+    </style>
+  </defs>
+
+  <!-- Icon -->
+  <g transform="translate(30,20)">
+    <!-- cap top -->
+    <polygon class="blue" points="150,0 260,58 150,116 40,58"/>
+    <!-- cap head -->
+    <circle class="blue" cx="150" cy="78" r="34"/>
+    <!-- cap band -->
+    <path class="blue" d="M104 90 Q150 116 196 90 L196 116 Q150 142 104 116 Z"/>
+    <!-- tassel -->
+    <rect class="blue" x="148" y="44" width="6" height="56" rx="3"/>
+    <circle class="blue" cx="151" cy="103" r="7"/>
+
+    <!-- book base -->
+    <polygon class="blue" points="18,175 150,118 282,175 150,210"/>
+    <polygon class="blue" points="42,189 150,223 258,189 258,208 150,244 42,208"/>
+
+    <!-- golden pages -->
+    <polygon class="gold" points="150,212 56,70 96,204"/>
+    <polygon class="gold" points="150,212 78,58 114,201"/>
+    <polygon class="gold" points="150,212 102,46 130,198"/>
+    <polygon class="gold" points="150,212 126,36 144,196"/>
+    <polygon class="gold" points="150,212 150,30 156,194"/>
+    <polygon class="gold" points="150,212 174,36 162,196"/>
+    <polygon class="gold" points="150,212 198,46 170,198"/>
+    <polygon class="gold" points="150,212 222,58 186,201"/>
+    <polygon class="gold" points="150,212 244,70 204,204"/>
+  </g>
+
+  <!-- Wordmark -->
+  <g transform="translate(340,88)">
+    <text class="blue wordmark" x="0" y="70" font-size="74">SUPER SMART</text>
+    <text class="gold tagline" x="6" y="120" font-size="26">BEING SMART FOR FUTURE</text>
+  </g>
+</svg>

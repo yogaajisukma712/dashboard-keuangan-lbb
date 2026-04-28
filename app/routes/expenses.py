@@ -4,7 +4,7 @@ Routes for managing operational expenses
 """
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
 
 from app import db
 from app.forms import ExpenseForm
@@ -40,7 +40,7 @@ def add_expense():
                 payment_method=form.payment_method.data,
                 reference_number=form.reference_number.data,
                 notes=form.notes.data,
-                created_by=current_user.id,
+                created_by=current_user.id if current_user.is_authenticated else None,
             )
             db.session.add(expense)
             db.session.commit()

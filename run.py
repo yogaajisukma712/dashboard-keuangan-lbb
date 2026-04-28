@@ -1,7 +1,9 @@
 import os
 
-from app import create_app, db
 from dotenv import load_dotenv
+
+from app import create_app
+from app.extensions import db
 
 # Load environment variables from .env file
 load_dotenv()

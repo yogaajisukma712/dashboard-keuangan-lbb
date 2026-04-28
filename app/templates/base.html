@@ -1,62 +1,430 @@
 <!doctype html>
 <html lang="id">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{{ app_name or "Dashboard Keuangan LBB Super Smart" }}{% endblock %}</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <style>
-    body { background: #f8f9fa; }
-    .muted-label { font-size: .8rem; text-transform: uppercase; color: #6c757d; }
-  </style>
-</head>
-<body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container">
-      <a class="navbar-brand" href="{{ url_for('dashboard.owner_dashboard') }}">
-        {{ app_name or "Dashboard Keuangan LBB Super Smart" }}
-      </a>
-      <div class="ms-auto d-flex align-items-center gap-2">
-        {% if current_user.is_authenticated %}
-          <!-- Quota Alert link dengan badge jumlah alert -->
-          <a class="nav-link text-white position-relative px-2" href="/quota/alerts">
-            &#9888;&#65039; Quota
-            {% if quota_alert_count and quota_alert_count > 0 %}
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                  style="font-size:.65rem;">
-              {{ quota_alert_count }}
-              <span class="visually-hidden">quota alerts</span>
-            </span>
-            {% endif %}
-          </a>
-          <span class="text-white">{{ current_user.full_name or current_user.username }}</span>
-          <a class="btn btn-light btn-sm" href="{{ url_for('auth.logout') }}">Logout</a>
-        {% else %}
-          <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.login') }}">Login</a>
-          <a class="btn btn-light btn-sm" href="{{ url_for('auth.register') }}">Register</a>
-        {% endif %}
-      </div>
-    </div>
-  </nav>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>
+            {% block title %}Dashboard Keuangan LBB Super Smart{% endblock %}
+        </title>
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+            rel="stylesheet"
+        />
+        <style>
+            body {
+                background: #f4f6f9;
+            }
+            .muted-label {
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #6c757d;
+            }
+            .navbar-brand {
+                font-weight: 700;
+                letter-spacing: 0.02em;
+            }
+            /* Sidebar */
+            #sidebar {
+                position: fixed;
+                top: 56px;
+                left: 0;
+                height: calc(100vh - 56px);
+                width: 240px;
+                background: #1a2035;
+                overflow-y: auto;
+                z-index: 1000;
+                transition: transform 0.25s ease;
+            }
+            #sidebar .nav-link {
+                color: #b0bec5;
+                padding: 0.5rem 1.25rem;
+                font-size: 0.875rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                border-radius: 0;
+            }
+            #sidebar .nav-link:hover,
+            #sidebar .nav-link.active {
+                color: #fff;
+                background: rgba(255, 255, 255, 0.08);
+            }
+            #sidebar .nav-link i {
+                width: 18px;
+                text-align: center;
+                opacity: 0.8;
+            }
+            #sidebar .sidebar-heading {
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: #546e7a;
+                padding: 1rem 1.25rem 0.35rem;
+                margin-top: 0.25rem;
+            }
+            #sidebar .sub-nav .nav-link {
+                padding-left: 2.75rem;
+                font-size: 0.82rem;
+            }
+            #sidebar .collapse-arrow {
+                margin-left: auto;
+                transition: transform 0.2s;
+                font-size: 0.75rem;
+            }
+            #sidebar [aria-expanded="true"] .collapse-arrow {
+                transform: rotate(180deg);
+            }
+            /* Sidebar badge */
+            #sidebar .side-badge {
+                margin-left: auto;
+                font-size: 0.65rem;
+                padding: 0.15em 0.45em;
+                border-radius: 10px;
+            }
+            /* Main content offset */
+            #main-content {
+                margin-left: 240px;
+                padding: 1.5rem;
+                transition: margin 0.25s ease;
+            }
+            /* Navbar toggle */
+            #sidebarToggle {
+                display: none;
+            }
+            @media (max-width: 991.98px) {
+                #sidebar {
+                    transform: translateX(-100%);
+                }
+                #sidebar.show {
+                    transform: translateX(0);
+                }
+                #main-content {
+                    margin-left: 0;
+                }
+                #sidebarToggle {
+                    display: block;
+                }
+            }
+            /* Scrollbar sidebar */
+            #sidebar::-webkit-scrollbar {
+                width: 4px;
+            }
+            #sidebar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            #sidebar::-webkit-scrollbar-thumb {
+                background: #37474f;
+                border-radius: 2px;
+            }
+            /* KPI cards */
+            .kpi-card {
+                border: none;
+                border-radius: 0.75rem;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            }
+            /* Tables */
+            .table-card {
+                border: none;
+                border-radius: 0.75rem;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+                overflow: hidden;
+            }
+            /* Flash alerts */
+            .flash-container {
+                position: sticky;
+                top: 0;
+                z-index: 999;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- ═══════════════════ TOP NAVBAR ═══════════════════ -->
+        <nav
+            class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top"
+            style="z-index: 1050"
+        >
+            <div class="container-fluid px-3">
+                <!-- Sidebar toggle (mobile) -->
+                <button
+                    id="sidebarToggle"
+                    class="btn btn-sm btn-outline-light me-2 d-lg-none"
+                    type="button"
+                >
+                    <i class="bi bi-list"></i>
+                </button>
 
-  <main class="py-4">
-    <div class="container">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="alert alert-{{ 'warning' if category == 'message' else category }} alert-dismissible fade show" role="alert">
-              {{ message }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <!-- Brand -->
+                <a
+                    class="navbar-brand d-flex align-items-center gap-2"
+                    href="{{ url_for('dashboard.owner_dashboard') }}"
+                >
+                    <i class="bi bi-bar-chart-line-fill"></i>
+                    <span class="d-none d-sm-inline">LBB Super Smart</span>
+                    <span class="d-sm-none">LBB</span>
+                </a>
+
+                <!-- Right: user + logout -->
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    {% if current_user.is_authenticated %}
+                    <!-- Quota alert badge -->
+                    <a
+                        href="/quota/alerts"
+                        class="btn btn-sm btn-outline-warning position-relative d-flex align-items-center gap-1"
+                        title="Alert Quota Siswa"
+                    >
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span class="d-none d-md-inline">Quota</span>
+                        {% if quota_alert_count and quota_alert_count > 0 %}
+                        <span
+                            class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                            style="font-size: 0.6rem"
+                        >
+                            {{ quota_alert_count }}<span
+                                class="visually-hidden"
+                            >
+                                alerts</span
+                            >
+                        </span>
+                        {% endif %}
+                    </a>
+                    <span class="text-white-50 d-none d-md-inline">|</span>
+                    <span class="text-white small fw-semibold">
+                        <i class="bi bi-person-circle me-1"></i>{{
+                        current_user.full_name or current_user.username }}
+                    </span>
+                    <a
+                        class="btn btn-sm btn-light"
+                        href="{{ url_for('auth.logout') }}"
+                    >
+                        <i class="bi bi-box-arrow-right me-1"></i>Logout
+                    </a>
+                    {% else %}
+                    <a
+                        class="btn btn-sm btn-outline-light"
+                        href="{{ url_for('auth.login') }}"
+                        >Login</a
+                    >
+                    {% endif %}
+                </div>
             </div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
-      {% block content %}{% endblock %}
-    </div>
-  </main>
+        </nav>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  {% block scripts %}{% endblock %}
-</body>
+        <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+        {% if current_user.is_authenticated %}
+        <nav id="sidebar">
+            <!-- Dashboard -->
+            <div class="sidebar-heading">Beranda</div>
+            <a
+                href="{{ url_for('dashboard.owner_dashboard') }}"
+                class="nav-link {% if request.endpoint == 'dashboard.owner_dashboard' %}active{% endif %}"
+            >
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+
+            <!-- ── Master Data ── -->
+            <div class="sidebar-heading">Master Data</div>
+
+            <a
+                href="/master/students"
+                class="nav-link {% if 'students' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-people-fill"></i> Siswa
+            </a>
+            <a
+                href="/master/tutors"
+                class="nav-link {% if 'tutors' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-person-badge-fill"></i> Tutor
+            </a>
+            <a
+                href="/master/subjects"
+                class="nav-link {% if 'subjects' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-journal-text"></i> Mata Pelajaran
+            </a>
+            <a
+                href="/master/curriculums"
+                class="nav-link {% if 'curriculums' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-book-fill"></i> Kurikulum
+            </a>
+            <a
+                href="/master/pricing"
+                class="nav-link {% if 'pricing' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-tags-fill"></i> Tarif Sesi
+            </a>
+
+            <!-- ── Operasional ── -->
+            <div class="sidebar-heading">Operasional</div>
+
+            <a
+                href="/enrollments/"
+                class="nav-link {% if 'enrollments' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-card-list"></i> Enrollment
+            </a>
+            <a
+                href="/attendance/"
+                class="nav-link {% if 'attendance' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-calendar-check-fill"></i> Presensi
+            </a>
+            <a
+                href="/attendance/bulk-add"
+                class="nav-link {% if 'bulk-add' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-calendar-plus"></i> Presensi Massal
+            </a>
+
+            <!-- ── Keuangan ── -->
+            <div class="sidebar-heading">Keuangan</div>
+
+            <a
+                href="/payments/"
+                class="nav-link {% if 'payments' in request.path and 'payroll' not in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-cash-stack"></i> Pembayaran Siswa
+            </a>
+            <a
+                href="/incomes/"
+                class="nav-link {% if 'incomes' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-arrow-down-circle-fill text-success"></i>
+                Pemasukan Lain
+            </a>
+            <a
+                href="/expenses/"
+                class="nav-link {% if 'expenses' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-arrow-up-circle-fill text-danger"></i>
+                Pengeluaran
+            </a>
+
+            <!-- ── Penggajian ── -->
+            <div class="sidebar-heading">Penggajian</div>
+
+            <a
+                href="/payroll/tutor-summary"
+                class="nav-link {% if 'tutor-summary' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-wallet2"></i> Rekap Gaji Tutor
+            </a>
+            <a
+                href="/payroll/transfer-list"
+                class="nav-link {% if 'transfer-list' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-bank"></i> Daftar Transfer
+            </a>
+
+            <!-- ── Quota & Invoice ── -->
+            <div class="sidebar-heading">Quota & Invoice</div>
+
+            <a
+                href="/quota/alerts"
+                class="nav-link position-relative {% if 'quota' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                Alert Quota {% if quota_alert_count and quota_alert_count > 0 %}
+                <span class="side-badge bg-danger text-white"
+                    >{{ quota_alert_count }}</span
+                >
+                {% endif %}
+            </a>
+
+            <!-- ── Laporan & Closing ── -->
+            <div class="sidebar-heading">Laporan</div>
+
+            <a
+                href="/closings/monthly-closing"
+                class="nav-link {% if 'closing' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-lock-fill"></i> Monthly Closing
+            </a>
+            <a
+                href="/reports/monthly"
+                class="nav-link {% if 'reports/monthly' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-file-earmark-bar-graph-fill"></i> Laporan
+                Bulanan
+            </a>
+            <a
+                href="/reports/student"
+                class="nav-link {% if 'reports/student' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-person-lines-fill"></i> Laporan Siswa
+            </a>
+            <a
+                href="/reports/tutor"
+                class="nav-link {% if 'reports/tutor' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-person-workspace"></i> Laporan Tutor
+            </a>
+
+            <div style="height: 2rem"></div>
+        </nav>
+        {% endif %}
+
+        <!-- ═══════════════════ MAIN CONTENT ═══════════════════ -->
+        <div id="main-content">
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %} {%
+            if messages %}
+            <div class="flash-container mb-3">
+                {% for category, message in messages %}
+                <div
+                    class="alert alert-{{ 'warning' if category == 'message' else category }} alert-dismissible fade show shadow-sm mb-2"
+                    role="alert"
+                >
+                    {% if category == 'success' %}<i
+                        class="bi bi-check-circle-fill me-2"
+                    ></i>
+                    {% elif category == 'danger' %}<i
+                        class="bi bi-x-circle-fill me-2"
+                    ></i>
+                    {% elif category == 'warning' %}<i
+                        class="bi bi-exclamation-triangle-fill me-2"
+                    ></i>
+                    {% else %}<i class="bi bi-info-circle-fill me-2"></i>{%
+                    endif %} {{ message }}
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                    ></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %} {% endwith %} {% block content %}{% endblock %}
+        </div>
+
+        <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // Sidebar toggle (mobile)
+            const sidebarToggle = document.getElementById("sidebarToggle");
+            const sidebar = document.getElementById("sidebar");
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener("click", () =>
+                    sidebar.classList.toggle("show"),
+                );
+                // Close sidebar on outside click (mobile)
+                document.addEventListener("click", (e) => {
+                    if (
+                        window.innerWidth < 992 &&
+                        !sidebar.contains(e.target) &&
+                        !sidebarToggle.contains(e.target)
+                    ) {
+                        sidebar.classList.remove("show");
+                    }
+                });
+            }
+        </script>
+        {% block scripts %}{% endblock %}
+    </body>
 </html>

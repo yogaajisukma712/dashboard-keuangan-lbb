@@ -47,15 +47,22 @@ def _apply_schema_patches():
             enrollment_id INTEGER REFERENCES enrollments(id),
             service_month DATE    NOT NULL,
             amount        NUMERIC(12,2) DEFAULT 0,
+            billing_type  VARCHAR(20)   DEFAULT 'prepaid',
             status        VARCHAR(20)   DEFAULT 'draft',
             notes         TEXT,
             created_by    INTEGER REFERENCES users(id),
+            completed_payment_id INTEGER REFERENCES student_payments(id),
             created_at    TIMESTAMP DEFAULT NOW(),
             updated_at    TIMESTAMP DEFAULT NOW()
         )
         """,
+        "ALTER TABLE student_invoices ADD COLUMN IF NOT EXISTS billing_type VARCHAR(20) DEFAULT 'prepaid'",
+        "ALTER TABLE student_invoices ADD COLUMN IF NOT EXISTS completed_payment_id INTEGER REFERENCES student_payments(id)",
         "CREATE INDEX IF NOT EXISTS ix_student_invoices_student_id    ON student_invoices(student_id)",
         "CREATE INDEX IF NOT EXISTS ix_student_invoices_enrollment_id ON student_invoices(enrollment_id)",
+        "CREATE TABLE IF NOT EXISTS student_invoice_lines (\n            id            SERIAL PRIMARY KEY,\n            invoice_id     INTEGER NOT NULL REFERENCES student_invoices(id) ON DELETE CASCADE,\n            enrollment_id  INTEGER NOT NULL REFERENCES enrollments(id),\n            service_month  DATE    NOT NULL,\n            billing_type   VARCHAR(20) DEFAULT 'prepaid',\n            meeting_count  INTEGER NOT NULL,\n            student_rate_per_meeting NUMERIC(12,2) DEFAULT 0,\n            tutor_rate_per_meeting   NUMERIC(12,2) DEFAULT 0,\n            nominal_amount           NUMERIC(12,2) DEFAULT 0,\n            tutor_payable_amount     NUMERIC(12,2) DEFAULT 0,\n            margin_amount            NUMERIC(12,2) DEFAULT 0,\n            quota_paid_before        INTEGER DEFAULT 0,\n            quota_used_before        INTEGER DEFAULT 0,\n            quota_remaining_before   INTEGER DEFAULT 0,\n            notes         TEXT,\n            created_at    TIMESTAMP DEFAULT NOW(),\n            updated_at    TIMESTAMP DEFAULT NOW()\n        )",
+        "CREATE INDEX IF NOT EXISTS ix_student_invoice_lines_invoice_id    ON student_invoice_lines(invoice_id)",
+        "CREATE INDEX IF NOT EXISTS ix_student_invoice_lines_enrollment_id ON student_invoice_lines(enrollment_id)",
         # Payroll proof columns
         "ALTER TABLE tutor_payouts ADD COLUMN IF NOT EXISTS proof_image  VARCHAR(500)",
         "ALTER TABLE tutor_payouts ADD COLUMN IF NOT EXISTS proof_notes  TEXT",
@@ -131,6 +138,7 @@ def seed_db():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+        _apply_schema_patches()
     app.run(
         host=os.getenv("FLASK_HOST", "0.0.0.0"),
         port=int(os.getenv("FLASK_PORT", 5000)),

@@ -1,30 +1,36 @@
 {% extends "base.html" %} {% block title %}⚠️ Alert Quota Siswa — {{ super()
 }}{% endblock %} {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">⚠️ Alert Quota Siswa</h4>
+    <div>
+        <h4 class="mb-0">⚠️ Alert Quota Siswa</h4>
+        <div class="text-muted small mt-1">
+            Invoice dibuat <strong>berdasarkan nama siswa</strong>, lalu Anda
+            bisa memilih mapel yang ingin ditagihkan.
+        </div>
+    </div>
     <span class="text-muted small">
-        Bulan berjalan:
-        <strong>{{ service_month.strftime('%B %Y') }}</strong>
+        Bulan layanan: <strong>{{ service_month_label }}</strong>
     </span>
 </div>
 
 {% if not alerts %}
 <div class="alert alert-success">
     <strong>✅ Semua siswa memiliki quota yang cukup</strong> untuk bulan ini.
-    Tidak ada enrollment dengan quota habis atau minus.
+    Tidak ada siswa dengan quota habis atau minus.
 </div>
 {% else %}
 <div class="alert alert-warning d-flex align-items-center gap-2">
     <span class="fs-5">⚠️</span>
     <span>
-        Ditemukan <strong>{{ alerts|length }}</strong> enrollment dengan quota
-        habis atau minus. Segera buat invoice untuk menambah quota.
+        Ditemukan <strong>{{ alerts|length }}</strong> siswa dengan quota habis
+        atau minus. Klik <strong>Detail &amp; Buat Invoice</strong> untuk
+        memilih mapel yang akan ditagihkan.
     </span>
 </div>
 
 <div class="card shadow-sm">
     <div class="card-header bg-danger text-white fw-semibold">
-        Daftar Enrollment Quota Habis / Minus
+        Daftar Siswa dengan Alert Quota
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -32,11 +38,10 @@
                 <tr>
                     <th>#</th>
                     <th>Siswa</th>
-                    <th>Mapel</th>
-                    <th>Tutor</th>
-                    <th class="text-center">Dibayar</th>
-                    <th class="text-center">Terpakai</th>
-                    <th class="text-center">Sisa Quota</th>
+                    <th>Mapel Bermasalah</th>
+                    <th class="text-center">Quota Habis</th>
+                    <th class="text-center">Quota Minus</th>
+                    <th class="text-center">Total Sesi Terhutang</th>
                     <th class="text-center">Aksi</th>
                 </tr>
             </thead>
@@ -44,67 +49,48 @@
                 {% for item in alerts %}
                 <tr>
                     <td class="text-muted small">{{ loop.index }}</td>
-
-                    <!-- Siswa -->
                     <td>
-                        <a
-                            href="{{ url_for('quota_invoice.student_quota_detail', student_id=item.student.id) }}"
-                            class="text-decoration-none fw-semibold"
-                        >
-                            {{ item.student.name }}
-                        </a>
+                        <div class="fw-semibold">{{ item.student.name }}</div>
                         <div class="text-muted small">
                             {{ item.student.student_code }}
                         </div>
                     </td>
-
-                    <!-- Mapel -->
-                    <td>{{ item.subject.name }}</td>
-
-                    <!-- Tutor -->
-                    <td>{{ item.tutor.name }}</td>
-
-                    <!-- Dibayar -->
-                    <td class="text-center">
-                        <span class="badge bg-secondary">{{ item.paid }}</span>
+                    <td>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for sub in item.items %} {% if sub.remaining < 0
+                            %}
+                            <span class="badge bg-danger">
+                                {{ sub.subject.name }} ({{ sub.remaining }})
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">
+                                {{ sub.subject.name }} (habis)
+                            </span>
+                            {% endif %} {% endfor %}
+                        </div>
                     </td>
-
-                    <!-- Terpakai -->
                     <td class="text-center">
-                        <span class="badge bg-info text-dark"
-                            >{{ item.used }}</span
+                        <span class="badge bg-warning text-dark"
+                            >{{ item.zero_subject_count }}</span
                         >
                     </td>
-
-                    <!-- Sisa Quota -->
                     <td class="text-center">
-                        {% if item.remaining < 0 %}
-                        <span class="badge bg-danger fs-6"
-                            >{{ item.remaining }}</span
+                        <span class="badge bg-danger"
+                            >{{ item.minus_subject_count }}</span
                         >
-                        {% else %}
-                        <span class="badge bg-warning text-dark fs-6"
-                            >Habis</span
-                        >
-                        {% endif %}
                     </td>
-
-                    <!-- Aksi -->
                     <td class="text-center">
-                        <button
-                            type="button"
-                            class="btn btn-sm btn-outline-primary"
-                            data-bs-toggle="modal"
-                            data-bs-target="#modalInvoice"
-                            data-enrollment-id="{{ item.enrollment.id }}"
-                            data-student-name="{{ item.student.name }}"
-                            data-subject-name="{{ item.subject.name }}"
-                            data-student-rate="{{ item.enrollment.student_rate_per_meeting }}"
-                            data-quota="{{ item.enrollment.meeting_quota_per_month }}"
-                            data-service-month="{{ service_month.strftime('%Y-%m') }}"
+                        <span class="badge bg-dark"
+                            >{{ item.total_debt_sessions }}</span
                         >
-                            🧾 Buat Invoice
-                        </button>
+                    </td>
+                    <td class="text-center">
+                        <a
+                            href="{{ url_for('quota_invoice.student_quota_detail', student_id=item.student.id) }}"
+                            class="btn btn-sm btn-primary"
+                        >
+                            📋 Detail &amp; Buat Invoice
+                        </a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -112,157 +98,4 @@
         </table>
     </div>
 </div>
-{% endif %}
-
-<!-- ============================================================
-     Modal: Buat Invoice
-     ============================================================ -->
-<div
-    class="modal fade"
-    id="modalInvoice"
-    tabindex="-1"
-    aria-labelledby="modalInvoiceLabel"
-    aria-hidden="true"
->
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form
-                method="POST"
-                action="{{ url_for('quota_invoice.create_invoice') }}"
-            >
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                />
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="modalInvoiceLabel">
-                        🧾 Buat Invoice
-                    </h5>
-                    <button
-                        type="button"
-                        class="btn-close btn-close-white"
-                        data-bs-dismiss="modal"
-                    ></button>
-                </div>
-
-                <div class="modal-body">
-                    <!-- Hidden fields -->
-                    <input
-                        type="hidden"
-                        name="enrollment_id"
-                        id="inp_enrollment_id"
-                    />
-
-                    <!-- Info -->
-                    <div class="mb-3">
-                        <label class="form-label muted-label">Siswa</label>
-                        <div id="disp_student" class="fw-semibold"></div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label muted-label"
-                            >Mata Pelajaran</label
-                        >
-                        <div id="disp_subject" class="fw-semibold"></div>
-                    </div>
-
-                    <!-- Bulan layanan -->
-                    <div class="mb-3">
-                        <label for="inp_service_month" class="form-label"
-                            >Bulan Layanan
-                            <span class="text-danger">*</span></label
-                        >
-                        <input
-                            type="month"
-                            class="form-control"
-                            id="inp_service_month"
-                            name="service_month"
-                            required
-                        />
-                    </div>
-
-                    <!-- Jumlah invoice -->
-                    <div class="mb-3">
-                        <label for="inp_amount" class="form-label"
-                            >Nominal Invoice (Rp)
-                            <span class="text-danger">*</span></label
-                        >
-                        <input
-                            type="number"
-                            class="form-control"
-                            id="inp_amount"
-                            name="amount"
-                            min="0"
-                            step="1000"
-                            required
-                        />
-                        <div class="form-text" id="disp_rate_hint"></div>
-                    </div>
-
-                    <!-- Catatan -->
-                    <div class="mb-3">
-                        <label for="inp_notes" class="form-label"
-                            >Catatan</label
-                        >
-                        <textarea
-                            class="form-control"
-                            id="inp_notes"
-                            name="notes"
-                            rows="2"
-                        ></textarea>
-                    </div>
-                </div>
-
-                <div class="modal-footer">
-                    <button
-                        type="button"
-                        class="btn btn-secondary"
-                        data-bs-dismiss="modal"
-                    >
-                        Batal
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        💾 Simpan Invoice
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- ============================================================
-     Script: isi modal dari data-* attribute tombol
-     ============================================================ -->
-<script>
-    const modalEl = document.getElementById("modalInvoice");
-    modalEl.addEventListener("show.bs.modal", function (event) {
-        const btn = event.relatedTarget;
-
-        const enrollmentId = btn.dataset.enrollmentId;
-        const studentName = btn.dataset.studentName;
-        const subjectName = btn.dataset.subjectName;
-        const studentRate = parseFloat(btn.dataset.studentRate) || 0;
-        const quota = parseInt(btn.dataset.quota) || 4;
-        const serviceMonth = btn.dataset.serviceMonth;
-
-        document.getElementById("inp_enrollment_id").value = enrollmentId;
-        document.getElementById("disp_student").textContent = studentName;
-        document.getElementById("disp_subject").textContent = subjectName;
-        document.getElementById("inp_service_month").value = serviceMonth;
-
-        // Isi nominal default: quota * rate
-        const defaultAmount = quota * studentRate;
-        document.getElementById("inp_amount").value =
-            defaultAmount > 0 ? defaultAmount : "";
-
-        // Hint tarif
-        if (studentRate > 0) {
-            const rateFormatted = studentRate.toLocaleString("id-ID");
-            document.getElementById("disp_rate_hint").textContent =
-                `Tarif/pertemuan: Rp ${rateFormatted}  ·  Quota standar: ${quota}×`;
-        } else {
-            document.getElementById("disp_rate_hint").textContent = "";
-        }
-    });
-</script>
-{% endblock %}
+{% endif %} {% endblock %}

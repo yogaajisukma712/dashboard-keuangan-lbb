@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if action == 'edit' %}Edit Tutor — {{ tutor.name }}{% else %}Tambah Tutor{% endif %} — LBB Super Smart
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('master.tutors_list') }}" class="btn btn-outline-secondary btn-sm me-3">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h4 class="mb-0 fw-bold">
+      {% if action == 'edit' %}
+        <i class="bi bi-pencil-square text-primary me-2"></i>Edit Tutor
+      {% else %}
+        <i class="bi bi-person-plus-fill text-primary me-2"></i>Tambah Tutor Baru
+      {% endif %}
+    </h4>
+    <p class="text-muted small mb-0">
+      {% if action == 'edit' %}
+        Perbarui data tutor <strong>{{ tutor.name }}</strong>
+      {% else %}
+        Isi data lengkap untuk mendaftarkan tutor baru
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<form
+  method="POST"
+  action="{% if action == 'edit' %}{{ url_for('master.edit_tutor', id=tutor.id) }}{% else %}{{ url_for('master.add_tutor') }}{% endif %}"
+  novalidate
+>
+  {{ form.hidden_tag() }}
+
+  <div class="row g-4">
+
+    {# ── Kolom Kiri: Form Fields ── #}
+    <div class="col-lg-8">
+
+      {# Identitas Tutor #}
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+          <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-person-vcard text-primary me-2"></i>Identitas Tutor
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+
+            {# Kode Tutor #}
+            <div class="col-md-4">
+              {{ form.tutor_code.label(class_="form-label fw-semibold") }}
+              <span class="text-danger ms-1" title="Wajib diisi">*</span>
+              {{ form.tutor_code(
+                  class_="form-control font-monospace" + (" is-invalid" if form.tutor_code.errors else ""),
+                  placeholder="Contoh: TUT-001",
+                  autocomplete="off"
+              ) }}
+              {% for error in form.tutor_code.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+              <div class="form-text">Kode unik untuk identifikasi tutor</div>
+            </div>
+
+            {# Nama Tutor #}
+            <div class="col-md-8">
+              {{ form.name.label(class_="form-label fw-semibold") }}
+              <span class="text-danger ms-1" title="Wajib diisi">*</span>
+              {{ form.name(
+                  class_="form-control" + (" is-invalid" if form.name.errors else ""),
+                  placeholder="Nama lengkap tutor"
+              ) }}
+              {% for error in form.name.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            {# Jenis Identitas #}
+            <div class="col-md-4">
+              {{ form.identity_type.label(class_="form-label fw-semibold") }}
+              {{ form.identity_type(
+                  class_="form-select" + (" is-invalid" if form.identity_type.errors else "")
+              ) }}
+              {% for error in form.identity_type.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            {# Nomor Identitas #}
+            <div class="col-md-8">
+              {{ form.identity_number.label(class_="form-label fw-semibold") }}
+              {{ form.identity_number(
+                  class_="form-control font-monospace" + (" is-invalid" if form.identity_number.errors else ""),
+                  placeholder="Nomor KTP / SIM / Passport",
+                  autocomplete="off"
+              ) }}
+              {% for error in form.identity_number.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {# Kontak Tutor #}
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+          <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-telephone text-primary me-2"></i>Kontak Tutor
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+
+            {# Telepon #}
+            <div class="col-md-6">
+              {{ form.phone.label(class_="form-label fw-semibold") }}
+              <div class="input-group">
+                <span class="input-group-text">
+                  <i class="bi bi-telephone"></i>
+                </span>
+                {{ form.phone(
+                    class_="form-control" + (" is-invalid" if form.phone.errors else ""),
+                    placeholder="08xxxxxxxxxx",
+                    type="tel"
+                ) }}
+                {% for error in form.phone.errors %}
+                  <div class="invalid-feedback">{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+
+            {# Email #}
+            <div class="col-md-6">
+              {{ form.email.label(class_="form-label fw-semibold") }}
+              <div class="input-group">
+                <span class="input-group-text">
+                  <i class="bi bi-envelope"></i>
+                </span>
+                {{ form.email(
+                    class_="form-control" + (" is-invalid" if form.email.errors else ""),
+                    placeholder="tutor@email.com",
+                    type="email"
+                ) }}
+                {% for error in form.email.errors %}
+                  <div class="invalid-feedback">{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+
+            {# Alamat #}
+            <div class="col-12">
+              {{ form.address.label(class_="form-label fw-semibold") }}
+              {{ form.address(
+                  class_="form-control" + (" is-invalid" if form.address.errors else ""),
+                  rows=3,
+                  placeholder="Alamat lengkap tutor"
+              ) }}
+              {% for error in form.address.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {# Informasi Rekening Bank #}
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+          <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-bank text-primary me-2"></i>Informasi Rekening Bank
+          </h6>
+          <p class="text-muted small mb-0 mt-1">
+            Digunakan untuk pencairan fee / payroll tutor
+          </p>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+
+            {# Nama Bank #}
+            <div class="col-md-4">
+              {{ form.bank_name.label(class_="form-label fw-semibold") }}
+              {{ form.bank_name(
+                  class_="form-control" + (" is-invalid" if form.bank_name.errors else ""),
+                  placeholder="Contoh: BCA, BNI, Mandiri"
+              ) }}
+              {% for error in form.bank_name.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            {# Nomor Rekening #}
+            <div class="col-md-4">
+              {{ form.bank_account_number.label(class_="form-label fw-semibold") }}
+              {{ form.bank_account_number(
+                  class_="form-control font-monospace" + (" is-invalid" if form.bank_account_number.errors else ""),
+                  placeholder="Nomor rekening",
+                  autocomplete="off"
+              ) }}
+              {% for error in form.bank_account_number.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            {# Nama Pemilik Rekening #}
+            <div class="col-md-4">
+              {{ form.account_holder_name.label(class_="form-label fw-semibold") }}
+              {{ form.account_holder_name(
+                  class_="form-control" + (" is-invalid" if form.account_holder_name.errors else ""),
+                  placeholder="Nama sesuai buku tabungan"
+              ) }}
+              {% for error in form.account_holder_name.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+              <div class="form-text">Harus sama persis dengan nama di rekening</div>
+            </div>
+
+          </div>
+
+          {# Preview Rekening #}
+          {% if action == 'edit' and tutor and tutor.bank_name %}
+          <div class="alert alert-info border-0 mt-3 mb-0 py-2 px-3 small">
+            <i class="bi bi-info-circle me-1"></i>
+            Rekening saat ini:
+            <strong>{{ tutor.bank_name }}</strong> —
+            <span class="font-monospace">{{ tutor.bank_account_number or '—' }}</span>
+            {% if tutor.account_holder_name %}
+              a.n. <strong>{{ tutor.account_holder_name }}</strong>
+            {% endif %}
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+
+    </div>
+
+    {# ── Kolom Kanan: Ringkasan & Aksi ── #}
+    <div class="col-lg-4">
+
+      {# Info Card (edit mode) #}
+      {% if action == 'edit' and tutor %}
+      <div class="card border-0 shadow-sm mb-4 bg-primary-subtle">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-3">
+            <div
+              class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3 flex-shrink-0"
+              style="width:48px;height:48px;font-size:1.4rem"
+            >
+              <i class="bi bi-person-badge-fill"></i>
+            </div>
+            <div>
+              <div class="fw-bold">{{ tutor.name }}</div>
+              <div class="text-muted small font-monospace">{{ tutor.tutor_code }}</div>
+            </div>
+          </div>
+          <hr class="my-2">
+          <div class="small">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-muted">Terdaftar:</span>
+              <span>{{ tutor.created_at.strftime('%d %b %Y') if tutor.created_at else '—' }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-muted">Status:</span>
+              <span>
+                {% if tutor.status == 'active' or tutor.is_active %}
+                  <span class="badge bg-success">Aktif</span>
+                {% elif tutor.status == 'suspended' %}
+                  <span class="badge bg-warning text-dark">Suspend</span>
+                {% else %}
+                  <span class="badge bg-secondary">Nonaktif</span>
+                {% endif %}
+              </span>
+            </div>
+            {% if tutor.enrollments %}
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-muted">Enrollment:</span>
+              <span class="fw-semibold">{{ tutor.enrollments.count() }}</span>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      {# Panduan Pengisian #}
+      <div class="card border-0 shadow-sm mb-4 border-start border-4 border-info">
+        <div class="card-body">
+          <h6 class="fw-semibold mb-2">
+            <i class="bi bi-info-circle text-info me-2"></i>Panduan Pengisian
+          </h6>
+          <ul class="small text-muted mb-0 ps-3">
+            <li>Kode Tutor harus unik (contoh: <code>TUT-001</code>)</li>
+            <li>Nama dan kode tutor wajib diisi</li>
+            <li>Data identitas diperlukan untuk administrasi</li>
+            <li>Pastikan nomor rekening dan nama pemilik sudah benar</li>
+            <li>Rekening digunakan untuk transfer fee payroll</li>
+          </ul>
+        </div>
+      </div>
+
+      {# Tombol Aksi #}
+      <div class="card border-0 shadow-sm">
+        <div class="card-body d-grid gap-2">
+          <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            {% if action == 'edit' %}Simpan Perubahan{% else %}Tambah Tutor{% endif %}
+          </button>
+          <a href="{{ url_for('master.tutors_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle me-2"></i>Batal
+          </a>
+          {% if action == 'edit' and tutor %}
+          <hr class="my-1">
+          <a
+            href="{{ url_for('master.tutor_detail', id=tutor.id) }}"
+            class="btn btn-outline-info btn-sm"
+          >
+            <i class="bi bi-eye me-1"></i>Lihat Detail Tutor
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</form>
+{% endblock %}

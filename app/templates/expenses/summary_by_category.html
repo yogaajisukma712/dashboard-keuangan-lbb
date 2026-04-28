@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Ringkasan Pengeluaran per Kategori — LBB Super Smart{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item">
+          <a href="{{ url_for('expenses.list_expenses') }}">Pengeluaran</a>
+        </li>
+        <li class="breadcrumb-item active">Ringkasan per Kategori</li>
+      </ol>
+    </nav>
+    <h1 class="h3 mb-1">
+      <i class="bi bi-pie-chart me-2 text-danger"></i>Ringkasan Pengeluaran
+    </h1>
+    <p class="text-muted mb-0">Ikhtisar pengeluaran operasional LBB Super Smart</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('expenses.add_expense') }}" class="btn btn-danger">
+      <i class="bi bi-plus-lg me-1"></i>Tambah Pengeluaran
+    </a>
+    <a href="{{ url_for('expenses.list_expenses') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-list-ul me-1"></i>Semua Pengeluaran
+    </a>
+  </div>
+</div>
+
+{# ── Info Alert ───────────────────────────────────────────────────────── #}
+<div class="alert alert-info d-flex align-items-start gap-3 shadow-sm" role="alert">
+  <div class="pt-1">
+    <i class="bi bi-info-circle-fill fs-4 text-info"></i>
+  </div>
+  <div>
+    <h6 class="alert-heading fw-bold mb-1">
+      Gunakan Dashboard untuk Ringkasan Pengeluaran
+    </h6>
+    <p class="mb-2">
+      Ringkasan pengeluaran per kategori secara lengkap — termasuk total per
+      kategori, persentase, dan perbandingan antar bulan — tersedia di halaman
+      <strong>Dashboard Owner</strong>.
+    </p>
+    <a href="{{ url_for('dashboard.owner_dashboard') }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-speedometer2 me-1"></i>Buka Dashboard
+    </a>
+  </div>
+</div>
+
+{# ── Kategori Pengeluaran ─────────────────────────────────────────────── #}
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-tags me-1"></i>Daftar Kategori Pengeluaran
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+
+      <div class="col-sm-6 col-lg-4">
+        <div class="d-flex align-items-center gap-3 p-3 bg-light rounded">
+          <div class="bg-danger bg-opacity-10 rounded p-2">
+            <i class="bi bi-megaphone fs-4 text-danger"></i>
+          </div>
+          <div>
+            <div class="fw-semibold">Iklan</div>
+            <small class="text-muted">Biaya promosi dan iklan lembaga</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-lg-4">
+        <div class="d-flex align-items-center gap-3 p-3 bg-light rounded">
+          <div class="bg-warning bg-opacity-10 rounded p-2">
+            <i class="bi bi-wifi fs-4 text-warning"></i>
+          </div>
+          <div>
+            <div class="fw-semibold">Kuota</div>
+            <small class="text-muted">Pulsa dan paket data internet</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-lg-4">
+        <div class="d-flex align-items-center gap-3 p-3 bg-light rounded">
+          <div class="bg-info bg-opacity-10 rounded p-2">
+            <i class="bi bi-cash-coin fs-4 text-info"></i>
+          </div>
+          <div>
+            <div class="fw-semibold">Tarik Tunai</div>
+            <small class="text-muted">Penarikan uang tunai operasional</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-lg-4">
+        <div class="d-flex align-items-center gap-3 p-3 bg-light rounded">
+          <div class="bg-secondary bg-opacity-10 rounded p-2">
+            <i class="bi bi-tools fs-4 text-secondary"></i>
+          </div>
+          <div>
+            <div class="fw-semibold">Alat / Perlengkapan</div>
+            <small class="text-muted">Pembelian peralatan belajar mengajar</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-lg-4">
+        <div class="d-flex align-items-center gap-3 p-3 bg-light rounded">
+          <div class="bg-success bg-opacity-10 rounded p-2">
+            <i class="bi bi-truck fs-4 text-success"></i>
+          </div>
+          <div>
+            <div class="fw-semibold">Transport</div>
+            <small class="text-muted">Biaya perjalanan dan transportasi</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-lg-4">
+        <div class="d-flex align-items-center gap-3 p-3 bg-light rounded">
+          <div class="bg-primary bg-opacity-10 rounded p-2">
+            <i class="bi bi-three-dots fs-4 text-primary"></i>
+          </div>
+          <div>
+            <div class="fw-semibold">Lainnya</div>
+            <small class="text-muted">Pengeluaran di luar kategori di atas</small>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{# ── Quick Navigation ─────────────────────────────────────────────────── #}
+<div class="row g-3">
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{{ url_for('dashboard.owner_dashboard') }}" class="text-decoration-none">
+      <div class="card h-100 border-0 shadow-sm card-hover">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="bg-primary bg-opacity-10 rounded p-3">
+            <i class="bi bi-speedometer2 fs-3 text-primary"></i>
+          </div>
+          <div>
+            <div class="fw-bold">Dashboard Owner</div>
+            <small class="text-muted">
+              KPI keuangan, grafik, dan ringkasan bulan ini
+            </small>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{{ url_for('expenses.list_expenses') }}" class="text-decoration-none">
+      <div class="card h-100 border-0 shadow-sm card-hover">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="bg-danger bg-opacity-10 rounded p-3">
+            <i class="bi bi-arrow-up-circle fs-3 text-danger"></i>
+          </div>
+          <div>
+            <div class="fw-bold">Daftar Pengeluaran</div>
+            <small class="text-muted">
+              Lihat dan kelola seluruh transaksi pengeluaran
+            </small>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{{ url_for('expenses.add_expense') }}" class="text-decoration-none">
+      <div class="card h-100 border-0 shadow-sm card-hover">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="bg-danger bg-opacity-10 rounded p-3">
+            <i class="bi bi-plus-circle fs-3 text-danger"></i>
+          </div>
+          <div>
+            <div class="fw-bold">Tambah Pengeluaran</div>
+            <small class="text-muted">
+              Catat pengeluaran baru secara manual
+            </small>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{{ url_for('incomes.list_incomes') }}" class="text-decoration-none">
+      <div class="card h-100 border-0 shadow-sm card-hover">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="bg-success bg-opacity-10 rounded p-3">
+            <i class="bi bi-arrow-down-circle fs-3 text-success"></i>
+          </div>
+          <div>
+            <div class="fw-bold">Daftar Pemasukan</div>
+            <small class="text-muted">
+              Pantau pemasukan lain-lain lembaga
+            </small>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{{ url_for('payments.list_payments') }}" class="text-decoration-none">
+      <div class="card h-100 border-0 shadow-sm card-hover">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="bg-info bg-opacity-10 rounded p-3">
+            <i class="bi bi-credit-card fs-3 text-info"></i>
+          </div>
+          <div>
+            <div class="fw-bold">Pembayaran Siswa</div>
+            <small class="text-muted">
+              Riwayat transaksi pembayaran siswa
+            </small>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{{ url_for('payments.monthly_summary') }}" class="text-decoration-none">
+      <div class="card h-100 border-0 shadow-sm card-hover">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="bg-warning bg-opacity-10 rounded p-3">
+            <i class="bi bi-calendar3 fs-3 text-warning"></i>
+          </div>
+          <div>
+            <div class="fw-bold">Ringkasan Bulanan</div>
+            <small class="text-muted">
+              Total pembayaran, margin, dan hutang tutor per bulan
+            </small>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+  .card-hover {
+    transition: transform .15s ease, box-shadow .15s ease;
+    cursor: pointer;
+  }
+  .card-hover:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .12) !important;
+  }
+</style>
+{% endblock %}

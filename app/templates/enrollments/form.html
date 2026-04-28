@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} — LBB Super Smart{% endblock %}
+
+{% block content %}
+
+{# ── Breadcrumb ──────────────────────────────────────────────────────────── #}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item">
+      <a href="{{ url_for('enrollments.list_enrollments') }}">Enrollment</a>
+    </li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+  </ol>
+</nav>
+
+{# ── Page Header ─────────────────────────────────────────────────────────── #}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="h4 mb-0">
+      <i class="bi bi-journal-plus me-2 text-primary"></i>{{ title }}
+    </h2>
+    <p class="text-muted small mb-0">
+      {% if enrollment %}
+        Edit data enrollment #{{ enrollment.id }}
+      {% else %}
+        Daftarkan siswa ke mata pelajaran &amp; tutor
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+{# ── Form Card ───────────────────────────────────────────────────────────── #}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form method="POST" id="enrollmentForm" novalidate>
+          {{ form.hidden_tag() }}
+
+          {# ── Peserta ──────────────────────────────────────────────────── #}
+          <h6 class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2" style="font-size:.78rem;letter-spacing:.05em">
+            <i class="bi bi-people me-1"></i>Peserta
+          </h6>
+
+          <div class="row g-3 mb-4">
+            {# Siswa #}
+            <div class="col-md-6">
+              <label for="{{ form.student_id.id }}" class="form-label fw-semibold small">
+                Siswa <span class="text-danger">*</span>
+              </label>
+              {{ form.student_id(class_="form-select",
+                                 id=form.student_id.id,
+                                 required=true) }}
+              {% if form.student_id.errors %}
+              <div class="invalid-feedback d-block">
+                {% for e in form.student_id.errors %}{{ e }}{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+            {# Tutor #}
+            <div class="col-md-6">
+              <label for="{{ form.tutor_id.id }}" class="form-label fw-semibold small">
+                Tutor <span class="text-danger">*</span>
+              </label>
+              {{ form.tutor_id(class_="form-select",
+                               id=form.tutor_id.id,
+                               required=true) }}
+              {% if form.tutor_id.errors %}
+              <div class="invalid-feedback d-block">
+                {% for e in form.tutor_id.errors %}{{ e }}{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+            {# Mata Pelajaran #}
+            <div class="col-md-6">
+              <label for="{{ form.subject_id.id }}" class="form-label fw-semibold small">
+                Mata Pelajaran <span class="text-danger">*</span>
+              </label>
+              {{ form.subject_id(class_="form-select",
+                                 id=form.subject_id.id,
+                                 required=true) }}
+              {% if form.subject_id.errors %}
+              <div class="invalid-feedback d-block">
+                {% for e in form.subject_id.errors %}{{ e }}{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+            {# Kelas #}
+            <div class="col-md-6">
+              <label for="{{ form.grade.id }}" class="form-label fw-semibold small">
+                Kelas
+              </label>
+              {{ form.grade(class_="form-control",
+                            id=form.grade.id,
+                            placeholder="cth. 7A, 10 IPA 1…") }}
+              {% if form.grade.errors %}
+              <div class="invalid-feedback d-block">
+                {% for e in form.grade.errors %}{{ e }}{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          {# ── Kurikulum & Jenjang ────────────────────────────────────────── #}
+          <h6 class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2" style="font-size:.78rem;letter-spacing:.05em">
+            <i class="bi bi-mortarboard me-1"></i>Kurikulum &amp; Jenjang
+          </h6>
+
+          <div class="row g-3 mb-4">
+            {# Kurikulum #}
+            <div class="col-md-6">
+              <label for="{{ form.curriculum_id.id }}" class="form-label fw-semibold small">
+                Kurikulum <span class="text-danger">*</span>
+              </label>
+              {{ form.curriculum_id(class_="form-select",
+                                    id=form.curriculum_id.id,
+                                    required=true) }}
+              {% if form.curriculum_id.errors %}
+              <div class="invalid-feedback d-block">
+                {% for e in form.curriculum_id.errors %}{{ e }}{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+            {# Jenjang #}
+            <div class="col-md-6">
+              <label for="{{ form.level_id.id }}" class="form-label fw-semibold small">
+                Jenjang <span class="text-danger">*</span>
+              </label>
+              {{ form.level_id(class_="form-select",
+                               id=form.level_id.id,
+                               required=true) }}
+              {% if form.level_id.errors %}
+              <div class="invalid-feedback d-block">
+                {% for e in form.level_id.errors %}{{ e }}{% endfor %}
+              </div>
+              {% endif %}
+              <div id="pricingHint" class="form-text text-info d-none">
+                <i class="bi bi-magic me-1"></i>
+                <span id="pricingHintText"></span>
+              </div>
+            </div>
+          </div>
+
+          {# ── Tarif & Quota ──────────────────────────────────────────────── #}
+          <h6 class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2" style="font-size:.78rem;letter-spacing:.05em">
+            <i class="bi bi-cash-coin me-1"></i>Tarif &amp; Kuota
+          </h6>
+
+          <div class="row g-3 mb-4">
+            {# Quota/Bulan #}
+            <div class="col-md-4">
+              <label for="{{ form.meeting_quota_per_month.id }}" class="form-label fw-semibold small">
+                Kuota Pertemuan/Bulan <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                {{ form.meeting_quota_per_month(class_="form-control",
+                                               id=form.meeting_quota_per_month.id,
+                                               min=1, max=31,
+                                               required=true) }}
+                <span class="input-group-text text-muted small">x/bln</span>
+              </div>
+              {% if form.meeting_quota_per_month.errors %}
+              <div class="invalid-feedback d-block">
+                {% for e in form.meeting_quota_per_month.errors %}{{ e }}{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+            {# Tarif Siswa #}
+            <div class="col-md-4">
+              <label for="{{ form.student_rate_per_meeting.id }}" class="form-label fw-semibold small">
+                Tarif Siswa/Pertemuan <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text text-muted small">Rp</span>
+                {{ form.student_rate_per_meeting(class_="form-control",
+                                                 id=form.student_rate_per_meeting.id,
+                                                 min=0,
+                                                 placeholder="0",
+                                                 required=true) }}
+              </div>
+              {% if form.student_rate_per_meeting.errors %}
+              <div class="invalid-feedback d-block">
+                {% for e in form.student_rate_per_meeting.errors %}{{ e }}{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+            {# Fee Tutor #}
+            <div class="col-md-4">
+              <label for="{{ form.tutor_rate_per_meeting.id }}" class="form-label fw-semibold small">
+                Fee Tutor/Pertemuan <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text text-muted small">Rp</span>
+                {{ form.tutor_rate_per_meeting(class_="form-control",
+                                               id=form.tutor_rate_per_meeting.id,
+                                               min=0,
+                                               placeholder="0",
+                                               required=true) }}
+              </div>
+              {% if form.tutor_rate_per_meeting.errors %}
+              <div class="invalid-feedback d-block">
+                {% for e in form.tutor_rate_per_meeting.errors %}{{ e }}{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          {# ── Preview Total Bulanan ─────────────────────────────────────── #}
+          <div id="monthlyPreview" class="alert alert-light border d-none mb-4 small">
+            <div class="row text-center g-0">
+              <div class="col-6 border-end">
+                <div class="text-muted" style="font-size:.75rem">Total Tagihan Siswa/Bln</div>
+                <div class="fw-bold fs-6 text-primary" id="previewStudentTotal">Rp 0</div>
+              </div>
+              <div class="col-6">
+                <div class="text-muted" style="font-size:.75rem">Total Fee Tutor/Bln</div>
+                <div class="fw-bold fs-6 text-success" id="previewTutorTotal">Rp 0</div>
+              </div>
+            </div>
+          </div>
+
+          {# ── Catatan ──────────────────────────────────────────────────── #}
+          <div class="mb-4">
+            <label for="{{ form.notes.id }}" class="form-label fw-semibold small">Catatan</label>
+            {{ form.notes(class_="form-control",
+                          id=form.notes.id,
+                          rows=3,
+                          placeholder="Catatan tambahan (opsional)…") }}
+          </div>
+
+          {# ── Tombol Aksi ─────────────────────────────────────────────── #}
+          <div class="d-flex gap-2 justify-content-end border-top pt-3">
+            <a href="{{ url_for('enrollments.list_enrollments') }}"
+               class="btn btn-outline-secondary">
+              <i class="bi bi-x-lg me-1"></i>Batal
+            </a>
+            {{ form.submit(class_="btn btn-primary",
+                           id="btnSubmit") }}
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+/* ── Pricing Auto-fill via AJAX ────────────────────────────────────────────
+   Endpoint: GET /master/pricing/api/<curriculum_id>/<level_id>
+   Expected JSON response:
+   {
+     "student_rate_per_meeting": 75000,
+     "tutor_rate_per_meeting":   50000,
+     "default_meeting_quota":    4
+   }
+   Falls back gracefully if the endpoint doesn't exist or returns non-200.
+──────────────────────────────────────────────────────────────────────────── */
+
+const elCurriculum   = document.getElementById('{{ form.curriculum_id.id }}');
+const elLevel        = document.getElementById('{{ form.level_id.id }}');
+const elStudentRate  = document.getElementById('{{ form.student_rate_per_meeting.id }}');
+const elTutorRate    = document.getElementById('{{ form.tutor_rate_per_meeting.id }}');
+const elQuota        = document.getElementById('{{ form.meeting_quota_per_month.id }}');
+const pricingHint    = document.getElementById('pricingHint');
+const pricingHintTxt = document.getElementById('pricingHintText');
+
+/* ── Live monthly-total preview ──────────────────────────────────────────── */
+const monthlyPreview      = document.getElementById('monthlyPreview');
+const previewStudentTotal = document.getElementById('previewStudentTotal');
+const previewTutorTotal   = document.getElementById('previewTutorTotal');
+
+function formatRp(val) {
+  const n = parseFloat(val) || 0;
+  return 'Rp ' + n.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function updatePreview() {
+  const quota  = parseInt(elQuota.value) || 0;
+  const sRate  = parseFloat(elStudentRate.value) || 0;
+  const tRate  = parseFloat(elTutorRate.value)   || 0;
+  if (quota > 0 && (sRate > 0 || tRate > 0)) {
+    previewStudentTotal.textContent = formatRp(quota * sRate);
+    previewTutorTotal.textContent   = formatRp(quota * tRate);
+    monthlyPreview.classList.remove('d-none');
+  } else {
+    monthlyPreview.classList.add('d-none');
+  }
+}
+
+[elStudentRate, elTutorRate, elQuota].forEach(el => el.addEventListener('input', updatePreview));
+
+/* ── Fetch pricing from master API ──────────────────────────────────────── */
+async function fetchPricing() {
+  const curId   = elCurriculum.value;
+  const levelId = elLevel.value;
+
+  if (!curId || curId === '0' || !levelId || levelId === '0') return;
+
+  const url = `/master/pricing/api/${curId}/${levelId}`;
+
+  try {
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    });
+
+    if (!res.ok) {
+      // Endpoint belum ada atau tidak ditemukan — biarkan user isi manual
+      pricingHint.classList.add('d-none');
+      return;
+    }
+
+    const data = await res.json();
+
+    if (data && (data.student_rate_per_meeting || data.tutor_rate_per_meeting)) {
+      // Hanya isi jika field masih kosong / 0 (jangan override nilai edit)
+      const isEdit = {{ 'true' if enrollment else 'false' }};
+      if (!isEdit || !elStudentRate.value || elStudentRate.value === '0') {
+        elStudentRate.value = data.student_rate_per_meeting || '';
+      }
+      if (!isEdit || !elTutorRate.value || elTutorRate.value === '0') {
+        elTutorRate.value = data.tutor_rate_per_meeting || '';
+      }
+      if (data.default_meeting_quota && (!isEdit || !elQuota.value)) {
+        elQuota.value = data.default_meeting_quota;
+      }
+
+      pricingHintTxt.textContent =
+        `Tarif diisi otomatis dari aturan harga (siswa: ${formatRp(data.student_rate_per_meeting)}, tutor: ${formatRp(data.tutor_rate_per_meeting)})`;
+      pricingHint.classList.remove('d-none');
+      updatePreview();
+    } else {
+      pricingHint.classList.add('d-none');
+    }
+  } catch (err) {
+    // Network error / endpoint belum tersedia — silent fail
+    pricingHint.classList.add('d-none');
+  }
+}
+
+elCurriculum.addEventListener('change', fetchPricing);
+elLevel.addEventListener('change', fetchPricing);
+
+/* ── Init preview on page load (mode edit) ─────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  updatePreview();
+});
+</script>
+{% endblock %}

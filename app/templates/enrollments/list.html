@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Daftar Enrollment — LBB Super Smart{% endblock %}
+
+{% block content %}
+{% set STATUS_BADGE = {
+  'active':    ('success', 'Aktif'),
+  'inactive':  ('secondary', 'Nonaktif'),
+  'completed': ('info', 'Selesai'),
+} %}
+
+{# ── Page Header ─────────────────────────────────────────────────────────── #}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2 class="h4 mb-0"><i class="bi bi-journals me-2 text-primary"></i>Daftar Enrollment</h2>
+    <p class="text-muted small mb-0">Kelola pendaftaran siswa ke tutor &amp; mata pelajaran</p>
+  </div>
+  <a href="{{ url_for('enrollments.add_enrollment') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>Tambah Enrollment
+  </a>
+</div>
+
+{# ── Filter / Search ──────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-sm-5">
+        <label class="form-label small fw-semibold mb-1">Cari Siswa / Tutor / Mapel</label>
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" name="q" value="{{ request.args.get('q', '') }}"
+                 class="form-control" placeholder="Ketik nama siswa, tutor, atau mapel…">
+        </div>
+      </div>
+      <div class="col-sm-3">
+        <label class="form-label small fw-semibold mb-1">Status</label>
+        <select name="status" class="form-select form-select-sm">
+          <option value="">Semua Status</option>
+          {% for val, (_, lbl) in STATUS_BADGE.items() %}
+          <option value="{{ val }}" {% if request.args.get('status') == val %}selected{% endif %}>
+            {{ lbl }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+        <a href="{{ url_for('enrollments.list_enrollments') }}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-x-lg"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Tabel Enrollment ─────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if enrollments.items %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="width:48px">No</th>
+            <th>Siswa</th>
+            <th>Mapel</th>
+            <th>Tutor</th>
+            <th>Kurikulum</th>
+            <th>Jenjang</th>
+            <th>Kelas</th>
+            <th class="text-center">Quota/Bln</th>
+            <th class="text-end">Tarif Siswa</th>
+            <th class="text-end">Fee Tutor</th>
+            <th class="text-center">Status</th>
+            <th class="text-center pe-3">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set offset = (enrollments.page - 1) * enrollments.per_page %}
+          {% for enrollment in enrollments.items %}
+          {% set badge_cls, badge_lbl = STATUS_BADGE.get(enrollment.status, ('secondary', enrollment.status)) %}
+          <tr>
+            <td class="ps-3 text-muted">{{ loop.index + offset }}</td>
+
+            <td>
+              <div class="fw-semibold">{{ enrollment.student.name }}</div>
+              <div class="text-muted" style="font-size:.78rem">
+                {{ enrollment.student.student_code }}
+              </div>
+            </td>
+
+            <td>{{ enrollment.subject.name }}</td>
+
+            <td>{{ enrollment.tutor.name }}</td>
+
+            <td>
+              <span class="badge bg-light text-dark border">
+                {{ enrollment.curriculum.name }}
+              </span>
+            </td>
+
+            <td>{{ enrollment.level.name }}</td>
+
+            <td>{{ enrollment.grade or '—' }}</td>
+
+            <td class="text-center">
+              <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle fw-normal px-2">
+                {{ enrollment.meeting_quota_per_month }}x
+              </span>
+            </td>
+
+            <td class="text-end">
+              Rp {{ "{:,.0f}".format(enrollment.student_rate_per_meeting | float) }}
+            </td>
+
+            <td class="text-end">
+              Rp {{ "{:,.0f}".format(enrollment.tutor_rate_per_meeting | float) }}
+            </td>
+
+            <td class="text-center">
+              <span class="badge bg-{{ badge_cls }}-subtle text-{{ badge_cls }} border border-{{ badge_cls }}-subtle">
+                {{ badge_lbl }}
+              </span>
+            </td>
+
+            <td class="text-center pe-3">
+              <div class="d-flex gap-1 justify-content-center">
+                <a href="{{ url_for('enrollments.enrollment_detail', id=enrollment.id) }}"
+                   class="btn btn-outline-primary btn-sm py-0 px-2" title="Detail">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a href="{{ url_for('enrollments.edit_enrollment', id=enrollment.id) }}"
+                   class="btn btn-outline-secondary btn-sm py-0 px-2" title="Edit">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <form method="POST"
+                      action="{{ url_for('enrollments.delete_enrollment', id=enrollment.id) }}"
+                      onsubmit="return confirm('Hapus enrollment {{ enrollment.student.name }} — {{ enrollment.subject.name }}?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Hapus">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ─────────────────────────────────────────────────────── #}
+    {% if enrollments.pages > 1 %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+      <small class="text-muted">
+        Menampilkan {{ enrollments.first }} – {{ enrollments.last }}
+        dari {{ enrollments.total }} enrollment
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {% if not enrollments.has_prev %}disabled{% endif %}">
+            <a class="page-link"
+               href="{{ url_for('enrollments.list_enrollments', page=enrollments.prev_num,
+                                q=request.args.get('q',''), status=request.args.get('status','')) }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% for p in enrollments.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+            <li class="page-item {% if p == enrollments.page %}active{% endif %}">
+              <a class="page-link"
+                 href="{{ url_for('enrollments.list_enrollments', page=p,
+                                  q=request.args.get('q',''), status=request.args.get('status','')) }}">
+                {{ p }}
+              </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          <li class="page-item {% if not enrollments.has_next %}disabled{% endif %}">
+            <a class="page-link"
+               href="{{ url_for('enrollments.list_enrollments', page=enrollments.next_num,
+                                q=request.args.get('q',''), status=request.args.get('status','')) }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    {# ── Empty State ────────────────────────────────────────────────────── #}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
+      <p class="mb-1">Belum ada data enrollment.</p>
+      <a href="{{ url_for('enrollments.add_enrollment') }}" class="btn btn-primary btn-sm mt-2">
+        <i class="bi bi-plus-lg me-1"></i>Tambah Enrollment Pertama
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

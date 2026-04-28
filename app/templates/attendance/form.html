@@ -1,0 +1,401 @@
+{% extends "base.html" %} {% block title %}{{ title }} — LBB Super Smart{%
+endblock %} {% block content %} {#
+───────────────────────────────────────────────────────────────────────── NOTE:
+The route passes the AttendanceSession ORM object as `session` (same name as
+Flask's built-in session dict). We guard every access with `session.session_date
+is defined` so the "add" form (where `session` resolves to the Flask cookie
+session) works.
+───────────────────────────────────────────────────────────────────────── #} {%
+set is_edit = session.session_date is defined %} {# ── Breadcrumb
+──────────────────────────────────────────────────────────── #}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item">
+            <a href="{{ url_for('attendance.list_attendance') }}">Presensi</a>
+        </li>
+        <li class="breadcrumb-item active">{{ title }}</li>
+    </ol>
+</nav>
+
+{# ── Page Header ─────────────────────────────────────────────────────────── #}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h4 mb-0">
+            <i class="bi bi-calendar2-plus me-2 text-primary"></i>{{ title }}
+        </h2>
+        <p class="text-muted small mb-0">
+            {% if is_edit %} Edit data presensi sesi #{{ session.id }} &mdash;
+            {{ session.session_date.strftime('%d %B %Y') }} {% else %} Catat
+            kehadiran tutor &amp; siswa untuk sesi les {% endif %}
+        </p>
+    </div>
+</div>
+
+{# ── Form Card ───────────────────────────────────────────────────────────── #}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <form method="POST" id="attendanceForm" novalidate>
+                    {{ form.hidden_tag() }} {# ── Enrollment
+                    ───────────────────────────────────────────────── #}
+                    <h6
+                        class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2"
+                        style="font-size: 0.78rem; letter-spacing: 0.05em"
+                    >
+                        <i class="bi bi-journals me-1"></i>Enrollment
+                    </h6>
+
+                    <div class="mb-4">
+                        <label
+                            for="{{ form.enrollment_id.id }}"
+                            class="form-label fw-semibold small"
+                        >
+                            Siswa &ndash; Mapel &ndash; Tutor
+                            <span class="text-danger">*</span>
+                        </label>
+                        {{ form.enrollment_id(class_="form-select",
+                        id=form.enrollment_id.id, required=true) }} {% if
+                        form.enrollment_id.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for e in form.enrollment_id.errors %}{{ e }}{%
+                            endfor %}
+                        </div>
+                        {% endif %} {# Info card yang muncul setelah enrollment
+                        dipilih #}
+                        <div
+                            id="enrollmentInfo"
+                            class="alert alert-light border mt-2 small d-none"
+                        >
+                            <div class="row g-1">
+                                <div class="col-6">
+                                    <span class="text-muted">Kurikulum:</span>
+                                    <strong id="infoKurikulum">—</strong>
+                                </div>
+                                <div class="col-6">
+                                    <span class="text-muted">Jenjang:</span>
+                                    <strong id="infoJenjang">—</strong>
+                                </div>
+                                <div class="col-6">
+                                    <span class="text-muted">Kelas:</span>
+                                    <strong id="infoKelas">—</strong>
+                                </div>
+                                <div class="col-6">
+                                    <span class="text-muted">Quota/Bln:</span>
+                                    <strong id="infoQuota">—</strong>
+                                </div>
+                                <div class="col-6 mt-1">
+                                    <span class="text-muted"
+                                        >Fee Tutor/Pertemuan:</span
+                                    >
+                                    <strong
+                                        id="infoFeeText"
+                                        class="text-success"
+                                        >—</strong
+                                    >
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# ── Tanggal Sesi
+                    ──────────────────────────────────────────────── #}
+                    <h6
+                        class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2"
+                        style="font-size: 0.78rem; letter-spacing: 0.05em"
+                    >
+                        <i class="bi bi-calendar3 me-1"></i>Tanggal Sesi
+                    </h6>
+
+                    <div class="mb-4">
+                        <label
+                            for="{{ form.session_date.id }}"
+                            class="form-label fw-semibold small"
+                        >
+                            Tanggal Sesi <span class="text-danger">*</span>
+                        </label>
+                        {{ form.session_date(class_="form-control",
+                        id=form.session_date.id, required=true) }} {% if
+                        form.session_date.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for e in form.session_date.errors %}{{ e }}{%
+                            endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {# ── Kehadiran
+                    ────────────────────────────────────────────────── #}
+                    <h6
+                        class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2"
+                        style="font-size: 0.78rem; letter-spacing: 0.05em"
+                    >
+                        <i class="bi bi-person-check me-1"></i>Kehadiran
+                    </h6>
+
+                    <div class="row g-3 mb-4">
+                        {# Siswa Hadir #}
+                        <div class="col-sm-6">
+                            <div class="card border-0 bg-light h-100">
+                                <div
+                                    class="card-body py-3 px-3 d-flex align-items-center gap-3"
+                                >
+                                    <div class="form-check form-switch mb-0">
+                                        {{
+                                        form.student_present(class_="form-check-input",
+                                        id=form.student_present.id,
+                                        role="switch",
+                                        style="width:2.4em;height:1.3em") }}
+                                    </div>
+                                    <label
+                                        for="{{ form.student_present.id }}"
+                                        class="form-check-label mb-0 fw-semibold small"
+                                    >
+                                        <i
+                                            class="bi bi-person-fill me-1 text-primary"
+                                        ></i
+                                        >Siswa Hadir
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        {# Tutor Hadir #}
+                        <div class="col-sm-6">
+                            <div class="card border-0 bg-light h-100">
+                                <div
+                                    class="card-body py-3 px-3 d-flex align-items-center gap-3"
+                                >
+                                    <div class="form-check form-switch mb-0">
+                                        {{
+                                        form.tutor_present(class_="form-check-input",
+                                        id=form.tutor_present.id, role="switch",
+                                        style="width:2.4em;height:1.3em") }}
+                                    </div>
+                                    <label
+                                        for="{{ form.tutor_present.id }}"
+                                        class="form-check-label mb-0 fw-semibold small"
+                                    >
+                                        <i
+                                            class="bi bi-person-badge-fill me-1 text-success"
+                                        ></i
+                                        >Tutor Hadir
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# ── Fee Tutor
+                    ─────────────────────────────────────────────────── #}
+                    <h6
+                        class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2"
+                        style="font-size: 0.78rem; letter-spacing: 0.05em"
+                    >
+                        <i class="bi bi-cash-coin me-1"></i>Fee Tutor
+                    </h6>
+
+                    <div class="mb-4">
+                        <label
+                            for="{{ form.tutor_fee_amount.id }}"
+                            class="form-label fw-semibold small"
+                        >
+                            Nominal Fee Tutor <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text text-muted small"
+                                >Rp</span
+                            >
+                            {{ form.tutor_fee_amount(class_="form-control",
+                            id=form.tutor_fee_amount.id, min="0", step="500",
+                            placeholder="0", required=true) }}
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                id="btnFetchFee"
+                                title="Ambil fee dari enrollment yang dipilih"
+                            >
+                                <i class="bi bi-arrow-clockwise me-1"></i>Auto
+                            </button>
+                        </div>
+                        <div id="feeHint" class="form-text d-none">
+                            <i class="bi bi-magic me-1 text-info"></i>
+                            <span id="feeHintText"></span>
+                        </div>
+                        {% if form.tutor_fee_amount.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for e in form.tutor_fee_amount.errors %}{{ e }}{%
+                            endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {# ── Catatan
+                    ──────────────────────────────────────────────────── #}
+                    <div class="mb-4">
+                        <label
+                            for="{{ form.notes.id }}"
+                            class="form-label fw-semibold small"
+                        >
+                            Catatan
+                        </label>
+                        {{ form.notes(class_="form-control", id=form.notes.id,
+                        rows=3, placeholder="Catatan sesi, topik yang
+                        dipelajari, dsb. (opsional)…") }}
+                    </div>
+
+                    {# ── Tombol Aksi
+                    ─────────────────────────────────────────────── #}
+                    <div
+                        class="d-flex gap-2 justify-content-end border-top pt-3"
+                    >
+                        <a
+                            href="{{ url_for('attendance.list_attendance') }}"
+                            class="btn btn-outline-secondary"
+                        >
+                            <i class="bi bi-x-lg me-1"></i>Batal
+                        </a>
+                        {{ form.submit(class_="btn btn-primary", id="btnSubmit")
+                        }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %} {% block scripts %}
+<script>
+    /* ─────────────────────────────────────────────────────────────────────────
+       is_edit: true when we are editing an existing AttendanceSession;
+                false when we are creating a new one.
+       Injected here so JS logic can branch accordingly.
+    ───────────────────────────────────────────────────────────────────────── */
+    const IS_EDIT = {{ 'true' if is_edit else 'false' }};
+
+    const elEnrollment = document.getElementById('{{ form.enrollment_id.id }}');
+    const elFeeAmount  = document.getElementById('{{ form.tutor_fee_amount.id }}');
+    const elStudentChk = document.getElementById('{{ form.student_present.id }}');
+    const elTutorChk   = document.getElementById('{{ form.tutor_present.id }}');
+    const enrollInfo   = document.getElementById('enrollmentInfo');
+    const infoFeeText  = document.getElementById('infoFeeText');
+    const feeHint      = document.getElementById('feeHint');
+    const feeHintText  = document.getElementById('feeHintText');
+    const btnFetchFee  = document.getElementById('btnFetchFee');
+
+    function formatRp(val) {
+      const n = parseFloat(val) || 0;
+      return 'Rp ' + n.toLocaleString('id-ID', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      });
+    }
+
+    /* ── Fetch tutor fee via AJAX ────────────────────────────────────────────
+       POST /attendance/api/get-tutor-fee
+       Body:     { enrollment_id: <int> }
+       Response: { success: true, tutor_fee: <float> }
+    ───────────────────────────────────────────────────────────────────────── */
+    async function fetchTutorFee(enrollmentId, fillField) {
+      if (!enrollmentId || enrollmentId === '0') return;
+
+      btnFetchFee.disabled = true;
+      btnFetchFee.innerHTML =
+        '<span class="spinner-border spinner-border-sm me-1"></span>Loading…';
+
+      try {
+        const csrfToken = document.querySelector('[name=csrf_token]');
+        const res = await fetch('/attendance/api/get-tutor-fee', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRFToken': csrfToken ? csrfToken.value : '',
+          },
+          body: JSON.stringify({ enrollment_id: parseInt(enrollmentId, 10) }),
+        });
+
+        const data = await res.json();
+
+        if (data.success && data.tutor_fee !== undefined) {
+          const fee = parseFloat(data.tutor_fee);
+
+          if (fillField) {
+            elFeeAmount.value = fee;
+          }
+
+          if (infoFeeText) infoFeeText.textContent = formatRp(fee);
+          if (enrollInfo)  enrollInfo.classList.remove('d-none');
+
+          if (feeHintText) {
+            feeHintText.textContent =
+              `Fee tutor diambil otomatis dari enrollment: ${formatRp(fee)}/pertemuan.`;
+          }
+          if (feeHint) feeHint.classList.remove('d-none');
+
+        } else {
+          if (feeHint) feeHint.classList.add('d-none');
+        }
+
+      } catch (err) {
+        // Silent fail — biarkan user isi manual
+        if (feeHint) feeHint.classList.add('d-none');
+
+      } finally {
+        btnFetchFee.disabled = false;
+        btnFetchFee.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Auto';
+      }
+    }
+
+    /* ── Saat enrollment berubah, auto-fetch fee ─────────────────────────── */
+    if (elEnrollment) {
+      elEnrollment.addEventListener('change', function () {
+        const selectedId = this.value;
+
+        if (!selectedId || selectedId === '0') {
+          if (enrollInfo) enrollInfo.classList.add('d-none');
+          if (feeHint)    feeHint.classList.add('d-none');
+          return;
+        }
+
+        // Isi otomatis hanya jika field fee masih 0 / kosong
+        const currentFee = parseFloat(elFeeAmount ? elFeeAmount.value : '0') || 0;
+        fetchTutorFee(selectedId, currentFee === 0);
+
+        // Default: centang keduanya hadir (hanya untuk form tambah baru)
+        if (!IS_EDIT) {
+          if (elStudentChk) elStudentChk.checked = true;
+          if (elTutorChk)   elTutorChk.checked   = true;
+        }
+      });
+    }
+
+    /* ── Tombol "Auto" — paksa fetch & isi field ────────────────────────── */
+    if (btnFetchFee) {
+      btnFetchFee.addEventListener('click', function () {
+        const selectedId = elEnrollment ? elEnrollment.value : null;
+        if (selectedId) fetchTutorFee(selectedId, true);
+      });
+    }
+
+    /* ── Inisialisasi saat halaman dimuat ────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', function () {
+      const selectedId = elEnrollment ? elEnrollment.value : null;
+
+      if (selectedId && selectedId !== '0') {
+        // Edit mode: ambil info tapi jangan override fee yang sudah diisi
+        fetchTutorFee(selectedId, !IS_EDIT);
+      }
+
+      // Set default tanggal = hari ini (hanya form tambah baru)
+      const dateInput = document.getElementById('{{ form.session_date.id }}');
+      if (!IS_EDIT && dateInput && !dateInput.value) {
+        const today = new Date();
+        const yyyy  = today.getFullYear();
+        const mm    = String(today.getMonth() + 1).padStart(2, '0');
+        const dd    = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+      }
+    });
+</script>
+{% endblock %}

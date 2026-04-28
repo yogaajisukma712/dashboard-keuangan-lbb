@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Daftar Kurikulum — LBB Super Smart{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">
+      <i class="bi bi-journal-bookmark-fill text-primary me-2"></i>Daftar Kurikulum
+    </h4>
+    <p class="text-muted small mb-0">Kelola kurikulum pembelajaran LBB Super Smart</p>
+  </div>
+  <a href="{{ url_for('master.add_curriculum') }}" class="btn btn-primary">
+    <i class="bi bi-plus-circle-fill me-1"></i>Tambah Kurikulum
+  </a>
+</div>
+
+{# Tabel Kurikulum #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if curriculums.items %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4" style="width:60px">No</th>
+            <th>Nama Kurikulum</th>
+            <th>Deskripsi</th>
+            <th class="text-center">Status</th>
+            <th class="text-center pe-4" style="width:140px">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for curriculum in curriculums.items %}
+          {% set row_num = (curriculums.page - 1) * curriculums.per_page + loop.index %}
+          <tr>
+            <td class="ps-4 text-muted small">{{ row_num }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div
+                  class="rounded-circle bg-warning-subtle text-warning-emphasis d-flex align-items-center justify-content-center flex-shrink-0"
+                  style="width:36px;height:36px;font-size:1rem"
+                >
+                  <i class="bi bi-journal-bookmark"></i>
+                </div>
+                <div class="fw-semibold">{{ curriculum.name }}</div>
+              </div>
+            </td>
+            <td>
+              {% if curriculum.description %}
+                <span
+                  class="text-muted small text-truncate d-inline-block"
+                  style="max-width:400px"
+                  title="{{ curriculum.description }}"
+                >
+                  {{ curriculum.description }}
+                </span>
+              {% else %}
+                <span class="text-muted small fst-italic">Tidak ada deskripsi</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if curriculum.is_active %}
+                <span class="badge bg-success-subtle text-success-emphasis px-2 py-1">
+                  <i class="bi bi-check-circle me-1"></i>Aktif
+                </span>
+              {% else %}
+                <span class="badge bg-danger-subtle text-danger-emphasis px-2 py-1">
+                  <i class="bi bi-x-circle me-1"></i>Nonaktif
+                </span>
+              {% endif %}
+            </td>
+            <td class="text-center pe-4">
+              <div class="btn-group btn-group-sm" role="group">
+                <a
+                  href="{{ url_for('master.edit_curriculum', id=curriculum.id) }}"
+                  class="btn btn-outline-primary"
+                  title="Edit Kurikulum"
+                >
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  title="Hapus Kurikulum"
+                  data-bs-toggle="modal"
+                  data-bs-target="#deleteModal{{ curriculum.id }}"
+                >
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+
+              {# Modal Konfirmasi Hapus #}
+              <div
+                class="modal fade"
+                id="deleteModal{{ curriculum.id }}"
+                tabindex="-1"
+                aria-labelledby="deleteModalLabel{{ curriculum.id }}"
+                aria-hidden="true"
+              >
+                <div class="modal-dialog modal-sm">
+                  <div class="modal-content">
+                    <div class="modal-header border-0 pb-0">
+                      <h6 class="modal-title" id="deleteModalLabel{{ curriculum.id }}">
+                        <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                        Konfirmasi Hapus
+                      </h6>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body pt-2">
+                      <p class="mb-1 small">
+                        Hapus kurikulum <strong>{{ curriculum.name }}</strong>?
+                      </p>
+                      <p class="mb-0 small text-danger">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        Semua enrollment dan siswa yang terkait dengan kurikulum ini juga akan terpengaruh.
+                      </p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-secondary"
+                        data-bs-dismiss="modal"
+                      >
+                        Batal
+                      </button>
+                      <form
+                        method="POST"
+                        action="{{ url_for('master.delete_curriculum', id=curriculum.id) }}"
+                        class="d-inline"
+                      >
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <button type="submit" class="btn btn-sm btn-danger">
+                          <i class="bi bi-trash me-1"></i>Hapus
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# Footer tabel: total + pagination #}
+    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-top">
+      <div class="text-muted small">
+        Menampilkan <strong>{{ curriculums.items | length }}</strong> dari
+        <strong>{{ curriculums.total }}</strong> kurikulum
+        (Halaman {{ curriculums.page }} / {{ curriculums.pages }})
+      </div>
+      {% if curriculums.pages > 1 %}
+      <nav aria-label="Navigasi halaman kurikulum">
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {% if not curriculums.has_prev %}disabled{% endif %}">
+            <a
+              class="page-link"
+              href="{{ url_for('master.curriculums_list', page=curriculums.prev_num) if curriculums.has_prev else '#' }}"
+              aria-label="Sebelumnya"
+            >
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+
+          {% for page_num in curriculums.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page_num %}
+              <li class="page-item {% if page_num == curriculums.page %}active{% endif %}">
+                <a
+                  class="page-link"
+                  href="{{ url_for('master.curriculums_list', page=page_num) }}"
+                >{{ page_num }}</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled">
+                <span class="page-link">…</span>
+              </li>
+            {% endif %}
+          {% endfor %}
+
+          <li class="page-item {% if not curriculums.has_next %}disabled{% endif %}">
+            <a
+              class="page-link"
+              href="{{ url_for('master.curriculums_list', page=curriculums.next_num) if curriculums.has_next else '#' }}"
+              aria-label="Berikutnya"
+            >
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+      {% endif %}
+    </div>
+
+    {% else %}
+    {# Empty state #}
+    <div class="text-center py-5">
+      <i class="bi bi-journal-bookmark display-1 text-muted opacity-25"></i>
+      <p class="text-muted mt-3 mb-1 fw-semibold">Belum ada kurikulum</p>
+      <p class="text-muted small mb-3">
+        Tambahkan kurikulum seperti Reguler, Cambridge, atau Kurikulum Merdeka.
+      </p>
+      <a href="{{ url_for('master.add_curriculum') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle-fill me-1"></i>Tambah Kurikulum Pertama
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

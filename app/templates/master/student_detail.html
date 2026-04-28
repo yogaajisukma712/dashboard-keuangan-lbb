@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}Detail Siswa — {{ student.name }} — LBB Super Smart{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('master.students_list') }}" class="btn btn-outline-secondary btn-sm me-3">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div class="flex-grow-1">
+    <h4 class="mb-0 fw-bold">
+      <i class="bi bi-person-circle text-primary me-2"></i>Detail Siswa
+    </h4>
+    <p class="text-muted small mb-0">Informasi lengkap siswa LBB Super Smart</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('quota_invoice.student_quota_detail', student_id=student.id) }}" class="btn btn-outline-warning btn-sm">
+      <i class="bi bi-exclamation-triangle me-1"></i>Quota Detail
+    </a>
+    <a href="{{ url_for('master.edit_student', id=student.id) }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Edit Siswa
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  {# ── Kolom Kiri: Info Profil ── #}
+  <div class="col-lg-4">
+
+    {# Card Profil Utama #}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body text-center py-4">
+        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3"
+             style="width:72px;height:72px;font-size:2rem;">
+          <i class="bi bi-person-fill"></i>
+        </div>
+        <h5 class="fw-bold mb-1">{{ student.name }}</h5>
+        <span class="badge bg-light text-dark border font-monospace mb-2">{{ student.student_code }}</span>
+        <br>
+        {% if student.status == 'active' or student.is_active %}
+          <span class="badge bg-success-subtle text-success-emphasis px-3 py-2">
+            <i class="bi bi-check-circle me-1"></i>Aktif
+          </span>
+        {% elif student.status == 'graduated' %}
+          <span class="badge bg-secondary-subtle text-secondary-emphasis px-3 py-2">
+            <i class="bi bi-mortarboard me-1"></i>Lulus
+          </span>
+        {% else %}
+          <span class="badge bg-danger-subtle text-danger-emphasis px-3 py-2">
+            <i class="bi bi-x-circle me-1"></i>Nonaktif
+          </span>
+        {% endif %}
+      </div>
+      <div class="card-footer bg-white border-top py-3">
+        <div class="row text-center g-2">
+          <div class="col-4">
+            <div class="fw-bold text-primary">{{ enrollments | length }}</div>
+            <div class="text-muted" style="font-size:0.72rem">Enrollment</div>
+          </div>
+          <div class="col-4">
+            <div class="fw-bold text-success">{{ payments | length }}</div>
+            <div class="text-muted" style="font-size:0.72rem">Pembayaran</div>
+          </div>
+          <div class="col-4">
+            <div class="fw-bold text-info">
+              {{ student.created_at.strftime('%Y') if student.created_at else '—' }}
+            </div>
+            <div class="text-muted" style="font-size:0.72rem">Tahun Daftar</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Data Akademik #}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-journal-bookmark text-primary me-2"></i>Data Akademik
+        </h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 text-muted fw-normal">Kurikulum</dt>
+          <dd class="col-7 fw-semibold">
+            {% if student.curriculum %}
+              <span class="badge bg-info-subtle text-info-emphasis">{{ student.curriculum.name }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </dd>
+
+          <dt class="col-5 text-muted fw-normal">Jenjang</dt>
+          <dd class="col-7 fw-semibold">
+            {% if student.level %}{{ student.level.name }}{% else %}<span class="text-muted">—</span>{% endif %}
+          </dd>
+
+          <dt class="col-5 text-muted fw-normal">Kelas</dt>
+          <dd class="col-7 fw-semibold">
+            {% if student.grade %}{{ student.grade }}{% else %}<span class="text-muted">—</span>{% endif %}
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+    {# Kontak Siswa #}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-telephone text-primary me-2"></i>Kontak
+        </h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 text-muted fw-normal">No. HP</dt>
+          <dd class="col-7">
+            {% if student.phone %}
+              <a href="tel:{{ student.phone }}" class="text-decoration-none">{{ student.phone }}</a>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </dd>
+
+          <dt class="col-5 text-muted fw-normal">Email</dt>
+          <dd class="col-7 text-break">
+            {% if student.email %}
+              <a href="mailto:{{ student.email }}" class="text-decoration-none">{{ student.email }}</a>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </dd>
+
+          <dt class="col-5 text-muted fw-normal">Alamat</dt>
+          <dd class="col-7">
+            {% if student.address %}{{ student.address }}{% else %}<span class="text-muted">—</span>{% endif %}
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+    {# Data Orang Tua #}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-people text-primary me-2"></i>Orang Tua / Wali
+        </h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 text-muted fw-normal">Nama</dt>
+          <dd class="col-7 fw-semibold">
+            {% if student.parent_name %}{{ student.parent_name }}{% else %}<span class="text-muted">—</span>{% endif %}
+          </dd>
+
+          <dt class="col-5 text-muted fw-normal">No. HP</dt>
+          <dd class="col-7">
+            {% if student.parent_phone %}
+              <a href="tel:{{ student.parent_phone }}" class="text-decoration-none">{{ student.parent_phone }}</a>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+    {# Meta #}
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 text-muted fw-normal">Terdaftar</dt>
+          <dd class="col-7">
+            {{ student.created_at.strftime('%d %b %Y') if student.created_at else '—' }}
+          </dd>
+          <dt class="col-5 text-muted fw-normal">Diperbarui</dt>
+          <dd class="col-7">
+            {{ student.updated_at.strftime('%d %b %Y') if student.updated_at else '—' }}
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+  </div>
+
+  {# ── Kolom Kanan: Enrollment & Pembayaran ── #}
+  <div class="col-lg-8">
+
+    {# Tabel Enrollment Aktif #}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-card-checklist text-primary me-2"></i>Enrollment
+        </h6>
+        <a href="{{ url_for('enrollments.list_enrollments') }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-plus me-1"></i>Tambah Enrollment
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if enrollments %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4">Mapel</th>
+                <th>Tutor</th>
+                <th>Kurikulum</th>
+                <th>Jenjang</th>
+                <th class="text-center">Quota</th>
+                <th class="text-center">Status</th>
+                <th class="text-center pe-4">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for enr in enrollments %}
+              <tr>
+                <td class="ps-4 fw-semibold">
+                  {% if enr.subject %}{{ enr.subject.name }}{% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+                <td>
+                  {% if enr.tutor %}
+                    <a href="{{ url_for('master.tutor_detail', id=enr.tutor.id) }}" class="text-decoration-none">
+                      {{ enr.tutor.name }}
+                    </a>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if enr.curriculum %}
+                    <span class="badge bg-info-subtle text-info-emphasis">{{ enr.curriculum.name }}</span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if enr.level %}{{ enr.level.name }}{% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+                <td class="text-center">
+                  {% if enr.remaining_quota is defined %}
+                    {% if enr.remaining_quota <= 2 %}
+                      <span class="badge bg-danger">{{ enr.remaining_quota }}</span>
+                    {% elif enr.remaining_quota <= 5 %}
+                      <span class="badge bg-warning text-dark">{{ enr.remaining_quota }}</span>
+                    {% else %}
+                      <span class="badge bg-success">{{ enr.remaining_quota }}</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if enr.status == 'active' %}
+                    <span class="badge bg-success-subtle text-success-emphasis">Aktif</span>
+                  {% elif enr.status == 'completed' %}
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis">Selesai</span>
+                  {% else %}
+                    <span class="badge bg-danger-subtle text-danger-emphasis">{{ enr.status | title }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-center pe-4">
+                  <a
+                    href="{{ url_for('enrollments.enrollment_detail', id=enr.id) }}"
+                    class="btn btn-outline-info btn-sm"
+                    title="Detail"
+                  >
+                    <i class="bi bi-eye"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+          <i class="bi bi-card-checklist display-4 text-muted opacity-25"></i>
+          <p class="text-muted small mt-2 mb-0">Belum ada enrollment untuk siswa ini</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Riwayat Pembayaran #}
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-credit-card text-primary me-2"></i>Riwayat Pembayaran
+        </h6>
+        <a href="{{ url_for('payments.list_payments') }}" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-plus me-1"></i>Catat Pembayaran
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if payments %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4">Tanggal</th>
+                <th>Keterangan</th>
+                <th class="text-end">Jumlah</th>
+                <th class="text-center">Metode</th>
+                <th class="text-center pe-4">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pay in payments | sort(attribute='payment_date', reverse=True) %}
+              <tr>
+                <td class="ps-4 text-nowrap">
+                  {{ pay.payment_date.strftime('%d %b %Y') if pay.payment_date else '—' }}
+                </td>
+                <td>
+                  {% if pay.notes %}
+                    <span class="text-truncate d-inline-block" style="max-width:200px" title="{{ pay.notes }}">
+                      {{ pay.notes }}
+                    </span>
+                  {% else %}
+                    <span class="text-muted">Pembayaran kursus</span>
+                  {% endif %}
+                </td>
+                <td class="text-end fw-semibold text-success">
+                  Rp {{ "{:,.0f}".format(pay.amount) }}
+                </td>
+                <td class="text-center">
+                  {% if pay.payment_method %}
+                    <span class="badge bg-light text-dark border">{{ pay.payment_method }}</span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-center pe-4">
+                  {% if pay.status == 'verified' or pay.status == 'paid' %}
+                    <span class="badge bg-success-subtle text-success-emphasis">Terverifikasi</span>
+                  {% elif pay.status == 'pending' %}
+                    <span class="badge bg-warning-subtle text-warning-emphasis">Menunggu</span>
+                  {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ pay.status | title }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+              <tr>
+                <td colspan="2" class="ps-4 fw-semibold text-end">Total Pembayaran:</td>
+                <td class="text-end fw-bold text-success">
+                  Rp {{ "{:,.0f}".format(payments | sum(attribute='amount')) }}
+                </td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+          <i class="bi bi-receipt display-4 text-muted opacity-25"></i>
+          <p class="text-muted small mt-2 mb-0">Belum ada riwayat pembayaran untuk siswa ini</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

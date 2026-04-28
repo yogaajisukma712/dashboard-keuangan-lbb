@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}Daftar Pengeluaran — LBB Super Smart{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">
+      <i class="bi bi-arrow-up-circle me-2 text-danger"></i>Pengeluaran Operasional
+    </h1>
+    <p class="text-muted mb-0">Daftar seluruh pengeluaran operasional lembaga</p>
+  </div>
+  <a href="{{ url_for('expenses.add_expense') }}" class="btn btn-danger">
+    <i class="bi bi-plus-lg me-1"></i>Tambah Pengeluaran
+  </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    {% if expenses.items %}
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="width:50px">No</th>
+            <th>Tanggal</th>
+            <th>Kategori</th>
+            <th>Deskripsi</th>
+            <th class="text-end">Nominal</th>
+            <th>Metode</th>
+            <th class="text-center pe-3" style="width:120px">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set total_page = namespace(value=0) %}
+          {% for expense in expenses.items %}
+          {% set total_page.value = total_page.value + (expense.amount | float) %}
+          <tr>
+            <td class="ps-3 text-muted">
+              {{ loop.index + (expenses.page - 1) * expenses.per_page }}
+            </td>
+            <td>
+              <span class="fw-semibold">
+                {{ expense.expense_date.strftime('%d/%m/%Y') }}
+              </span>
+              <div class="text-muted" style="font-size:.78rem">
+                {{ expense.expense_date.strftime('%H:%M') }}
+              </div>
+            </td>
+            <td>
+              {% set cat = expense.category | lower %}
+              {% if cat == 'iklan' %}
+                <span class="badge bg-info text-dark">
+                  <i class="bi bi-megaphone me-1"></i>Iklan
+                </span>
+              {% elif cat == 'kuota' %}
+                <span class="badge bg-primary">
+                  <i class="bi bi-wifi me-1"></i>Kuota
+                </span>
+              {% elif cat == 'tarik_tunai' %}
+                <span class="badge bg-secondary">
+                  <i class="bi bi-cash-coin me-1"></i>Tarik Tunai
+                </span>
+              {% elif cat == 'alat' %}
+                <span class="badge bg-warning text-dark">
+                  <i class="bi bi-tools me-1"></i>Alat/Perlengkapan
+                </span>
+              {% elif cat == 'transport' %}
+                <span class="badge bg-success">
+                  <i class="bi bi-truck me-1"></i>Transport
+                </span>
+              {% else %}
+                <span class="badge bg-light text-dark border">
+                  <i class="bi bi-three-dots me-1"></i>{{ expense.category | title }}
+                </span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="d-inline-block text-truncate" style="max-width:280px"
+                    title="{{ expense.description }}">
+                {{ expense.description }}
+              </span>
+              {% if expense.reference_number %}
+              <div class="text-muted" style="font-size:.78rem">
+                <i class="bi bi-hash me-1"></i>{{ expense.reference_number }}
+              </div>
+              {% endif %}
+              {% if expense.notes %}
+              <div class="text-muted" style="font-size:.78rem">
+                <i class="bi bi-chat-text me-1"></i>{{ expense.notes | truncate(60) }}
+              </div>
+              {% endif %}
+            </td>
+            <td class="text-end fw-semibold text-danger">
+              Rp {{ "{:,.0f}".format(expense.amount | float) }}
+            </td>
+            <td>
+              {% set method = (expense.payment_method or '') | lower %}
+              {% if method == 'tunai' or method == 'cash' %}
+                <span class="badge bg-secondary">
+                  <i class="bi bi-cash me-1"></i>Tunai
+                </span>
+              {% elif method == 'transfer' %}
+                <span class="badge bg-info text-dark">
+                  <i class="bi bi-bank me-1"></i>Transfer
+                </span>
+              {% elif method == 'kartu_kredit' %}
+                <span class="badge bg-warning text-dark">
+                  <i class="bi bi-credit-card me-1"></i>Kartu Kredit
+                </span>
+              {% elif method == 'cek' %}
+                <span class="badge bg-dark">
+                  <i class="bi bi-file-earmark-text me-1"></i>Cek
+                </span>
+              {% elif expense.payment_method %}
+                <span class="badge bg-light text-dark border">{{ expense.payment_method }}</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center pe-3">
+              <a href="{{ url_for('expenses.edit_expense', id=expense.id) }}"
+                 class="btn btn-sm btn-outline-secondary me-1" title="Edit">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="POST"
+                    action="{{ url_for('expenses.delete_expense', id=expense.id) }}"
+                    class="d-inline"
+                    onsubmit="return confirm('Yakin hapus pengeluaran ini?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-light fw-semibold">
+          <tr>
+            <td colspan="4" class="ps-3 text-end">Total Halaman Ini:</td>
+            <td class="text-end text-danger">
+              Rp {{ "{:,.0f}".format(total_page.value) }}
+            </td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    {# Pagination #}
+    {% if expenses.pages > 1 %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+      <small class="text-muted">
+        Menampilkan {{ expenses.items | length }} dari {{ expenses.total }} data
+        (Halaman {{ expenses.page }} / {{ expenses.pages }})
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {% if not expenses.has_prev %}disabled{% endif %}">
+            <a class="page-link"
+               href="{{ url_for('expenses.list_expenses', page=expenses.prev_num) }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% for p in expenses.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+            <li class="page-item {% if p == expenses.page %}active{% endif %}">
+              <a class="page-link"
+                 href="{{ url_for('expenses.list_expenses', page=p) }}">{{ p }}</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          <li class="page-item {% if not expenses.has_next %}disabled{% endif %}">
+            <a class="page-link"
+               href="{{ url_for('expenses.list_expenses', page=expenses.next_num) }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+    {% else %}
+    <div class="px-3 py-2 border-top">
+      <small class="text-muted">Total {{ expenses.total }} data</small>
+    </div>
+    {% endif %}
+
+    {% else %}
+    {# Empty state #}
+    <div class="text-center py-5">
+      <i class="bi bi-inbox display-4 text-muted d-block mb-3"></i>
+      <h5 class="text-muted">Belum ada data pengeluaran</h5>
+      <p class="text-muted mb-3">Mulai catat pengeluaran operasional lembaga.</p>
+      <a href="{{ url_for('expenses.add_expense') }}" class="btn btn-danger">
+        <i class="bi bi-plus-lg me-1"></i>Tambah Pengeluaran
+      </a>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+{# Quick summary cards #}
+{% if expenses.items %}
+<div class="row g-3 mt-3">
+  <div class="col-md-4">
+    <div class="card border-danger h-100">
+      <div class="card-body text-center">
+        <div class="muted-label">Total Semua Pengeluaran</div>
+        <div class="fs-5 fw-bold text-danger">{{ expenses.total }} Transaksi</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-warning h-100">
+      <div class="card-body text-center">
+        <div class="muted-label">Halaman Saat Ini</div>
+        <div class="fs-5 fw-bold text-warning">
+          {{ expenses.page }} / {{ expenses.pages }}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-primary h-100">
+      <div class="card-body text-center">
+        <div class="muted-label">Total Halaman Ini</div>
+        <div class="fs-5 fw-bold text-primary">
+          Rp {{ "{:,.0f}".format(total_page.value) }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

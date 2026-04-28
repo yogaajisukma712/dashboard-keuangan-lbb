@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} — LBB Super Smart{% endblock %}
+
+{% block content %}
+
+{# ── Breadcrumb ──────────────────────────────────────────────────────────── #}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item">
+      <a href="{{ url_for('attendance.list_attendance') }}">Presensi</a>
+    </li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+  </ol>
+</nav>
+
+{# ── Page Header ─────────────────────────────────────────────────────────── #}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="h4 mb-0">
+      <i class="bi bi-calendar-plus me-2 text-primary"></i>{{ title }}
+    </h2>
+    <p class="text-muted small mb-0">
+      Pilih beberapa enrollment sekaligus untuk dicatat dalam satu sesi
+    </p>
+  </div>
+  <a href="{{ url_for('attendance.list_attendance') }}"
+     class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Kembali
+  </a>
+</div>
+
+{# ── Alert info #}
+<div class="alert alert-info alert-dismissible fade show border-0 shadow-sm mb-4 small" role="alert">
+  <i class="bi bi-info-circle-fill me-2"></i>
+  <strong>Cara penggunaan:</strong>
+  Centang enrollment yang ingin dicatat, tentukan tanggal sesi dan nominal fee tutor,
+  lalu klik <strong>Simpan Presensi Massal</strong>.
+  Fee yang dimasukkan akan diterapkan ke seluruh enrollment yang dipilih.
+  <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<form method="POST" id="bulkAttendanceForm" novalidate>
+  {{ form.hidden_tag() }}
+
+  {# enrollment_ids hidden field — diisi via JS dari checkbox #}
+  <input type="hidden" name="{{ form.enrollment_ids.name }}"
+         id="enrollmentIdsInput"
+         value="{{ form.enrollment_ids.data or '' }}">
+  {% if form.enrollment_ids.errors %}
+  <div class="alert alert-danger border-0 shadow-sm small mb-3">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+    {% for e in form.enrollment_ids.errors %}{{ e }}{% if not loop.last %}, {% endif %}{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="row g-4">
+
+    {# ═══════════════════════════════════════════════════════════════════════
+       KOLOM KIRI — Tabel Checklist Enrollment
+    ═══════════════════════════════════════════════════════════════════════ #}
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent d-flex justify-content-between align-items-center py-2">
+          <h6 class="fw-bold mb-0 small text-uppercase text-muted" style="letter-spacing:.06em">
+            <i class="bi bi-journals me-1 text-primary"></i>
+            Pilih Enrollment Aktif
+          </h6>
+          <div class="d-flex gap-2 align-items-center">
+            <span id="selectedCount" class="badge bg-primary rounded-pill">0 dipilih</span>
+            <div class="input-group input-group-sm" style="max-width:200px">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input type="text" id="searchEnrollment"
+                     class="form-control form-control-sm"
+                     placeholder="Cari siswa / tutor…">
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body p-0">
+          {% if enrollments is defined and enrollments %}
+
+          {# ── Toolbar: Pilih Semua / Batalkan Semua ────────────────────── #}
+          <div class="px-3 py-2 bg-light border-bottom d-flex gap-3 align-items-center small">
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" id="checkAll">
+              <label class="form-check-label fw-semibold" for="checkAll">
+                Pilih Semua
+              </label>
+            </div>
+            <span class="text-muted">|</span>
+            <button type="button" class="btn btn-link btn-sm p-0 text-danger text-decoration-none"
+                    id="btnClearAll">
+              <i class="bi bi-x-lg me-1"></i>Batalkan Semua
+            </button>
+            <span class="ms-auto text-muted" id="enrollmentCountLabel">
+              {{ enrollments | length }} enrollment aktif
+            </span>
+          </div>
+
+          {# ── Tabel ─────────────────────────────────────────────────────── #}
+          <div class="table-responsive" style="max-height:460px;overflow-y:auto">
+            <table class="table table-hover align-middle mb-0 small" id="enrollmentTable">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th class="ps-3" style="width:44px"></th>
+                  <th>Siswa</th>
+                  <th>Mapel</th>
+                  <th>Tutor</th>
+                  <th>Kurikulum / Jenjang</th>
+                  <th class="text-center">Quota</th>
+                  <th class="text-end pe-3">Fee/Pertemuan</th>
+                </tr>
+              </thead>
+              <tbody id="enrollmentTbody">
+                {% for enr in enrollments %}
+                <tr class="enrollment-row"
+                    data-search="{{ (enr.student.name ~ ' ' ~ enr.tutor.name ~ ' ' ~ enr.subject.name) | lower }}">
+                  <td class="ps-3">
+                    <div class="form-check mb-0">
+                      <input class="form-check-input enrollment-checkbox"
+                             type="checkbox"
+                             id="enr_{{ enr.id }}"
+                             value="{{ enr.id }}"
+                             {% if form.enrollment_ids.data and enr.id | string in form.enrollment_ids.data.split(',') %}
+                               checked
+                             {% endif %}>
+                    </div>
+                  </td>
+                  <td>
+                    <label for="enr_{{ enr.id }}" class="d-block mb-0" style="cursor:pointer">
+                      <div class="fw-semibold">{{ enr.student.name }}</div>
+                      <div class="text-muted" style="font-size:.75rem">
+                        {{ enr.student.student_code }}
+                        {% if enr.grade %} · Kelas {{ enr.grade }}{% endif %}
+                      </div>
+                    </label>
+                  </td>
+                  <td>
+                    <span class="badge bg-primary bg-opacity-10 text-primary
+                                 border border-primary-subtle fw-normal px-2">
+                      {{ enr.subject.name }}
+                    </span>
+                  </td>
+                  <td>
+                    <div>{{ enr.tutor.name }}</div>
+                    {% if enr.tutor.tutor_code %}
+                    <div class="text-muted" style="font-size:.75rem">{{ enr.tutor.tutor_code }}</div>
+                    {% endif %}
+                  </td>
+                  <td class="text-muted">
+                    {{ enr.curriculum.name }}
+                    <span class="text-secondary">/</span>
+                    {{ enr.level.name }}
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-secondary bg-opacity-10 text-secondary
+                                 border border-secondary-subtle fw-normal">
+                      {{ enr.meeting_quota_per_month }}x
+                    </span>
+                  </td>
+                  <td class="text-end pe-3 fw-semibold text-success">
+                    Rp {{ "{:,.0f}".format(enr.tutor_rate_per_meeting | float) }}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          {# ── Row "tidak ada hasil" saat search kosong ─────────────────── #}
+          <div id="noSearchResult" class="text-center py-4 text-muted small d-none">
+            <i class="bi bi-search d-block fs-4 mb-1 opacity-25"></i>
+            Tidak ada enrollment yang cocok dengan pencarian.
+          </div>
+
+          {% else %}
+          {# ── Fallback: enrollment_ids sebagai textarea jika context tidak tersedia #}
+          <div class="p-4">
+            <div class="alert alert-warning border-0 small mb-3">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              Daftar enrollment tidak tersedia. Masukkan ID enrollment secara manual.
+            </div>
+            <label for="enrollmentIdsManual" class="form-label fw-semibold small">
+              ID Enrollment (pisahkan dengan koma) <span class="text-danger">*</span>
+            </label>
+            <input type="text" id="enrollmentIdsManual"
+                   class="form-control"
+                   placeholder="cth. 1,2,5,8"
+                   value="{{ form.enrollment_ids.data or '' }}"
+                   oninput="document.getElementById('enrollmentIdsInput').value = this.value">
+            <div class="form-text text-muted">
+              Masukkan ID enrollment yang ingin dibuatkan presensi, dipisahkan koma.
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════
+       KOLOM KANAN — Parameter Sesi
+    ═══════════════════════════════════════════════════════════════════════ #}
+    <div class="col-lg-4">
+
+      {# ── Sticky wrapper ─────────────────────────────────────────────── #}
+      <div style="position:sticky;top:1rem">
+
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-header bg-transparent py-2">
+            <h6 class="fw-bold mb-0 small text-uppercase text-muted" style="letter-spacing:.06em">
+              <i class="bi bi-sliders me-1 text-info"></i>Parameter Sesi
+            </h6>
+          </div>
+          <div class="card-body">
+
+            {# Tanggal Sesi #}
+            <div class="mb-3">
+              <label for="{{ form.session_date.id }}" class="form-label fw-semibold small">
+                Tanggal Sesi <span class="text-danger">*</span>
+              </label>
+              {{ form.session_date(class_="form-control",
+                                   id=form.session_date.id,
+                                   required=true) }}
+              {% if form.session_date.errors %}
+              <div class="invalid-feedback d-block">
+                {% for e in form.session_date.errors %}{{ e }}{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+            {# Fee Tutor #}
+            <div class="mb-3">
+              <label for="{{ form.tutor_fee_amount.id }}" class="form-label fw-semibold small">
+                Fee Tutor per Sesi <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text text-muted small">Rp</span>
+                {{ form.tutor_fee_amount(class_="form-control",
+                                         id=form.tutor_fee_amount.id,
+                                         min="0",
+                                         step="500",
+                                         placeholder="0",
+                                         required=true) }}
+              </div>
+              <div class="form-text text-muted">
+                Fee ini diterapkan ke semua enrollment yang dipilih.
+              </div>
+              {% if form.tutor_fee_amount.errors %}
+              <div class="invalid-feedback d-block">
+                {% for e in form.tutor_fee_amount.errors %}{{ e }}{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+          </div>
+        </div>
+
+        {# ── Summary Box ────────────────────────────────────────────────── #}
+        <div class="card border-0 shadow-sm bg-primary bg-opacity-10 border-primary-subtle mb-3"
+             id="summaryBox">
+          <div class="card-body py-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="small fw-semibold text-primary">Enrollment Dipilih</span>
+              <span class="badge bg-primary rounded-pill fs-6" id="summaryCount">0</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="small fw-semibold text-primary">Total Fee Tutor</span>
+              <span class="fw-bold text-success" id="summaryTotalFee">Rp 0</span>
+            </div>
+            <div class="text-muted" style="font-size:.75rem">
+              <i class="bi bi-info-circle me-1"></i>
+              Semua enrollment yang dipilih akan mendapat status
+              <strong>Hadir</strong> (siswa &amp; tutor).
+            </div>
+          </div>
+        </div>
+
+        {# ── Tombol Submit ──────────────────────────────────────────────── #}
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-primary" id="btnSubmit" disabled>
+            <i class="bi bi-calendar-check me-2"></i>Simpan Presensi Massal
+          </button>
+          <a href="{{ url_for('attendance.list_attendance') }}"
+             class="btn btn-outline-secondary">
+            <i class="bi bi-x-lg me-1"></i>Batal
+          </a>
+        </div>
+
+        <div class="text-muted small mt-2 text-center">
+          <i class="bi bi-shield-check me-1"></i>
+          Pilih minimal 1 enrollment untuk mengaktifkan tombol simpan.
+        </div>
+
+      </div>{# /sticky #}
+    </div>
+
+  </div>{# /row #}
+</form>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+
+  /* ── Elemen ──────────────────────────────────────────────────────────── */
+  const checkboxes      = document.querySelectorAll('.enrollment-checkbox');
+  const checkAll        = document.getElementById('checkAll');
+  const btnClearAll     = document.getElementById('btnClearAll');
+  const idsInput        = document.getElementById('enrollmentIdsInput');
+  const selectedCount   = document.getElementById('selectedCount');
+  const summaryCount    = document.getElementById('summaryCount');
+  const summaryTotalFee = document.getElementById('summaryTotalFee');
+  const btnSubmit       = document.getElementById('btnSubmit');
+  const feeInput        = document.getElementById('{{ form.tutor_fee_amount.id }}');
+  const searchInput     = document.getElementById('searchEnrollment');
+  const rows            = document.querySelectorAll('.enrollment-row');
+  const noResult        = document.getElementById('noSearchResult');
+
+  /* ── Format Rupiah ───────────────────────────────────────────────────── */
+  function formatRp(val) {
+    const n = parseFloat(val) || 0;
+    return 'Rp ' + n.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  /* ── Update enrollment_ids hidden input & summary ────────────────────── */
+  function syncIds() {
+    const checked = [...checkboxes].filter(cb => cb.checked);
+    const ids = checked.map(cb => cb.value).join(',');
+    idsInput.value = ids;
+
+    const count = checked.length;
+    selectedCount.textContent = count + ' dipilih';
+    if (summaryCount) summaryCount.textContent = count;
+
+    const fee = parseFloat(feeInput ? feeInput.value : 0) || 0;
+    if (summaryTotalFee) summaryTotalFee.textContent = formatRp(fee * count);
+
+    if (btnSubmit) btnSubmit.disabled = (count === 0);
+
+    // Sinkronkan state "Pilih Semua"
+    if (checkAll) {
+      const visibleRows   = [...rows].filter(r => !r.classList.contains('d-none'));
+      const visibleChecks = visibleRows.map(r => r.querySelector('.enrollment-checkbox'));
+      checkAll.checked       = visibleChecks.length > 0 && visibleChecks.every(cb => cb.checked);
+      checkAll.indeterminate = !checkAll.checked && visibleChecks.some(cb => cb.checked);
+    }
+  }
+
+  /* ── Attach checkbox listeners ───────────────────────────────────────── */
+  checkboxes.forEach(cb => cb.addEventListener('change', syncIds));
+
+  /* ── Pilih semua ─────────────────────────────────────────────────────── */
+  if (checkAll) {
+    checkAll.addEventListener('change', function () {
+      const visibleRows = [...rows].filter(r => !r.classList.contains('d-none'));
+      visibleRows.forEach(r => {
+        const cb = r.querySelector('.enrollment-checkbox');
+        if (cb) cb.checked = checkAll.checked;
+      });
+      syncIds();
+    });
+  }
+
+  /* ── Batalkan semua ──────────────────────────────────────────────────── */
+  if (btnClearAll) {
+    btnClearAll.addEventListener('click', function () {
+      checkboxes.forEach(cb => cb.checked = false);
+      if (checkAll) { checkAll.checked = false; checkAll.indeterminate = false; }
+      syncIds();
+    });
+  }
+
+  /* ── Update total saat fee berubah ───────────────────────────────────── */
+  if (feeInput) {
+    feeInput.addEventListener('input', syncIds);
+  }
+
+  /* ── Live search / filter ────────────────────────────────────────────── */
+  if (searchInput) {
+    searchInput.addEventListener('input', function () {
+      const q = this.value.toLowerCase().trim();
+      let visible = 0;
+
+      rows.forEach(function (row) {
+        const text = row.dataset.search || '';
+        if (!q || text.includes(q)) {
+          row.classList.remove('d-none');
+          visible++;
+        } else {
+          row.classList.add('d-none');
+        }
+      });
+
+      if (noResult) {
+        noResult.classList.toggle('d-none', visible > 0 || !q);
+      }
+
+      // Recompute "pilih semua" indeterminate
+      syncIds();
+    });
+  }
+
+  /* ── Klik pada baris = toggle checkbox ───────────────────────────────── */
+  rows.forEach(function (row) {
+    row.addEventListener('click', function (e) {
+      // Jangan toggle jika klik langsung pada checkbox atau label
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') return;
+      const cb = row.querySelector('.enrollment-checkbox');
+      if (cb) {
+        cb.checked = !cb.checked;
+        syncIds();
+      }
+    });
+    row.style.cursor = 'pointer';
+  });
+
+  /* ── Validasi form sebelum submit ─────────────────────────────────────── */
+  document.getElementById('bulkAttendanceForm').addEventListener('submit', function (e) {
+    const count = [...checkboxes].filter(cb => cb.checked).length;
+    if (count === 0 && !document.getElementById('enrollmentIdsManual')) {
+      e.preventDefault();
+      alert('Pilih setidaknya satu enrollment sebelum menyimpan.');
+      return;
+    }
+
+    const fee = parseFloat(feeInput ? feeInput.value : 0) || 0;
+    if (fee <= 0) {
+      e.preventDefault();
+      feeInput.classList.add('is-invalid');
+      feeInput.focus();
+      return;
+    }
+  });
+
+  /* ── Default tanggal = hari ini ──────────────────────────────────────── */
+  const dateInput = document.getElementById('{{ form.session_date.id }}');
+  if (dateInput && !dateInput.value) {
+    const today = new Date();
+    const yyyy  = today.getFullYear();
+    const mm    = String(today.getMonth() + 1).padStart(2, '0');
+    const dd    = String(today.getDate()).padStart(2, '0');
+    dateInput.value = `${yyyy}-${mm}-${dd}`;
+  }
+
+  /* ── Init state (saat halaman pertama dimuat) ────────────────────────── */
+  syncIds();
+
+})();
+</script>
+{% endblock %}

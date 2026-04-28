@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Daftar Pemasukan — LBB Super Smart{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 mb-1">
+      <i class="bi bi-arrow-down-circle me-2 text-success"></i>Pemasukan Lain-lain
+    </h1>
+    <p class="text-muted mb-0">Daftar pemasukan non-pembayaran siswa</p>
+  </div>
+  <a href="{{ url_for('incomes.add_income') }}" class="btn btn-success">
+    <i class="bi bi-plus-lg me-1"></i>Tambah Pemasukan
+  </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    {% if incomes.items %}
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="width:50px">No</th>
+            <th>Tanggal</th>
+            <th>Kategori</th>
+            <th>Deskripsi</th>
+            <th class="text-end">Nominal</th>
+            <th class="text-center pe-3" style="width:120px">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set total_page = namespace(value=0) %}
+          {% for income in incomes.items %}
+          {% set total_page.value = total_page.value + (income.amount | float) %}
+          <tr>
+            <td class="ps-3 text-muted">
+              {{ loop.index + (incomes.page - 1) * incomes.per_page }}
+            </td>
+            <td>
+              <span class="fw-semibold">
+                {{ income.income_date.strftime('%d/%m/%Y') }}
+              </span>
+              <div class="text-muted" style="font-size:.78rem">
+                {{ income.income_date.strftime('%H:%M') }}
+              </div>
+            </td>
+            <td>
+              {% set cat = income.category | lower %}
+              {% if cat == 'iklan' %}
+                <span class="badge bg-info text-dark">
+                  <i class="bi bi-megaphone me-1"></i>Iklan
+                </span>
+              {% elif cat == 'titipan' %}
+                <span class="badge bg-secondary">
+                  <i class="bi bi-archive me-1"></i>Titipan
+                </span>
+              {% elif cat == 'koreksi' %}
+                <span class="badge bg-warning text-dark">
+                  <i class="bi bi-pencil-square me-1"></i>Koreksi Kas
+                </span>
+              {% elif cat == 'bonus' %}
+                <span class="badge bg-success">
+                  <i class="bi bi-gift me-1"></i>Bonus
+                </span>
+              {% else %}
+                <span class="badge bg-light text-dark border">
+                  <i class="bi bi-three-dots me-1"></i>{{ income.category | title }}
+                </span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="d-inline-block text-truncate" style="max-width:280px"
+                    title="{{ income.description }}">
+                {{ income.description }}
+              </span>
+              {% if income.notes %}
+              <div class="text-muted" style="font-size:.78rem">
+                <i class="bi bi-chat-text me-1"></i>{{ income.notes | truncate(60) }}
+              </div>
+              {% endif %}
+            </td>
+            <td class="text-end fw-semibold text-success">
+              Rp {{ "{:,.0f}".format(income.amount | float) }}
+            </td>
+            <td class="text-center pe-3">
+              <a href="{{ url_for('incomes.edit_income', income_id=income.id) }}"
+                 class="btn btn-sm btn-outline-secondary me-1" title="Edit">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="POST"
+                    action="{{ url_for('incomes.delete_income', income_id=income.id) }}"
+                    class="d-inline"
+                    onsubmit="return confirm('Yakin hapus pemasukan ini?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-light fw-semibold">
+          <tr>
+            <td colspan="4" class="ps-3 text-end">Total Halaman Ini:</td>
+            <td class="text-end text-success">
+              Rp {{ "{:,.0f}".format(total_page.value) }}
+            </td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    {# Pagination #}
+    {% if incomes.pages > 1 %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+      <small class="text-muted">
+        Menampilkan {{ incomes.items | length }} dari {{ incomes.total }} data
+        (Halaman {{ incomes.page }} / {{ incomes.pages }})
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {% if not incomes.has_prev %}disabled{% endif %}">
+            <a class="page-link"
+               href="{{ url_for('incomes.list_incomes', page=incomes.prev_num) }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% for p in incomes.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+            <li class="page-item {% if p == incomes.page %}active{% endif %}">
+              <a class="page-link"
+                 href="{{ url_for('incomes.list_incomes', page=p) }}">{{ p }}</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          <li class="page-item {% if not incomes.has_next %}disabled{% endif %}">
+            <a class="page-link"
+               href="{{ url_for('incomes.list_incomes', page=incomes.next_num) }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+    {% else %}
+    <div class="px-3 py-2 border-top">
+      <small class="text-muted">Total {{ incomes.total }} data</small>
+    </div>
+    {% endif %}
+
+    {% else %}
+    {# Empty state #}
+    <div class="text-center py-5">
+      <i class="bi bi-inbox display-4 text-muted d-block mb-3"></i>
+      <h5 class="text-muted">Belum ada data pemasukan</h5>
+      <p class="text-muted mb-3">Mulai tambahkan pemasukan lain-lain di sini.</p>
+      <a href="{{ url_for('incomes.add_income') }}" class="btn btn-success">
+        <i class="bi bi-plus-lg me-1"></i>Tambah Pemasukan
+      </a>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+{# Quick summary cards — tampil jika ada data #}
+{% if incomes.items %}
+<div class="row g-3 mt-3">
+  <div class="col-md-4">
+    <div class="card border-success h-100">
+      <div class="card-body text-center">
+        <div class="muted-label">Total Semua Pemasukan</div>
+        <div class="fs-5 fw-bold text-success">{{ incomes.total }} Transaksi</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-info h-100">
+      <div class="card-body text-center">
+        <div class="muted-label">Halaman Saat Ini</div>
+        <div class="fs-5 fw-bold text-info">
+          {{ incomes.page }} / {{ incomes.pages }}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-primary h-100">
+      <div class="card-body text-center">
+        <div class="muted-label">Total Halaman Ini</div>
+        <div class="fs-5 fw-bold text-primary">
+          Rp {{ "{:,.0f}".format(total_page.value) }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

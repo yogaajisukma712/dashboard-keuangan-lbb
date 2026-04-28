@@ -1,0 +1,433 @@
+{% extends "base.html" %}
+
+{% block title %}Detail Tutor — {{ tutor.name }} — LBB Super Smart{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('master.tutors_list') }}" class="btn btn-outline-secondary btn-sm me-3">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div class="flex-grow-1">
+    <h4 class="mb-0 fw-bold">
+      <i class="bi bi-person-badge-fill text-primary me-2"></i>Detail Tutor
+    </h4>
+    <p class="text-muted small mb-0">Informasi lengkap tutor LBB Super Smart</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('payroll.tutor_summary') }}" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-wallet2 me-1"></i>Lihat Payroll
+    </a>
+    <a href="{{ url_for('master.edit_tutor', id=tutor.id) }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Edit Tutor
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  {# ── Kolom Kiri: Profil & Info ── #}
+  <div class="col-lg-4">
+
+    {# Card Profil Utama #}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body text-center py-4">
+        <div
+          class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3"
+          style="width:72px;height:72px;font-size:2rem;"
+        >
+          <i class="bi bi-person-badge-fill"></i>
+        </div>
+        <h5 class="fw-bold mb-1">{{ tutor.name }}</h5>
+        <span class="badge bg-light text-dark border font-monospace mb-2">{{ tutor.tutor_code }}</span>
+        <br>
+        {% if tutor.status == 'active' or tutor.is_active %}
+          <span class="badge bg-success-subtle text-success-emphasis px-3 py-2">
+            <i class="bi bi-check-circle me-1"></i>Aktif
+          </span>
+        {% elif tutor.status == 'suspended' %}
+          <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-2">
+            <i class="bi bi-pause-circle me-1"></i>Suspended
+          </span>
+        {% else %}
+          <span class="badge bg-danger-subtle text-danger-emphasis px-3 py-2">
+            <i class="bi bi-x-circle me-1"></i>Nonaktif
+          </span>
+        {% endif %}
+      </div>
+      <div class="card-footer bg-white border-top py-3">
+        <div class="row text-center g-2">
+          <div class="col-6">
+            <div class="fw-bold text-primary">{{ enrollments | length }}</div>
+            <div class="text-muted" style="font-size:0.72rem">Enrollment</div>
+          </div>
+          <div class="col-6">
+            <div class="fw-bold text-success">
+              {{ tutor.created_at.strftime('%Y') if tutor.created_at else '—' }}
+            </div>
+            <div class="text-muted" style="font-size:0.72rem">Tahun Bergabung</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Kontak #}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-telephone text-primary me-2"></i>Kontak
+        </h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 text-muted fw-normal">No. HP</dt>
+          <dd class="col-7">
+            {% if tutor.phone %}
+              <a href="tel:{{ tutor.phone }}" class="text-decoration-none">
+                <i class="bi bi-telephone me-1"></i>{{ tutor.phone }}
+              </a>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </dd>
+
+          <dt class="col-5 text-muted fw-normal">Email</dt>
+          <dd class="col-7 text-break">
+            {% if tutor.email %}
+              <a href="mailto:{{ tutor.email }}" class="text-decoration-none">
+                <i class="bi bi-envelope me-1"></i>{{ tutor.email }}
+              </a>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </dd>
+
+          <dt class="col-5 text-muted fw-normal">Alamat</dt>
+          <dd class="col-7">
+            {% if tutor.address %}{{ tutor.address }}{% else %}<span class="text-muted">—</span>{% endif %}
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+    {# Identitas #}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-card-text text-primary me-2"></i>Identitas
+        </h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 text-muted fw-normal">Jenis ID</dt>
+          <dd class="col-7">
+            {% if tutor.identity_type %}
+              <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                {{ tutor.identity_type }}
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </dd>
+
+          <dt class="col-5 text-muted fw-normal">No. Identitas</dt>
+          <dd class="col-7 font-monospace">
+            {% if tutor.identity_number %}
+              {{ tutor.identity_number }}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+    {# Rekening Bank #}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-bank text-primary me-2"></i>Rekening Bank
+        </h6>
+      </div>
+      <div class="card-body">
+        {% if tutor.bank_name or tutor.bank_account_number %}
+        <div class="p-3 rounded bg-light border">
+          <div class="d-flex align-items-center mb-2">
+            <div
+              class="rounded bg-primary text-white d-flex align-items-center justify-content-center me-2 flex-shrink-0"
+              style="width:32px;height:32px;font-size:1rem"
+            >
+              <i class="bi bi-bank"></i>
+            </div>
+            <div>
+              <div class="fw-bold text-uppercase small">
+                {{ tutor.bank_name or '—' }}
+              </div>
+            </div>
+          </div>
+          <div class="font-monospace fw-bold fs-5 text-primary mb-1">
+            {{ tutor.bank_account_number or '—' }}
+          </div>
+          {% if tutor.account_holder_name %}
+          <div class="text-muted small">
+            a.n. <span class="fw-semibold text-dark">{{ tutor.account_holder_name }}</span>
+          </div>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="text-center py-3 text-muted small">
+          <i class="bi bi-bank display-6 opacity-25 d-block mb-2"></i>
+          Belum ada informasi rekening bank
+          <div class="mt-2">
+            <a href="{{ url_for('master.edit_tutor', id=tutor.id) }}" class="btn btn-outline-primary btn-sm">
+              <i class="bi bi-plus me-1"></i>Tambah Rekening
+            </a>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Meta #}
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 text-muted fw-normal">Terdaftar</dt>
+          <dd class="col-7">
+            {{ tutor.created_at.strftime('%d %b %Y') if tutor.created_at else '—' }}
+          </dd>
+          <dt class="col-5 text-muted fw-normal">Diperbarui</dt>
+          <dd class="col-7">
+            {{ tutor.updated_at.strftime('%d %b %Y') if tutor.updated_at else '—' }}
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+  </div>
+
+  {# ── Kolom Kanan: Enrollment & Payroll ── #}
+  <div class="col-lg-8">
+
+    {# Payout / Fee Slip — tampilkan jika ada riwayat payout #}
+    {% if tutor.payouts and tutor.payouts.count() > 0 %}
+    <div class="card border-0 shadow-sm mb-4 border-start border-4 border-success">
+      <div class="card-body py-3">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <h6 class="mb-0 fw-semibold">
+              <i class="bi bi-wallet2 text-success me-2"></i>Riwayat Payout / Fee Slip
+            </h6>
+            <p class="text-muted small mb-0 mt-1">
+              Total <strong>{{ tutor.payouts.count() }}</strong> payout tercatat untuk tutor ini
+            </p>
+          </div>
+          <div class="d-flex gap-2">
+            {% set last_payout = tutor.payouts.order_by('id desc').first() %}
+            {% if last_payout %}
+            <a
+              href="{{ url_for('payroll.fee_slip', payout_id=last_payout.id) }}"
+              class="btn btn-success btn-sm"
+              target="_blank"
+            >
+              <i class="bi bi-file-earmark-text me-1"></i>Lihat Fee Slip Terakhir
+            </a>
+            {% endif %}
+            <a href="{{ url_for('payroll.tutor_summary') }}" class="btn btn-outline-success btn-sm">
+              <i class="bi bi-list-ul me-1"></i>Semua Payout
+            </a>
+          </div>
+        </div>
+
+        {# Ringkasan payout terbaru #}
+        {% set recent_payouts = tutor.payouts.order_by('id desc').limit(3).all() %}
+        {% if recent_payouts %}
+        <div class="mt-3">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 small">
+              <thead class="table-light">
+                <tr>
+                  <th>Tanggal Payout</th>
+                  <th class="text-end">Jumlah</th>
+                  <th class="text-center">Status</th>
+                  <th class="text-center">Fee Slip</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for payout in recent_payouts %}
+                <tr>
+                  <td>
+                    {{ payout.payout_date.strftime('%d %b %Y') if payout.payout_date else '—' }}
+                  </td>
+                  <td class="text-end fw-semibold text-success">
+                    Rp {{ "{:,.0f}".format(payout.total_amount) if payout.total_amount else '—' }}
+                  </td>
+                  <td class="text-center">
+                    {% if payout.status == 'paid' or payout.status == 'completed' %}
+                      <span class="badge bg-success-subtle text-success-emphasis">Lunas</span>
+                    {% elif payout.status == 'pending' %}
+                      <span class="badge bg-warning-subtle text-warning-emphasis">Menunggu</span>
+                    {% else %}
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                        {{ payout.status | title if payout.status else '—' }}
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    <a
+                      href="{{ url_for('payroll.fee_slip', payout_id=payout.id) }}"
+                      class="btn btn-outline-success btn-sm py-0 px-2"
+                      target="_blank"
+                      title="Lihat Fee Slip"
+                    >
+                      <i class="bi bi-file-earmark-text"></i>
+                    </a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# Tabel Enrollment #}
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-card-checklist text-primary me-2"></i>
+          Daftar Enrollment
+          <span class="badge bg-primary-subtle text-primary-emphasis ms-1">{{ enrollments | length }}</span>
+        </h6>
+        <a href="{{ url_for('enrollments.list_enrollments') }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-plus me-1"></i>Tambah Enrollment
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if enrollments %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4" style="width:40px">No</th>
+                <th>Siswa</th>
+                <th>Mata Pelajaran</th>
+                <th>Kurikulum</th>
+                <th>Jenjang</th>
+                <th class="text-center">Kuota Sisa</th>
+                <th class="text-center">Status</th>
+                <th class="text-center pe-4">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for enr in enrollments %}
+              <tr>
+                <td class="ps-4 text-muted">{{ loop.index }}</td>
+                <td>
+                  {% if enr.student %}
+                    <a
+                      href="{{ url_for('master.student_detail', id=enr.student.id) }}"
+                      class="text-decoration-none fw-semibold"
+                    >
+                      {{ enr.student.name }}
+                    </a>
+                    <div class="text-muted font-monospace" style="font-size:0.75rem">
+                      {{ enr.student.student_code }}
+                    </div>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if enr.subject %}
+                    <span class="fw-semibold">{{ enr.subject.name }}</span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if enr.curriculum %}
+                    <span class="badge bg-info-subtle text-info-emphasis">
+                      {{ enr.curriculum.name }}
+                    </span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if enr.level %}{{ enr.level.name }}{% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+                <td class="text-center">
+                  {% if enr.remaining_quota is defined %}
+                    {% if enr.remaining_quota <= 2 %}
+                      <span class="badge bg-danger rounded-pill">{{ enr.remaining_quota }}</span>
+                    {% elif enr.remaining_quota <= 5 %}
+                      <span class="badge bg-warning text-dark rounded-pill">{{ enr.remaining_quota }}</span>
+                    {% else %}
+                      <span class="badge bg-success rounded-pill">{{ enr.remaining_quota }}</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if enr.status == 'active' %}
+                    <span class="badge bg-success-subtle text-success-emphasis">Aktif</span>
+                  {% elif enr.status == 'completed' %}
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis">Selesai</span>
+                  {% elif enr.status == 'cancelled' %}
+                    <span class="badge bg-danger-subtle text-danger-emphasis">Dibatalkan</span>
+                  {% else %}
+                    <span class="badge bg-light text-dark border">
+                      {{ enr.status | title if enr.status else '—' }}
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="text-center pe-4">
+                  <a
+                    href="{{ url_for('enrollments.enrollment_detail', id=enr.id) }}"
+                    class="btn btn-outline-info btn-sm"
+                    title="Detail Enrollment"
+                  >
+                    <i class="bi bi-eye"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {# Summary footer #}
+        <div class="px-4 py-3 border-top bg-light d-flex align-items-center gap-4 small text-muted">
+          <span>
+            Total enrollment: <strong class="text-dark">{{ enrollments | length }}</strong>
+          </span>
+          {% set active_count = enrollments | selectattr('status', 'equalto', 'active') | list | length %}
+          <span>
+            Aktif: <strong class="text-success">{{ active_count }}</strong>
+          </span>
+          {% set completed_count = enrollments | selectattr('status', 'equalto', 'completed') | list | length %}
+          <span>
+            Selesai: <strong class="text-secondary">{{ completed_count }}</strong>
+          </span>
+        </div>
+
+        {% else %}
+        {# Empty state #}
+        <div class="text-center py-5">
+          <i class="bi bi-card-checklist display-1 text-muted opacity-25"></i>
+          <p class="text-muted mt-3 mb-1">Belum ada enrollment untuk tutor ini</p>
+          <a href="{{ url_for('enrollments.list_enrollments') }}" class="btn btn-primary btn-sm mt-1">
+            <i class="bi bi-plus me-1"></i>Buat Enrollment Baru
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

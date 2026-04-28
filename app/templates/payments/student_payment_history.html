@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}Riwayat Pembayaran — {{ student.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item">
+          <a href="{{ url_for('payments.list_payments') }}">Pembayaran</a>
+        </li>
+        <li class="breadcrumb-item active">Riwayat — {{ student.name }}</li>
+      </ol>
+    </nav>
+    <h1 class="h3 mb-0">
+      <i class="bi bi-person-lines-fill me-2 text-primary"></i>Riwayat Pembayaran Siswa
+    </h1>
+  </div>
+  <a href="{{ url_for('payments.add_payment') }}" class="btn btn-success">
+    <i class="bi bi-plus-lg me-1"></i>Tambah Pembayaran
+  </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+{# ── Kartu Info Siswa ─────────────────────────────────────────────── #}
+<div class="card mb-4 shadow-sm border-primary">
+  <div class="card-header bg-primary text-white fw-semibold">
+    <i class="bi bi-person-circle me-1"></i>Informasi Siswa
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-sm-6 col-lg-3">
+        <div class="muted-label">Nama Siswa</div>
+        <div class="fw-bold fs-5">{{ student.name }}</div>
+      </div>
+      {% if student.grade %}
+      <div class="col-sm-6 col-lg-3">
+        <div class="muted-label">Kelas / Jenjang</div>
+        <div class="fw-semibold">{{ student.grade }}</div>
+      </div>
+      {% endif %}
+      {% if student.school %}
+      <div class="col-sm-6 col-lg-3">
+        <div class="muted-label">Sekolah</div>
+        <div class="fw-semibold">{{ student.school }}</div>
+      </div>
+      {% endif %}
+      {% if student.phone %}
+      <div class="col-sm-6 col-lg-3">
+        <div class="muted-label">No. HP / WA</div>
+        <div class="fw-semibold">
+          <a href="https://wa.me/{{ student.phone | replace('+','') | replace('-','') | replace(' ','') }}"
+             target="_blank" class="text-decoration-none">
+            <i class="bi bi-whatsapp text-success me-1"></i>{{ student.phone }}
+          </a>
+        </div>
+      </div>
+      {% endif %}
+      <div class="col-sm-6 col-lg-3">
+        <div class="muted-label">Status Siswa</div>
+        <div>
+          {% if student.is_active %}
+          <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Aktif</span>
+          {% else %}
+          <span class="badge bg-secondary"><i class="bi bi-dash-circle me-1"></i>Tidak Aktif</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="muted-label">Total Transaksi</div>
+        <div class="fw-bold text-primary">{{ paginated.total }} Pembayaran</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Ringkasan Cepat ──────────────────────────────────────────────── #}
+{% if payments %}
+{% set grand_total = namespace(value=0) %}
+{% set verified_count = namespace(value=0) %}
+{% for p in payments %}
+  {% set grand_total.value = grand_total.value + (p.total_amount | float) %}
+  {% if p.is_verified %}{% set verified_count.value = verified_count.value + 1 %}{% endif %}
+{% endfor %}
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card border-success h-100">
+      <div class="card-body text-center">
+        <div class="muted-label">Total Dibayar (Halaman Ini)</div>
+        <div class="fs-5 fw-bold text-success">
+          Rp {{ "{:,.0f}".format(grand_total.value) }}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card border-primary h-100">
+      <div class="card-body text-center">
+        <div class="muted-label">Sudah Diverifikasi</div>
+        <div class="fs-5 fw-bold text-primary">
+          {{ verified_count.value }} / {{ payments | length }}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card border-warning h-100">
+      <div class="card-body text-center">
+        <div class="muted-label">Total Semua Transaksi</div>
+        <div class="fs-5 fw-bold text-warning">
+          {{ paginated.total }} Transaksi
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ── Tabel Riwayat Pembayaran ─────────────────────────────────────── #}
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">
+      <i class="bi bi-clock-history me-1"></i>Riwayat Pembayaran
+    </span>
+    {% if paginated.total > 0 %}
+    <small class="text-muted">{{ paginated.total }} total transaksi</small>
+    {% endif %}
+  </div>
+  <div class="card-body p-0">
+    {% if payments %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="width:50px">No</th>
+            <th>Tanggal Bayar</th>
+            <th>No. Kwitansi</th>
+            <th class="text-end">Total Bayar</th>
+            <th class="text-end">Nominal Layanan</th>
+            <th class="text-end">Hutang Tutor</th>
+            <th class="text-end">Margin</th>
+            <th>Metode</th>
+            <th class="text-center">Status</th>
+            <th class="text-center pe-3" style="width:90px">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for payment in payments %}
+          <tr>
+            <td class="ps-3 text-muted">
+              {{ loop.index + (paginated.page - 1) * paginated.per_page }}
+            </td>
+            <td>
+              <span class="fw-semibold">
+                {{ payment.payment_date.strftime('%d %b %Y') }}
+              </span>
+              <div class="text-muted" style="font-size:.78rem">
+                {{ payment.payment_date.strftime('%H:%M') }}
+              </div>
+            </td>
+            <td>
+              <a href="{{ url_for('payments.detail_payment', payment_id=payment.id) }}"
+                 class="font-monospace text-decoration-none fw-semibold text-primary">
+                {{ payment.receipt_number }}
+              </a>
+            </td>
+            <td class="text-end fw-semibold text-success">
+              Rp {{ "{:,.0f}".format(payment.total_amount | float) }}
+            </td>
+            <td class="text-end">
+              Rp {{ "{:,.0f}".format(payment.get_total_nominal()) }}
+            </td>
+            <td class="text-end text-danger">
+              Rp {{ "{:,.0f}".format(payment.get_total_tutor_payable()) }}
+            </td>
+            <td class="text-end text-primary">
+              Rp {{ "{:,.0f}".format(payment.get_total_margin()) }}
+            </td>
+            <td>
+              {% set method = (payment.payment_method or '') | lower %}
+              {% if method in ['transfer', 'bank_transfer'] %}
+                <span class="badge bg-info text-dark">
+                  <i class="bi bi-bank me-1"></i>Transfer
+                </span>
+              {% elif method in ['cash', 'tunai'] %}
+                <span class="badge bg-secondary">
+                  <i class="bi bi-cash me-1"></i>Tunai
+                </span>
+              {% elif method in ['e_wallet', 'ewallet', 'qris'] %}
+                <span class="badge bg-warning text-dark">
+                  <i class="bi bi-phone me-1"></i>E-Wallet
+                </span>
+              {% else %}
+                <span class="badge bg-light text-dark border">
+                  {{ payment.payment_method or '—' }}
+                </span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if payment.is_verified %}
+              <span class="badge bg-success">
+                <i class="bi bi-check-circle me-1"></i>Verified
+              </span>
+              {% else %}
+              <span class="badge bg-warning text-dark">
+                <i class="bi bi-clock me-1"></i>Unverified
+              </span>
+              {% endif %}
+            </td>
+            <td class="text-center pe-3">
+              <a href="{{ url_for('payments.detail_payment', payment_id=payment.id) }}"
+                 class="btn btn-sm btn-outline-primary me-1" title="Detail">
+                <i class="bi bi-eye"></i>
+              </a>
+              <a href="{{ url_for('payments.edit_payment', payment_id=payment.id) }}"
+                 class="btn btn-sm btn-outline-secondary" title="Edit">
+                <i class="bi bi-pencil"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-light fw-bold">
+          <tr>
+            <td colspan="3" class="ps-3 text-end">Total Halaman Ini:</td>
+            <td class="text-end text-success">
+              Rp {{ "{:,.0f}".format(grand_total.value) }}
+            </td>
+            <td colspan="6"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    {# Pagination #}
+    {% if paginated.pages > 1 %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+      <small class="text-muted">
+        Menampilkan {{ payments | length }} dari {{ paginated.total }} transaksi
+        (Halaman {{ paginated.page }} / {{ paginated.pages }})
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {% if not paginated.has_prev %}disabled{% endif %}">
+            <a class="page-link"
+               href="{{ url_for('payments.student_payment_history',
+                        student_id=student.id,
+                        page=paginated.prev_num) }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% for p in paginated.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+            <li class="page-item {% if p == paginated.page %}active{% endif %}">
+              <a class="page-link"
+                 href="{{ url_for('payments.student_payment_history',
+                          student_id=student.id,
+                          page=p) }}">
+                {{ p }}
+              </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          <li class="page-item {% if not paginated.has_next %}disabled{% endif %}">
+            <a class="page-link"
+               href="{{ url_for('payments.student_payment_history',
+                        student_id=student.id,
+                        page=paginated.next_num) }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+    {% else %}
+    <div class="px-3 py-2 border-top">
+      <small class="text-muted">Total {{ paginated.total }} transaksi</small>
+    </div>
+    {% endif %}
+
+    {% else %}
+    {# Empty state #}
+    <div class="text-center py-5">
+      <i class="bi bi-inbox display-4 text-muted d-block mb-3"></i>
+      <h5 class="text-muted">Belum ada riwayat pembayaran</h5>
+      <p class="text-muted mb-3">
+        {{ student.name }} belum memiliki transaksi pembayaran.
+      </p>
+      <a href="{{ url_for('payments.add_payment') }}" class="btn btn-success">
+        <i class="bi bi-plus-lg me-1"></i>Tambah Pembayaran
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="mt-4 d-flex gap-2">
+  <a href="{{ url_for('payments.list_payments') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Kembali ke Daftar
+  </a>
+  <a href="{{ url_for('payments.add_payment') }}" class="btn btn-success">
+    <i class="bi bi-plus-lg me-1"></i>Tambah Pembayaran Baru
+  </a>
+</div>
+{% endblock %}

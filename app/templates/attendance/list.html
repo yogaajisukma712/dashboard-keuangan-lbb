@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block title %}Presensi Sesi Les — LBB Super Smart{% endblock %}
+
+{% block content %}
+{% set MONTHS = ['','Januari','Februari','Maret','April','Mei','Juni',
+                 'Juli','Agustus','September','Oktober','November','Desember'] %}
+
+{% set STATUS_MAP = {
+  'attended':  ('success', 'bi-check-circle-fill', 'Hadir'),
+  'scheduled': ('primary', 'bi-calendar-event',    'Terjadwal'),
+  'cancelled': ('danger',  'bi-x-circle-fill',     'Batal'),
+} %}
+
+{# ── Page Header ─────────────────────────────────────────────────────────── #}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="h4 mb-0">
+      <i class="bi bi-calendar2-check me-2 text-primary"></i>Presensi Sesi Les
+    </h2>
+    <p class="text-muted small mb-0">Catat &amp; pantau kehadiran tutor dan siswa</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('attendance.bulk_add_attendance') }}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-calendar-plus me-1"></i>Presensi Massal
+    </a>
+    <a href="{{ url_for('attendance.add_attendance') }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Catat Presensi
+    </a>
+  </div>
+</div>
+
+{# ── Summary Chips ────────────────────────────────────────────────────────── #}
+{% if sessions.total > 0 %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <span class="badge bg-light text-dark border px-3 py-2 fw-normal">
+    <i class="bi bi-collection me-1 text-secondary"></i>
+    {{ sessions.total }} sesi ditemukan
+  </span>
+  {% if selected_month %}
+  <span class="badge bg-light text-dark border px-3 py-2 fw-normal">
+    <i class="bi bi-calendar3 me-1 text-primary"></i>
+    {{ MONTHS[selected_month] }}
+  </span>
+  {% endif %}
+  {% if selected_status %}
+  {% set sc, si, sl = STATUS_MAP.get(selected_status, ('secondary','bi-circle','?')) %}
+  <span class="badge bg-{{ sc }}-subtle text-{{ sc }} border border-{{ sc }}-subtle px-3 py-2 fw-normal">
+    <i class="bi {{ si }} me-1"></i>{{ sl }}
+  </span>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ── Filter Bar ───────────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="GET" id="filterForm" class="row g-2 align-items-end">
+
+      {# Enrollment #}
+      <div class="col-sm-6 col-lg-3">
+        <label class="form-label small fw-semibold mb-1">
+          <i class="bi bi-journals me-1 text-primary"></i>Enrollment (Siswa-Mapel)
+        </label>
+        <select name="enrollment_id" class="form-select form-select-sm">
+          <option value="">— Semua Enrollment —</option>
+          {% for enr in enrollments %}
+          <option value="{{ enr.id }}"
+                  {% if selected_enrollment_id == enr.id %}selected{% endif %}>
+            {{ enr.student.name }} – {{ enr.subject.name }}
+            {% if enr.tutor %}({{ enr.tutor.name }}){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Tutor #}
+      <div class="col-sm-6 col-lg-2">
+        <label class="form-label small fw-semibold mb-1">
+          <i class="bi bi-person-badge me-1 text-success"></i>Tutor
+        </label>
+        <select name="tutor_id" class="form-select form-select-sm">
+          <option value="">— Semua Tutor —</option>
+          {% for t in tutors %}
+          <option value="{{ t.id }}"
+                  {% if selected_tutor_id == t.id %}selected{% endif %}>
+            {{ t.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Bulan #}
+      <div class="col-sm-4 col-lg-2">
+        <label class="form-label small fw-semibold mb-1">
+          <i class="bi bi-calendar3 me-1 text-info"></i>Bulan
+        </label>
+        <select name="month" class="form-select form-select-sm">
+          <option value="">— Semua Bulan —</option>
+          {% for m in range(1, 13) %}
+          <option value="{{ m }}"
+                  {% if selected_month == m %}selected{% endif %}>
+            {{ MONTHS[m] }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Status #}
+      <div class="col-sm-4 col-lg-2">
+        <label class="form-label small fw-semibold mb-1">
+          <i class="bi bi-toggles me-1 text-warning"></i>Status
+        </label>
+        <select name="status" class="form-select form-select-sm">
+          <option value="">— Semua Status —</option>
+          <option value="attended"  {% if selected_status == 'attended'  %}selected{% endif %}>Hadir</option>
+          <option value="scheduled" {% if selected_status == 'scheduled' %}selected{% endif %}>Terjadwal</option>
+          <option value="cancelled" {% if selected_status == 'cancelled' %}selected{% endif %}>Batal</option>
+        </select>
+      </div>
+
+      {# Tombol #}
+      <div class="col-sm-4 col-lg-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm flex-shrink-0">
+          <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+        <a href="{{ url_for('attendance.list_attendance') }}"
+           class="btn btn-outline-secondary btn-sm flex-shrink-0">
+          <i class="bi bi-x-lg me-1"></i>Reset
+        </a>
+        {% if selected_month %}
+        <a href="{{ url_for('attendance.monthly_summary', month=selected_month,
+                            year=2025) }}"
+           class="btn btn-outline-info btn-sm flex-shrink-0">
+          <i class="bi bi-bar-chart-line me-1"></i>Ringkasan
+        </a>
+        {% endif %}
+      </div>
+
+    </form>
+  </div>
+</div>
+
+{# ── Tabel Sesi ───────────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if sessions.items %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="width:48px">No</th>
+            <th>Tanggal</th>
+            <th>Siswa</th>
+            <th>Tutor</th>
+            <th>Mapel</th>
+            <th>Kurikulum</th>
+            <th>Jenjang</th>
+            <th class="text-center">Hadir</th>
+            <th class="text-end">Fee Tutor</th>
+            <th class="text-center">Status</th>
+            <th class="text-center pe-3">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set offset = (sessions.page - 1) * sessions.per_page %}
+          {% for s in sessions.items %}
+          {% set sc, si, sl = STATUS_MAP.get(s.status, ('secondary', 'bi-circle', s.status)) %}
+          <tr>
+            {# No #}
+            <td class="ps-3 text-muted">{{ loop.index + offset }}</td>
+
+            {# Tanggal #}
+            <td>
+              <div class="fw-semibold">{{ s.session_date.strftime('%d %b %Y') }}</div>
+              <div class="text-muted" style="font-size:.75rem">
+                {{ s.session_date.strftime('%A') | replace('Monday','Senin')
+                                                 | replace('Tuesday','Selasa')
+                                                 | replace('Wednesday','Rabu')
+                                                 | replace('Thursday','Kamis')
+                                                 | replace('Friday','Jumat')
+                                                 | replace('Saturday','Sabtu')
+                                                 | replace('Sunday','Minggu') }}
+              </div>
+            </td>
+
+            {# Siswa #}
+            <td>
+              {% if s.student %}
+              <div class="fw-semibold">{{ s.student.name }}</div>
+              <div class="text-muted" style="font-size:.75rem">{{ s.student.student_code }}</div>
+              {% elif s.enrollment %}
+              <div class="fw-semibold">{{ s.enrollment.student.name }}</div>
+              <div class="text-muted" style="font-size:.75rem">{{ s.enrollment.student.student_code }}</div>
+              {% else %}—{% endif %}
+            </td>
+
+            {# Tutor #}
+            <td>
+              {% if s.tutor %}
+              <div>{{ s.tutor.name }}</div>
+              {% elif s.enrollment %}
+              <div>{{ s.enrollment.tutor.name }}</div>
+              {% else %}—{% endif %}
+            </td>
+
+            {# Mapel #}
+            <td>
+              {% if s.subject %}
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-normal px-2">
+                  {{ s.subject.name }}
+                </span>
+              {% elif s.enrollment %}
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-normal px-2">
+                  {{ s.enrollment.subject.name }}
+                </span>
+              {% else %}—{% endif %}
+            </td>
+
+            {# Kurikulum #}
+            <td>
+              {% if s.enrollment %}
+                {{ s.enrollment.curriculum.name }}
+              {% else %}—{% endif %}
+            </td>
+
+            {# Jenjang #}
+            <td>
+              {% if s.enrollment %}
+                {{ s.enrollment.level.name }}
+              {% else %}—{% endif %}
+            </td>
+
+            {# Hadir (siswa + tutor) #}
+            <td class="text-center">
+              <div class="d-flex justify-content-center gap-1">
+                <span title="Siswa">
+                  {% if s.student_present %}
+                    <i class="bi bi-person-check-fill text-success"></i>
+                  {% else %}
+                    <i class="bi bi-person-x text-danger"></i>
+                  {% endif %}
+                </span>
+                <span title="Tutor">
+                  {% if s.tutor_present %}
+                    <i class="bi bi-person-badge-fill text-success"></i>
+                  {% else %}
+                    <i class="bi bi-person-badge text-danger"></i>
+                  {% endif %}
+                </span>
+              </div>
+            </td>
+
+            {# Fee Tutor #}
+            <td class="text-end fw-semibold">
+              Rp {{ "{:,.0f}".format(s.tutor_fee_amount | float) }}
+            </td>
+
+            {# Status Badge #}
+            <td class="text-center">
+              <span class="badge bg-{{ sc }}-subtle text-{{ sc }} border border-{{ sc }}-subtle">
+                <i class="bi {{ si }} me-1"></i>{{ sl }}
+              </span>
+            </td>
+
+            {# Aksi #}
+            <td class="text-center pe-3">
+              <div class="d-flex gap-1 justify-content-center">
+                <a href="{{ url_for('attendance.edit_attendance', session_id=s.id) }}"
+                   class="btn btn-outline-secondary btn-sm py-0 px-2" title="Edit">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <form method="POST"
+                      action="{{ url_for('attendance.delete_attendance', session_id=s.id) }}"
+                      onsubmit="return confirm('Hapus sesi presensi tanggal {{ s.session_date.strftime('%d %b %Y') }}?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Hapus">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+
+        {# ── Subtotal fee tutor yang terlihat ────────────────────────────── #}
+        <tfoot class="table-light border-top">
+          <tr>
+            <td colspan="8" class="ps-3 text-end small fw-semibold text-muted">
+              Total Fee Tutor (halaman ini):
+            </td>
+            <td class="text-end fw-bold text-success">
+              Rp {{ "{:,.0f}".format(sessions.items | sum(attribute='tutor_fee_amount') | float) }}
+            </td>
+            <td colspan="2" class="pe-3"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    {# ── Pagination ───────────────────────────────────────────────────────── #}
+    {% if sessions.pages > 1 %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Menampilkan sesi {{ sessions.first }}–{{ sessions.last }}
+        dari {{ sessions.total }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {% if not sessions.has_prev %}disabled{% endif %}">
+            <a class="page-link"
+               href="{{ url_for('attendance.list_attendance',
+                                page=sessions.prev_num,
+                                enrollment_id=selected_enrollment_id or '',
+                                tutor_id=selected_tutor_id or '',
+                                month=selected_month or '',
+                                status=selected_status or '') }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% for p in sessions.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+            <li class="page-item {% if p == sessions.page %}active{% endif %}">
+              <a class="page-link"
+                 href="{{ url_for('attendance.list_attendance',
+                                  page=p,
+                                  enrollment_id=selected_enrollment_id or '',
+                                  tutor_id=selected_tutor_id or '',
+                                  month=selected_month or '',
+                                  status=selected_status or '') }}">
+                {{ p }}
+              </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          <li class="page-item {% if not sessions.has_next %}disabled{% endif %}">
+            <a class="page-link"
+               href="{{ url_for('attendance.list_attendance',
+                                page=sessions.next_num,
+                                enrollment_id=selected_enrollment_id or '',
+                                tutor_id=selected_tutor_id or '',
+                                month=selected_month or '',
+                                status=selected_status or '') }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    {# ── Empty State ─────────────────────────────────────────────────────── #}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-calendar2-x fs-1 d-block mb-2 opacity-25"></i>
+      <p class="mb-1">
+        {% if selected_enrollment_id or selected_tutor_id or selected_month or selected_status %}
+          Tidak ada sesi yang cocok dengan filter yang dipilih.
+        {% else %}
+          Belum ada sesi presensi yang tercatat.
+        {% endif %}
+      </p>
+      <div class="d-flex gap-2 justify-content-center mt-3">
+        {% if selected_enrollment_id or selected_tutor_id or selected_month or selected_status %}
+        <a href="{{ url_for('attendance.list_attendance') }}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-x-lg me-1"></i>Reset Filter
+        </a>
+        {% endif %}
+        <a href="{{ url_for('attendance.add_attendance') }}" class="btn btn-primary btn-sm">
+          <i class="bi bi-plus-lg me-1"></i>Catat Presensi Pertama
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+/* Auto-submit filter on select change (UX improvement) */
+document.querySelectorAll('#filterForm select').forEach(function(sel) {
+  sel.addEventListener('change', function() {
+    document.getElementById('filterForm').submit();
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if action == 'edit' %}Edit Siswa — {{ student.name }}{% else %}Tambah Siswa{% endif %} — LBB Super Smart
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('master.students_list') }}" class="btn btn-outline-secondary btn-sm me-3">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h4 class="mb-0 fw-bold">
+      {% if action == 'edit' %}
+        <i class="bi bi-pencil-square text-primary me-2"></i>Edit Siswa
+      {% else %}
+        <i class="bi bi-person-plus-fill text-primary me-2"></i>Tambah Siswa Baru
+      {% endif %}
+    </h4>
+    <p class="text-muted small mb-0">
+      {% if action == 'edit' %}
+        Perbarui data siswa <strong>{{ student.name }}</strong>
+      {% else %}
+        Isi data lengkap untuk mendaftarkan siswa baru
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<form
+  method="POST"
+  action="{% if action == 'edit' %}{{ url_for('master.edit_student', id=student.id) }}{% else %}{{ url_for('master.add_student') }}{% endif %}"
+  novalidate
+>
+  {{ form.hidden_tag() }}
+
+  <div class="row g-4">
+
+    {# ── Kolom Kiri: Data Utama Siswa ── #}
+    <div class="col-lg-8">
+
+      {# Identitas Siswa #}
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+          <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-person-vcard text-primary me-2"></i>Identitas Siswa
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+
+            {# Kode Siswa #}
+            <div class="col-md-4">
+              {{ form.student_code.label(class_="form-label fw-semibold") }}
+              <span class="text-danger ms-1" title="Wajib diisi">*</span>
+              {{ form.student_code(
+                  class_="form-control font-monospace" + (" is-invalid" if form.student_code.errors else ""),
+                  placeholder="Contoh: SSM-001",
+                  autocomplete="off"
+              ) }}
+              {% for error in form.student_code.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+              <div class="form-text">Kode unik untuk identifikasi siswa</div>
+            </div>
+
+            {# Nama Siswa #}
+            <div class="col-md-8">
+              {{ form.name.label(class_="form-label fw-semibold") }}
+              <span class="text-danger ms-1" title="Wajib diisi">*</span>
+              {{ form.name(
+                  class_="form-control" + (" is-invalid" if form.name.errors else ""),
+                  placeholder="Nama lengkap siswa"
+              ) }}
+              {% for error in form.name.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            {# Kurikulum #}
+            <div class="col-md-4">
+              {{ form.curriculum_id.label(class_="form-label fw-semibold") }}
+              {{ form.curriculum_id(
+                  class_="form-select" + (" is-invalid" if form.curriculum_id.errors else "")
+              ) }}
+              {% for error in form.curriculum_id.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            {# Jenjang #}
+            <div class="col-md-4">
+              {{ form.level_id.label(class_="form-label fw-semibold") }}
+              {{ form.level_id(
+                  class_="form-select" + (" is-invalid" if form.level_id.errors else "")
+              ) }}
+              {% for error in form.level_id.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            {# Kelas #}
+            <div class="col-md-4">
+              {{ form.grade.label(class_="form-label fw-semibold") }}
+              {{ form.grade(
+                  class_="form-control" + (" is-invalid" if form.grade.errors else ""),
+                  placeholder="Contoh: 7A, 10 IPA, dll"
+              ) }}
+              {% for error in form.grade.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {# Kontak Siswa #}
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+          <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-telephone text-primary me-2"></i>Kontak Siswa
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+
+            {# Telepon #}
+            <div class="col-md-6">
+              {{ form.phone.label(class_="form-label fw-semibold") }}
+              <div class="input-group">
+                <span class="input-group-text">
+                  <i class="bi bi-telephone"></i>
+                </span>
+                {{ form.phone(
+                    class_="form-control" + (" is-invalid" if form.phone.errors else ""),
+                    placeholder="08xxxxxxxxxx",
+                    type="tel"
+                ) }}
+                {% for error in form.phone.errors %}
+                  <div class="invalid-feedback">{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+
+            {# Email #}
+            <div class="col-md-6">
+              {{ form.email.label(class_="form-label fw-semibold") }}
+              <div class="input-group">
+                <span class="input-group-text">
+                  <i class="bi bi-envelope"></i>
+                </span>
+                {{ form.email(
+                    class_="form-control" + (" is-invalid" if form.email.errors else ""),
+                    placeholder="siswa@email.com",
+                    type="email"
+                ) }}
+                {% for error in form.email.errors %}
+                  <div class="invalid-feedback">{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+
+            {# Alamat #}
+            <div class="col-12">
+              {{ form.address.label(class_="form-label fw-semibold") }}
+              {{ form.address(
+                  class_="form-control" + (" is-invalid" if form.address.errors else ""),
+                  rows=3,
+                  placeholder="Alamat lengkap siswa"
+              ) }}
+              {% for error in form.address.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {# Data Orang Tua #}
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+          <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-people text-primary me-2"></i>Data Orang Tua / Wali
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+
+            {# Nama Orang Tua #}
+            <div class="col-md-6">
+              {{ form.parent_name.label(class_="form-label fw-semibold") }}
+              {{ form.parent_name(
+                  class_="form-control" + (" is-invalid" if form.parent_name.errors else ""),
+                  placeholder="Nama ayah / ibu / wali"
+              ) }}
+              {% for error in form.parent_name.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            {# Telepon Orang Tua #}
+            <div class="col-md-6">
+              {{ form.parent_phone.label(class_="form-label fw-semibold") }}
+              <div class="input-group">
+                <span class="input-group-text">
+                  <i class="bi bi-telephone"></i>
+                </span>
+                {{ form.parent_phone(
+                    class_="form-control" + (" is-invalid" if form.parent_phone.errors else ""),
+                    placeholder="08xxxxxxxxxx",
+                    type="tel"
+                ) }}
+                {% for error in form.parent_phone.errors %}
+                  <div class="invalid-feedback">{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    {# ── Kolom Kanan: Ringkasan & Aksi ── #}
+    <div class="col-lg-4">
+
+      {# Info Card #}
+      {% if action == 'edit' and student %}
+      <div class="card border-0 shadow-sm mb-4 bg-primary-subtle">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-3">
+            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3"
+                 style="width:48px;height:48px;font-size:1.4rem">
+              <i class="bi bi-person-fill"></i>
+            </div>
+            <div>
+              <div class="fw-bold">{{ student.name }}</div>
+              <div class="text-muted small font-monospace">{{ student.student_code }}</div>
+            </div>
+          </div>
+          <hr class="my-2">
+          <div class="small">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-muted">Terdaftar:</span>
+              <span>{{ student.created_at.strftime('%d %b %Y') if student.created_at else '—' }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-muted">Status:</span>
+              <span>
+                {% if student.status == 'active' or student.is_active %}
+                  <span class="badge bg-success">Aktif</span>
+                {% else %}
+                  <span class="badge bg-secondary">Nonaktif</span>
+                {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      {# Panduan #}
+      <div class="card border-0 shadow-sm mb-4 border-start border-4 border-info">
+        <div class="card-body">
+          <h6 class="fw-semibold mb-2">
+            <i class="bi bi-info-circle text-info me-2"></i>Panduan Pengisian
+          </h6>
+          <ul class="small text-muted mb-0 ps-3">
+            <li>Kode Siswa harus unik (contoh: <code>SSM-001</code>)</li>
+            <li>Nama dan kode siswa wajib diisi</li>
+            <li>Pilih kurikulum dan jenjang yang sesuai</li>
+            <li>Nomor telepon orang tua untuk komunikasi</li>
+            <li>Kolom lain bersifat opsional</li>
+          </ul>
+        </div>
+      </div>
+
+      {# Tombol Aksi #}
+      <div class="card border-0 shadow-sm">
+        <div class="card-body d-grid gap-2">
+          <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            {% if action == 'edit' %}Simpan Perubahan{% else %}Tambah Siswa{% endif %}
+          </button>
+          <a href="{{ url_for('master.students_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle me-2"></i>Batal
+          </a>
+          {% if action == 'edit' and student %}
+          <hr class="my-1">
+          <a
+            href="{{ url_for('master.student_detail', id=student.id) }}"
+            class="btn btn-outline-info btn-sm"
+          >
+            <i class="bi bi-eye me-1"></i>Lihat Detail Siswa
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</form>
+{% endblock %}

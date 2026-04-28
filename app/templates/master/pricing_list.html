@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}Daftar Tarif Sesi — LBB Super Smart{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">
+      <i class="bi bi-tags-fill text-primary me-2"></i>Daftar Tarif Sesi
+    </h4>
+    <p class="text-muted small mb-0">Kelola aturan tarif per sesi belajar berdasarkan kurikulum, jenjang, dan mata pelajaran</p>
+  </div>
+  <a href="{{ url_for('master.add_pricing') }}" class="btn btn-primary">
+    <i class="bi bi-plus-circle-fill me-1"></i>Tambah Tarif
+  </a>
+</div>
+
+{# Ringkasan statistik #}
+{% if pricing_rules.total > 0 %}
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card border-0 shadow-sm text-center py-3">
+      <div class="fw-bold fs-4 text-primary">{{ pricing_rules.total }}</div>
+      <div class="text-muted small">Total Aturan Tarif</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card border-0 shadow-sm text-center py-3">
+      {% set avg_student = namespace(total=0, count=0) %}
+      {% for p in pricing_rules.items %}
+        {% set avg_student.total = avg_student.total + (p.student_rate_per_meeting | float) %}
+        {% set avg_student.count = avg_student.count + 1 %}
+      {% endfor %}
+      <div class="fw-bold fs-5 text-success">
+        {% if avg_student.count > 0 %}
+          Rp {{ "{:,.0f}".format(avg_student.total / avg_student.count) }}
+        {% else %}
+          —
+        {% endif %}
+      </div>
+      <div class="text-muted small">Rata-rata Tarif Siswa</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card border-0 shadow-sm text-center py-3">
+      {% set avg_tutor = namespace(total=0, count=0) %}
+      {% for p in pricing_rules.items %}
+        {% set avg_tutor.total = avg_tutor.total + (p.tutor_rate_per_meeting | float) %}
+        {% set avg_tutor.count = avg_tutor.count + 1 %}
+      {% endfor %}
+      <div class="fw-bold fs-5 text-warning">
+        {% if avg_tutor.count > 0 %}
+          Rp {{ "{:,.0f}".format(avg_tutor.total / avg_tutor.count) }}
+        {% else %}
+          —
+        {% endif %}
+      </div>
+      <div class="text-muted small">Rata-rata Fee Tutor</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card border-0 shadow-sm text-center py-3">
+      <div class="fw-bold fs-5 text-info">
+        {{ pricing_rules.page }} / {{ pricing_rules.pages }}
+      </div>
+      <div class="text-muted small">Halaman</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# Tabel Tarif Sesi #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if pricing_rules.items %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4" style="width:55px">No</th>
+            <th>Kurikulum</th>
+            <th>Jenjang</th>
+            <th>Mata Pelajaran</th>
+            <th>Kelas</th>
+            <th class="text-end">Tarif Siswa</th>
+            <th class="text-end">Fee Tutor</th>
+            <th class="text-end">Margin</th>
+            <th class="text-center">Kuota Default</th>
+            <th class="text-center pe-4" style="width:120px">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pricing in pricing_rules.items %}
+          {% set row_num = (pricing_rules.page - 1) * pricing_rules.per_page + loop.index %}
+          {% set student_rate = pricing.student_rate_per_meeting | float %}
+          {% set tutor_rate = pricing.tutor_rate_per_meeting | float %}
+          {% set margin = student_rate - tutor_rate %}
+          {% set margin_pct = ((margin / student_rate) * 100) | round(1) if student_rate > 0 else 0 %}
+          <tr>
+            <td class="ps-4 text-muted small">{{ row_num }}</td>
+
+            {# Kurikulum #}
+            <td>
+              {% if pricing.curriculum %}
+                <span class="badge bg-info-subtle text-info-emphasis px-2 py-1">
+                  <i class="bi bi-journal-bookmark me-1"></i>{{ pricing.curriculum.name }}
+                </span>
+              {% else %}
+                <span class="badge bg-light text-muted border">Semua</span>
+              {% endif %}
+            </td>
+
+            {# Jenjang #}
+            <td>
+              {% if pricing.level %}
+                <span class="badge bg-secondary-subtle text-secondary-emphasis px-2 py-1">
+                  {{ pricing.level.name }}
+                </span>
+              {% else %}
+                <span class="badge bg-light text-muted border">Semua</span>
+              {% endif %}
+            </td>
+
+            {# Mata Pelajaran #}
+            <td>
+              {% if pricing.subject %}
+                <div class="d-flex align-items-center gap-1">
+                  <i class="bi bi-book text-primary small"></i>
+                  <span class="fw-semibold">{{ pricing.subject.name }}</span>
+                </div>
+              {% else %}
+                <span class="badge bg-light text-muted border">Semua Mapel</span>
+              {% endif %}
+            </td>
+
+            {# Kelas #}
+            <td>
+              {% if pricing.grade %}
+                <span class="badge bg-light text-dark border font-monospace">{{ pricing.grade }}</span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+
+            {# Tarif Siswa #}
+            <td class="text-end">
+              <div class="fw-semibold text-success">
+                Rp {{ "{:,.0f}".format(student_rate) }}
+              </div>
+              <div class="text-muted" style="font-size:0.72rem">/ pertemuan</div>
+            </td>
+
+            {# Fee Tutor #}
+            <td class="text-end">
+              <div class="fw-semibold text-warning-emphasis">
+                Rp {{ "{:,.0f}".format(tutor_rate) }}
+              </div>
+              <div class="text-muted" style="font-size:0.72rem">/ pertemuan</div>
+            </td>
+
+            {# Margin #}
+            <td class="text-end">
+              <div class="fw-semibold {% if margin > 0 %}text-success{% elif margin < 0 %}text-danger{% else %}text-muted{% endif %}">
+                Rp {{ "{:,.0f}".format(margin) }}
+              </div>
+              <div
+                class="small {% if margin_pct >= 30 %}text-success{% elif margin_pct >= 15 %}text-warning{% else %}text-danger{% endif %}"
+                style="font-size:0.72rem"
+              >
+                {{ margin_pct }}%
+              </div>
+            </td>
+
+            {# Kuota Default #}
+            <td class="text-center">
+              {% if pricing.default_meeting_quota %}
+                <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-2 py-1">
+                  <i class="bi bi-calendar3 me-1"></i>{{ pricing.default_meeting_quota }}x
+                </span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+
+            {# Aksi #}
+            <td class="text-center pe-4">
+              <div class="btn-group btn-group-sm" role="group">
+                <a
+                  href="{{ url_for('master.edit_pricing', id=pricing.id) }}"
+                  class="btn btn-outline-primary"
+                  title="Edit Tarif"
+                >
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  title="Hapus Tarif"
+                  data-bs-toggle="modal"
+                  data-bs-target="#deleteModal{{ pricing.id }}"
+                >
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+
+              {# Modal Konfirmasi Hapus #}
+              <div
+                class="modal fade"
+                id="deleteModal{{ pricing.id }}"
+                tabindex="-1"
+                aria-labelledby="deleteModalLabel{{ pricing.id }}"
+                aria-hidden="true"
+              >
+                <div class="modal-dialog modal-sm">
+                  <div class="modal-content">
+                    <div class="modal-header border-0 pb-0">
+                      <h6 class="modal-title" id="deleteModalLabel{{ pricing.id }}">
+                        <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                        Konfirmasi Hapus
+                      </h6>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body pt-2">
+                      <p class="mb-1 small">Hapus aturan tarif berikut?</p>
+                      <div class="p-2 bg-light rounded small">
+                        <div>
+                          <strong>Kurikulum:</strong>
+                          {{ pricing.curriculum.name if pricing.curriculum else 'Semua' }}
+                        </div>
+                        <div>
+                          <strong>Jenjang:</strong>
+                          {{ pricing.level.name if pricing.level else 'Semua' }}
+                        </div>
+                        <div>
+                          <strong>Mapel:</strong>
+                          {{ pricing.subject.name if pricing.subject else 'Semua' }}
+                        </div>
+                        <div>
+                          <strong>Tarif Siswa:</strong>
+                          Rp {{ "{:,.0f}".format(student_rate) }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-secondary"
+                        data-bs-dismiss="modal"
+                      >
+                        Batal
+                      </button>
+                      <form
+                        method="POST"
+                        action="{{ url_for('master.delete_pricing', id=pricing.id) }}"
+                        class="d-inline"
+                      >
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <button type="submit" class="btn btn-sm btn-danger">
+                          <i class="bi bi-trash me-1"></i>Hapus
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# Footer tabel: total + pagination #}
+    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-top">
+      <div class="text-muted small">
+        Menampilkan <strong>{{ pricing_rules.items | length }}</strong> dari
+        <strong>{{ pricing_rules.total }}</strong> aturan tarif
+        (Halaman {{ pricing_rules.page }} / {{ pricing_rules.pages }})
+      </div>
+      {% if pricing_rules.pages > 1 %}
+      <nav aria-label="Navigasi halaman tarif">
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {% if not pricing_rules.has_prev %}disabled{% endif %}">
+            <a
+              class="page-link"
+              href="{{ url_for('master.pricing_list', page=pricing_rules.prev_num) if pricing_rules.has_prev else '#' }}"
+              aria-label="Sebelumnya"
+            >
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+
+          {% for page_num in pricing_rules.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page_num %}
+              <li class="page-item {% if page_num == pricing_rules.page %}active{% endif %}">
+                <a
+                  class="page-link"
+                  href="{{ url_for('master.pricing_list', page=page_num) }}"
+                >{{ page_num }}</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled">
+                <span class="page-link">…</span>
+              </li>
+            {% endif %}
+          {% endfor %}
+
+          <li class="page-item {% if not pricing_rules.has_next %}disabled{% endif %}">
+            <a
+              class="page-link"
+              href="{{ url_for('master.pricing_list', page=pricing_rules.next_num) if pricing_rules.has_next else '#' }}"
+              aria-label="Berikutnya"
+            >
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+      {% endif %}
+    </div>
+
+    {% else %}
+    {# Empty state #}
+    <div class="text-center py-5">
+      <i class="bi bi-tags display-1 text-muted opacity-25"></i>
+      <p class="text-muted mt-3 mb-1 fw-semibold">Belum ada aturan tarif sesi</p>
+      <p class="text-muted small mb-3">
+        Tambahkan aturan tarif untuk mengatur biaya siswa dan fee tutor per sesi belajar.
+      </p>
+      <a href="{{ url_for('master.add_pricing') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle-fill me-1"></i>Tambah Tarif Pertama
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# Keterangan warna margin #}
+{% if pricing_rules.items %}
+<div class="mt-3 d-flex align-items-center gap-3 flex-wrap">
+  <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Keterangan margin:</span>
+  <span class="small"><span class="badge bg-success-subtle text-success-emphasis">≥ 30%</span> Sehat</span>
+  <span class="small"><span class="badge bg-warning-subtle text-warning-emphasis">15–29%</span> Perlu Perhatian</span>
+  <span class="small"><span class="badge bg-danger-subtle text-danger-emphasis">&lt; 15%</span> Rendah</span>
+</div>
+{% endif %}
+
+{% endblock %}

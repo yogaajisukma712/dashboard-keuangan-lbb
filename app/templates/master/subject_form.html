@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if action == 'edit' %}Edit Mata Pelajaran — {{ subject.name }}{% else %}Tambah Mata Pelajaran{% endif %} — LBB Super Smart
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('master.subjects_list') }}" class="btn btn-outline-secondary btn-sm me-3">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h4 class="mb-0 fw-bold">
+      {% if action == 'edit' %}
+        <i class="bi bi-pencil-square text-primary me-2"></i>Edit Mata Pelajaran
+      {% else %}
+        <i class="bi bi-plus-circle-fill text-primary me-2"></i>Tambah Mata Pelajaran
+      {% endif %}
+    </h4>
+    <p class="text-muted small mb-0">
+      {% if action == 'edit' %}
+        Perbarui data mata pelajaran <strong>{{ subject.name }}</strong>
+      {% else %}
+        Tambahkan mata pelajaran baru ke sistem
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+
+    <form
+      method="POST"
+      action="{% if action == 'edit' %}{{ url_for('master.edit_subject', id=subject.id) }}{% else %}{{ url_for('master.add_subject') }}{% endif %}"
+      novalidate
+    >
+      {{ form.hidden_tag() }}
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+          <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-book text-primary me-2"></i>Data Mata Pelajaran
+          </h6>
+        </div>
+        <div class="card-body">
+
+          {# Nama Mata Pelajaran #}
+          <div class="mb-4">
+            {{ form.name.label(class_="form-label fw-semibold") }}
+            <span class="text-danger ms-1" title="Wajib diisi">*</span>
+            {{ form.name(
+                class_="form-control form-control-lg" + (" is-invalid" if form.name.errors else ""),
+                placeholder="Contoh: Matematika, Fisika, Bahasa Indonesia...",
+                autofocus=true
+            ) }}
+            {% for error in form.name.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+            <div class="form-text">
+              Gunakan nama yang jelas dan konsisten, misalnya
+              <code>Matematika</code>, <code>Bahasa Inggris</code>, atau <code>IPA Terpadu</code>.
+            </div>
+          </div>
+
+          {# Deskripsi #}
+          <div class="mb-3">
+            {{ form.description.label(class_="form-label fw-semibold") }}
+            {{ form.description(
+                class_="form-control" + (" is-invalid" if form.description.errors else ""),
+                rows=4,
+                placeholder="Opsional — deskripsi singkat tentang mata pelajaran ini, tingkat kesulitan, target kurikulum, dll."
+            ) }}
+            {% for error in form.description.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+            <div class="form-text">Opsional. Maksimal 500 karakter.</div>
+          </div>
+
+        </div>
+      </div>
+
+      {# Info Card (edit mode) #}
+      {% if action == 'edit' and subject %}
+      <div class="card border-0 shadow-sm mb-4 bg-light border-start border-4 border-primary">
+        <div class="card-body py-3">
+          <h6 class="fw-semibold mb-2 small text-muted text-uppercase">
+            <i class="bi bi-info-circle me-1"></i>Informasi Saat Ini
+          </h6>
+          <dl class="row mb-0 small">
+            <dt class="col-4 fw-normal text-muted">Nama</dt>
+            <dd class="col-8 fw-semibold">{{ subject.name }}</dd>
+
+            <dt class="col-4 fw-normal text-muted">Deskripsi</dt>
+            <dd class="col-8">
+              {% if subject.description %}
+                {{ subject.description }}
+              {% else %}
+                <span class="fst-italic text-muted">Tidak ada deskripsi</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-4 fw-normal text-muted">Status</dt>
+            <dd class="col-8">
+              {% if subject.is_active %}
+                <span class="badge bg-success-subtle text-success-emphasis">Aktif</span>
+              {% else %}
+                <span class="badge bg-danger-subtle text-danger-emphasis">Nonaktif</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-4 fw-normal text-muted">Dibuat</dt>
+            <dd class="col-8">
+              {{ subject.created_at.strftime('%d %b %Y, %H:%M') if subject.created_at else '—' }}
+            </dd>
+
+            <dt class="col-4 fw-normal text-muted">Diperbarui</dt>
+            <dd class="col-8 mb-0">
+              {{ subject.updated_at.strftime('%d %b %Y, %H:%M') if subject.updated_at else '—' }}
+            </dd>
+          </dl>
+        </div>
+      </div>
+      {% endif %}
+
+      {# Panduan #}
+      <div class="card border-0 shadow-sm mb-4 border-start border-4 border-info">
+        <div class="card-body py-3">
+          <h6 class="fw-semibold mb-2 small">
+            <i class="bi bi-lightbulb text-info me-2"></i>Tips Pengisian
+          </h6>
+          <ul class="small text-muted mb-0 ps-3">
+            <li>Nama mata pelajaran harus <strong>unik</strong> dan tidak boleh sama dengan yang sudah ada</li>
+            <li>Gunakan nama baku, misalnya <code>Matematika</code> bukan <code>Mat</code> atau <code>mtk</code></li>
+            <li>Deskripsi membantu tutor dan admin memahami ruang lingkup pelajaran</li>
+          </ul>
+        </div>
+      </div>
+
+      {# Tombol Aksi #}
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary px-4">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          {% if action == 'edit' %}Simpan Perubahan{% else %}Tambah Mata Pelajaran{% endif %}
+        </button>
+        <a href="{{ url_for('master.subjects_list') }}" class="btn btn-outline-secondary px-4">
+          <i class="bi bi-x-circle me-2"></i>Batal
+        </a>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}

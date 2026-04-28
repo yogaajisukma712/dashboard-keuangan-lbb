@@ -1,0 +1,532 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if action == 'edit' %}Edit Tarif Sesi{% else %}Tambah Tarif Sesi{% endif %} — LBB Super Smart
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('master.pricing_list') }}" class="btn btn-outline-secondary btn-sm me-3">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h4 class="mb-0 fw-bold">
+      {% if action == 'edit' %}
+        <i class="bi bi-pencil-square text-primary me-2"></i>Edit Tarif Sesi
+      {% else %}
+        <i class="bi bi-plus-circle-fill text-primary me-2"></i>Tambah Tarif Sesi Baru
+      {% endif %}
+    </h4>
+    <p class="text-muted small mb-0">
+      {% if action == 'edit' %}
+        Perbarui aturan tarif sesi belajar
+      {% else %}
+        Tentukan tarif siswa dan fee tutor per sesi belajar
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<form
+  method="POST"
+  action="{% if action == 'edit' %}{{ url_for('master.edit_pricing', id=pricing.id) }}{% else %}{{ url_for('master.add_pricing') }}{% endif %}"
+  novalidate
+  id="pricingForm"
+>
+  {{ form.hidden_tag() }}
+
+  <div class="row g-4">
+
+    {# ── Kolom Kiri: Form Fields ── #}
+    <div class="col-lg-8">
+
+      {# Klasifikasi / Ruang Lingkup Tarif #}
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+          <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-funnel text-primary me-2"></i>Klasifikasi Tarif
+          </h6>
+          <p class="text-muted small mb-0 mt-1">
+            Tentukan untuk kurikulum, jenjang, dan mata pelajaran apa tarif ini berlaku.
+            Biarkan kosong / pilih kosong jika berlaku untuk semua.
+          </p>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+
+            {# Kurikulum #}
+            <div class="col-md-6">
+              {{ form.curriculum_id.label(class_="form-label fw-semibold") }}
+              {{ form.curriculum_id(
+                  class_="form-select" + (" is-invalid" if form.curriculum_id.errors else ""),
+                  id="curriculum_id"
+              ) }}
+              {% for error in form.curriculum_id.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+              <div class="form-text">Pilih kurikulum atau biarkan kosong untuk semua kurikulum</div>
+            </div>
+
+            {# Jenjang #}
+            <div class="col-md-6">
+              {{ form.level_id.label(class_="form-label fw-semibold") }}
+              {{ form.level_id(
+                  class_="form-select" + (" is-invalid" if form.level_id.errors else ""),
+                  id="level_id"
+              ) }}
+              {% for error in form.level_id.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+              <div class="form-text">Pilih jenjang (TK, SD, SMP, SMA) atau kosong untuk semua</div>
+            </div>
+
+            {# Mata Pelajaran #}
+            <div class="col-md-6">
+              {{ form.subject_id.label(class_="form-label fw-semibold") }}
+              {{ form.subject_id(
+                  class_="form-select" + (" is-invalid" if form.subject_id.errors else ""),
+                  id="subject_id"
+              ) }}
+              {% for error in form.subject_id.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+              <div class="form-text">Pilih mata pelajaran atau kosong untuk semua mapel</div>
+            </div>
+
+            {# Kelas #}
+            <div class="col-md-6">
+              {{ form.grade.label(class_="form-label fw-semibold") }}
+              {{ form.grade(
+                  class_="form-control" + (" is-invalid" if form.grade.errors else ""),
+                  placeholder="Contoh: 7, 10 IPA, 12 IPS (opsional)",
+                  id="grade"
+              ) }}
+              {% for error in form.grade.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+              <div class="form-text">Opsional — isi jika tarif khusus untuk kelas tertentu</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {# Pengaturan Tarif #}
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+          <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-currency-dollar text-primary me-2"></i>Pengaturan Tarif
+          </h6>
+          <p class="text-muted small mb-0 mt-1">
+            Tentukan tarif yang dibebankan ke siswa dan fee yang dibayarkan ke tutor per sesi.
+          </p>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 align-items-start">
+
+            {# Tarif Siswa #}
+            <div class="col-md-4">
+              {{ form.student_rate_per_meeting.label(class_="form-label fw-semibold") }}
+              <span class="text-danger ms-1" title="Wajib diisi">*</span>
+              <div class="input-group">
+                <span class="input-group-text bg-success-subtle text-success-emphasis border-success-subtle fw-bold">
+                  Rp
+                </span>
+                {{ form.student_rate_per_meeting(
+                    class_="form-control text-end" + (" is-invalid" if form.student_rate_per_meeting.errors else ""),
+                    placeholder="0",
+                    id="student_rate",
+                    oninput="updateCalc()",
+                    min="0",
+                    step="1000"
+                ) }}
+                {% for error in form.student_rate_per_meeting.errors %}
+                  <div class="invalid-feedback">{{ error }}</div>
+                {% endfor %}
+              </div>
+              <div class="form-text">Biaya per sesi yang dibayar siswa</div>
+            </div>
+
+            {# Panah pemisah #}
+            <div class="col-md-1 d-none d-md-flex align-items-end justify-content-center pb-5">
+              <i class="bi bi-arrow-right fs-4 text-muted"></i>
+            </div>
+
+            {# Fee Tutor #}
+            <div class="col-md-4">
+              {{ form.tutor_rate_per_meeting.label(class_="form-label fw-semibold") }}
+              <span class="text-danger ms-1" title="Wajib diisi">*</span>
+              <div class="input-group">
+                <span class="input-group-text bg-warning-subtle text-warning-emphasis border-warning-subtle fw-bold">
+                  Rp
+                </span>
+                {{ form.tutor_rate_per_meeting(
+                    class_="form-control text-end" + (" is-invalid" if form.tutor_rate_per_meeting.errors else ""),
+                    placeholder="0",
+                    id="tutor_rate",
+                    oninput="updateCalc()",
+                    min="0",
+                    step="1000"
+                ) }}
+                {% for error in form.tutor_rate_per_meeting.errors %}
+                  <div class="invalid-feedback">{{ error }}</div>
+                {% endfor %}
+              </div>
+              <div class="form-text">Fee yang dibayarkan ke tutor per sesi</div>
+            </div>
+
+            {# Kuota Default #}
+            <div class="col-md-3">
+              {{ form.default_meeting_quota.label(class_="form-label fw-semibold") }}
+              <div class="input-group">
+                {{ form.default_meeting_quota(
+                    class_="form-control text-center" + (" is-invalid" if form.default_meeting_quota.errors else ""),
+                    placeholder="8",
+                    id="default_quota",
+                    min="1",
+                    max="100",
+                    oninput="updateCalc()"
+                ) }}
+                <span class="input-group-text">sesi</span>
+                {% for error in form.default_meeting_quota.errors %}
+                  <div class="invalid-feedback">{{ error }}</div>
+                {% endfor %}
+              </div>
+              <div class="form-text">Jumlah sesi default per enrollment</div>
+            </div>
+
+          </div>
+
+          {# Preview Kalkulasi Margin Real-time #}
+          <div class="mt-4 p-3 rounded-3 border bg-light" id="calcPreview">
+            <div class="row g-3 text-center align-items-center">
+
+              <div class="col-6 col-md-3">
+                <div class="muted-label mb-1">Tarif Siswa</div>
+                <div class="fs-5 fw-bold text-success" id="previewStudentRate">Rp 0</div>
+                <div class="text-muted" style="font-size:0.72rem">/ pertemuan</div>
+              </div>
+
+              <div class="col-6 col-md-3">
+                <div class="muted-label mb-1">Fee Tutor</div>
+                <div class="fs-5 fw-bold text-warning-emphasis" id="previewTutorRate">Rp 0</div>
+                <div class="text-muted" style="font-size:0.72rem">/ pertemuan</div>
+              </div>
+
+              <div class="col-6 col-md-3">
+                <div class="muted-label mb-1">
+                  <i class="bi bi-graph-up me-1"></i>Margin
+                </div>
+                <div class="fs-5 fw-bold" id="previewMargin">Rp 0</div>
+                <div id="previewMarginPct" style="font-size:0.8rem" class="text-muted">0%</div>
+              </div>
+
+              <div class="col-6 col-md-3">
+                <div class="muted-label mb-1">
+                  <i class="bi bi-calculator me-1"></i>Total per Enrollment
+                </div>
+                <div class="fs-5 fw-bold text-primary" id="previewTotal">Rp 0</div>
+                <div id="previewTotalSessions" class="text-muted" style="font-size:0.72rem">0 sesi</div>
+              </div>
+
+            </div>
+
+            {# Progress bar margin #}
+            <div class="mt-3">
+              <div class="d-flex justify-content-between small text-muted mb-1">
+                <span>Proporsi Fee Tutor</span>
+                <span id="tutorPropLabel">0% dari tarif siswa</span>
+              </div>
+              <div class="progress" style="height:10px">
+                <div
+                  class="progress-bar bg-warning"
+                  role="progressbar"
+                  id="tutorPropBar"
+                  style="width: 0%"
+                  aria-valuenow="0"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                ></div>
+                <div
+                  class="progress-bar bg-success"
+                  role="progressbar"
+                  id="marginPropBar"
+                  style="width: 0%"
+                  aria-valuenow="0"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                ></div>
+              </div>
+              <div class="d-flex gap-3 mt-1 small">
+                <span><span class="badge bg-warning text-dark me-1">&nbsp;</span>Fee Tutor</span>
+                <span><span class="badge bg-success me-1">&nbsp;</span>Margin LBB</span>
+              </div>
+            </div>
+
+            {# Alert margin rendah #}
+            <div id="lowMarginAlert" class="alert alert-warning border-0 py-2 px-3 mt-3 mb-0 small d-none">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              <strong>Perhatian:</strong> Margin di bawah 15% — pertimbangkan untuk menaikkan tarif siswa atau menurunkan fee tutor.
+            </div>
+            <div id="negativeMarginAlert" class="alert alert-danger border-0 py-2 px-3 mt-3 mb-0 small d-none">
+              <i class="bi bi-x-octagon me-1"></i>
+              <strong>Error:</strong> Fee tutor melebihi tarif siswa! LBB akan merugi per sesi.
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    {# ── Kolom Kanan: Info & Aksi ── #}
+    <div class="col-lg-4">
+
+      {# Info Tarif Saat Ini (edit mode) #}
+      {% if action == 'edit' and pricing %}
+      <div class="card border-0 shadow-sm mb-4 bg-primary-subtle">
+        <div class="card-header bg-transparent border-bottom py-3">
+          <h6 class="mb-0 fw-semibold small text-muted text-uppercase">
+            <i class="bi bi-clock-history me-1"></i>Tarif Saat Ini
+          </h6>
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0 small">
+
+            <dt class="col-6 fw-normal text-muted">Kurikulum</dt>
+            <dd class="col-6">
+              {% if pricing.curriculum %}
+                <span class="badge bg-info-subtle text-info-emphasis">{{ pricing.curriculum.name }}</span>
+              {% else %}
+                <span class="text-muted fst-italic">Semua</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-6 fw-normal text-muted">Jenjang</dt>
+            <dd class="col-6">
+              {% if pricing.level %}{{ pricing.level.name }}{% else %}<span class="text-muted fst-italic">Semua</span>{% endif %}
+            </dd>
+
+            <dt class="col-6 fw-normal text-muted">Mapel</dt>
+            <dd class="col-6">
+              {% if pricing.subject %}{{ pricing.subject.name }}{% else %}<span class="text-muted fst-italic">Semua</span>{% endif %}
+            </dd>
+
+            <dt class="col-6 fw-normal text-muted">Kelas</dt>
+            <dd class="col-6">
+              {% if pricing.grade %}
+                <span class="badge bg-light text-dark border font-monospace">{{ pricing.grade }}</span>
+              {% else %}
+                <span class="text-muted fst-italic">Semua</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-6 fw-normal text-muted">Tarif Siswa</dt>
+            <dd class="col-6 fw-semibold text-success">
+              Rp {{ "{:,.0f}".format(pricing.student_rate_per_meeting | float) }}
+            </dd>
+
+            <dt class="col-6 fw-normal text-muted">Fee Tutor</dt>
+            <dd class="col-6 fw-semibold text-warning-emphasis">
+              Rp {{ "{:,.0f}".format(pricing.tutor_rate_per_meeting | float) }}
+            </dd>
+
+            <dt class="col-6 fw-normal text-muted">Margin</dt>
+            <dd class="col-6 fw-semibold">
+              {% set old_margin = pricing.student_rate_per_meeting | float - pricing.tutor_rate_per_meeting | float %}
+              {% set old_pct = ((old_margin / pricing.student_rate_per_meeting | float) * 100) | round(1) if pricing.student_rate_per_meeting | float > 0 else 0 %}
+              <span class="{% if old_margin > 0 %}text-success{% else %}text-danger{% endif %}">
+                Rp {{ "{:,.0f}".format(old_margin) }}
+              </span>
+              <span class="text-muted">({{ old_pct }}%)</span>
+            </dd>
+
+            <dt class="col-6 fw-normal text-muted">Kuota Default</dt>
+            <dd class="col-6 mb-0">
+              {% if pricing.default_meeting_quota %}
+                <span class="badge bg-primary-subtle text-primary-emphasis">
+                  {{ pricing.default_meeting_quota }}x sesi
+                </span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </dd>
+
+          </dl>
+        </div>
+      </div>
+      {% endif %}
+
+      {# Panduan Pengisian #}
+      <div class="card border-0 shadow-sm mb-4 border-start border-4 border-info">
+        <div class="card-body">
+          <h6 class="fw-semibold mb-3 small">
+            <i class="bi bi-lightbulb text-info me-2"></i>Panduan Pengisian
+          </h6>
+          <ul class="small text-muted mb-0 ps-3">
+            <li class="mb-1">
+              <strong>Klasifikasi</strong> menentukan kapan aturan tarif ini diterapkan.
+              Semakin spesifik, semakin prioritas tinggi.
+            </li>
+            <li class="mb-1">
+              <strong>Tarif siswa</strong> adalah jumlah yang ditagihkan kepada siswa/orang tua per sesi.
+            </li>
+            <li class="mb-1">
+              <strong>Fee tutor</strong> adalah jumlah yang dibayarkan ke tutor per sesi mengajar.
+            </li>
+            <li class="mb-1">
+              <strong>Margin = Tarif siswa &minus; Fee tutor.</strong>
+              Disarankan margin minimal <strong>20–30%</strong>.
+            </li>
+            <li>
+              <strong>Kuota default</strong> digunakan saat membuat enrollment baru jika tidak ditentukan secara manual.
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      {# Referensi Tarif Umum #}
+      <div class="card border-0 shadow-sm mb-4 border-start border-4 border-secondary">
+        <div class="card-body">
+          <h6 class="fw-semibold mb-2 small text-muted">
+            <i class="bi bi-table me-1"></i>Contoh Referensi Tarif
+          </h6>
+          <table class="table table-sm small mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Jenjang</th>
+                <th class="text-end">Siswa</th>
+                <th class="text-end">Tutor</th>
+              </tr>
+            </thead>
+            <tbody class="text-muted">
+              <tr>
+                <td>SD</td>
+                <td class="text-end">75.000</td>
+                <td class="text-end">50.000</td>
+              </tr>
+              <tr>
+                <td>SMP</td>
+                <td class="text-end">100.000</td>
+                <td class="text-end">65.000</td>
+              </tr>
+              <tr>
+                <td>SMA</td>
+                <td class="text-end">125.000</td>
+                <td class="text-end">80.000</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="text-muted mb-0 mt-2" style="font-size:0.72rem">
+            * Angka di atas hanya referensi, sesuaikan dengan kondisi LBB.
+          </p>
+        </div>
+      </div>
+
+      {# Tombol Aksi #}
+      <div class="card border-0 shadow-sm">
+        <div class="card-body d-grid gap-2">
+          <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            {% if action == 'edit' %}Simpan Perubahan{% else %}Tambah Tarif Sesi{% endif %}
+          </button>
+          <a href="{{ url_for('master.pricing_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle me-2"></i>Batal
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  /**
+   * Format angka ke format Rupiah Indonesia
+   * @param {number} val
+   * @returns {string}
+   */
+  function formatRupiah(val) {
+    if (isNaN(val) || val === null) return 'Rp 0';
+    return 'Rp ' + Math.round(val).toLocaleString('id-ID');
+  }
+
+  /**
+   * Update semua preview kalkulasi margin secara real-time
+   */
+  function updateCalc() {
+    const studentRate = parseFloat(document.getElementById('student_rate').value) || 0;
+    const tutorRate   = parseFloat(document.getElementById('tutor_rate').value)   || 0;
+    const quota       = parseInt(document.getElementById('default_quota').value)  || 0;
+
+    const margin      = studentRate - tutorRate;
+    const marginPct   = studentRate > 0 ? ((margin / studentRate) * 100) : 0;
+    const tutorPct    = studentRate > 0 ? ((tutorRate / studentRate) * 100) : 0;
+    const totalEnr    = studentRate * quota;
+
+    // Update display values
+    document.getElementById('previewStudentRate').textContent  = formatRupiah(studentRate);
+    document.getElementById('previewTutorRate').textContent    = formatRupiah(tutorRate);
+    document.getElementById('previewMargin').textContent       = formatRupiah(margin);
+    document.getElementById('previewMarginPct').textContent    = marginPct.toFixed(1) + '%';
+    document.getElementById('previewTotal').textContent        = formatRupiah(totalEnr);
+    document.getElementById('previewTotalSessions').textContent = quota > 0 ? quota + ' sesi' : '— sesi';
+    document.getElementById('tutorPropLabel').textContent      = tutorPct.toFixed(1) + '% dari tarif siswa';
+
+    // Progress bar
+    const safeTutorPct  = Math.min(Math.max(tutorPct, 0), 100);
+    const safeMarginPct = Math.min(Math.max(100 - safeTutorPct, 0), 100);
+    document.getElementById('tutorPropBar').style.width  = safeTutorPct + '%';
+    document.getElementById('marginPropBar').style.width = safeMarginPct + '%';
+
+    // Warna margin
+    const marginEl = document.getElementById('previewMargin');
+    const pctEl    = document.getElementById('previewMarginPct');
+    if (margin < 0) {
+      marginEl.className = 'fs-5 fw-bold text-danger';
+      pctEl.className    = 'text-danger';
+    } else if (marginPct < 15) {
+      marginEl.className = 'fs-5 fw-bold text-warning-emphasis';
+      pctEl.className    = 'text-warning-emphasis';
+    } else if (marginPct >= 30) {
+      marginEl.className = 'fs-5 fw-bold text-success';
+      pctEl.className    = 'text-success';
+    } else {
+      marginEl.className = 'fs-5 fw-bold text-dark';
+      pctEl.className    = 'text-muted';
+    }
+
+    // Progress bar warna tutor
+    const tutorBar = document.getElementById('tutorPropBar');
+    if (margin < 0) {
+      tutorBar.className = 'progress-bar bg-danger';
+    } else if (marginPct < 15) {
+      tutorBar.className = 'progress-bar bg-warning';
+    } else {
+      tutorBar.className = 'progress-bar bg-warning';
+    }
+
+    // Alert visibility
+    const lowAlert  = document.getElementById('lowMarginAlert');
+    const negAlert  = document.getElementById('negativeMarginAlert');
+    lowAlert.classList.add('d-none');
+    negAlert.classList.add('d-none');
+
+    if (studentRate > 0 || tutorRate > 0) {
+      if (margin < 0) {
+        negAlert.classList.remove('d-none');
+      } else if (marginPct < 15 && studentRate > 0) {
+        lowAlert.classList.remove('d-none');
+      }
+    }
+  }
+
+  // Jalankan saat halaman dimuat (untuk mode edit yang sudah ada nilai)
+  document.addEventListener('DOMContentLoaded', function () {
+    updateCalc();
+  });
+</script>
+{% endblock %}

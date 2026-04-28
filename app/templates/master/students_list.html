@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Daftar Siswa — LBB Super Smart{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">
+      <i class="bi bi-people-fill text-primary me-2"></i>Daftar Siswa
+    </h4>
+    <p class="text-muted small mb-0">Kelola data siswa LBB Super Smart</p>
+  </div>
+  <a href="{{ url_for('master.add_student') }}" class="btn btn-primary">
+    <i class="bi bi-person-plus-fill me-1"></i>Tambah Siswa
+  </a>
+</div>
+
+{# Search bar #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="GET" action="{{ url_for('master.students_list') }}" class="row g-2 align-items-center">
+      <div class="col-md-8 col-lg-6">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0">
+            <i class="bi bi-search text-muted"></i>
+          </span>
+          <input
+            type="text"
+            name="search"
+            class="form-control border-start-0 ps-0"
+            placeholder="Cari nama, kode siswa, atau email..."
+            value="{{ search or '' }}"
+          />
+        </div>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary px-4">Cari</button>
+      </div>
+      {% if search %}
+      <div class="col-auto">
+        <a href="{{ url_for('master.students_list') }}" class="btn btn-outline-secondary">
+          <i class="bi bi-x-circle me-1"></i>Reset
+        </a>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+{# Hasil pencarian info #}
+{% if search %}
+<div class="mb-3">
+  <span class="text-muted small">
+    Hasil pencarian untuk <strong>"{{ search }}"</strong>:
+    {{ students.total }} siswa ditemukan
+  </span>
+</div>
+{% endif %}
+
+{# Tabel Siswa #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if students.items %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4" style="width:50px">No</th>
+            <th>Kode</th>
+            <th>Nama Siswa</th>
+            <th>Kurikulum</th>
+            <th>Jenjang</th>
+            <th>Kelas</th>
+            <th class="text-center">Status</th>
+            <th class="text-center pe-4" style="width:150px">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students.items %}
+          {% set row_num = (students.page - 1) * students.per_page + loop.index %}
+          <tr>
+            <td class="ps-4 text-muted small">{{ row_num }}</td>
+            <td>
+              <span class="badge bg-light text-dark border font-monospace">
+                {{ student.student_code }}
+              </span>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ student.name }}</div>
+              {% if student.phone %}
+              <div class="text-muted small">
+                <i class="bi bi-telephone me-1"></i>{{ student.phone }}
+              </div>
+              {% endif %}
+            </td>
+            <td>
+              {% if student.curriculum %}
+                <span class="badge bg-info-subtle text-info-emphasis">
+                  {{ student.curriculum.name }}
+                </span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if student.level %}
+                {{ student.level.name }}
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if student.grade %}
+                {{ student.grade }}
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if student.status == 'active' or student.is_active %}
+                <span class="badge bg-success-subtle text-success-emphasis px-2 py-1">
+                  <i class="bi bi-check-circle me-1"></i>Aktif
+                </span>
+              {% elif student.status == 'graduated' %}
+                <span class="badge bg-secondary-subtle text-secondary-emphasis px-2 py-1">
+                  <i class="bi bi-mortarboard me-1"></i>Lulus
+                </span>
+              {% else %}
+                <span class="badge bg-danger-subtle text-danger-emphasis px-2 py-1">
+                  <i class="bi bi-x-circle me-1"></i>Nonaktif
+                </span>
+              {% endif %}
+            </td>
+            <td class="text-center pe-4">
+              <div class="btn-group btn-group-sm" role="group">
+                <a
+                  href="{{ url_for('master.student_detail', id=student.id) }}"
+                  class="btn btn-outline-info"
+                  title="Detail"
+                >
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a
+                  href="{{ url_for('master.edit_student', id=student.id) }}"
+                  class="btn btn-outline-primary"
+                  title="Edit"
+                >
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  title="Hapus"
+                  data-bs-toggle="modal"
+                  data-bs-target="#deleteModal{{ student.id }}"
+                >
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+
+              {# Modal Konfirmasi Hapus #}
+              <div
+                class="modal fade"
+                id="deleteModal{{ student.id }}"
+                tabindex="-1"
+                aria-labelledby="deleteModalLabel{{ student.id }}"
+                aria-hidden="true"
+              >
+                <div class="modal-dialog modal-sm">
+                  <div class="modal-content">
+                    <div class="modal-header border-0 pb-0">
+                      <h6 class="modal-title" id="deleteModalLabel{{ student.id }}">
+                        <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                        Konfirmasi Hapus
+                      </h6>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body pt-2">
+                      <p class="mb-0 small">
+                        Hapus siswa <strong>{{ student.name }}</strong>?
+                        Data yang terhapus tidak dapat dikembalikan.
+                      </p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                      <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+                      <form method="POST" action="{{ url_for('master.delete_student', id=student.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-danger">
+                          <i class="bi bi-trash me-1"></i>Hapus
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# Footer tabel: total + pagination #}
+    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-top">
+      <div class="text-muted small">
+        Menampilkan <strong>{{ students.items | length }}</strong> dari
+        <strong>{{ students.total }}</strong> siswa
+        (Halaman {{ students.page }} / {{ students.pages }})
+      </div>
+      {% if students.pages > 1 %}
+      <nav aria-label="Navigasi halaman siswa">
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {% if not students.has_prev %}disabled{% endif %}">
+            <a
+              class="page-link"
+              href="{{ url_for('master.students_list', page=students.prev_num, search=search) if students.has_prev else '#' }}"
+              aria-label="Sebelumnya"
+            >
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+
+          {% for page_num in students.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page_num %}
+              <li class="page-item {% if page_num == students.page %}active{% endif %}">
+                <a
+                  class="page-link"
+                  href="{{ url_for('master.students_list', page=page_num, search=search) }}"
+                >{{ page_num }}</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled">
+                <span class="page-link">…</span>
+              </li>
+            {% endif %}
+          {% endfor %}
+
+          <li class="page-item {% if not students.has_next %}disabled{% endif %}">
+            <a
+              class="page-link"
+              href="{{ url_for('master.students_list', page=students.next_num, search=search) if students.has_next else '#' }}"
+              aria-label="Berikutnya"
+            >
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+      {% endif %}
+    </div>
+
+    {% else %}
+    {# Empty state #}
+    <div class="text-center py-5">
+      <i class="bi bi-people display-1 text-muted opacity-25"></i>
+      <p class="text-muted mt-3 mb-1">
+        {% if search %}
+          Tidak ada siswa yang cocok dengan pencarian "<strong>{{ search }}</strong>"
+        {% else %}
+          Belum ada data siswa
+        {% endif %}
+      </p>
+      {% if not search %}
+      <a href="{{ url_for('master.add_student') }}" class="btn btn-primary btn-sm mt-2">
+        <i class="bi bi-person-plus-fill me-1"></i>Tambah Siswa Pertama
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

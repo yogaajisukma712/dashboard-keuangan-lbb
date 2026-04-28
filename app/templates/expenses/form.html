@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title or "Pengeluaran" }} — LBB Super Smart{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item">
+          <a href="{{ url_for('expenses.list_expenses') }}">Pengeluaran</a>
+        </li>
+        <li class="breadcrumb-item active">{{ title or "Form Pengeluaran" }}</li>
+      </ol>
+    </nav>
+    <h1 class="h3 mb-0">
+      <i class="bi bi-{{ 'pencil-square' if expense else 'plus-circle' }} me-2 text-danger"></i>
+      {{ title or ("Edit Pengeluaran" if expense else "Tambah Pengeluaran Baru") }}
+    </h1>
+  </div>
+  <a href="{{ url_for('expenses.list_expenses') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Kembali
+  </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="row justify-content-center">
+  <div class="col-lg-9 col-xl-8">
+
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-arrow-up-circle me-1 text-danger"></i>
+        Data Pengeluaran
+      </div>
+      <div class="card-body">
+
+        <form method="POST"
+              action="{{ url_for('expenses.edit_expense', id=expense.id) if expense else url_for('expenses.add_expense') }}"
+              novalidate>
+          {{ form.hidden_tag() }}
+
+          <div class="row g-3">
+
+            {# ── Tanggal Pengeluaran ──────────────────────────────────── #}
+            <div class="col-md-6">
+              {{ form.expense_date.label(class_="form-label fw-semibold") }}
+              <span class="text-danger">*</span>
+              {% set date_cls = "form-control is-invalid" if form.expense_date.errors else "form-control" %}
+              {{ form.expense_date(class_=date_cls, placeholder="YYYY-MM-DD HH:MM", id="expenseDateField") }}
+              {% if form.expense_date.errors %}
+                <div class="invalid-feedback">
+                  {% for e in form.expense_date.errors %}{{ e }}{% endfor %}
+                </div>
+              {% else %}
+                <div class="form-text">Format: YYYY-MM-DD HH:MM — mis. 2025-01-15 09:00</div>
+              {% endif %}
+            </div>
+
+            {# ── Kategori ─────────────────────────────────────────────── #}
+            <div class="col-md-6">
+              {{ form.category.label(class_="form-label fw-semibold") }}
+              <span class="text-danger">*</span>
+              {% set cat_cls = "form-select is-invalid" if form.category.errors else "form-select" %}
+              {{ form.category(class_=cat_cls) }}
+              {% if form.category.errors %}
+                <div class="invalid-feedback">
+                  {% for e in form.category.errors %}{{ e }}{% endfor %}
+                </div>
+              {% else %}
+                <div class="form-text">Pilih kategori yang sesuai.</div>
+              {% endif %}
+            </div>
+
+            {# ── Deskripsi ────────────────────────────────────────────── #}
+            <div class="col-12">
+              {{ form.description.label(class_="form-label fw-semibold") }}
+              <span class="text-danger">*</span>
+              {% set desc_cls = "form-control is-invalid" if form.description.errors else "form-control" %}
+              {{ form.description(class_=desc_cls, rows="3", placeholder="Jelaskan keterangan pengeluaran ini...") }}
+              {% if form.description.errors %}
+                <div class="invalid-feedback">
+                  {% for e in form.description.errors %}{{ e }}{% endfor %}
+                </div>
+              {% else %}
+                <div class="form-text">Minimal 5 karakter, maksimal 500 karakter.</div>
+              {% endif %}
+            </div>
+
+            {# ── Nominal ──────────────────────────────────────────────── #}
+            <div class="col-md-6">
+              {{ form.amount.label(class_="form-label fw-semibold") }}
+              <span class="text-danger">*</span>
+              <div class="input-group">
+                <span class="input-group-text fw-semibold text-danger">Rp</span>
+                {% set amt_cls = "form-control is-invalid" if form.amount.errors else "form-control" %}
+                {{ form.amount(class_=amt_cls, placeholder="0", id="amountInput") }}
+                {% if form.amount.errors %}
+                  <div class="invalid-feedback">
+                    {% for e in form.amount.errors %}{{ e }}{% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+              {% if not form.amount.errors %}
+              <div class="form-text">
+                Terbilang: <span id="amountWords" class="fst-italic text-muted">—</span>
+              </div>
+              {% endif %}
+            </div>
+
+            {# ── Metode Pembayaran ─────────────────────────────────────── #}
+            <div class="col-md-6">
+              {{ form.payment_method.label(class_="form-label fw-semibold") }}
+              {% set meth_cls = "form-select is-invalid" if form.payment_method.errors else "form-select" %}
+              {{ form.payment_method(class_=meth_cls) }}
+              {% if form.payment_method.errors %}
+                <div class="invalid-feedback">
+                  {% for e in form.payment_method.errors %}{{ e }}{% endfor %}
+                </div>
+              {% else %}
+                <div class="form-text">Opsional — cara pembayaran yang digunakan.</div>
+              {% endif %}
+            </div>
+
+          </div>{# /row #}
+
+          {# ── Pratinjau Nominal ────────────────────────────────────────── #}
+          <div id="amountPreview" class="alert alert-danger d-none mt-3 mb-0 py-2">
+            <i class="bi bi-cash-stack me-1"></i>
+            Nominal: <strong id="amountFormatted">Rp 0</strong>
+          </div>
+
+          <div class="row g-3 mt-1">
+
+            {# ── No. Referensi ────────────────────────────────────────── #}
+            <div class="col-md-6">
+              {{ form.reference_number.label(class_="form-label fw-semibold") }}
+              {% set ref_cls = "form-control is-invalid" if form.reference_number.errors else "form-control" %}
+              {{ form.reference_number(class_=ref_cls, placeholder="No. struk / referensi (opsional)") }}
+              {% if form.reference_number.errors %}
+                <div class="invalid-feedback">
+                  {% for e in form.reference_number.errors %}{{ e }}{% endfor %}
+                </div>
+              {% else %}
+                <div class="form-text">Nomor bukti, struk, atau referensi transaksi.</div>
+              {% endif %}
+            </div>
+
+            {# ── Catatan ──────────────────────────────────────────────── #}
+            <div class="col-md-6">
+              {{ form.notes.label(class_="form-label fw-semibold") }}
+              {% set notes_cls = "form-control is-invalid" if form.notes.errors else "form-control" %}
+              {{ form.notes(class_=notes_cls, rows="2", placeholder="Catatan tambahan (opsional)...") }}
+              {% if form.notes.errors %}
+                <div class="invalid-feedback">
+                  {% for e in form.notes.errors %}{{ e }}{% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+          </div>{# /row #}
+
+          <hr class="my-4">
+
+          {# ── Tombol Aksi ──────────────────────────────────────────────── #}
+          <div class="d-flex justify-content-between align-items-center">
+            <a href="{{ url_for('expenses.list_expenses') }}" class="btn btn-outline-secondary">
+              <i class="bi bi-x-lg me-1"></i>Batal
+            </a>
+            <div class="d-flex gap-2">
+              {% if expense %}
+              <a href="{{ url_for('expenses.list_expenses') }}" class="btn btn-outline-primary">
+                <i class="bi bi-list-ul me-1"></i>Lihat Daftar
+              </a>
+              {% endif %}
+              {{ form.submit(class_="btn btn-danger px-4") }}
+            </div>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+    {# ── Info Kategori ──────────────────────────────────────────────────── #}
+    <div class="card mt-3 shadow-sm border-0 bg-light">
+      <div class="card-body py-3">
+        <h6 class="mb-2 fw-semibold text-muted">
+          <i class="bi bi-info-circle me-1"></i>Keterangan Kategori Pengeluaran
+        </h6>
+        <div class="row g-2" style="font-size:.85rem;">
+          <div class="col-6 col-md-4">
+            <span class="badge bg-info text-dark me-1"><i class="bi bi-megaphone"></i></span>
+            <strong>Iklan</strong> — Biaya promosi &amp; iklan lembaga
+          </div>
+          <div class="col-6 col-md-4">
+            <span class="badge bg-primary me-1"><i class="bi bi-wifi"></i></span>
+            <strong>Kuota</strong> — Pulsa dan paket data internet
+          </div>
+          <div class="col-6 col-md-4">
+            <span class="badge bg-secondary me-1"><i class="bi bi-cash-coin"></i></span>
+            <strong>Tarik Tunai</strong> — Penarikan uang operasional
+          </div>
+          <div class="col-6 col-md-4">
+            <span class="badge bg-warning text-dark me-1"><i class="bi bi-tools"></i></span>
+            <strong>Alat</strong> — Pembelian peralatan belajar mengajar
+          </div>
+          <div class="col-6 col-md-4">
+            <span class="badge bg-success me-1"><i class="bi bi-truck"></i></span>
+            <strong>Transport</strong> — Biaya perjalanan &amp; transportasi
+          </div>
+          <div class="col-6 col-md-4">
+            <span class="badge bg-light text-dark border me-1"><i class="bi bi-three-dots"></i></span>
+            <strong>Lainnya</strong> — Di luar kategori di atas
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+
+  var amountInput   = document.getElementById('amountInput');
+  var amountPreview = document.getElementById('amountPreview');
+  var amountFmt     = document.getElementById('amountFormatted');
+  var amountWords   = document.getElementById('amountWords');
+
+  /* ── Format ke Rupiah ─────────────────────────────────────────────── */
+  function fmtRp(val) {
+    return 'Rp ' + Number(val || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
+  }
+
+  /* ── Terbilang sederhana (sampai miliar) ──────────────────────────── */
+  function terbilang(n) {
+    n = Math.round(Number(n) || 0);
+    if (n === 0) return 'nol rupiah';
+    var satuan  = ['','satu','dua','tiga','empat','lima','enam','tujuh','delapan','sembilan',
+                   'sepuluh','sebelas','dua belas','tiga belas','empat belas','lima belas',
+                   'enam belas','tujuh belas','delapan belas','sembilan belas'];
+    var puluhan = ['','','dua puluh','tiga puluh','empat puluh','lima puluh',
+                   'enam puluh','tujuh puluh','delapan puluh','sembilan puluh'];
+    function baca(x) {
+      if (x < 20)         return satuan[x];
+      if (x < 100)        return puluhan[Math.floor(x/10)] + (x%10 ? ' ' + satuan[x%10] : '');
+      if (x < 200)        return 'seratus' + (x%100 ? ' ' + baca(x%100) : '');
+      if (x < 1000)       return satuan[Math.floor(x/100)] + ' ratus' + (x%100 ? ' ' + baca(x%100) : '');
+      if (x < 2000)       return 'seribu' + (x%1000 ? ' ' + baca(x%1000) : '');
+      if (x < 1000000)    return baca(Math.floor(x/1000)) + ' ribu' + (x%1000 ? ' ' + baca(x%1000) : '');
+      if (x < 1000000000) return baca(Math.floor(x/1000000)) + ' juta' + (x%1000000 ? ' ' + baca(x%1000000) : '');
+      return baca(Math.floor(x/1000000000)) + ' miliar' + (x%1000000000 ? ' ' + baca(x%1000000000) : '');
+    }
+    return baca(n) + ' rupiah';
+  }
+
+  /* ── Update preview nominal ───────────────────────────────────────── */
+  function updatePreview() {
+    var val = parseFloat(amountInput ? amountInput.value : 0) || 0;
+    if (val > 0) {
+      if (amountPreview) amountPreview.classList.remove('d-none');
+      if (amountFmt)     amountFmt.textContent = fmtRp(val);
+      if (amountWords)   amountWords.textContent = terbilang(val);
+    } else {
+      if (amountPreview) amountPreview.classList.add('d-none');
+      if (amountWords)   amountWords.textContent = '—';
+    }
+  }
+
+  if (amountInput) {
+    amountInput.addEventListener('input', updatePreview);
+    updatePreview(); /* jalankan sekali saat load (mode edit) */
+  }
+
+  /* ── Auto-set waktu sekarang jika field kosong (mode tambah) ─────── */
+  {% if not expense %}
+  var dateField = document.getElementById('expenseDateField');
+  if (dateField && !dateField.value) {
+    var now = new Date();
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    dateField.value = now.getFullYear() + '-'
+                    + pad(now.getMonth() + 1) + '-'
+                    + pad(now.getDate())
+                    + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+  }
+  {% endif %}
+
+})();
+</script>
+{% endblock %}

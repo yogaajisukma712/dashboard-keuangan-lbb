@@ -1,0 +1,544 @@
+{% extends "base.html" %}
+
+{% block title %}Daftar Transfer Tutor — LBB Super Smart{% endblock %}
+
+{% block content %}
+{% set MONTHS = ['','Januari','Februari','Maret','April','Mei','Juni',
+                 'Juli','Agustus','September','Oktober','November','Desember'] %}
+
+{# ── Breadcrumb ──────────────────────────────────────────────────────────── #}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item">
+      <a href="{{ url_for('payroll.tutor_summary', month=month, year=year) }}">Payroll</a>
+    </li>
+    <li class="breadcrumb-item active">Daftar Transfer</li>
+  </ol>
+</nav>
+
+{# ── Page Header ─────────────────────────────────────────────────────────── #}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="h4 mb-0">
+      <i class="bi bi-list-check me-2 text-primary"></i>Daftar Transfer Tutor
+    </h2>
+    <p class="text-muted small mb-0">
+      Periode: <strong>{{ MONTHS[month] }} {{ year }}</strong>
+      &mdash; Tutor dengan sisa saldo &amp; nomor rekening terdaftar
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('payroll.tutor_summary', month=month, year=year) }}"
+       class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Ringkasan Payroll
+    </a>
+    <a href="{{ url_for('payroll.add_payout') }}"
+       class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Tambah Payout
+    </a>
+    <button type="button"
+            class="btn btn-success btn-sm"
+            id="btnExportExcel"
+            {% if not transfer_data %}disabled{% endif %}
+            title="Export ke Excel">
+      <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+    </button>
+  </div>
+</div>
+
+{# ── Filter Bulan / Tahun ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label small fw-semibold mb-1">
+          <i class="bi bi-calendar3 me-1 text-primary"></i>Bulan
+        </label>
+        <select name="month" class="form-select form-select-sm" style="min-width:140px">
+          {% for m in range(1, 13) %}
+          <option value="{{ m }}" {% if m == month %}selected{% endif %}>
+            {{ MONTHS[m] }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label small fw-semibold mb-1">
+          <i class="bi bi-calendar-range me-1 text-secondary"></i>Tahun
+        </label>
+        <select name="year" class="form-select form-select-sm">
+          {% for y in range(2023, 2031) %}
+          <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-funnel me-1"></i>Tampilkan
+        </button>
+      </div>
+      {# Navigasi cepat bulan ─────────────────────────────────────────── #}
+      <div class="col-auto ms-auto d-flex gap-2">
+        {% set prev_month = month - 1 if month > 1 else 12 %}
+        {% set prev_year  = year if month > 1 else year - 1 %}
+        {% set next_month = month + 1 if month < 12 else 1 %}
+        {% set next_year  = year if month < 12 else year + 1 %}
+        <a href="{{ url_for('payroll.transfer_list', month=prev_month, year=prev_year) }}"
+           class="btn btn-outline-secondary btn-sm" title="Bulan sebelumnya">
+          <i class="bi bi-chevron-left"></i>
+        </a>
+        <a href="{{ url_for('payroll.transfer_list', month=next_month, year=next_year) }}"
+           class="btn btn-outline-secondary btn-sm" title="Bulan berikutnya">
+          <i class="bi bi-chevron-right"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Summary Cards ────────────────────────────────────────────────────────── #}
+<div class="row g-3 mb-4">
+
+  {# Jumlah Tutor #}
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-4">
+        <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-inline-flex
+                    align-items-center justify-content-center mb-3"
+             style="width:52px;height:52px;font-size:1.4rem">
+          <i class="bi bi-people-fill"></i>
+        </div>
+        <div class="text-muted mb-1" style="font-size:.78rem;text-transform:uppercase;letter-spacing:.04em">
+          Jumlah Tutor
+        </div>
+        <div class="fw-bold fs-3 text-primary lh-1">
+          {{ transfer_data | length }}
+        </div>
+        <div class="text-muted small mt-1">perlu ditransfer</div>
+      </div>
+    </div>
+  </div>
+
+  {# Total Transfer #}
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-4">
+        <div class="rounded-circle bg-success bg-opacity-10 text-success d-inline-flex
+                    align-items-center justify-content-center mb-3"
+             style="width:52px;height:52px;font-size:1.4rem">
+          <i class="bi bi-cash-coin"></i>
+        </div>
+        <div class="text-muted mb-1" style="font-size:.78rem;text-transform:uppercase;letter-spacing:.04em">
+          Total Transfer
+        </div>
+        <div class="fw-bold fs-5 text-success lh-1">
+          Rp {{ "{:,.0f}".format(total_amount | float) }}
+        </div>
+        <div class="text-muted small mt-1">{{ MONTHS[month] }} {{ year }}</div>
+      </div>
+    </div>
+  </div>
+
+  {# Rata-rata per Tutor #}
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-4">
+        <div class="rounded-circle bg-info bg-opacity-10 text-info d-inline-flex
+                    align-items-center justify-content-center mb-3"
+             style="width:52px;height:52px;font-size:1.4rem">
+          <i class="bi bi-calculator"></i>
+        </div>
+        <div class="text-muted mb-1" style="font-size:.78rem;text-transform:uppercase;letter-spacing:.04em">
+          Rata-rata / Tutor
+        </div>
+        <div class="fw-bold fs-5 text-info lh-1">
+          {% if transfer_data | length > 0 %}
+            Rp {{ "{:,.0f}".format(total_amount / (transfer_data | length)) }}
+          {% else %}
+            Rp 0
+          {% endif %}
+        </div>
+        <div class="text-muted small mt-1">per tutor</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# ── Tabel Daftar Transfer ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+
+  <div class="card-header bg-transparent d-flex justify-content-between align-items-center py-2 flex-wrap gap-2">
+    <h6 class="fw-bold mb-0 small text-uppercase text-muted" style="letter-spacing:.06em">
+      <i class="bi bi-table me-1 text-primary"></i>
+      Detail Transfer — {{ MONTHS[month] }} {{ year }}
+    </h6>
+    {% if transfer_data %}
+    <div class="d-flex gap-2 align-items-center">
+      <div class="input-group input-group-sm" style="max-width:220px">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text"
+               id="searchTransfer"
+               class="form-control form-control-sm"
+               placeholder="Cari nama tutor / bank…">
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card-body p-0">
+    {% if transfer_data %}
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 small" id="transferTable">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="width:52px">No</th>
+            <th>Nama Tutor</th>
+            <th>Bank</th>
+            <th>Nomor Rekening</th>
+            <th>Nama Pemilik Rekening</th>
+            <th class="text-end pe-3">Nominal Transfer</th>
+          </tr>
+        </thead>
+        <tbody id="transferTbody">
+          {% for item in transfer_data %}
+          <tr class="transfer-row"
+              data-search="{{ (item.tutor_name ~ ' ' ~ item.bank_name ~ ' ' ~ (item.account_holder or '')) | lower }}">
+
+            {# No #}
+            <td class="ps-3 text-muted">{{ loop.index }}</td>
+
+            {# Nama Tutor #}
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="rounded-circle bg-success bg-opacity-10 text-success
+                            d-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width:34px;height:34px;font-size:1rem">
+                  <i class="bi bi-person-fill"></i>
+                </div>
+                <div>
+                  <div class="fw-semibold">{{ item.tutor_name }}</div>
+                </div>
+              </div>
+            </td>
+
+            {# Bank #}
+            <td>
+              {% if item.bank_name and item.bank_name != '-' %}
+              <span class="badge bg-secondary bg-opacity-10 text-secondary
+                           border border-secondary-subtle fw-semibold px-2 py-1">
+                {{ item.bank_name | upper }}
+              </span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+
+            {# Nomor Rekening #}
+            <td>
+              {% if item.account_number %}
+              <div class="d-flex align-items-center gap-2">
+                <code class="text-body fs-6">{{ item.account_number }}</code>
+                <button type="button"
+                        class="btn btn-link btn-sm p-0 text-muted copy-btn"
+                        data-copy="{{ item.account_number }}"
+                        title="Salin nomor rekening">
+                  <i class="bi bi-clipboard" style="font-size:.85rem"></i>
+                </button>
+              </div>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+
+            {# Nama Pemilik #}
+            <td>
+              {% if item.account_holder %}
+                {{ item.account_holder }}
+              {% else %}
+                <span class="text-muted fst-italic">Tidak tersedia</span>
+              {% endif %}
+            </td>
+
+            {# Nominal #}
+            <td class="text-end pe-3">
+              <div class="fw-bold text-success fs-6">
+                Rp {{ "{:,.0f}".format(item.amount | float) }}
+              </div>
+            </td>
+
+          </tr>
+          {% endfor %}
+        </tbody>
+
+        {# ── Tfoot: Total ─────────────────────────────────────────────── #}
+        <tfoot class="table-light border-top">
+          <tr>
+            <td colspan="5" class="ps-3 fw-bold text-end text-muted small py-2">
+              <i class="bi bi-sigma me-1"></i>TOTAL TRANSFER
+            </td>
+            <td class="text-end pe-3 fw-bold text-success">
+              <span class="fs-6">Rp {{ "{:,.0f}".format(total_amount | float) }}</span>
+            </td>
+          </tr>
+          <tr id="filteredTotalRow" class="d-none">
+            <td colspan="5" class="ps-3 fw-semibold text-end text-muted small py-1">
+              <i class="bi bi-funnel me-1"></i>Total (hasil filter)
+            </td>
+            <td class="text-end pe-3 fw-semibold text-primary small">
+              <span id="filteredTotal">—</span>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    {# ── Info baris kosong saat search tidak menemukan hasil ────────────── #}
+    <div id="noSearchResult" class="text-center py-4 text-muted small d-none">
+      <i class="bi bi-search d-block fs-4 mb-1 opacity-25"></i>
+      Tidak ada tutor yang cocok dengan pencarian.
+    </div>
+
+    {# ── Catatan Kaki ─────────────────────────────────────────────────── #}
+    <div class="px-3 py-2 border-top bg-light d-flex flex-wrap gap-3 justify-content-between
+                align-items-center small text-muted">
+      <div>
+        <i class="bi bi-info-circle me-1"></i>
+        Hanya menampilkan tutor dengan sisa saldo &gt; 0 <em>dan</em> nomor rekening terdaftar.
+        Tutor tanpa rekening perlu dibayar secara tunai melalui menu
+        <a href="{{ url_for('payroll.add_payout') }}" class="text-decoration-none">Tambah Payout</a>.
+      </div>
+      <div>
+        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2">
+          {{ transfer_data | length }} tutor &bull;
+          Rp {{ "{:,.0f}".format(total_amount | float) }}
+        </span>
+      </div>
+    </div>
+
+    {% else %}
+
+    {# ── Empty State ──────────────────────────────────────────────────── #}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-check2-all fs-1 d-block mb-2 opacity-25"></i>
+      <p class="mb-1 fw-semibold">
+        Tidak ada transfer yang perlu dilakukan
+      </p>
+      <p class="small mb-3">
+        Untuk periode <strong>{{ MONTHS[month] }} {{ year }}</strong>,
+        semua tutor sudah dibayar penuh atau belum ada sesi yang tercatat.
+      </p>
+      <div class="d-flex gap-2 justify-content-center flex-wrap">
+        <a href="{{ url_for('payroll.tutor_summary', month=month, year=year) }}"
+           class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-bar-chart me-1"></i>Lihat Ringkasan Payroll
+        </a>
+        <a href="{{ url_for('attendance.list_attendance', month=month) }}"
+           class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-calendar2-check me-1"></i>Lihat Presensi Bulan Ini
+        </a>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+</div>
+
+{# ── Modal Konfirmasi Export Excel ────────────────────────────────────────── #}
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold" id="exportModalLabel">
+          <i class="bi bi-file-earmark-excel me-2 text-success"></i>Export ke Excel
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body small">
+        <p class="mb-3">
+          File Excel akan berisi daftar transfer tutor untuk periode
+          <strong>{{ MONTHS[month] }} {{ year }}</strong>
+          dengan kolom:
+        </p>
+        <ul class="mb-3 ps-3 text-muted">
+          <li>No.</li>
+          <li>Nama Tutor</li>
+          <li>Bank</li>
+          <li>Nomor Rekening</li>
+          <li>Nama Pemilik Rekening</li>
+          <li>Nominal Transfer (Rp)</li>
+        </ul>
+        <div class="alert alert-warning border-0 py-2 mb-0 small">
+          <i class="bi bi-tools me-1"></i>
+          <strong>Fitur dalam pengembangan.</strong>
+          Export Excel akan tersedia setelah integrasi backend selesai.
+          Untuk sementara, gunakan fungsi <em>Print / Save as PDF</em> browser.
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+          Tutup
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" disabled>
+          <i class="bi bi-file-earmark-excel me-1"></i>Download Excel
+          <span class="badge bg-warning text-dark ms-1">Soon</span>
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="window.print()">
+          <i class="bi bi-printer me-1"></i>Print / PDF
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Toast: Salin rekening ─────────────────────────────────────────────────── #}
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="copyToast" class="toast align-items-center text-bg-dark border-0" role="alert"
+       aria-live="assertive" aria-atomic="true" data-bs-delay="2000">
+    <div class="d-flex">
+      <div class="toast-body small">
+        <i class="bi bi-clipboard-check me-1"></i>
+        <span id="copyToastMsg">Nomor rekening disalin!</span>
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto"
+              data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<style>
+  @media print {
+    .navbar, nav, .btn, form, #searchTransfer, .card-header .d-flex > .d-flex,
+    .modal, .toast-container, footer { display: none !important; }
+    .card { border: none !important; box-shadow: none !important; }
+    body { background: white !important; }
+  }
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Live search / filter ────────────────────────────────────────────── */
+  const searchInput     = document.getElementById('searchTransfer');
+  const rows            = document.querySelectorAll('.transfer-row');
+  const noResult        = document.getElementById('noSearchResult');
+  const filteredRow     = document.getElementById('filteredTotalRow');
+  const filteredTotalEl = document.getElementById('filteredTotal');
+
+  function formatRp(val) {
+    const n = parseFloat(val) || 0;
+    return 'Rp ' + n.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', function () {
+      const q = this.value.toLowerCase().trim();
+      let visible = 0;
+      let filteredSum = 0;
+
+      rows.forEach(function (row) {
+        const text = row.dataset.search || '';
+        if (!q || text.includes(q)) {
+          row.classList.remove('d-none');
+          // Ambil nilai nominal dari kolom terakhir (teks)
+          const amountCell = row.querySelector('td:last-child .fw-bold');
+          if (amountCell) {
+            const raw = amountCell.textContent.replace(/[^0-9]/g, '');
+            filteredSum += parseInt(raw || '0', 10);
+          }
+          visible++;
+        } else {
+          row.classList.add('d-none');
+        }
+      });
+
+      if (noResult) noResult.classList.toggle('d-none', visible > 0 || !q);
+
+      if (filteredRow && filteredTotalEl) {
+        if (q && visible < rows.length) {
+          filteredTotalEl.textContent = formatRp(filteredSum) + ` (${visible} tutor)`;
+          filteredRow.classList.remove('d-none');
+        } else {
+          filteredRow.classList.add('d-none');
+        }
+      }
+    });
+  }
+
+  /* ── Salin nomor rekening ke clipboard ───────────────────────────────── */
+  const copyToastEl = document.getElementById('copyToast');
+  const copyToastMsg = document.getElementById('copyToastMsg');
+  const copyToast = copyToastEl ? new bootstrap.Toast(copyToastEl) : null;
+
+  document.querySelectorAll('.copy-btn').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      const text = btn.dataset.copy || '';
+      if (!text) return;
+
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function () {
+          if (copyToastMsg) copyToastMsg.textContent = `Nomor rekening ${text} disalin!`;
+          if (copyToast) copyToast.show();
+          // Ganti ikon sementara
+          const icon = btn.querySelector('i');
+          if (icon) {
+            icon.className = 'bi bi-clipboard-check text-success';
+            setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);
+          }
+        }).catch(function () {
+          // Fallback
+          fallbackCopy(text);
+        });
+      } else {
+        fallbackCopy(text);
+      }
+    });
+  });
+
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity  = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      document.execCommand('copy');
+      if (copyToastMsg) copyToastMsg.textContent = `Nomor rekening ${text} disalin!`;
+      if (copyToast) copyToast.show();
+    } catch (err) {
+      alert('Salin manual: ' + text);
+    }
+    document.body.removeChild(ta);
+  }
+
+  /* ── Tombol Export Excel → buka modal ───────────────────────────────── */
+  const btnExport = document.getElementById('btnExportExcel');
+  if (btnExport) {
+    btnExport.addEventListener('click', function () {
+      const modalEl = document.getElementById('exportModal');
+      if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+      }
+    });
+  }
+
+  /* ── Auto-submit filter saat ganti select (bulan/tahun) ─────────────── */
+  document.querySelectorAll('select[name="month"], select[name="year"]').forEach(function (sel) {
+    sel.addEventListener('change', function () {
+      this.closest('form').submit();
+    });
+  });
+
+})();
+</script>
+{% endblock %}

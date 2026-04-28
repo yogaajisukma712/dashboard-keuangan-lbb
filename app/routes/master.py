@@ -511,3 +511,23 @@ def delete_pricing(id):
 
     flash("Aturan tarif berhasil dihapus", "success")
     return redirect(url_for("master.pricing_list"))
+
+
+@master_bp.route('/pricing/api/<int:curriculum_id>/<int:level_id>', methods=['GET'])
+@login_required
+def api_get_pricing(curriculum_id, level_id):
+    """API: Ambil tarif berdasarkan kurikulum dan jenjang untuk autofill enrollment form"""
+    from flask import jsonify
+    pr = PricingRule.query.filter_by(
+        curriculum_id=curriculum_id,
+        level_id=level_id,
+        is_active=True
+    ).first()
+    if pr:
+        return jsonify({
+            'found': True,
+            'student_rate': float(pr.student_rate_per_meeting),
+            'tutor_rate': float(pr.tutor_rate_per_meeting),
+            'default_quota': pr.default_meeting_quota,
+        })
+    return jsonify({'found': False})

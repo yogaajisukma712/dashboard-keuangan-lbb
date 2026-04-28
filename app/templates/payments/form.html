@@ -1,0 +1,627 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Edit" if payment else "Tambah" }} Pembayaran — LBB Super Smart{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="{{ url_for('payments.list_payments') }}">Pembayaran</a></li>
+        <li class="breadcrumb-item active">{{ "Edit" if payment else "Tambah Baru" }}</li>
+      </ol>
+    </nav>
+    <h1 class="h3 mb-0">
+      <i class="bi bi-{{ 'pencil-square' if payment else 'plus-circle' }} me-2 text-success"></i>
+      {{ "Edit Pembayaran" if payment else "Tambah Pembayaran Baru" }}
+    </h1>
+  </div>
+  <a href="{{ url_for('payments.list_payments') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Kembali
+  </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<form method="POST"
+      action="{{ url_for('payments.edit_payment', payment_id=payment.id) if payment else url_for('payments.add_payment') }}"
+      id="paymentForm"
+      novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="total_amount" id="totalAmountInput" value="{{ payment.total_amount if payment else '0' }}">
+
+  {# ── A. Header Pembayaran ─────────────────────────────────────────── #}
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header fw-semibold">
+      <i class="bi bi-person-vcard me-1"></i>Data Header Pembayaran
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+
+        {# Siswa #}
+        <div class="col-md-6">
+          <label for="student_id" class="form-label fw-semibold">
+            Siswa <span class="text-danger">*</span>
+          </label>
+          <select name="student_id" id="student_id" class="form-select" required
+                  {% if payment %}disabled{% endif %}>
+            <option value="">-- Pilih Siswa --</option>
+            {% for student in students %}
+            <option value="{{ student.id }}"
+              {% if payment and payment.student_id == student.id %}selected
+              {% elif request.form.get('student_id', type=int) == student.id %}selected{% endif %}>
+              {{ student.name }}
+              {% if student.grade %} — {{ student.grade }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          {% if payment %}
+          <input type="hidden" name="student_id" value="{{ payment.student_id }}">
+          {% endif %}
+          <div class="form-text">
+            <span id="enrollmentInfo" class="text-muted"></span>
+          </div>
+        </div>
+
+        {# Tanggal Bayar #}
+        <div class="col-md-3">
+          <label for="payment_date" class="form-label fw-semibold">
+            Tanggal Bayar <span class="text-danger">*</span>
+          </label>
+          <input type="date" name="payment_date" id="payment_date" class="form-control" required
+                 value="{{ payment.payment_date.strftime('%Y-%m-%d') if payment else '' }}">
+        </div>
+
+        {# No. Kwitansi #}
+        <div class="col-md-3">
+          <label for="receipt_number" class="form-label fw-semibold">
+            No. Kwitansi <span class="text-danger">*</span>
+          </label>
+          <input type="text" name="receipt_number" id="receipt_number" class="form-control"
+                 required maxlength="50" placeholder="mis. KWT-2025-001"
+                 value="{{ payment.receipt_number if payment else '' }}">
+        </div>
+
+        {# Metode Pembayaran #}
+        <div class="col-md-4">
+          <label for="payment_method" class="form-label fw-semibold">
+            Metode Pembayaran <span class="text-danger">*</span>
+          </label>
+          <select name="payment_method" id="payment_method" class="form-select" required>
+            <option value="">-- Pilih Metode --</option>
+            {% set cur_method = payment.payment_method if payment else request.form.get('payment_method','') %}
+            <option value="cash"          {% if cur_method == 'cash' %}selected{% endif %}>
+              Tunai (Cash)
+            </option>
+            <option value="bank_transfer" {% if cur_method == 'bank_transfer' %}selected{% endif %}>
+              Transfer Bank
+            </option>
+            <option value="e_wallet"      {% if cur_method == 'e_wallet' %}selected{% endif %}>
+              E-Wallet / QRIS
+            </option>
+            <option value="cek"           {% if cur_method == 'cek' %}selected{% endif %}>
+              Cek / Giro
+            </option>
+          </select>
+        </div>
+
+        {# Catatan #}
+        <div class="col-md-8">
+          <label for="notes" class="form-label fw-semibold">Catatan</label>
+          <input type="text" name="notes" id="notes" class="form-control"
+                 maxlength="500" placeholder="Opsional…"
+                 value="{{ payment.notes if payment else '' }}">
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ── B. Baris Pembayaran (Dynamic) ───────────────────────────────── #}
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span class="fw-semibold">
+        <i class="bi bi-list-check me-1"></i>Rincian Layanan
+      </span>
+      <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddLine"
+              {% if not payment %}disabled{% endif %}>
+        <i class="bi bi-plus-lg me-1"></i>Tambah Baris
+      </button>
+    </div>
+
+    {# Info ketika belum pilih siswa #}
+    <div id="noStudentAlert" class="alert alert-info m-3 mb-0 {% if payment %}d-none{% endif %}">
+      <i class="bi bi-info-circle me-1"></i>
+      Pilih siswa terlebih dahulu untuk menampilkan daftar enrollment aktif.
+    </div>
+
+    {# Info loading #}
+    <div id="loadingEnrollments" class="d-none text-center py-3">
+      <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+      <span class="text-muted">Memuat data enrollment…</span>
+    </div>
+
+    {# Info tidak ada enrollment #}
+    <div id="noEnrollmentAlert" class="alert alert-warning m-3 mb-0 d-none">
+      <i class="bi bi-exclamation-triangle me-1"></i>
+      Siswa ini tidak memiliki enrollment aktif. Tambahkan enrollment terlebih dahulu.
+    </div>
+
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle mb-0" id="linesTable">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3 text-center" style="width:45px">No</th>
+              <th style="min-width:200px">Enrollment / Mata Pelajaran</th>
+              <th class="text-center" style="width:130px">Jumlah Sesi</th>
+              <th class="text-end" style="width:160px">Tarif / Sesi</th>
+              <th class="text-end" style="width:160px">Nominal</th>
+              <th class="text-end" style="width:160px">Fee Tutor</th>
+              <th class="text-end" style="width:140px">Margin</th>
+              <th class="text-center" style="width:55px">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="linesBody">
+            {# Isi default saat edit — baris existing #}
+            {% if payment %}
+              {% set lines = payment.payment_lines.all() %}
+              {% if lines %}
+                {% for line in lines %}
+                <tr class="line-row" data-index="{{ loop.index0 }}">
+                  <td class="ps-3 text-center text-muted line-number">{{ loop.index }}</td>
+                  <td>
+                    <select name="enrollment_id[]" class="form-select form-select-sm enrollment-select" required>
+                      <option value="">-- Pilih Enrollment --</option>
+                      {% for enr in enrollments %}
+                      <option value="{{ enr.id }}"
+                              data-student-rate="{{ enr.student_rate_per_meeting }}"
+                              data-tutor-rate="{{ enr.tutor_rate_per_meeting }}"
+                              data-label="{{ enr.subject.name }} — {{ enr.tutor.name }}"
+                              {% if enr.id == line.enrollment_id %}selected{% endif %}>
+                        {{ enr.subject.name }} — {{ enr.tutor.name }}
+                        (Rp {{ "{:,.0f}".format(enr.student_rate_per_meeting) }}/sesi)
+                      </option>
+                      {% endfor %}
+                    </select>
+                    <div class="mt-1">
+                      <small class="text-muted enrollment-detail"></small>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <input type="number" name="meeting_count[]" class="form-control form-control-sm meeting-count text-center"
+                           min="1" max="50" value="{{ line.meeting_count }}" required>
+                  </td>
+                  <td class="text-end">
+                    <input type="hidden" class="student-rate" value="{{ line.student_rate_per_meeting }}">
+                    <span class="rate-display fw-semibold">
+                      Rp {{ "{:,.0f}".format(line.student_rate_per_meeting) }}
+                    </span>
+                  </td>
+                  <td class="text-end">
+                    <span class="nominal-display fw-semibold text-success">
+                      Rp {{ "{:,.0f}".format(line.nominal_amount) }}
+                    </span>
+                  </td>
+                  <td class="text-end">
+                    <input type="hidden" class="tutor-rate" value="{{ line.tutor_rate_per_meeting }}">
+                    <span class="tutor-fee-display text-danger">
+                      Rp {{ "{:,.0f}".format(line.tutor_payable_amount) }}
+                    </span>
+                  </td>
+                  <td class="text-end">
+                    <span class="margin-display text-primary fw-semibold">
+                      Rp {{ "{:,.0f}".format(line.margin_amount) }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-remove-line"
+                            title="Hapus baris">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% endif %}
+            {% endif %}
+          </tbody>
+
+          {# Footer Total #}
+          <tfoot class="table-light fw-bold">
+            <tr>
+              <td colspan="4" class="ps-3 text-end">Total:</td>
+              <td class="text-end text-success" id="grandNominal">Rp 0</td>
+              <td class="text-end text-danger" id="grandTutorFee">Rp 0</td>
+              <td class="text-end text-primary" id="grandMargin">Rp 0</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {# Empty state #}
+      <div id="emptyLinesMsg" class="text-center py-4 text-muted
+                                     {% if payment and payment.payment_lines.count() > 0 %}d-none{% endif %}">
+        <i class="bi bi-table fs-3 d-block mb-2 opacity-50"></i>
+        <small>Belum ada baris rincian. Klik <strong>"Tambah Baris"</strong> untuk mulai.</small>
+      </div>
+    </div>
+  </div>
+
+  {# ── C. Ringkasan & Tombol Simpan ────────────────────────────────── #}
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <div class="row align-items-center">
+        <div class="col-md-7">
+          <div class="row g-3">
+            <div class="col-sm-4">
+              <div class="muted-label">Total Nominal</div>
+              <div class="fs-5 fw-bold text-success" id="summaryNominal">Rp 0</div>
+            </div>
+            <div class="col-sm-4">
+              <div class="muted-label">Total Hutang Tutor</div>
+              <div class="fs-5 fw-bold text-danger" id="summaryTutor">Rp 0</div>
+            </div>
+            <div class="col-sm-4">
+              <div class="muted-label">Total Margin</div>
+              <div class="fs-5 fw-bold text-primary" id="summaryMargin">Rp 0</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex justify-content-md-end gap-2">
+          <a href="{{ url_for('payments.list_payments') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-lg me-1"></i>Batal
+          </a>
+          <button type="submit" class="btn btn-success btn-lg px-4" id="btnSave">
+            <i class="bi bi-save me-1"></i>
+            {{ "Simpan Perubahan" if payment else "Simpan Pembayaran" }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+
+  /* ── State ─────────────────────────────────────────────────────────── */
+  let enrollmentData = [];   // [{id, subject_name, tutor_name, student_rate, tutor_rate}]
+  let lineIndex     = {{ payment.payment_lines.count() if payment else 0 }};
+
+  /* ── Element refs ──────────────────────────────────────────────────── */
+  const studentSelect   = document.getElementById('student_id');
+  const btnAddLine      = document.getElementById('btnAddLine');
+  const linesBody       = document.getElementById('linesBody');
+  const emptyLinesMsg   = document.getElementById('emptyLinesMsg');
+  const noStudentAlert  = document.getElementById('noStudentAlert');
+  const loadingDiv      = document.getElementById('loadingEnrollments');
+  const noEnrollAlert   = document.getElementById('noEnrollmentAlert');
+  const totalInput      = document.getElementById('totalAmountInput');
+
+  /* ── Format Rupiah ─────────────────────────────────────────────────── */
+  function fmtRp(val) {
+    return 'Rp ' + Number(val || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
+  }
+
+  /* ── Recalculate satu baris ────────────────────────────────────────── */
+  function calcLine(row) {
+    const meetings    = parseInt(row.querySelector('.meeting-count').value) || 0;
+    const studentRate = parseFloat(row.querySelector('.student-rate').value) || 0;
+    const tutorRate   = parseFloat(row.querySelector('.tutor-rate').value) || 0;
+    const nominal     = meetings * studentRate;
+    const tutorFee    = meetings * tutorRate;
+    const margin      = nominal - tutorFee;
+
+    row.querySelector('.nominal-display').textContent  = fmtRp(nominal);
+    row.querySelector('.tutor-fee-display').textContent = fmtRp(tutorFee);
+    row.querySelector('.margin-display').textContent   = fmtRp(margin);
+
+    recalcTotals();
+  }
+
+  /* ── Recalculate grand total ───────────────────────────────────────── */
+  function recalcTotals() {
+    let sumNominal = 0, sumTutor = 0, sumMargin = 0;
+
+    linesBody.querySelectorAll('.line-row').forEach(row => {
+      const meetings    = parseInt(row.querySelector('.meeting-count').value) || 0;
+      const studentRate = parseFloat(row.querySelector('.student-rate').value) || 0;
+      const tutorRate   = parseFloat(row.querySelector('.tutor-rate').value) || 0;
+      const nominal     = meetings * studentRate;
+      const tutorFee    = meetings * tutorRate;
+      const margin      = nominal - tutorFee;
+      sumNominal += nominal;
+      sumTutor   += tutorFee;
+      sumMargin  += margin;
+    });
+
+    document.getElementById('grandNominal').textContent  = fmtRp(sumNominal);
+    document.getElementById('grandTutorFee').textContent = fmtRp(sumTutor);
+    document.getElementById('grandMargin').textContent   = fmtRp(sumMargin);
+    document.getElementById('summaryNominal').textContent = fmtRp(sumNominal);
+    document.getElementById('summaryTutor').textContent   = fmtRp(sumTutor);
+    document.getElementById('summaryMargin').textContent  = fmtRp(sumMargin);
+
+    // Update hidden total_amount
+    totalInput.value = sumNominal.toFixed(2);
+  }
+
+  /* ── Renumber baris ────────────────────────────────────────────────── */
+  function renumberLines() {
+    linesBody.querySelectorAll('.line-row').forEach((row, i) => {
+      const numCell = row.querySelector('.line-number');
+      if (numCell) numCell.textContent = i + 1;
+    });
+  }
+
+  /* ── Isi dropdown enrollment di satu baris ─────────────────────────── */
+  function populateEnrollmentSelect(select, selectedId) {
+    const currentVal = selectedId || select.value;
+    select.innerHTML = '<option value="">-- Pilih Enrollment --</option>';
+    enrollmentData.forEach(enr => {
+      const opt = document.createElement('option');
+      opt.value                     = enr.id;
+      opt.dataset.studentRate        = enr.student_rate;
+      opt.dataset.tutorRate          = enr.tutor_rate;
+      opt.dataset.label              = enr.subject_name + ' — ' + enr.tutor_name;
+      opt.textContent = enr.subject_name + ' — ' + enr.tutor_name
+                      + ' (Rp ' + Number(enr.student_rate).toLocaleString('id-ID') + '/sesi)';
+      if (parseInt(currentVal) === enr.id) opt.selected = true;
+      select.appendChild(opt);
+    });
+  }
+
+  /* ── Handle enrollment select change di satu baris ─────────────────── */
+  function onEnrollmentChange(row) {
+    const sel    = row.querySelector('.enrollment-select');
+    const option = sel.options[sel.selectedIndex];
+
+    const studentRate = parseFloat(option.dataset.studentRate) || 0;
+    const tutorRate   = parseFloat(option.dataset.tutorRate)   || 0;
+    const label       = option.dataset.label || '';
+
+    // Simpan ke hidden inputs
+    row.querySelector('.student-rate').value = studentRate;
+    row.querySelector('.tutor-rate').value   = tutorRate;
+
+    // Tampilkan tarif
+    row.querySelector('.rate-display').textContent = studentRate ? fmtRp(studentRate) : '—';
+
+    // Detail keterangan
+    const detail = row.querySelector('.enrollment-detail');
+    if (detail && label) {
+      detail.textContent = label + ' | Tarif siswa: ' + fmtRp(studentRate)
+                         + ' | Fee tutor: ' + fmtRp(tutorRate);
+    }
+
+    calcLine(row);
+  }
+
+  /* ── Buat row baru ─────────────────────────────────────────────────── */
+  function createNewRow() {
+    const idx = lineIndex++;
+    const tr  = document.createElement('tr');
+    tr.className = 'line-row';
+    tr.dataset.index = idx;
+
+    tr.innerHTML = `
+      <td class="ps-3 text-center text-muted line-number"></td>
+      <td>
+        <select name="enrollment_id[]" class="form-select form-select-sm enrollment-select" required>
+          <option value="">-- Pilih Enrollment --</option>
+        </select>
+        <div class="mt-1">
+          <small class="text-muted enrollment-detail"></small>
+        </div>
+      </td>
+      <td class="text-center">
+        <input type="number" name="meeting_count[]"
+               class="form-control form-control-sm meeting-count text-center"
+               min="1" max="50" value="1" required>
+      </td>
+      <td class="text-end">
+        <input type="hidden" class="student-rate" value="0">
+        <span class="rate-display fw-semibold text-muted">—</span>
+      </td>
+      <td class="text-end">
+        <span class="nominal-display fw-semibold text-success">Rp 0</span>
+      </td>
+      <td class="text-end">
+        <input type="hidden" class="tutor-rate" value="0">
+        <span class="tutor-fee-display text-danger">Rp 0</span>
+      </td>
+      <td class="text-end">
+        <span class="margin-display text-primary fw-semibold">Rp 0</span>
+      </td>
+      <td class="text-center">
+        <button type="button" class="btn btn-sm btn-outline-danger btn-remove-line"
+                title="Hapus baris">
+          <i class="bi bi-trash"></i>
+        </button>
+      </td>
+    `;
+
+    // Populate dropdown
+    populateEnrollmentSelect(tr.querySelector('.enrollment-select'));
+
+    // Event listeners untuk baris baru
+    attachRowEvents(tr);
+
+    linesBody.appendChild(tr);
+    renumberLines();
+    toggleEmptyMsg();
+    recalcTotals();
+    return tr;
+  }
+
+  /* ── Attach events ke satu baris ───────────────────────────────────── */
+  function attachRowEvents(row) {
+    row.querySelector('.enrollment-select').addEventListener('change', function () {
+      onEnrollmentChange(row);
+    });
+    row.querySelector('.meeting-count').addEventListener('input', function () {
+      calcLine(row);
+    });
+    row.querySelector('.btn-remove-line').addEventListener('click', function () {
+      if (linesBody.querySelectorAll('.line-row').length === 1) {
+        if (!confirm('Hapus semua baris?')) return;
+      }
+      row.remove();
+      renumberLines();
+      toggleEmptyMsg();
+      recalcTotals();
+    });
+  }
+
+  /* ── Toggle empty state message ────────────────────────────────────── */
+  function toggleEmptyMsg() {
+    const hasRows = linesBody.querySelectorAll('.line-row').length > 0;
+    emptyLinesMsg.classList.toggle('d-none', hasRows);
+  }
+
+  /* ── Fetch enrollments dari API ────────────────────────────────────── */
+  function fetchEnrollments(studentId) {
+    if (!studentId) {
+      enrollmentData = [];
+      noStudentAlert.classList.remove('d-none');
+      btnAddLine.disabled = true;
+      return;
+    }
+
+    noStudentAlert.classList.add('d-none');
+    noEnrollAlert.classList.add('d-none');
+    loadingDiv.classList.remove('d-none');
+    btnAddLine.disabled = true;
+
+    fetch('/payments/api/enrollments/' + studentId)
+      .then(r => {
+        if (!r.ok) throw new Error('Network error: ' + r.status);
+        return r.json();
+      })
+      .then(data => {
+        loadingDiv.classList.add('d-none');
+        enrollmentData = data;
+
+        if (data.length === 0) {
+          noEnrollAlert.classList.remove('d-none');
+          btnAddLine.disabled = true;
+          // Update enrollment info
+          document.getElementById('enrollmentInfo').textContent =
+            'Tidak ada enrollment aktif.';
+        } else {
+          btnAddLine.disabled = false;
+          document.getElementById('enrollmentInfo').textContent =
+            data.length + ' enrollment aktif tersedia.';
+
+          // Re-populate semua dropdown yang sudah ada
+          linesBody.querySelectorAll('.enrollment-select').forEach(sel => {
+            populateEnrollmentSelect(sel);
+          });
+        }
+      })
+      .catch(err => {
+        loadingDiv.classList.add('d-none');
+        console.error('Error fetching enrollments:', err);
+        document.getElementById('enrollmentInfo').textContent =
+          'Gagal memuat data enrollment.';
+        btnAddLine.disabled = true;
+      });
+  }
+
+  /* ── Init existing rows (saat edit) ───────────────────────────────── */
+  function initExistingRows() {
+    linesBody.querySelectorAll('.line-row').forEach(row => {
+      attachRowEvents(row);
+      calcLine(row);
+    });
+    renumberLines();
+    toggleEmptyMsg();
+    recalcTotals();
+  }
+
+  /* ── Event: student change ─────────────────────────────────────────── */
+  studentSelect.addEventListener('change', function () {
+    // Reset baris jika student diganti (hanya pada mode tambah)
+    const isEdit = {{ 'true' if payment else 'false' }};
+    if (!isEdit) {
+      linesBody.innerHTML = '';
+      enrollmentData = [];
+      toggleEmptyMsg();
+      recalcTotals();
+    }
+    fetchEnrollments(this.value);
+  });
+
+  /* ── Event: Tambah Baris ───────────────────────────────────────────── */
+  btnAddLine.addEventListener('click', function () {
+    if (enrollmentData.length === 0) return;
+    createNewRow();
+  });
+
+  /* ── Event: Form submit validation ────────────────────────────────── */
+  document.getElementById('paymentForm').addEventListener('submit', function (e) {
+    const rows = linesBody.querySelectorAll('.line-row');
+
+    // Validasi — harus ada minimal 1 baris
+    if (rows.length === 0) {
+      e.preventDefault();
+      alert('Tambahkan minimal satu baris rincian layanan sebelum menyimpan.');
+      return;
+    }
+
+    // Validasi — semua enrollment harus dipilih
+    let allFilled = true;
+    rows.forEach(row => {
+      const sel = row.querySelector('.enrollment-select');
+      if (!sel.value) allFilled = false;
+    });
+    if (!allFilled) {
+      e.preventDefault();
+      alert('Pastikan semua baris sudah memilih Enrollment.');
+      return;
+    }
+
+    // Validasi — tanggal wajib diisi
+    if (!document.getElementById('payment_date').value) {
+      e.preventDefault();
+      document.getElementById('payment_date').focus();
+      return;
+    }
+
+    // Final update total
+    recalcTotals();
+  });
+
+  /* ── Init saat halaman load ────────────────────────────────────────── */
+  (function init() {
+    initExistingRows();
+
+    // Jika mode edit, fetch enrollments untuk siswa yang sudah dipilih
+    {% if payment %}
+    fetchEnrollments({{ payment.student_id }});
+    {% else %}
+    // Mode tambah: jika ada student yang terpilih (misal dari form error redirect)
+    const preselectedStudent = studentSelect.value;
+    if (preselectedStudent) {
+      fetchEnrollments(preselectedStudent);
+    }
+    {% endif %}
+  })();
+
+})();
+</script>
+{% endblock %}

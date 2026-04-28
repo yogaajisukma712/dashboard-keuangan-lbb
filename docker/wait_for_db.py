@@ -7,16 +7,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from sqlalchemy import text
-
-from app import create_app
-from app.extensions import db
-
 
 def main():
     env = os.getenv("FLASK_ENV", "production")
     retries = int(os.getenv("DB_CONNECT_RETRIES", "30"))
     delay = float(os.getenv("DB_CONNECT_DELAY", "2"))
+
+    from sqlalchemy import text
+
+    from app import create_app, db
 
     app = create_app(env)
 
@@ -25,8 +24,7 @@ def main():
             with app.app_context():
                 db.session.execute(text("SELECT 1"))
                 db.session.commit()
-                db.create_all()
-            print("Database is ready and schema has been initialized.")
+                print("Database is ready.")
             return 0
         except Exception as exc:
             print(
@@ -34,7 +32,8 @@ def main():
                 file=sys.stderr,
             )
             try:
-                db.session.rollback()
+                with app.app_context():
+                    db.session.rollback()
             except Exception:
                 pass
 

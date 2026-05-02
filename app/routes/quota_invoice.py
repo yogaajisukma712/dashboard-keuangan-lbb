@@ -7,7 +7,7 @@ Mendukung invoice multi-mapel dengan dua mode tagihan:
 
 from datetime import date, datetime
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db
@@ -17,6 +17,12 @@ from app.models import (
     Student,
     StudentPayment,
     StudentPaymentLine,
+)
+from app.utils import (
+    build_qr_code_data_uri,
+    decode_public_id,
+    encode_public_id,
+    get_branding_logo_mark_data_uri,
 )
 
 quota_invoice_bp = Blueprint("quota_invoice", __name__, url_prefix="/quota")
@@ -130,7 +136,8 @@ def calc_quota(enr_id: int, service_month_date: date) -> dict:
         )
         .filter(
             StudentPaymentLine.enrollment_id == enr_id,
-            StudentPaymentLine.service_month == service_month_date,
+            db.extract("month", StudentPaymentLine.service_month) == month,
+            db.extract("year", StudentPaymentLine.service_month) == year,
         )
         .scalar()
     )
@@ -183,6 +190,90 @@ def _get_student_quota_details(student_id: int, service_month_date: date):
     )
 
 
+def _build_quota_summary(quota_details):
+    """Summarize quota detail rows for one student."""
+    return {
+        "total_enrollments": len(quota_details),
+        "problem_subject_count": sum(1 for item in quota_details if item["remaining"] <= 0),
+        "zero_subject_count": sum(1 for item in quota_details if item["remaining"] == 0),
+        "minus_subject_count": sum(1 for item in quota_details if item["remaining"] < 0),
+        "total_debt_sessions": sum(item["deficit"] for item in quota_details),
+        "has_alert": any(item["remaining"] <= 0 for item in quota_details),
+    }
+
+
+def _get_student_quota_alert_map(student_ids, service_month_date: date):
+    """Return alert summary keyed by student_id for the selected period."""
+    summary_map = {}
+    for student_id in student_ids:
+        details = _get_student_quota_details(student_id, service_month_date)
+        summary = _build_quota_summary(details)
+        if summary["has_alert"]:
+            summary_map[student_id] = summary
+    return summary_map
+
+
+def _get_student_invoice_history(student_id: int, limit=None):
+    """Fetch invoice history for a student."""
+    params = {"student_id": student_id}
+    limit_sql = ""
+    if limit is not None:
+        params["limit"] = int(limit)
+        limit_sql = "LIMIT :limit"
+
+    rows = (
+        db.session.execute(
+            db.text(
+                f"""
+                SELECT
+                    si.*,
+                    COALESCE(line_stats.line_count, 0) AS line_count
+                FROM student_invoices si
+                LEFT JOIN (
+                    SELECT invoice_id, COUNT(*) AS line_count
+                    FROM student_invoice_lines
+                    GROUP BY invoice_id
+                ) AS line_stats ON line_stats.invoice_id = si.id
+                WHERE si.student_id = :student_id
+                ORDER BY si.created_at DESC, si.id DESC
+                {limit_sql}
+                """
+            ),
+            params,
+        )
+        .mappings()
+        .all()
+    )
+    result = []
+    for row in rows:
+        item = dict(row)
+        item["public_id"] = encode_public_id("student_invoice", item["id"])
+        result.append(item)
+    return result
+
+
+def _get_student_by_ref_or_404(student_ref: str):
+    """Resolve opaque student ref to model instance."""
+    try:
+        student_id = decode_public_id(student_ref, "student")
+    except ValueError:
+        abort(404)
+    return Student.query.get_or_404(student_id)
+
+
+def _encode_invoice_public_id(invoice_id: int):
+    """Encode invoice integer id into opaque public ref."""
+    return encode_public_id("student_invoice", invoice_id)
+
+
+def _decode_invoice_ref_or_404(invoice_ref: str):
+    """Decode opaque invoice ref to integer id."""
+    try:
+        return decode_public_id(invoice_ref, "student_invoice")
+    except ValueError:
+        abort(404)
+
+
 def _fetch_invoice(invoice_id: int):
     """Ambil header invoice."""
     row = (
@@ -193,7 +284,11 @@ def _fetch_invoice(invoice_id: int):
         .mappings()
         .first()
     )
-    return dict(row) if row else None
+    if not row:
+        return None
+    invoice = dict(row)
+    invoice["public_id"] = _encode_invoice_public_id(invoice["id"])
+    return invoice
 
 
 def _fetch_invoice_lines(invoice_id: int):
@@ -223,7 +318,12 @@ def _fetch_invoice_lines(invoice_id: int):
         .mappings()
         .all()
     )
-    return [dict(row) for row in rows]
+    result = []
+    for row in rows:
+        item = dict(row)
+        item["invoice_public_id"] = _encode_invoice_public_id(item["invoice_id"])
+        result.append(item)
+    return result
 
 
 def _build_legacy_invoice_lines(invoice: dict):
@@ -465,39 +565,22 @@ def quota_alerts():
     )
 
 
-@quota_invoice_bp.route("/student/<int:student_id>", methods=["GET"])
+@quota_invoice_bp.route("/student/<string:student_ref>", methods=["GET"])
 @login_required
-def student_quota_detail(student_id):
-    """Tampilkan detail quota semua enrollment milik seorang siswa."""
-    student = Student.query.get_or_404(student_id)
+def student_quota_detail(student_ref):
+    """Redirect detail quota siswa ke dashboard siswa terpadu."""
+    student = _get_student_by_ref_or_404(student_ref)
     today = date.today()
 
     month = request.args.get("month", today.month, type=int)
     year = request.args.get("year", today.year, type=int)
-    service_month_date = _first_of_month(year, month)
-
-    quota_details = _get_student_quota_details(student_id, service_month_date)
-    summary = {
-        "total_enrollments": len(quota_details),
-        "problem_subject_count": sum(
-            1 for item in quota_details if item["remaining"] <= 0
-        ),
-        "zero_subject_count": sum(
-            1 for item in quota_details if item["remaining"] == 0
-        ),
-        "minus_subject_count": sum(
-            1 for item in quota_details if item["remaining"] < 0
-        ),
-        "total_debt_sessions": sum(item["deficit"] for item in quota_details),
-    }
-
-    return render_template(
-        "quota/student_detail.html",
-        student=student,
-        quota_details=quota_details,
-        summary=summary,
-        service_month=service_month_date,
-        service_month_label=_month_label(service_month_date),
+    return redirect(
+        url_for(
+            "master.student_detail",
+            student_ref=student.public_id,
+            month=month,
+            year=year,
+        )
     )
 
 
@@ -625,17 +708,23 @@ def create_invoice():
         f"({len(lines)} mapel, {BILLING_TYPE_LABELS[billing_type]}).",
         "success",
     )
-    return redirect(url_for("quota_invoice.invoice_detail", invoice_id=invoice_id))
+    return redirect(
+        url_for(
+            "quota_invoice.invoice_detail",
+            invoice_ref=_encode_invoice_public_id(invoice_id),
+        )
+    )
 
 
-@quota_invoice_bp.route("/invoice/<int:invoice_id>/complete", methods=["POST"])
+@quota_invoice_bp.route("/invoice/<string:invoice_ref>/complete", methods=["POST"])
 @login_required
-def complete_invoice(invoice_id):
+def complete_invoice(invoice_ref):
     """
     Selesaikan invoice:
     - Ubah status menjadi 'paid'
     - Buat StudentPayment + StudentPaymentLine untuk seluruh mapel invoice
     """
+    invoice_id = _decode_invoice_ref_or_404(invoice_ref)
     invoice = _fetch_invoice(invoice_id)
     if not invoice:
         flash("Invoice tidak ditemukan.", "danger")
@@ -643,7 +732,9 @@ def complete_invoice(invoice_id):
 
     if invoice.get("status") == "paid":
         flash("Invoice ini sudah diselesaikan sebelumnya.", "warning")
-        return redirect(url_for("quota_invoice.invoice_detail", invoice_id=invoice_id))
+        return redirect(
+            url_for("quota_invoice.invoice_detail", invoice_ref=invoice["public_id"])
+        )
 
     invoice_lines = _fetch_invoice_lines(invoice_id)
     if not invoice_lines:
@@ -651,7 +742,9 @@ def complete_invoice(invoice_id):
 
     if not invoice_lines:
         flash("Invoice tidak memiliki detail mapel yang bisa diproses.", "danger")
-        return redirect(url_for("quota_invoice.invoice_detail", invoice_id=invoice_id))
+        return redirect(
+            url_for("quota_invoice.invoice_detail", invoice_ref=invoice["public_id"])
+        )
 
     student = Student.query.get(invoice["student_id"])
     total_amount = sum(float(line["nominal_amount"] or 0) for line in invoice_lines)
@@ -721,13 +814,16 @@ def complete_invoice(invoice_id):
         db.session.rollback()
         flash(f"Gagal menyelesaikan invoice: {exc}", "danger")
 
-    return redirect(url_for("quota_invoice.invoice_detail", invoice_id=invoice_id))
+    return redirect(
+        url_for("quota_invoice.invoice_detail", invoice_ref=invoice["public_id"])
+    )
 
 
-@quota_invoice_bp.route("/invoice/<int:invoice_id>", methods=["GET"])
+@quota_invoice_bp.route("/invoice/<string:invoice_ref>", methods=["GET"])
 @login_required
-def invoice_detail(invoice_id):
+def invoice_detail(invoice_ref):
     """Tampilkan detail invoice siswa beserta line mapelnya."""
+    invoice_id = _decode_invoice_ref_or_404(invoice_ref)
     invoice = _fetch_invoice(invoice_id)
     if not invoice:
         flash("Invoice tidak ditemukan.", "danger")
@@ -770,11 +866,32 @@ def invoice_list():
 
     page = request.args.get("page", 1, type=int)
     per_page = current_app.config.get("PAGINATION_PER_PAGE", 20)
-    student_id = request.args.get("student_id", type=int)
+    student_ref = (request.args.get("student_ref") or "").strip()
+    student_id = None
     status = request.args.get("status", "").strip()
     billing_type = request.args.get("billing_type", "").strip()
     month = request.args.get("month", type=int)
     year = request.args.get("year", type=int)
+
+    if student_ref:
+        try:
+            student_id = decode_public_id(student_ref, "student")
+        except ValueError:
+            student_id = None
+    elif request.args.get("student_id", type=int):
+        legacy_student = Student.query.get(request.args.get("student_id", type=int))
+        if legacy_student:
+            return redirect(
+                url_for(
+                    "quota_invoice.invoice_list",
+                    page=page,
+                    student_ref=legacy_student.public_id,
+                    status=status,
+                    billing_type=billing_type,
+                    month=month,
+                    year=year,
+                )
+            )
 
     where_parts = ["1=1"]
     params: dict = {}
@@ -847,7 +964,7 @@ def invoice_list():
         total=total,
         total_pages=total_pages,
         filters={
-            "student_id": student_id,
+            "student_ref": student_ref,
             "status": status,
             "billing_type": billing_type,
             "month": month,
@@ -858,12 +975,13 @@ def invoice_list():
     )
 
 
-@quota_invoice_bp.route("/invoice/<int:invoice_id>/print", methods=["GET"])
+@quota_invoice_bp.route("/invoice/<string:invoice_ref>/print", methods=["GET"])
 @login_required
-def invoice_print(invoice_id):
+def invoice_print(invoice_ref):
     """Render invoice dalam format cetak / download PNG."""
     from flask import current_app
 
+    invoice_id = _decode_invoice_ref_or_404(invoice_ref)
     invoice = _fetch_invoice(invoice_id)
     if not invoice:
         flash("Invoice tidak ditemukan.", "danger")
@@ -922,4 +1040,20 @@ def invoice_print(invoice_id):
         ceo_name=current_app.config.get("INSTITUTION_CEO_NAME", ""),
         ceo_title=current_app.config.get("INSTITUTION_CEO_TITLE", "CEO"),
         created_at=created_at,
+        branding_logo_mark_data_uri=get_branding_logo_mark_data_uri(),
+        signature_qr_data_uri=build_qr_code_data_uri(
+            "|".join(
+                [
+                    "QUOTA-INVOICE",
+                    str(invoice.get("id") or invoice_id),
+                    student.name if student else "-",
+                    invoice["service_month"].strftime("%Y-%m")
+                    if invoice.get("service_month")
+                    else "-",
+                    f"{float(total_amount or 0):.0f}",
+                    invoice.get("billing_type") or "prepaid",
+                ]
+            ),
+            box_size=4,
+        ),
     )

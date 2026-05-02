@@ -147,14 +147,8 @@ head %}
     }
     .inv-sig-row {
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-end;
         align-items: flex-end;
-    }
-    .inv-illus img {
-        max-height: 85px;
-        max-width: 120px;
-        object-fit: contain;
-        opacity: 0.9;
     }
     .inv-sig-block {
         text-align: center;
@@ -197,7 +191,7 @@ PNG) ── #}
         <i class="bi bi-printer me-1"></i>Print
     </button>
     <a
-        href="{{ url_for('quota_invoice.invoice_detail', invoice_id=invoice.id) }}"
+        href="{{ url_for('quota_invoice.invoice_detail', invoice_ref=invoice.public_id) }}"
         class="btn btn-outline-secondary"
     >
         <i class="bi bi-arrow-left me-1"></i>Kembali ke Detail Invoice
@@ -224,7 +218,7 @@ PNG) ── #}
             <div>
                 <img
                     class="inv-logo-img"
-                    src="{{ url_for('static', filename='branding/logo_super_smart.svg') }}"
+                    src="{{ branding_logo_mark_data_uri or '' }}"
                     alt="Logo LBB Super Smart"
                     crossorigin="anonymous"
                 />
@@ -323,19 +317,19 @@ PNG) ── #}
             {% endfor %}
         </div>
 
-        {# ── Ilustrasi + Tanda Tangan ── #}
+        {# ── Tanda Tangan ── #}
         <div class="inv-sig-row">
-            <div class="inv-illus">
-                <img
-                    src="{{ url_for('static', filename='branding/logo_super_smart.svg') }}"
-                    alt=""
-                    crossorigin="anonymous"
-                />
-            </div>
             <div class="inv-sig-block">
                 <div class="inv-sig-city">
                     {{ institution_city }}, {{ created_at.strftime('%d') }} {{
                     MONTHS_ID[created_at.month] }} {{ created_at.year }}
+                </div>
+                <div style="margin-bottom: 8px">
+                    <img
+                        src="{{ signature_qr_data_uri }}"
+                        alt="Barcode Tanda Tangan"
+                        style="width: 82px; height: 82px; object-fit: contain"
+                    />
                 </div>
                 <div class="inv-sig-name">{{ ceo_name }}</div>
                 <div>{{ ceo_title }}</div>

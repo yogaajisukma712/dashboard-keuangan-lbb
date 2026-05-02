@@ -1,0 +1,26 @@
+{
+  "goal": "Make GitHub sync and portable workspace state explicit for Hermes and context-mode",
+  "project_id": "aplikasi-lembaga",
+  "phase": "verification_done",
+  "current_role": "implementer",
+  "updated_at": "2026-05-02T13:48:38Z",
+  "plan": [
+    {
+      "step": "Audit where Hermes and context-mode store state",
+      "status": "completed"
+    },
+    {
+      "step": "Add repo-side sync script, version counter, and restore docs",
+      "status": "completed"
+    },
+    {
+      "step": "Verify safe export mode and record policy",
+      "status": "completed"
+    }
+  ],
+  "notes": [
+    "Repo now tracks Hermes project-local state via .codex-workflow planner/task memory files.",
+    "Repo now includes a versioned sync script and project-safe context snapshot export.",
+    "Full raw context-mode backup is available only as an explicit flag because home-level DB files may include other projects."
+  ]
+}

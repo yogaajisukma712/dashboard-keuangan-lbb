@@ -21,6 +21,7 @@ ENV/
 .env.*.local
 .env.docker
 .env.docker.local
+.continue/.env
 # Keep .env.example and .env.railway committed
 
 # ── Logs & uploads ───────────────────────────────────────────────────────────
@@ -70,3 +71,12 @@ Athallah Rafael Santoso 1.png
 *.tmp
 *.bak
 instance/
+
+# ── Codex / Hermes workflow state ────────────────────────────────────────────
+.codex-workflow/*
+!.codex-workflow/planner_state.json
+!.codex-workflow/task_memory.jsonl
+
+# ── Agent sync snapshots (tracked) ───────────────────────────────────────────
+!state/
+!state/**

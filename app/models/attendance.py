@@ -47,6 +47,12 @@ class AttendanceSession(db.Model):
     tutor = db.relationship("Tutor", back_populates="attendance_sessions")
     subject = db.relationship("Subject", back_populates="attendance_sessions")
 
+    @property
+    def public_id(self):
+        from app.utils import encode_public_id
+
+        return encode_public_id("attendance_session", self.id)
+
     def __repr__(self):
         return f"<AttendanceSession {self.id} - {self.session_date}>"
 

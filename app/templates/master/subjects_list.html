@@ -73,7 +73,14 @@
             <td class="text-center pe-4">
               <div class="btn-group btn-group-sm" role="group">
                 <a
-                  href="{{ url_for('master.edit_subject', id=subject.id) }}"
+                  href="{{ url_for('master.subject_detail', subject_ref=subject.public_id) }}"
+                  class="btn btn-outline-info"
+                  title="Detail Mata Pelajaran"
+                >
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a
+                  href="{{ url_for('master.edit_subject', subject_ref=subject.public_id) }}"
                   class="btn btn-outline-primary"
                   title="Edit Mata Pelajaran"
                 >
@@ -126,7 +133,7 @@
                       </button>
                       <form
                         method="POST"
-                        action="{{ url_for('master.delete_subject', id=subject.id) }}"
+                        action="{{ url_for('master.delete_subject', subject_ref=subject.public_id) }}"
                         class="d-inline"
                       >
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />

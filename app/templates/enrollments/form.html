@@ -181,6 +181,7 @@
                 {{ form.student_rate_per_meeting(class_="form-control",
                                                  id=form.student_rate_per_meeting.id,
                                                  min=0,
+                                                 step=1,
                                                  placeholder="0",
                                                  required=true) }}
               </div>
@@ -201,6 +202,7 @@
                 {{ form.tutor_rate_per_meeting(class_="form-control",
                                                id=form.tutor_rate_per_meeting.id,
                                                min=0,
+                                               step=1,
                                                placeholder="0",
                                                required=true) }}
               </div>
@@ -257,7 +259,7 @@
 {% block scripts %}
 <script>
 /* ── Pricing Auto-fill via AJAX ────────────────────────────────────────────
-   Endpoint: GET /master/pricing/api/<curriculum_id>/<level_id>
+   Endpoint: GET /master/pricing/api/<curriculum_ref>/<level_ref>
    Expected JSON response:
    {
      "student_rate_per_meeting": 75000,
@@ -274,6 +276,8 @@ const elTutorRate    = document.getElementById('{{ form.tutor_rate_per_meeting.i
 const elQuota        = document.getElementById('{{ form.meeting_quota_per_month.id }}');
 const pricingHint    = document.getElementById('pricingHint');
 const pricingHintTxt = document.getElementById('pricingHintText');
+const curriculumPublicIds = {{ curriculum_public_ids|default({}, true)|tojson }};
+const levelPublicIds = {{ level_public_ids|default({}, true)|tojson }};
 
 /* ── Live monthly-total preview ──────────────────────────────────────────── */
 const monthlyPreview      = document.getElementById('monthlyPreview');
@@ -304,10 +308,12 @@ function updatePreview() {
 async function fetchPricing() {
   const curId   = elCurriculum.value;
   const levelId = elLevel.value;
+  const curRef = curriculumPublicIds[curId];
+  const levelRef = levelPublicIds[levelId];
 
-  if (!curId || curId === '0' || !levelId || levelId === '0') return;
+  if (!curId || curId === '0' || !levelId || levelId === '0' || !curRef || !levelRef) return;
 
-  const url = `/master/pricing/api/${curId}/${levelId}`;
+  const url = `/master/pricing/api/${curRef}/${levelRef}`;
 
   try {
     const res = await fetch(url, {

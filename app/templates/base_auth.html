@@ -3,6 +3,16 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link
+            rel="icon"
+            type="image/svg+xml"
+            href="{{ branding_logo_mark_data_uri or '' }}"
+        />
+        <link
+            rel="shortcut icon"
+            href="{{ branding_logo_mark_data_uri or '' }}"
+        />
+        <meta name="theme-color" content="#253b9b" />
         <title>{% block title %}LBB Super Smart{% endblock %}</title>
 
         <!-- Google Fonts: Poppins 300–800 -->

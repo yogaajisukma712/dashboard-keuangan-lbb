@@ -33,7 +33,7 @@
 {% endwith %}
 
 <form method="POST"
-      action="{{ url_for('payments.edit_payment', payment_id=payment.id) if payment else url_for('payments.add_payment') }}"
+      action="{{ url_for('payments.edit_payment', payment_ref=payment.public_id) if payment else url_for('payments.add_payment') }}"
       id="paymentForm"
       novalidate>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -49,23 +49,23 @@
 
         {# Siswa #}
         <div class="col-md-6">
-          <label for="student_id" class="form-label fw-semibold">
+          <label for="student_ref" class="form-label fw-semibold">
             Siswa <span class="text-danger">*</span>
           </label>
-          <select name="student_id" id="student_id" class="form-select" required
+          <select name="student_ref" id="student_ref" class="form-select" required
                   {% if payment %}disabled{% endif %}>
             <option value="">-- Pilih Siswa --</option>
             {% for student in students %}
-            <option value="{{ student.id }}"
-              {% if payment and payment.student_id == student.id %}selected
-              {% elif request.form.get('student_id', type=int) == student.id %}selected{% endif %}>
+            <option value="{{ student.public_id }}"
+              {% if payment and payment.student and payment.student.public_id == student.public_id %}selected
+              {% elif request.form.get('student_ref') == student.public_id %}selected{% endif %}>
               {{ student.name }}
               {% if student.grade %} — {{ student.grade }}{% endif %}
             </option>
             {% endfor %}
           </select>
           {% if payment %}
-          <input type="hidden" name="student_id" value="{{ payment.student_id }}">
+          <input type="hidden" name="student_ref" value="{{ payment.student.public_id }}">
           {% endif %}
           <div class="form-text">
             <span id="enrollmentInfo" class="text-muted"></span>
@@ -303,7 +303,7 @@
   let lineIndex     = {{ payment.payment_lines.count() if payment else 0 }};
 
   /* ── Element refs ──────────────────────────────────────────────────── */
-  const studentSelect   = document.getElementById('student_id');
+  const studentSelect   = document.getElementById('student_ref');
   const btnAddLine      = document.getElementById('btnAddLine');
   const linesBody       = document.getElementById('linesBody');
   const emptyLinesMsg   = document.getElementById('emptyLinesMsg');
@@ -507,7 +507,7 @@
     loadingDiv.classList.remove('d-none');
     btnAddLine.disabled = true;
 
-    fetch('/payments/api/enrollments/' + studentId)
+    fetch('/payments/api/enrollments/' + encodeURIComponent(studentId))
       .then(r => {
         if (!r.ok) throw new Error('Network error: ' + r.status);
         return r.json();
@@ -612,7 +612,7 @@
 
     // Jika mode edit, fetch enrollments untuk siswa yang sudah dipilih
     {% if payment %}
-    fetchEnrollments({{ payment.student_id }});
+    fetchEnrollments('{{ payment.student.public_id }}');
     {% else %}
     // Mode tambah: jika ada student yang terpilih (misal dari form error redirect)
     const preselectedStudent = studentSelect.value;

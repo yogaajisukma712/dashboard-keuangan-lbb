@@ -7,9 +7,8 @@ import os
 from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO
-from urllib.parse import quote
-
 from flask import (
+    abort,
     Blueprint,
     current_app,
     flash,
@@ -26,9 +25,54 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.forms import TutorPayoutForm
 from app.models import AttendanceSession, Tutor, TutorPayout, TutorPayoutLine
-from app.utils import admin_required
+from app.utils import (
+    admin_required,
+    build_qr_code_data_uri,
+    build_qr_code_image_buffer,
+    decode_public_id,
+    get_branding_logo_mark_data_uri,
+)
 
 payroll_bp = Blueprint("payroll", __name__, url_prefix="/payroll")
+
+
+def _get_payout_by_ref_or_404(payout_ref):
+    """Resolve opaque payout ref to model instance."""
+    try:
+        payout_id = decode_public_id(payout_ref, "tutor_payout")
+    except ValueError:
+        abort(404)
+    return TutorPayout.query.get_or_404(payout_id)
+
+
+def _get_tutor_by_ref_or_404(tutor_ref):
+    """Resolve opaque tutor ref to model instance."""
+    try:
+        tutor_id = decode_public_id(tutor_ref, "tutor")
+    except ValueError:
+        abort(404)
+    return Tutor.query.get_or_404(tutor_id)
+
+
+def _build_proof_context(proof_image):
+    """Prepare URLs and file metadata for uploaded proof files."""
+    if not proof_image:
+        return {
+            "proof_download_url": None,
+            "proof_image_url": None,
+            "proof_is_image": False,
+            "proof_is_pdf": False,
+        }
+
+    filename = os.path.basename(proof_image)
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    download_url = url_for("payroll.serve_payroll_proof", filename=filename)
+    return {
+        "proof_download_url": download_url,
+        "proof_image_url": download_url if ext in {"png", "jpg", "jpeg", "gif", "webp"} else None,
+        "proof_is_image": ext in {"png", "jpg", "jpeg", "gif", "webp"},
+        "proof_is_pdf": ext == "pdf",
+    }
 
 
 def _get_tutor_payable_for_period(tutor_id, month, year):
@@ -100,6 +144,7 @@ def tutor_summary():
                 "payable": float(payable),
                 "paid": float(paid),
                 "balance": float(balance),
+                "latest_payout": latest_payout,
                 "latest_payout_id": latest_payout.id if latest_payout else None,
             }
         )
@@ -174,27 +219,34 @@ def add_payout():
             db.session.rollback()
             flash(f"Terjadi kesalahan: {str(e)}", "danger")
 
-    return render_template("payroll/payout_form.html", form=form)
+    tutor_public_ids = {
+        str(t.id): t.public_id for t in Tutor.query.filter_by(is_active=True).all()
+    }
+    return render_template(
+        "payroll/payout_form.html",
+        form=form,
+        tutor_public_ids=tutor_public_ids,
+    )
 
 
-@payroll_bp.route("/payout/<int:payout_id>", methods=["GET"])
+@payroll_bp.route("/payout/<string:payout_ref>", methods=["GET"])
 @login_required
-def payout_detail(payout_id):
+def payout_detail(payout_ref):
     """
     Display payout detail
     """
-    payout = TutorPayout.query.get_or_404(payout_id)
+    payout = _get_payout_by_ref_or_404(payout_ref)
     return render_template("payroll/payout_detail.html", payout=payout)
 
 
-@payroll_bp.route("/payout/<int:payout_id>/delete", methods=["POST"])
+@payroll_bp.route("/payout/<string:payout_ref>/delete", methods=["POST"])
 @login_required
 @admin_required
-def delete_payout(payout_id):
+def delete_payout(payout_ref):
     """
     Delete payout
     """
-    payout = TutorPayout.query.get_or_404(payout_id)
+    payout = _get_payout_by_ref_or_404(payout_ref)
 
     try:
         db.session.delete(payout)
@@ -249,16 +301,16 @@ def transfer_list():
     )
 
 
-@payroll_bp.route("/api/tutor/<int:tutor_id>/balance", methods=["GET"])
+@payroll_bp.route("/api/tutor/<string:tutor_ref>/balance", methods=["GET"])
 @login_required
-def api_tutor_balance(tutor_id):
+def api_tutor_balance(tutor_ref):
     """
     API endpoint to get tutor balance
     """
     month = request.args.get("month", default=datetime.now().month, type=int)
     year = request.args.get("year", default=datetime.now().year, type=int)
 
-    tutor = Tutor.query.get_or_404(tutor_id)
+    tutor = _get_tutor_by_ref_or_404(tutor_ref)
 
     payable = _get_tutor_payable_for_period(tutor_id, month, year)
     paid = _get_tutor_paid_for_period(tutor_id, month, year)
@@ -335,33 +387,33 @@ def api_quick_pay():
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
-@payroll_bp.route("/payout/<int:payout_id>/upload-proof", methods=["POST"])
+@payroll_bp.route("/payout/<string:payout_ref>/upload-proof", methods=["POST"])
 @login_required
-def upload_proof(payout_id):
+def upload_proof(payout_ref):
     """Upload bukti transfer image — simpan ke uploads/payroll_proofs/"""
-    payout = TutorPayout.query.get_or_404(payout_id)
+    payout = _get_payout_by_ref_or_404(payout_ref)
 
     if "proof_file" not in request.files:
         flash("Tidak ada file yang dipilih", "warning")
-        return redirect(url_for("payroll.payout_detail", payout_id=payout_id))
+        return redirect(url_for("payroll.payout_detail", payout_ref=payout.public_id))
 
     file = request.files["proof_file"]
     if not file or file.filename == "":
         flash("Tidak ada file yang dipilih", "warning")
-        return redirect(url_for("payroll.payout_detail", payout_id=payout_id))
+        return redirect(url_for("payroll.payout_detail", payout_ref=payout.public_id))
 
     allowed_ext = {"png", "jpg", "jpeg", "gif", "pdf"}
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
     if ext not in allowed_ext:
         flash("Format file tidak didukung. Gunakan PNG, JPG, GIF, atau PDF.", "danger")
-        return redirect(url_for("payroll.payout_detail", payout_id=payout_id))
+        return redirect(url_for("payroll.payout_detail", payout_ref=payout.public_id))
 
     try:
         upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "payroll_proofs")
         os.makedirs(upload_dir, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        filename = secure_filename(f"proof_{payout_id}_{timestamp}.{ext}")
+        filename = secure_filename(f"proof_{payout.id}_{timestamp}.{ext}")
         file.save(os.path.join(upload_dir, filename))
 
         payout.proof_image = f"payroll_proofs/{filename}"
@@ -373,7 +425,7 @@ def upload_proof(payout_id):
         db.session.rollback()
         flash(f"Gagal upload: {exc}", "danger")
 
-    return redirect(url_for("payroll.payout_detail", payout_id=payout_id))
+    return redirect(url_for("payroll.payout_detail", payout_ref=payout.public_id))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -400,17 +452,22 @@ def _get_sessions_for_payout(payout):
     return sessions
 
 
-@payroll_bp.route("/fee-slip/<int:payout_id>", methods=["GET"])
+@payroll_bp.route("/fee-slip/<string:payout_ref>", methods=["GET"])
 @login_required
-def fee_slip(payout_id):
+def fee_slip(payout_ref):
     """Fee tutor slip — halaman HTML yang bisa di-print"""
-    payout = TutorPayout.query.get_or_404(payout_id)
+    payout = _get_payout_by_ref_or_404(payout_ref)
     tutor = payout.tutor
     sessions = _get_sessions_for_payout(payout)
     total = sum(float(s.tutor_fee_amount or 0) for s in sessions)
 
-    verify_url = f"{request.host_url.rstrip('/')}/payroll/fee-slip/{payout_id}/verify"
-    encoded_verify_url = quote(verify_url, safe="")
+    verify_url = url_for(
+        "payroll.fee_slip_verify",
+        payout_ref=payout.public_id,
+        _external=True,
+    )
+    proof_ctx = _build_proof_context(payout.proof_image)
+    ceo_name = current_app.config.get("INSTITUTION_CEO_NAME", "")
 
     return render_template(
         "payroll/fee_slip.html",
@@ -419,38 +476,53 @@ def fee_slip(payout_id):
         sessions=sessions,
         total=total,
         verify_url=verify_url,
-        encoded_verify_url=encoded_verify_url,
+        institution_name=current_app.config.get("INSTITUTION_NAME", "LBB Super Smart"),
+        institution_phone=current_app.config.get("INSTITUTION_PHONE", ""),
+        institution_city=current_app.config.get("INSTITUTION_CITY", "Surabaya"),
+        ceo_name=ceo_name,
+        ceo_title=current_app.config.get("INSTITUTION_CEO_TITLE", "CEO"),
+        branding_logo_mark_data_uri=get_branding_logo_mark_data_uri(),
+        verification_qr_data_uri=build_qr_code_data_uri(verify_url, box_size=5),
+        signature_qr_data_uri=build_qr_code_data_uri(
+            "|".join(
+                [
+                    "TUTOR-FEE-SLIP",
+                    str(payout.id),
+                    tutor.name or "-",
+                    f"{float(total or 0):.0f}",
+                    payout.payout_date.isoformat() if payout.payout_date else "-",
+                    ceo_name or "-",
+                ]
+            ),
+            box_size=4,
+        ),
+        **proof_ctx,
         now=datetime.now(),
     )
 
 
-@payroll_bp.route("/fee-slip/<int:payout_id>/pdf", methods=["GET"])
+@payroll_bp.route("/fee-slip/<string:payout_ref>/pdf", methods=["GET"])
 @login_required
-def fee_slip_pdf(payout_id):
-    """Download fee slip sebagai PDF menggunakan ReportLab"""
+def fee_slip_pdf(payout_ref):
+    """Download fee slip sebagai PDF yang stabil dan ringan."""
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import cm
-    from reportlab.platypus import (
-        HRFlowable,
-        Paragraph,
-        SimpleDocTemplate,
-        Spacer,
-        Table,
-        TableStyle,
-    )
+    from reportlab.platypus import Image as RLImage
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-    payout = TutorPayout.query.get_or_404(payout_id)
+    payout = _get_payout_by_ref_or_404(payout_ref)
     tutor = payout.tutor
     sessions = _get_sessions_for_payout(payout)
     total = sum(float(s.tutor_fee_amount or 0) for s in sessions)
 
-    GOLD = colors.HexColor("#DAA520")
-    YELLOW = colors.HexColor("#FFD700")
-    LIGHT_YELLOW = colors.HexColor("#FFFDE7")
+    gold = colors.HexColor("#DAA520")
+    yellow = colors.HexColor("#FFD700")
+    light_yellow = colors.HexColor("#FFFDE7")
 
-    MONTHS_ID = [
+    months_id = [
+        "",
         "Januari",
         "Februari",
         "Maret",
@@ -464,297 +536,242 @@ def fee_slip_pdf(payout_id):
         "November",
         "Desember",
     ]
-    DAYS_ID = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+    days_id = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
 
     payout_dt = payout.payout_date or datetime.now()
-    date_id = f"{payout_dt.day} {MONTHS_ID[payout_dt.month - 1]} {payout_dt.year}"
+    date_id = f"{payout_dt.day} {months_id[payout_dt.month]} {payout_dt.year}"
+    institution_name = current_app.config.get("INSTITUTION_NAME", "LBB Super Smart")
+    institution_city = current_app.config.get("INSTITUTION_CITY", "Surabaya")
+    institution_phone = current_app.config.get("INSTITUTION_PHONE", "0895-6359-07419")
+    ceo_name = current_app.config.get("INSTITUTION_CEO_NAME", "Yoga Aji Sukma, S.Mat., M.Stat.")
+    ceo_title = current_app.config.get("INSTITUTION_CEO_TITLE", "CEO")
 
     styles = getSampleStyleSheet()
-    small = ParagraphStyle("small", fontSize=8, fontName="Helvetica", leading=10)
-    small_bold = ParagraphStyle(
-        "small_bold", fontSize=8, fontName="Helvetica-Bold", leading=10
-    )
-    normal = ParagraphStyle("normal", fontSize=9, fontName="Helvetica", leading=12)
-    bold = ParagraphStyle("bold", fontSize=9, fontName="Helvetica-Bold", leading=12)
-    title_style = ParagraphStyle(
-        "title", fontSize=13, fontName="Helvetica-Bold", alignment=1, leading=16
-    )
-    center_small = ParagraphStyle(
-        "center_small", fontSize=8, fontName="Helvetica", alignment=1
-    )
+    normal = ParagraphStyle("fee_normal", parent=styles["BodyText"], fontName="Helvetica", fontSize=9, leading=11)
+    small = ParagraphStyle("fee_small", parent=styles["BodyText"], fontName="Helvetica", fontSize=8, leading=10)
+    bold = ParagraphStyle("fee_bold", parent=styles["BodyText"], fontName="Helvetica-Bold", fontSize=9, leading=11)
+    title = ParagraphStyle("fee_title", parent=styles["Heading2"], fontName="Helvetica-Bold", fontSize=14, leading=16, alignment=1)
+    right_small = ParagraphStyle("fee_right_small", parent=small, alignment=2)
+    center_small = ParagraphStyle("fee_center_small", parent=small, alignment=1)
 
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf,
         pagesize=A4,
-        topMargin=1.5 * cm,
-        bottomMargin=1.5 * cm,
-        leftMargin=2 * cm,
-        rightMargin=2 * cm,
+        topMargin=1.4 * cm,
+        bottomMargin=1.4 * cm,
+        leftMargin=1.4 * cm,
+        rightMargin=1.4 * cm,
     )
 
-    elements = []
+    verify_url = url_for(
+        "payroll.fee_slip_verify",
+        payout_ref=payout.public_id,
+        _external=True,
+    )
+    qr_cell = RLImage(build_qr_code_image_buffer(verify_url, box_size=4), width=2.2 * cm, height=2.2 * cm)
 
-    # ── Header ──────────────────────────────────────────────────────────────
-    header_left = [
-        [Paragraph("<b>LEMBAGA BIMBINGAN BELAJAR</b>", bold)],
-        [Paragraph("<b>SUPER SMART</b>", bold)],
-        [Paragraph("Jl. Menur Pumpungan No 63, Sukolilo, Surabaya", small)],
-        [Paragraph("Email: lbbsupersmart@gmail.com", small)],
-        [Paragraph("Handphone: 0895-6359-07419", small)],
-    ]
-    header_left_tbl = Table(header_left, colWidths=[12 * cm])
-    header_left_tbl.setStyle(
+    story = []
+
+    header_table = Table(
+        [
+            [
+                Paragraph(
+                    "<b>LEMBAGA BIMBINGAN BELAJAR</b><br/>"
+                    f"<font size='16'><b>{institution_name}</b></font><br/>"
+                    "Jl. Menur Pumpungan No 63, Sukolilo, Surabaya<br/>"
+                    "Email: lbbsupersmart@gmail.com<br/>"
+                    f"Handphone: {institution_phone}",
+                    normal,
+                ),
+                qr_cell,
+            ]
+        ],
+        colWidths=[14.2 * cm, 2.2 * cm],
+    )
+    header_table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, -1), YELLOW),
-                ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                ("TOPPADDING", (0, 0), (-1, -1), 2),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("BACKGROUND", (0, 0), (-1, -1), yellow),
+                ("BOX", (0, 0), (-1, -1), 1.2, gold),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 0), (1, 0), "CENTER"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
             ]
         )
     )
+    story.append(header_table)
+    story.append(Spacer(1, 0.35 * cm))
+    story.append(Paragraph("Fee Tutor", title))
+    story.append(Spacer(1, 0.25 * cm))
 
-    verify_url = f"{request.host_url.rstrip('/')}/payroll/fee-slip/{payout_id}/verify"
-    qr_url = (
-        "https://api.qrserver.com/v1/create-qr-code/"
-        f"?size=90x90&data={quote(verify_url, safe='')}"
+    info_table = Table(
+        [
+            ["Nama", tutor.name or "-", "Tanggal", date_id],
+            ["Email", tutor.email or "-", "No. Rekening", tutor.bank_account_number or "-"],
+            ["ID Tutor", tutor.tutor_code or "-", "Bank", tutor.bank_name or "-"],
+        ],
+        colWidths=[2.6 * cm, 6.1 * cm, 3.0 * cm, 5.3 * cm],
     )
-    try:
-        import tempfile
-        import urllib.request
-
-        from PIL import Image as PILImage
-        from reportlab.platypus import Image as RLImage
-
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-            urllib.request.urlretrieve(qr_url, tmp.name)
-            qr_img = RLImage(tmp.name, width=2.5 * cm, height=2.5 * cm)
-        qr_cell = qr_img
-    except Exception:
-        qr_cell = Paragraph("QR\nCode", center_small)
-
-    header_tbl = Table(
-        [[header_left_tbl, qr_cell]],
-        colWidths=[13 * cm, 3.5 * cm],
-    )
-    header_tbl.setStyle(
+    info_table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, -1), YELLOW),
-                ("BOX", (0, 0), (-1, -1), 1.5, GOLD),
-                ("ALIGN", (1, 0), (1, 0), "CENTER"),
+                ("BACKGROUND", (0, 0), (-1, -1), light_yellow),
+                ("BOX", (0, 0), (-1, -1), 1.0, gold),
+                ("INNERGRID", (0, 0), (-1, -1), 0.4, gold),
+                ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+                ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 4),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
                 ("TOPPADDING", (0, 0), (-1, -1), 6),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
             ]
         )
     )
-    elements.append(header_tbl)
-    elements.append(Spacer(1, 0.4 * cm))
+    story.append(info_table)
+    story.append(Spacer(1, 0.25 * cm))
 
-    # ── Judul ───────────────────────────────────────────────────────────────
-    elements.append(Paragraph("<b>Fee Tutor</b>", title_style))
-    elements.append(Spacer(1, 0.3 * cm))
-    elements.append(HRFlowable(width="100%", thickness=1.5, color=GOLD))
-    elements.append(Spacer(1, 0.3 * cm))
-
-    # ── Info Tutor ───────────────────────────────────────────────────────────
-    info_data = [
-        [
-            Paragraph("<b>Nama</b>", bold),
-            Paragraph(":", normal),
-            Paragraph(tutor.name, normal),
-            Paragraph("<b>Tanggal</b>", bold),
-            Paragraph(":", normal),
-            Paragraph(date_id, normal),
-        ],
-        [
-            Paragraph("<b>Email</b>", bold),
-            Paragraph(":", normal),
-            Paragraph(tutor.email or "-", normal),
-            Paragraph("<b>No. Rekening</b>", bold),
-            Paragraph(":", normal),
-            Paragraph(tutor.bank_account_number or "-", normal),
-        ],
-        [
-            Paragraph("<b>ID Tutor</b>", bold),
-            Paragraph(":", normal),
-            Paragraph(tutor.tutor_code, normal),
-            Paragraph("<b>Bank</b>", bold),
-            Paragraph(":", normal),
-            Paragraph(tutor.bank_name or "-", normal),
-        ],
-    ]
-    info_tbl = Table(
-        info_data, colWidths=[2.5 * cm, 0.4 * cm, 5 * cm, 3 * cm, 0.4 * cm, 5.2 * cm]
+    summary_table = Table(
+        [[f"{len(sessions)} sesi", f"Total: Rp {total:,.0f}"]],
+        colWidths=[8.2 * cm, 8.8 * cm],
     )
-    info_tbl.setStyle(
+    summary_table.setStyle(
         TableStyle(
             [
-                ("FONTSIZE", (0, 0), (-1, -1), 9),
-                ("TOPPADDING", (0, 0), (-1, -1), 2),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ]
-        )
-    )
-    elements.append(info_tbl)
-    elements.append(Spacer(1, 0.3 * cm))
-
-    # ── Summary ──────────────────────────────────────────────────────────────
-    summary_tbl = Table(
-        [
-            [
-                Paragraph(f"<b>{len(sessions)} sesi</b>", bold),
-                Paragraph(f"<b>Total: Rp {total:,.0f}</b>", bold),
-            ]
-        ],
-        colWidths=[10 * cm, 6.5 * cm],
-    )
-    summary_tbl.setStyle(
-        TableStyle(
-            [
+                ("BACKGROUND", (0, 0), (-1, -1), yellow),
+                ("BOX", (0, 0), (-1, -1), 1.0, gold),
+                ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 10),
                 ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-                ("TOPPADDING", (0, 0), (-1, -1), 3),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
             ]
         )
     )
-    elements.append(summary_tbl)
-    elements.append(Spacer(1, 0.2 * cm))
+    story.append(summary_table)
+    story.append(Spacer(1, 0.22 * cm))
 
-    # ── Tabel Sesi ───────────────────────────────────────────────────────────
-    tbl_header = [
-        Paragraph("<b>No</b>", small_bold),
-        Paragraph("<b>Tanggal</b>", small_bold),
-        Paragraph("<b>Hari</b>", small_bold),
-        Paragraph("<b>Siswa</b>", small_bold),
-        Paragraph("<b>Kurikulum</b>", small_bold),
-        Paragraph("<b>Jenjang</b>", small_bold),
-        Paragraph("<b>Mapel</b>", small_bold),
-        Paragraph("<b>Nominal</b>", small_bold),
+    session_rows = [
+        [
+            Paragraph("<b>No</b>", center_small),
+            Paragraph("<b>Tanggal</b>", center_small),
+            Paragraph("<b>Hari</b>", center_small),
+            Paragraph("<b>Siswa</b>", center_small),
+            Paragraph("<b>Mapel</b>", center_small),
+            Paragraph("<b>Nominal</b>", center_small),
+        ]
     ]
-    tbl_rows = [tbl_header]
-    for i, sess in enumerate(sessions, 1):
-        d = sess.session_date
-        date_str = f"{d.day:02d}/{d.month:02d}/{str(d.year)[2:]}"
-        day_name = DAYS_ID[d.weekday()]
+    for idx, sess in enumerate(sessions, 1):
+        session_date = sess.session_date
+        date_str = (
+            f"{session_date.day:02d}/{session_date.month:02d}/{session_date.year}"
+            if session_date
+            else "-"
+        )
+        day_name = days_id[session_date.weekday()] if session_date else "-"
         student_name = sess.student.name if sess.student else "-"
-        curriculum = (
-            sess.enrollment.curriculum.name
-            if sess.enrollment
-            and hasattr(sess.enrollment, "curriculum")
-            and sess.enrollment.curriculum
-            else "-"
-        )
-        level = (
-            sess.enrollment.level.name
-            if sess.enrollment
-            and hasattr(sess.enrollment, "level")
-            and sess.enrollment.level
-            else "-"
-        )
-        subject = sess.subject.name if sess.subject else "-"
+        subject_name = sess.subject.name if sess.subject else "-"
         nominal = f"Rp {float(sess.tutor_fee_amount or 0):,.0f}"
-
-        tbl_rows.append(
+        session_rows.append(
             [
-                Paragraph(str(i), small),
+                Paragraph(str(idx), center_small),
                 Paragraph(date_str, small),
                 Paragraph(day_name, small),
                 Paragraph(student_name, small),
-                Paragraph(curriculum, small),
-                Paragraph(level, small),
-                Paragraph(subject, small),
-                Paragraph(nominal, small),
+                Paragraph(subject_name, small),
+                Paragraph(nominal, right_small),
             ]
         )
 
-    col_w = [
-        0.8 * cm,
-        2 * cm,
-        1.6 * cm,
-        3.5 * cm,
-        2.6 * cm,
-        1.8 * cm,
-        2.6 * cm,
-        2.1 * cm,
-    ]
-    sess_tbl = Table(tbl_rows, colWidths=col_w, repeatRows=1)
-    row_bg = [colors.white, LIGHT_YELLOW]
-    sess_tbl.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), YELLOW),
-                ("GRID", (0, 0), (-1, -1), 0.5, GOLD),
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
-                ("ALIGN", (0, 0), (0, -1), "CENTER"),
-                ("ALIGN", (7, 0), (7, -1), "RIGHT"),
-                ("TOPPADDING", (0, 0), (-1, -1), 2),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                *[
-                    ("BACKGROUND", (0, r), (-1, r), row_bg[(r - 1) % 2])
-                    for r in range(1, len(tbl_rows))
-                ],
-            ]
-        )
+    session_table = Table(
+        session_rows,
+        colWidths=[0.9 * cm, 2.5 * cm, 1.8 * cm, 5.5 * cm, 4.1 * cm, 2.3 * cm],
+        repeatRows=1,
     )
-    elements.append(sess_tbl)
-    elements.append(Spacer(1, 1 * cm))
-
-    # ── Footer / Tanda Tangan ────────────────────────────────────────────────
-    now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
-    footer_data = [
-        [
-            Paragraph(
-                '"We sincerely appreciate your hard work\nand dedication to our students."',
-                small,
-            ),
-            Paragraph(f"Surabaya, {date_id}", center_small),
-        ],
-        ["", Paragraph("", normal)],
-        ["", Paragraph("", normal)],
-        [
-            Paragraph(f"<i>Dicetak: {now_str}</i>", small),
-            Paragraph("<b>Yoga Aji Sukma, S.Mat., M.Stat.</b>", center_small),
-        ],
-        ["", Paragraph("CEO", center_small)],
+    session_style = [
+        ("BACKGROUND", (0, 0), (-1, 0), yellow),
+        ("BOX", (0, 0), (-1, -1), 1.0, gold),
+        ("INNERGRID", (0, 0), (-1, -1), 0.35, gold),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]
-    footer_tbl = Table(footer_data, colWidths=[9 * cm, 7.5 * cm])
-    footer_tbl.setStyle(
+    for row_index in range(1, len(session_rows)):
+        if row_index % 2 == 0:
+            session_style.append(("BACKGROUND", (0, row_index), (-1, row_index), light_yellow))
+    session_table.setStyle(TableStyle(session_style))
+    story.append(session_table)
+
+    proof_ctx = _build_proof_context(payout.proof_image)
+    if proof_ctx["proof_is_image"]:
+        story.append(Spacer(1, 0.28 * cm))
+        story.append(Paragraph("<b>Bukti Transfer</b>", bold))
+        story.append(Spacer(1, 0.12 * cm))
+        proof_path = os.path.join(
+            current_app.config["UPLOAD_FOLDER"],
+            "payroll_proofs",
+            os.path.basename(payout.proof_image),
+        )
+        story.append(RLImage(proof_path, width=7.5 * cm, height=4.8 * cm))
+        if payout.proof_notes:
+            story.append(Spacer(1, 0.1 * cm))
+            story.append(Paragraph(f"Catatan: {payout.proof_notes}", small))
+    elif proof_ctx["proof_is_pdf"]:
+        story.append(Spacer(1, 0.28 * cm))
+        story.append(Paragraph("Bukti transfer tersimpan sebagai file PDF di sistem.", small))
+        if payout.proof_notes:
+            story.append(Paragraph(f"Catatan: {payout.proof_notes}", small))
+
+    story.append(Spacer(1, 0.35 * cm))
+    footer_table = Table(
+        [
+            [
+                Paragraph(
+                    '"We sincerely appreciate your hard work<br/>and dedication to our students."',
+                    small,
+                ),
+                Paragraph(f"{institution_city}, {date_id}", center_small),
+            ],
+            [
+                Paragraph(f"<font color='#666666'><i>Dicetak: {datetime.now().strftime('%d/%m/%Y %H:%M')}</i></font>", small),
+                RLImage(build_qr_code_image_buffer(verify_url, box_size=3), width=1.8 * cm, height=1.8 * cm),
+            ],
+            ["", Paragraph(f"<b>{ceo_name}</b><br/>{ceo_title}", center_small)],
+        ],
+        colWidths=[10.6 * cm, 6.4 * cm],
+    )
+    footer_table.setStyle(
         TableStyle(
             [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("ALIGN", (1, 0), (1, -1), "CENTER"),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("TOPPADDING", (0, 0), (-1, -1), 2),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
             ]
         )
     )
-    elements.append(footer_tbl)
+    story.append(footer_table)
 
-    doc.build(elements)
+    doc.build(story)
     buf.seek(0)
-
-    safe_name = secure_filename(f"fee_slip_{payout_id}_{tutor.tutor_code}.pdf")
-    return send_file(
-        buf,
-        mimetype="application/pdf",
-        as_attachment=True,
-        download_name=safe_name,
-    )
+    safe_name = secure_filename(f"fee_slip_{payout.id}_{tutor.tutor_code}.pdf")
+    return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=safe_name)
 
 
-@payroll_bp.route("/fee-slip/<int:payout_id>/verify", methods=["GET"])
-def fee_slip_verify(payout_id):
+@payroll_bp.route("/fee-slip/<string:payout_ref>/verify", methods=["GET"])
+def fee_slip_verify(payout_ref):
     """Verifikasi fee slip via QR code scan (tidak perlu login)"""
-    payout = TutorPayout.query.get_or_404(payout_id)
+    payout = _get_payout_by_ref_or_404(payout_ref)
     tutor = payout.tutor
     sessions = _get_sessions_for_payout(payout)
     total = sum(float(s.tutor_fee_amount or 0) for s in sessions)

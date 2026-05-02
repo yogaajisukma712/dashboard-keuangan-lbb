@@ -16,12 +16,14 @@ from wtforms import (
 from wtforms.validators import DataRequired, NumberRange, Optional
 
 from app.models import Enrollment, Subject
+from app.models import Tutor
 
 
 class AttendanceSessionForm(FlaskForm):
     """Form for recording attendance session"""
 
     enrollment_id = SelectField("Enrollment", coerce=int, validators=[DataRequired()])
+    tutor_id = SelectField("Tutor Pengajar", coerce=int, validators=[DataRequired()])
     session_date = DateField("Tanggal Sesi", validators=[DataRequired()])
     student_present = BooleanField("Siswa Hadir")
     tutor_present = BooleanField("Tutor Hadir")
@@ -42,6 +44,11 @@ class AttendanceSessionForm(FlaskForm):
                 f"{enrollment.student.name} - {enrollment.subject.name} - {enrollment.tutor.name}",
             )
             for enrollment in enrollments
+        ]
+        tutors = Tutor.query.filter_by(is_active=True).order_by(Tutor.name.asc()).all()
+        self.tutor_id.choices = [
+            (tutor.id, tutor.name)
+            for tutor in tutors
         ]
 
         self.subject_id.choices = [(0, "-- Ikuti subject dari enrollment --")] + [

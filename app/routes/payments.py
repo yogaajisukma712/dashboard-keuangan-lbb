@@ -3,6 +3,7 @@ Payment routes for Dashboard Keuangan LBB Super Smart
 Handles student payments, payment lists, and payment history
 """
 
+from flask import abort
 from datetime import datetime
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
@@ -12,10 +13,33 @@ from app import db
 from app.forms import StudentPaymentForm, StudentPaymentLineForm
 from app.models import Enrollment, Student, StudentPayment, StudentPaymentLine
 from app.services import PaymentService
+from app.utils import (
+    build_qr_code_data_uri,
+    decode_public_id,
+    get_branding_logo_mark_data_uri,
+)
 
 payments_bp = Blueprint("payments", __name__, url_prefix="/payments")
 
 payment_service = PaymentService()
+
+
+def _get_student_by_ref_or_404(student_ref):
+    """Resolve opaque student ref to model instance."""
+    try:
+        student_id = decode_public_id(student_ref, "student")
+    except ValueError:
+        abort(404)
+    return Student.query.get_or_404(student_id)
+
+
+def _get_payment_by_ref_or_404(payment_ref):
+    """Resolve opaque payment ref to model instance."""
+    try:
+        payment_id = decode_public_id(payment_ref, "student_payment")
+    except ValueError:
+        abort(404)
+    return StudentPayment.query.get_or_404(payment_id)
 
 
 @payments_bp.route("/", methods=["GET"])
@@ -26,7 +50,25 @@ def list_payments():
     per_page = 20
 
     # Get filter parameters
-    student_id = request.args.get("student_id", type=int)
+    student_ref = (request.args.get("student_ref") or "").strip()
+    student_id = None
+    if student_ref:
+        try:
+            student_id = decode_public_id(student_ref, "student")
+        except ValueError:
+            student_id = None
+    elif request.args.get("student_id", type=int):
+        legacy_student = Student.query.get(request.args.get("student_id", type=int))
+        if legacy_student:
+            return redirect(
+                url_for(
+                    "payments.list_payments",
+                    page=page,
+                    student_ref=legacy_student.public_id,
+                    date_from=request.args.get("date_from", ""),
+                    date_to=request.args.get("date_to", ""),
+                )
+            )
     date_from = request.args.get("date_from")
     date_to = request.args.get("date_to")
 
@@ -53,6 +95,7 @@ def list_payments():
         payments=paginated.items,
         paginated=paginated,
         students=Student.query.filter_by(is_active=True).all(),
+        current_student_ref=student_ref,
     )
 
 
@@ -62,7 +105,12 @@ def add_payment():
     """Add new student payment"""
     if request.method == "POST":
         try:
-            student_id = request.form.get("student_id", type=int)
+            student_ref = (request.form.get("student_ref") or "").strip()
+            student_id = None
+            if student_ref:
+                student_id = decode_public_id(student_ref, "student")
+            elif request.form.get("student_id", type=int):
+                student_id = request.form.get("student_id", type=int)
             payment_date = datetime.fromisoformat(request.form.get("payment_date"))
             receipt_number = request.form.get("receipt_number")
             payment_method = request.form.get("payment_method")
@@ -129,20 +177,20 @@ def add_payment():
     )
 
 
-@payments_bp.route("/<int:payment_id>", methods=["GET"])
+@payments_bp.route("/<string:payment_ref>", methods=["GET"])
 @login_required
-def detail_payment(payment_id):
+def detail_payment(payment_ref):
     """View payment detail"""
-    payment = StudentPayment.query.get_or_404(payment_id)
+    payment = _get_payment_by_ref_or_404(payment_ref)
 
     return render_template("payments/detail.html", payment=payment)
 
 
-@payments_bp.route("/<int:payment_id>/edit", methods=["GET", "POST"])
+@payments_bp.route("/<string:payment_ref>/edit", methods=["GET", "POST"])
 @login_required
-def edit_payment(payment_id):
+def edit_payment(payment_ref):
     """Edit payment"""
-    payment = StudentPayment.query.get_or_404(payment_id)
+    payment = _get_payment_by_ref_or_404(payment_ref)
 
     if request.method == "POST":
         try:
@@ -156,7 +204,9 @@ def edit_payment(payment_id):
 
             db.session.commit()
             flash("Pembayaran berhasil diupdate", "success")
-            return redirect(url_for("payments.detail_payment", payment_id=payment_id))
+            return redirect(
+                url_for("payments.detail_payment", payment_ref=payment.public_id)
+            )
 
         except Exception as e:
             db.session.rollback()
@@ -170,15 +220,15 @@ def edit_payment(payment_id):
     )
 
 
-@payments_bp.route("/<int:payment_id>/delete", methods=["POST"])
+@payments_bp.route("/<string:payment_ref>/delete", methods=["POST"])
 @login_required
-def delete_payment(payment_id):
+def delete_payment(payment_ref):
     """Delete payment"""
-    payment = StudentPayment.query.get_or_404(payment_id)
+    payment = _get_payment_by_ref_or_404(payment_ref)
 
     try:
         # Delete payment lines first
-        StudentPaymentLine.query.filter_by(student_payment_id=payment_id).delete()
+        StudentPaymentLine.query.filter_by(student_payment_id=payment.id).delete()
         db.session.delete(payment)
         db.session.commit()
         flash("Pembayaran berhasil dihapus", "success")
@@ -189,16 +239,16 @@ def delete_payment(payment_id):
     return redirect(url_for("payments.list_payments"))
 
 
-@payments_bp.route("/student/<int:student_id>/history", methods=["GET"])
+@payments_bp.route("/student/<string:student_ref>/history", methods=["GET"])
 @login_required
-def student_payment_history(student_id):
+def student_payment_history(student_ref):
     """View payment history for a specific student"""
-    student = Student.query.get_or_404(student_id)
+    student = _get_student_by_ref_or_404(student_ref)
     page = request.args.get("page", 1, type=int)
     per_page = 20
 
     paginated = (
-        StudentPayment.query.filter_by(student_id=student_id)
+        StudentPayment.query.filter_by(student_id=student.id)
         .order_by(StudentPayment.payment_date.desc())
         .paginate(page=page, per_page=per_page)
     )
@@ -211,12 +261,13 @@ def student_payment_history(student_id):
     )
 
 
-@payments_bp.route("/api/enrollments/<int:student_id>", methods=["GET"])
+@payments_bp.route("/api/enrollments/<string:student_ref>", methods=["GET"])
 @login_required
-def get_student_enrollments(student_id):
+def get_student_enrollments(student_ref):
     """API endpoint to get student enrollments (for AJAX)"""
+    student = _get_student_by_ref_or_404(student_ref)
     enrollments = Enrollment.query.filter_by(
-        student_id=student_id, status="active"
+        student_id=student.id, status="active"
     ).all()
 
     return jsonify(
@@ -233,16 +284,16 @@ def get_student_enrollments(student_id):
     )
 
 
-@payments_bp.route("/<int:payment_id>/invoice", methods=["GET"])
+@payments_bp.route("/<string:payment_ref>/invoice", methods=["GET"])
 @login_required
-def payment_invoice(payment_id):
+def payment_invoice(payment_ref):
     """Tampilkan & unduh invoice sebagai PNG untuk sebuah pembayaran siswa."""
     from collections import OrderedDict
     from datetime import date as dt_date
 
     from flask import current_app
 
-    payment = StudentPayment.query.get_or_404(payment_id)
+    payment = _get_payment_by_ref_or_404(payment_ref)
 
     # Urutkan payment lines: service_month dulu, lalu enrollment_id
     raw_lines = payment.payment_lines.all()
@@ -309,6 +360,19 @@ def payment_invoice(payment_id):
         institution_city=current_app.config.get("INSTITUTION_CITY", "Surabaya"),
         ceo_name=current_app.config.get("INSTITUTION_CEO_NAME", ""),
         ceo_title=current_app.config.get("INSTITUTION_CEO_TITLE", "CEO"),
+        branding_logo_mark_data_uri=get_branding_logo_mark_data_uri(),
+        signature_qr_data_uri=build_qr_code_data_uri(
+            "|".join(
+                [
+                    "PAYMENT-INVOICE",
+                    payment.receipt_number or f"PAY-{payment.id}",
+                    payment.student.name if payment.student else "-",
+                    payment.payment_date.isoformat() if payment.payment_date else "-",
+                    f"{float(payment.total_amount or 0):.0f}",
+                ]
+            ),
+            box_size=4,
+        ),
     )
 
 

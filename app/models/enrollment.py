@@ -32,6 +32,9 @@ class Enrollment(db.Model):
     status = db.Column(db.String(20), default="active")  # active, inactive, completed
     notes = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
+    whatsapp_group_id = db.Column(db.String(255), index=True)
+    whatsapp_group_name = db.Column(db.String(255))
+    whatsapp_group_memberships_json = db.Column(db.JSON)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -59,6 +62,13 @@ class Enrollment(db.Model):
 
     def __repr__(self):
         return f"<Enrollment {self.student.name} - {self.subject.name}>"
+
+    @property
+    def public_id(self):
+        """Opaque public id for URLs."""
+        from app.utils import encode_public_id
+
+        return encode_public_id("enrollment", self.id)
 
     def get_attendance_count(self, month=None):
         """Get number of attended sessions"""

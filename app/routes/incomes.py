@@ -3,14 +3,24 @@ Income routes for Dashboard Keuangan LBB Super Smart
 Handles routes for managing other incomes (non-student payments)
 """
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db
 from app.forms import IncomeForm
 from app.models import OtherIncome
+from app.utils import decode_public_id
 
 incomes_bp = Blueprint("incomes", __name__, url_prefix="/incomes")
+
+
+def _get_income_by_ref_or_404(income_ref):
+    """Resolve opaque income ref to model instance."""
+    try:
+        income_id = decode_public_id(income_ref, "other_income")
+    except ValueError:
+        abort(404)
+    return OtherIncome.query.get_or_404(income_id)
 
 
 @incomes_bp.route("/", methods=["GET"])
@@ -56,11 +66,11 @@ def add_income():
     return render_template("incomes/form.html", form=form, title="Tambah Pemasukan")
 
 
-@incomes_bp.route("/<int:income_id>/edit", methods=["GET", "POST"])
+@incomes_bp.route("/<string:income_ref>/edit", methods=["GET", "POST"])
 @login_required
-def edit_income(income_id):
+def edit_income(income_ref):
     """Edit existing income"""
-    income = OtherIncome.query.get_or_404(income_id)
+    income = _get_income_by_ref_or_404(income_ref)
     form = IncomeForm()
 
     if form.validate_on_submit():
@@ -90,11 +100,11 @@ def edit_income(income_id):
     )
 
 
-@incomes_bp.route("/<int:income_id>/delete", methods=["POST"])
+@incomes_bp.route("/<string:income_ref>/delete", methods=["POST"])
 @login_required
-def delete_income(income_id):
+def delete_income(income_ref):
     """Delete income"""
-    income = OtherIncome.query.get_or_404(income_id)
+    income = _get_income_by_ref_or_404(income_ref)
 
     try:
         db.session.delete(income)

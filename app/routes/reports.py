@@ -3,10 +3,17 @@ Reports routes for Dashboard Keuangan LBB Super Smart
 Handles report generation and export functionality
 """
 
-from flask import Blueprint, jsonify, render_template, request, send_file
+from flask import Blueprint, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import login_required
 
 reports_bp = Blueprint("reports", __name__, url_prefix="/reports")
+
+
+@reports_bp.route("/", methods=["GET"])
+@login_required
+def reports_index():
+    """Landing page for reports module."""
+    return redirect(url_for("reports.monthly_report"))
 
 
 @reports_bp.route("/monthly", methods=["GET"])

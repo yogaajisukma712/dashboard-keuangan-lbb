@@ -29,7 +29,7 @@
 
 <form
   method="POST"
-  action="{% if action == 'edit' %}{{ url_for('master.edit_tutor', id=tutor.id) }}{% else %}{{ url_for('master.add_tutor') }}{% endif %}"
+  action="{% if action == 'edit' %}{{ url_for('master.edit_tutor', tutor_ref=tutor.public_id) }}{% else %}{{ url_for('master.add_tutor') }}{% endif %}"
   novalidate
 >
   {{ form.hidden_tag() }}
@@ -316,7 +316,7 @@
           {% if action == 'edit' and tutor %}
           <hr class="my-1">
           <a
-            href="{{ url_for('master.tutor_detail', id=tutor.id) }}"
+            href="{{ url_for('master.tutor_detail', tutor_ref=tutor.public_id) }}"
             class="btn btn-outline-info btn-sm"
           >
             <i class="bi bi-eye me-1"></i>Lihat Detail Tutor

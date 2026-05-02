@@ -186,7 +186,7 @@
             <td class="text-center pe-4">
               <div class="btn-group btn-group-sm" role="group">
                 <a
-                  href="{{ url_for('master.edit_pricing', id=pricing.id) }}"
+                  href="{{ url_for('master.edit_pricing', pricing_ref=pricing.public_id) }}"
                   class="btn btn-outline-primary"
                   title="Edit Tarif"
                 >
@@ -251,7 +251,7 @@
                       </button>
                       <form
                         method="POST"
-                        action="{{ url_for('master.delete_pricing', id=pricing.id) }}"
+                        action="{{ url_for('master.delete_pricing', pricing_ref=pricing.public_id) }}"
                         class="d-inline"
                       >
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />

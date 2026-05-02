@@ -32,6 +32,13 @@ class OtherIncome(db.Model):
     def __repr__(self):
         return f"<OtherIncome {self.category} - {self.amount}>"
 
+    @property
+    def public_id(self):
+        """Opaque public id for URLs."""
+        from app.utils import encode_public_id
+
+        return encode_public_id("other_income", self.id)
+
     def get_month(self):
         """Get month from income_date"""
         return self.income_date.month

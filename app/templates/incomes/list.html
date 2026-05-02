@@ -97,12 +97,12 @@
               Rp {{ "{:,.0f}".format(income.amount | float) }}
             </td>
             <td class="text-center pe-3">
-              <a href="{{ url_for('incomes.edit_income', income_id=income.id) }}"
+              <a href="{{ url_for('incomes.edit_income', income_ref=income.public_id) }}"
                  class="btn btn-sm btn-outline-secondary me-1" title="Edit">
                 <i class="bi bi-pencil"></i>
               </a>
               <form method="POST"
-                    action="{{ url_for('incomes.delete_income', income_id=income.id) }}"
+                    action="{{ url_for('incomes.delete_income', income_ref=income.public_id) }}"
                     class="d-inline"
                     onsubmit="return confirm('Yakin hapus pemasukan ini?')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

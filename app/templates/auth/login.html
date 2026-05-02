@@ -1,460 +1,710 @@
-{% extends "base_auth.html" %} {% block title %}Login — LBB Super Smart{%
-endblock %} {% block head %}
+{% extends "base_auth.html" %}
+{% block title %}Login — LBB Super Smart{% endblock %}
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap"
+    rel="stylesheet"
+/>
 <style>
-    /* ── Reset for full-screen split ── */
     html,
     body {
-        overflow: hidden;
-        height: 100%;
+        min-height: 100%;
         margin: 0;
-        padding: 0;
-        background: #ffffff; /* override base_auth gradient */
+        overflow-x: hidden;
+        background:
+            radial-gradient(circle at top left, rgba(244, 190, 24, 0.22), transparent 26%),
+            radial-gradient(circle at 80% 20%, rgba(37, 59, 155, 0.22), transparent 24%),
+            linear-gradient(135deg, #f4f7ff 0%, #eef3ff 44%, #ffffff 100%);
     }
 
-    /* ══════════════════════════════════════════
-     LEFT PANEL — Brand
-  ══════════════════════════════════════════ */
-    .brand-panel {
-        background: linear-gradient(
-            150deg,
-            #0d1b4e 0%,
-            #1a2c75 40%,
-            #253b9b 100%
-        );
+    body,
+    button,
+    input,
+    label,
+    p,
+    span,
+    a {
+        font-family: "Plus Jakarta Sans", sans-serif !important;
+    }
+
+    h1,
+    h2,
+    h3,
+    .hero-kicker,
+    .stat-value {
+        font-family: "Sora", sans-serif !important;
+    }
+
+    .login-shell {
+        min-height: 100vh;
         position: relative;
         overflow: hidden;
+    }
+
+    .login-shell::before,
+    .login-shell::after {
+        content: "";
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(12px);
+        opacity: 0.7;
+        pointer-events: none;
+    }
+
+    .login-shell::before {
+        width: 420px;
+        height: 420px;
+        top: -140px;
+        left: -110px;
+        background: rgba(37, 59, 155, 0.16);
+        animation: driftOne 14s ease-in-out infinite;
+    }
+
+    .login-shell::after {
+        width: 320px;
+        height: 320px;
+        right: -80px;
+        bottom: -90px;
+        background: rgba(244, 190, 24, 0.16);
+        animation: driftTwo 16s ease-in-out infinite;
+    }
+
+    .hero-panel {
+        min-height: 100vh;
+        padding: 2.75rem 2rem;
+        position: relative;
+        overflow: hidden;
+        background:
+            linear-gradient(165deg, rgba(10, 24, 77, 0.98), rgba(28, 48, 126, 0.96)),
+            linear-gradient(135deg, #1a2c75, #253b9b);
+        color: #ffffff;
+    }
+
+    .hero-panel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 18% 12%, rgba(244, 190, 24, 0.24), transparent 18%),
+            radial-gradient(circle at 85% 18%, rgba(255, 255, 255, 0.12), transparent 20%),
+            radial-gradient(circle at 72% 78%, rgba(244, 190, 24, 0.18), transparent 22%);
+        pointer-events: none;
+    }
+
+    .hero-grid {
+        position: relative;
+        z-index: 1;
         display: flex;
         flex-direction: column;
+        justify-content: space-between;
+        gap: 2rem;
+        min-height: 100%;
+    }
+
+    .hero-badge {
+        display: inline-flex;
         align-items: center;
-        justify-content: center;
-        padding: 3rem 2.5rem;
-        min-height: 100vh;
+        gap: 0.55rem;
+        width: fit-content;
+        padding: 0.55rem 0.95rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: #d9e5ff;
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        animation: fadeSlideUp 0.9s ease both;
     }
 
-    /* Decorative circles */
-    .deco-circle {
-        position: absolute;
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 0;
+    .hero-logo-wrap {
+        max-width: 310px;
+        padding: 1rem 1.1rem;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 18px 55px rgba(3, 8, 28, 0.28);
+        backdrop-filter: blur(12px);
+        animation: fadeSlideUp 1s ease both 0.1s;
     }
 
-    /* Brand icon */
-    .brand-icon {
-        font-size: 4.5rem;
-        color: #f4be18;
-        line-height: 1;
-        margin-bottom: 1.25rem;
-        position: relative;
-        z-index: 1;
-    }
-
-    /* App name */
-    .brand-name {
-        font-size: 2rem;
-        font-weight: 800;
-        color: #fff;
-        letter-spacing: -0.02em;
-        margin-bottom: 0.3rem;
-        text-align: center;
-        position: relative;
-        z-index: 1;
-    }
-
-    /* Tagline */
-    .brand-tagline {
-        font-size: 0.8rem;
-        font-weight: 600;
-        letter-spacing: 0.2em;
-        color: #f4be18;
-        text-transform: uppercase;
-        margin-bottom: 2rem;
-        text-align: center;
-        position: relative;
-        z-index: 1;
-    }
-
-    /* Gold divider */
-    .brand-divider {
-        width: 40px;
-        height: 3px;
-        background: #f4be18;
-        border-radius: 3px;
-        margin: 0 auto;
-        position: relative;
-        z-index: 1;
-    }
-
-    /* Features list */
-    .feature-list {
-        list-style: none;
-        padding: 0;
-        margin: 1.5rem 0 0;
+    .hero-logo {
         width: 100%;
-        max-width: 300px;
+        height: auto;
+        display: block;
+    }
+
+    .hero-kicker {
+        font-size: 0.82rem;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: #f4be18;
+        margin-bottom: 1rem;
+        animation: fadeSlideUp 1s ease both 0.2s;
+    }
+
+    .hero-title {
+        font-size: clamp(2.35rem, 4vw, 4.4rem);
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+        max-width: 10ch;
+        margin-bottom: 1.1rem;
+        animation: fadeSlideUp 1s ease both 0.3s;
+    }
+
+    .hero-copy {
+        max-width: 540px;
+        color: rgba(235, 242, 255, 0.82);
+        font-size: 1rem;
+        line-height: 1.8;
+        margin-bottom: 1.75rem;
+        animation: fadeSlideUp 1s ease both 0.4s;
+    }
+
+    .hero-highlights {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        max-width: 560px;
+        animation: fadeSlideUp 1s ease both 0.5s;
+    }
+
+    .highlight-card {
         position: relative;
+        overflow: hidden;
+        border-radius: 22px;
+        padding: 1.1rem 1.15rem;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .highlight-card::after {
+        content: "";
+        position: absolute;
+        inset: auto -20% -45% auto;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: rgba(244, 190, 24, 0.14);
+        filter: blur(18px);
+    }
+
+    .highlight-label {
+        font-size: 0.8rem;
+        color: #c9d7ff;
+        margin-bottom: 0.45rem;
+    }
+
+    .highlight-value {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .hero-quote {
+        max-width: 520px;
+        padding: 1.2rem 1.25rem;
+        border-left: 3px solid rgba(244, 190, 24, 0.7);
+        background: rgba(255, 255, 255, 0.06);
+        color: #dbe6ff;
+        border-radius: 0 20px 20px 0;
+        animation: fadeSlideUp 1s ease both 0.6s;
+    }
+
+    .hero-floating {
+        position: absolute;
+        right: 7%;
+        top: 16%;
+        display: grid;
+        gap: 0.9rem;
         z-index: 1;
     }
 
-    .feature-item {
-        display: flex;
+    .floating-chip {
+        display: inline-flex;
         align-items: center;
         gap: 0.6rem;
-        color: #c8d9ff;
-        font-size: 0.85rem;
-        margin-bottom: 0.6rem;
+        padding: 0.8rem 1rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #eaf0ff;
+        box-shadow: 0 14px 35px rgba(5, 10, 28, 0.18);
+        backdrop-filter: blur(16px);
+        animation: floatChip 7s ease-in-out infinite;
     }
 
-    .feature-icon {
-        width: 22px;
-        height: 22px;
-        min-width: 22px;
-        border-radius: 50%;
-        background: rgba(244, 190, 24, 0.15);
+    .floating-chip:nth-child(2) {
+        margin-left: 2rem;
+        animation-delay: -2.2s;
+    }
+
+    .floating-chip:nth-child(3) {
+        margin-left: -1rem;
+        animation-delay: -4s;
+    }
+
+    .chip-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(244, 190, 24, 0.2);
         color: #f4be18;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.7rem;
-        font-weight: 700;
-    }
-
-    /* Copyright */
-    .brand-copyright {
-        position: absolute;
-        bottom: 1.5rem;
-        left: 0;
-        right: 0;
-        text-align: center;
-        color: rgba(255, 255, 255, 0.35);
-        font-size: 0.72rem;
-        z-index: 1;
-    }
-
-    /* ══════════════════════════════════════════
-     RIGHT PANEL — Form
-  ══════════════════════════════════════════ */
-    .form-panel {
-        background: #ffffff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        padding: 2rem 1.5rem;
-    }
-
-    .form-box {
-        max-width: 380px;
-        width: 100%;
-        padding: 2.5rem;
-    }
-
-    /* Mini logo area */
-    .form-logo-icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 9px;
-        background: #253b9b;
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
+        font-size: 1rem;
         flex-shrink: 0;
     }
 
-    .form-logo-name {
-        font-size: 0.95rem;
-        font-weight: 700;
+    .auth-panel {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1.25rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .auth-card {
+        width: min(100%, 460px);
+        border-radius: 32px;
+        padding: 2rem;
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.82);
+        box-shadow:
+            0 24px 80px rgba(28, 42, 88, 0.16),
+            0 8px 24px rgba(28, 42, 88, 0.08);
+        backdrop-filter: blur(18px);
+        animation: cardReveal 0.9s ease both;
+    }
+
+    .auth-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.6rem;
+    }
+
+    .auth-mark {
+        width: 56px;
+        height: 56px;
+        padding: 0.5rem;
+        border-radius: 18px;
+        background: linear-gradient(135deg, rgba(37, 59, 155, 0.12), rgba(244, 190, 24, 0.18));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .auth-mark img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+    }
+
+    .auth-mini {
+        color: #63708d;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .auth-mini strong {
+        color: #16203f;
+        display: block;
+        font-size: 1rem;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.5rem 0.85rem;
+        border-radius: 999px;
+        background: rgba(37, 59, 155, 0.08);
         color: #253b9b;
-        line-height: 1.2;
-    }
-
-    .form-logo-sub {
-        font-size: 0.7rem;
-        color: #9ca3af;
-        font-weight: 500;
-        line-height: 1;
-    }
-
-    /* Heading */
-    .form-title {
-        font-size: 1.6rem;
+        font-size: 0.78rem;
         font-weight: 700;
-        color: #1a1f36;
+    }
+
+    .auth-title {
+        font-size: clamp(2rem, 3vw, 2.5rem);
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+        color: #16203f;
+        margin-bottom: 0.7rem;
+    }
+
+    .auth-subtitle {
+        color: #63708d;
+        line-height: 1.75;
+        margin-bottom: 1.75rem;
+    }
+
+    .auth-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.85rem;
+        margin-bottom: 1.75rem;
+    }
+
+    .stat-card {
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(244, 247, 255, 0.96));
+        border: 1px solid rgba(218, 226, 246, 0.92);
+        padding: 0.95rem 1rem;
+        box-shadow: 0 10px 24px rgba(41, 54, 100, 0.06);
+    }
+
+    .stat-value {
+        font-size: 1.15rem;
+        color: #16203f;
         margin-bottom: 0.25rem;
     }
 
-    .form-subtitle {
-        font-size: 0.85rem;
-        color: #6b7280;
-        margin-bottom: 2rem;
+    .stat-label {
+        font-size: 0.75rem;
+        color: #6d7890;
+        line-height: 1.5;
     }
 
-    /* Input groups */
-    .input-group-text.input-icon {
-        background: #f9fafb;
-        border-right: none;
-        color: #9ca3af;
-        border-color: #e5e7eb;
+    .form-label {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #2f3b59;
+        margin-bottom: 0.45rem;
+        letter-spacing: 0.01em;
     }
 
-    .form-control.border-start-0 {
-        border-left: none !important;
-        border-color: #e5e7eb;
-        background: #f9fafb;
+    .input-shell {
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid #dbe3f6;
+        background: rgba(248, 250, 255, 0.92);
+        transition:
+            transform 0.2s ease,
+            border-color 0.2s ease,
+            box-shadow 0.2s ease;
     }
 
-    .form-control.border-start-0:focus {
-        box-shadow: none;
-        background: #fff;
-        border-color: #253b9b;
+    .input-shell:focus-within {
+        transform: translateY(-1px);
+        border-color: rgba(37, 59, 155, 0.55);
+        box-shadow: 0 0 0 4px rgba(37, 59, 155, 0.12);
+        background: #ffffff;
     }
 
-    .input-group:focus-within .input-group-text.input-icon {
-        border-color: #253b9b;
-        background: #fff;
+    .input-shell .input-group-text,
+    .input-shell .form-control,
+    .input-shell .btn {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
     }
 
-    /* Password toggle */
-    .btn-toggle-pw {
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
-        border-left: none;
-        color: #9ca3af;
-        cursor: pointer;
-        padding: 0 0.75rem;
-        transition: color 0.15s;
+    .input-shell .input-group-text {
+        color: #7a86a5;
+        padding-left: 1rem;
     }
 
-    .btn-toggle-pw:hover,
-    .btn-toggle-pw:focus {
+    .input-shell .form-control {
+        padding: 0.92rem 0;
+        color: #16203f;
+    }
+
+    .input-shell .form-control::placeholder {
+        color: #99a3bc;
+    }
+
+    .toggle-password {
+        color: #7a86a5;
+        padding-inline: 1rem;
+    }
+
+    .toggle-password:hover,
+    .toggle-password:focus {
         color: #253b9b;
-        background: #f9fafb;
-        box-shadow: none;
-        outline: none;
     }
 
-    .input-group:focus-within .btn-toggle-pw {
-        border-color: #253b9b;
-    }
-
-    /* Form label */
-    .field-label {
-        font-size: 0.83rem;
-        font-weight: 600;
-        color: #374151;
-        margin-bottom: 0.4rem;
-    }
-
-    /* Remember me */
     .form-check-input:checked {
         background-color: #253b9b;
         border-color: #253b9b;
     }
 
     .form-check-label {
-        font-size: 0.85rem;
-        color: #374151;
+        color: #586682;
+        font-size: 0.88rem;
     }
 
-    /* Submit */
-    #submitBtn {
-        background: #253b9b;
-        color: #fff;
-        padding: 0.7rem 1rem;
-        font-weight: 600;
-        border-radius: 8px;
+    .submit-btn {
+        width: 100%;
         border: none;
-        font-size: 0.92rem;
-        transition:
-            background 0.2s,
-            transform 0.1s;
+        border-radius: 18px;
+        padding: 0.95rem 1rem;
+        font-weight: 800;
         letter-spacing: 0.01em;
+        color: #ffffff;
+        background: linear-gradient(135deg, #253b9b 0%, #1a2c75 58%, #0e173f 100%);
+        box-shadow: 0 20px 34px rgba(24, 39, 92, 0.22);
+        transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease;
     }
 
-    #submitBtn:hover {
-        background: #1a2c75;
-        color: #fff;
+    .submit-btn:hover {
         transform: translateY(-1px);
+        box-shadow: 0 24px 38px rgba(24, 39, 92, 0.28);
+        color: #ffffff;
     }
 
-    #submitBtn:active {
+    .submit-btn:active {
         transform: translateY(0);
     }
+
+    .auth-note {
+        margin-top: 1.2rem;
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        background: rgba(244, 190, 24, 0.12);
+        color: #67531a;
+        font-size: 0.84rem;
+        line-height: 1.6;
+    }
+
+    @keyframes fadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(18px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes cardReveal {
+        from {
+            opacity: 0;
+            transform: translateY(24px) scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @keyframes floatChip {
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    @keyframes driftOne {
+        0%,
+        100% {
+            transform: translate3d(0, 0, 0);
+        }
+        50% {
+            transform: translate3d(36px, 28px, 0);
+        }
+    }
+
+    @keyframes driftTwo {
+        0%,
+        100% {
+            transform: translate3d(0, 0, 0);
+        }
+        50% {
+            transform: translate3d(-28px, -34px, 0);
+        }
+    }
+
+    @media (max-width: 991.98px) {
+        html,
+        body {
+            overflow-y: auto;
+        }
+
+        .hero-panel,
+        .auth-panel {
+            min-height: auto;
+        }
+
+        .hero-panel {
+            padding: 2rem 1.2rem 5rem;
+        }
+
+        .hero-grid {
+            min-height: auto;
+        }
+
+        .hero-floating {
+            position: static;
+            grid-template-columns: 1fr;
+            margin-top: 1.5rem;
+        }
+
+        .hero-highlights {
+            grid-template-columns: 1fr;
+        }
+
+        .auth-panel {
+            padding: 0 1rem 2rem;
+            margin-top: -3rem;
+        }
+
+        .auth-card {
+            width: 100%;
+            border-radius: 28px;
+            padding: 1.5rem;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .auth-stats {
+            grid-template-columns: 1fr;
+        }
+
+        .auth-top {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .hero-title {
+            max-width: 100%;
+        }
+    }
 </style>
-{% endblock %} {% block body %}
-<div class="container-fluid p-0">
-    <div class="row g-0 min-vh-100">
-        {# ═══════════════════════════════════ LEFT PANEL — Brand
-        ═══════════════════════════════════ #}
-        <div class="col-lg-6 d-none d-lg-flex">
-            <div class="brand-panel w-100">
-                {# Decorative background circles #}
-                <div
-                    class="deco-circle"
-                    style="
-                        width: 500px;
-                        height: 500px;
-                        background: rgba(244, 190, 24, 0.06);
-                        top: -140px;
-                        right: -160px;
-                    "
-                ></div>
-                <div
-                    class="deco-circle"
-                    style="
-                        width: 300px;
-                        height: 300px;
-                        background: rgba(244, 190, 24, 0.08);
-                        bottom: -90px;
-                        left: -90px;
-                    "
-                ></div>
-                <div
-                    class="deco-circle"
-                    style="
-                        width: 180px;
-                        height: 180px;
-                        background: rgba(255, 255, 255, 0.04);
-                        top: 38%;
-                        right: -50px;
-                    "
-                ></div>
-                <div
-                    class="deco-circle"
-                    style="
-                        width: 120px;
-                        height: 120px;
-                        background: rgba(244, 190, 24, 0.12);
-                        top: 13%;
-                        left: 8%;
-                    "
-                ></div>
-                <div
-                    class="deco-circle"
-                    style="
-                        width: 70px;
-                        height: 70px;
-                        background: rgba(244, 190, 24, 0.15);
-                        bottom: 18%;
-                        right: 12%;
-                    "
-                ></div>
+{% endblock %}
+{% block body %}
+<div class="container-fluid login-shell p-0">
+    <div class="row g-0 align-items-stretch">
+        <div class="col-lg-7">
+            <section class="hero-panel">
+                <div class="hero-grid">
+                    <div>
+                        <div class="hero-badge">
+                            <i class="bi bi-stars"></i>
+                            Platform Operasional Lembaga
+                        </div>
 
-                {# Brand content #}
-                <div
-                    style="
-                        position: relative;
-                        z-index: 1;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        text-align: center;
-                    "
-                >
-                    <i class="bi bi-mortarboard-fill brand-icon"></i>
-                    <div class="brand-name">LBB Super Smart</div>
-                    <div class="brand-tagline">Being Smart for Future</div>
-                    <div class="brand-divider"></div>
+                        <div class="hero-logo-wrap mt-4">
+                            <img
+                                src="{{ branding_logo_data_uri or '' }}"
+                                alt="Logo LBB Super Smart"
+                                class="hero-logo"
+                            />
+                        </div>
 
-                    <ul class="feature-list mt-4">
-                        <li class="feature-item">
-                            <span class="feature-icon"
-                                ><i class="bi bi-check-lg"></i
-                            ></span>
-                            Dashboard Keuangan Real-time
-                        </li>
-                        <li class="feature-item">
-                            <span class="feature-icon"
-                                ><i class="bi bi-check-lg"></i
-                            ></span>
-                            Manajemen Siswa &amp; Tutor
-                        </li>
-                        <li class="feature-item">
-                            <span class="feature-icon"
-                                ><i class="bi bi-check-lg"></i
-                            ></span>
-                            Presensi &amp; Rekap Sesi Otomatis
-                        </li>
-                        <li class="feature-item">
-                            <span class="feature-icon"
-                                ><i class="bi bi-check-lg"></i
-                            ></span>
-                            Payroll &amp; Fee Slip Tutor
-                        </li>
-                        <li class="feature-item">
-                            <span class="feature-icon"
-                                ><i class="bi bi-check-lg"></i
-                            ></span>
-                            Quota &amp; Invoice Terintegrasi
-                        </li>
-                        <li class="feature-item">
-                            <span class="feature-icon"
-                                ><i class="bi bi-check-lg"></i
-                            ></span>
-                            Laporan Keuangan Bulanan
-                        </li>
-                    </ul>
+                        <div class="hero-kicker mt-4">Smart Ops. Smart Growth.</div>
+                        <h1 class="hero-title">Masuk ke pusat kendali LBB Super Smart.</h1>
+                        <p class="hero-copy">
+                            Pantau cashflow, quota, presensi, payroll, dan invoice dalam satu alur kerja yang rapi.
+                            Satu dashboard untuk keputusan yang lebih cepat dan lebih tenang.
+                        </p>
+
+                        <div class="hero-highlights">
+                            <div class="highlight-card">
+                                <div class="highlight-label">Tagline</div>
+                                <div class="highlight-value">Data rapi. Quota terjaga. Cashflow terbaca.</div>
+                            </div>
+                            <div class="highlight-card">
+                                <div class="highlight-label">Workflow</div>
+                                <div class="highlight-value">Master -> Enrollment -> Presensi -> Invoice -> Payroll</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="hero-quote">
+                            Sistem ini dirancang untuk membantu tim lembaga bergerak lebih cepat, lebih presisi,
+                            dan tetap nyaman saat data operasional makin ramai.
+                        </div>
+                    </div>
                 </div>
 
-                {# Copyright #}
-                <div class="brand-copyright">© 2025 LBB Super Smart</div>
-            </div>
+                <div class="hero-floating d-none d-lg-grid">
+                    <div class="floating-chip">
+                        <span class="chip-icon"><i class="bi bi-lightning-charge-fill"></i></span>
+                        <div>
+                            <div class="small fw-semibold">Real-time Insight</div>
+                            <div class="small text-white-50">Keuangan dan quota terbaca cepat</div>
+                        </div>
+                    </div>
+                    <div class="floating-chip">
+                        <span class="chip-icon"><i class="bi bi-people-fill"></i></span>
+                        <div>
+                            <div class="small fw-semibold">Tutor &amp; Siswa</div>
+                            <div class="small text-white-50">Relasi data lebih terhubung</div>
+                        </div>
+                    </div>
+                    <div class="floating-chip">
+                        <span class="chip-icon"><i class="bi bi-receipt-cutoff"></i></span>
+                        <div>
+                            <div class="small fw-semibold">Invoice &amp; Slip</div>
+                            <div class="small text-white-50">Dokumen siap kirim dan arsip</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
 
-        {# ═══════════════════════════════════ RIGHT PANEL — Login Form
-        ═══════════════════════════════════ #}
-        <div class="col-lg-6 col-12">
-            <div class="form-panel">
-                <div class="form-box">
-                    {# Mini logo #}
-                    <div class="d-flex align-items-center gap-2 mb-4">
-                        <div class="form-logo-icon">
-                            <i class="bi bi-mortarboard-fill"></i>
+        <div class="col-lg-5">
+            <section class="auth-panel">
+                <div class="auth-card">
+                    <div class="auth-top">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="auth-mark">
+                                <img
+                                    src="{{ branding_logo_mark_data_uri or '' }}"
+                                    alt="Mark Super Smart"
+                                />
+                            </div>
+                            <div class="auth-mini">
+                                <strong>LBB Super Smart</strong>
+                                Dashboard Keuangan & Operasional
+                            </div>
                         </div>
-                        <div>
-                            <div class="form-logo-name">Super Smart</div>
-                            <div class="form-logo-sub">LBB Super Smart</div>
+                        <div class="status-pill">
+                            <i class="bi bi-shield-check"></i>
+                            Secure Login
                         </div>
                     </div>
 
-                    {# Heading #}
-                    <h1 class="form-title">Selamat Datang 👋</h1>
-                    <p class="form-subtitle">
-                        Masuk ke sistem manajemen keuangan
+                    <h2 class="auth-title">Selamat datang kembali.</h2>
+                    <p class="auth-subtitle">
+                        Masuk untuk melanjutkan pengelolaan siswa, tutor, pembayaran, dan laporan lembaga.
                     </p>
 
-                    {# Flash messages #} {% with messages =
-                    get_flashed_messages(with_categories=true) %} {% if messages
-                    %} {% for category, message in messages %}
-                    <div
-                        class="alert alert-{{ 'warning' if category == 'message' else category }} alert-dismissible fade show py-2 mb-3"
-                        role="alert"
-                    >
-                        {{ message }}
-                        <button
-                            type="button"
-                            class="btn-close"
-                            data-bs-dismiss="alert"
-                        ></button>
+                    <div class="auth-stats">
+                        <div class="stat-card">
+                            <div class="stat-value">Quota</div>
+                            <div class="stat-label">Pantau alert dan tagihan per siswa</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">Cashflow</div>
+                            <div class="stat-label">Lihat pemasukan, pengeluaran, dan margin</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">Payroll</div>
+                            <div class="stat-label">Rekap tutor dan bukti transfer</div>
+                        </div>
                     </div>
-                    {% endfor %} {% endif %} {% endwith %} {# Login form #}
+
                     <form method="post" novalidate>
-                        {{ form.hidden_tag() }} {# ── Username ── #}
+                        {{ form.hidden_tag() }}
+
                         <div class="mb-3">
-                            <label
-                                for="{{ form.username.id }}"
-                                class="field-label"
-                                >Username</label
-                            >
-                            <div class="input-group">
-                                <span class="input-group-text input-icon">
-                                    <i class="bi bi-person"></i>
-                                </span>
-                                {{ form.username(class="form-control
-                                border-start-0", placeholder="Masukkan
-                                username") }}
+                            <label for="{{ form.username.id }}" class="form-label">Username</label>
+                            <div class="input-group input-shell">
+                                <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                {{ form.username(class="form-control", placeholder="Masukkan username") }}
                             </div>
                             {% if form.username.errors %}
                             <div class="text-danger small mt-1">
@@ -465,26 +715,17 @@ endblock %} {% block head %}
                             {% endif %}
                         </div>
 
-                        {# ── Password ── #}
                         <div class="mb-3">
-                            <label
-                                for="{{ form.password.id }}"
-                                class="field-label"
-                                >Password</label
-                            >
-                            <div class="input-group">
-                                <span class="input-group-text input-icon">
-                                    <i class="bi bi-lock"></i>
-                                </span>
-                                {{ form.password(class="form-control
-                                border-start-0", placeholder="Masukkan
-                                password", id="passwordInput") }}
+                            <label for="{{ form.password.id }}" class="form-label">Password</label>
+                            <div class="input-group input-shell">
+                                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                {{ form.password(class="form-control", placeholder="Masukkan password", id="passwordInput") }}
                                 <button
-                                    class="btn-toggle-pw"
+                                    class="btn toggle-password"
                                     type="button"
                                     id="togglePassword"
                                     tabindex="-1"
-                                    aria-label="Tampilkan/sembunyikan password"
+                                    aria-label="Tampilkan atau sembunyikan password"
                                 >
                                     <i class="bi bi-eye" id="eyeIcon"></i>
                                 </button>
@@ -498,49 +739,37 @@ endblock %} {% block head %}
                             {% endif %}
                         </div>
 
-                        {# ── Remember me ── #}
-                        <div class="form-check mb-3">
+                        <div class="form-check mb-4">
                             {{ form.remember_me(class="form-check-input") }}
-                            <label
-                                class="form-check-label"
-                                for="{{ form.remember_me.id }}"
-                            >
-                                Ingat saya
+                            <label class="form-check-label" for="{{ form.remember_me.id }}">
+                                Ingat saya di perangkat ini
                             </label>
                         </div>
 
-                        {# ── Submit ── #} {{ form.submit(class="btn w-100
-                        mt-2", id="submitBtn") }}
+                        {{ form.submit(class="submit-btn", id="submitBtn") }}
                     </form>
+
+                    <div class="auth-note">
+                        Gunakan akun aktif yang terdaftar di sistem. Jika akses bermasalah, hubungi admin lembaga untuk reset akun atau verifikasi role.
+                    </div>
                 </div>
-            </div>
+            </section>
         </div>
     </div>
 </div>
 
 <script>
-    (function () {
-        const toggleBtn = document.getElementById("togglePassword");
-        const pwInput = document.getElementById("passwordInput");
-        const eyeIcon = document.getElementById("eyeIcon");
+    document.addEventListener("DOMContentLoaded", function () {
+        var toggleButton = document.getElementById("togglePassword");
+        var passwordInput = document.getElementById("passwordInput");
+        var eyeIcon = document.getElementById("eyeIcon");
+        if (!toggleButton || !passwordInput || !eyeIcon) return;
 
-        if (toggleBtn && pwInput && eyeIcon) {
-            toggleBtn.addEventListener("click", function () {
-                if (pwInput.type === "password") {
-                    pwInput.type = "text";
-                    eyeIcon.classList.replace("bi-eye", "bi-eye-slash");
-                    toggleBtn.setAttribute(
-                        "aria-label",
-                        "Sembunyikan password",
-                    );
-                } else {
-                    pwInput.type = "password";
-                    eyeIcon.classList.replace("bi-eye-slash", "bi-eye");
-                    toggleBtn.setAttribute("aria-label", "Tampilkan password");
-                }
-                pwInput.focus();
-            });
-        }
-    })();
+        toggleButton.addEventListener("click", function () {
+            var hidden = passwordInput.getAttribute("type") === "password";
+            passwordInput.setAttribute("type", hidden ? "text" : "password");
+            eyeIcon.className = hidden ? "bi bi-eye-slash" : "bi bi-eye";
+        });
+    });
 </script>
 {% endblock %}

@@ -1,0 +1,269 @@
+{
+  "exported_at": "2026-05-02T14:16:21+00:00",
+  "planner_file": ".codex-workflow/planner_state.json",
+  "task_memory_file": ".codex-workflow/task_memory.jsonl",
+  "planner_exists": true,
+  "task_memory_exists": true,
+  "planner_snapshot": {
+    "goal": "Make GitHub sync and portable workspace state explicit for Hermes and context-mode",
+    "project_id": "aplikasi-lembaga",
+    "phase": "verification_done",
+    "current_role": "implementer",
+    "updated_at": "2026-05-02T13:48:38Z",
+    "plan": [
+      {
+        "step": "Audit where Hermes and context-mode store state",
+        "status": "completed"
+      },
+      {
+        "step": "Add repo-side sync script, version counter, and restore docs",
+        "status": "completed"
+      },
+      {
+        "step": "Verify safe export mode and record policy",
+        "status": "completed"
+      }
+    ],
+    "notes": [
+      "Repo now tracks Hermes project-local state via .codex-workflow planner/task memory files.",
+      "Repo now includes a versioned sync script and project-safe context snapshot export.",
+      "Full raw context-mode backup is available only as an explicit flag because home-level DB files may include other projects."
+    ]
+  },
+  "task_memory_tail": [
+    {
+      "kind": "decision",
+      "summary": "Attendance editing now supports manual tutor selection independent from enrollment tutor. Linked WhatsApp evaluations resync to the corrected attendance tutor and enrollment.",
+      "details": {
+        "files": [
+          "app/forms/attendance_forms.py",
+          "app/routes/attendance.py",
+          "app/templates/attendance/form.html",
+          "app/templates/attendance/list.html",
+          "tests/test_attendance_list_view.py"
+        ],
+        "verification": {
+          "pytest": "29 passed, 2 warnings",
+          "browser_smoke": "/attendance/ redirected to login without 500 after rebuild"
+        }
+      },
+      "tags": [
+        "attendance",
+        "whatsapp",
+        "manual-edit",
+        "adaptive-tutor"
+      ],
+      "project_id": "aplikasi-lembaga",
+      "created_at": "2026-05-02T12:38:04Z"
+    },
+    {
+      "kind": "decision",
+      "summary": "WhatsApp management now filters validated and unvalidated rows for both group and contact tables. Students list now supports active/inactive filter plus quick page search, student detail can toggle active state, and student/tutor detail tabs use only the person name as title.",
+      "details": {
+        "files": [
+          "app/routes/master.py",
+          "app/templates/master/students_list.html",
+          "app/templates/master/student_detail.html",
+          "app/templates/master/tutor_detail.html",
+          "app/templates/whatsapp/management.html",
+          "tests/test_student_views.py"
+        ],
+        "verification": {
+          "pytest": "8 passed",
+          "browser_smoke": "login page passed after web rebuild"
+        }
+      },
+      "tags": [
+        "whatsapp",
+        "students",
+        "tutors",
+        "filters",
+        "ui"
+      ],
+      "project_id": "aplikasi-lembaga",
+      "created_at": "2026-05-02T12:47:11Z"
+    },
+    {
+      "kind": "implementation",
+      "summary": "Added WhatsApp validated/unvalidated UI filters, student active/inactive filtering and quick search, student active toggle action, and short tab titles for student/tutor detail pages.",
+      "details": {
+        "files": [
+          "app/routes/master.py",
+          "app/templates/master/students_list.html",
+          "app/templates/master/student_detail.html",
+          "app/templates/master/tutor_detail.html",
+          "app/templates/whatsapp/management.html",
+          "tests/test_whatsapp_bot_dashboard.py",
+          "tests/test_tutor_detail_view.py",
+          "tests/test_student_views.py"
+        ],
+        "verification": "docker compose exec -T web python -m pytest tests/test_whatsapp_bot_dashboard.py tests/test_student_views.py tests/test_tutor_detail_view.py -q => 8 passed",
+        "notes": "WhatsApp filters are client-side over DB-backed tables; student quick search filters current page rows only."
+      },
+      "tags": [
+        "whatsapp",
+        "students",
+        "tutors",
+        "ui",
+        "validation"
+      ],
+      "project_id": "aplikasi-lembaga",
+      "created_at": "2026-05-02T12:50:12Z"
+    },
+    {
+      "kind": "bugfix",
+      "summary": "Fixed enrollment edit form so student/tutor rate defaults no longer render with trailing .00 that broke IntegerField submission.",
+      "details": {
+        "files": [
+          "app/routes/enrollments.py",
+          "app/templates/enrollments/form.html",
+          "tests/test_enrollment_form_view.py"
+        ],
+        "verification": "docker compose exec -T web python -m pytest tests/test_enrollment_form_view.py -q => 2 passed, 2 warnings",
+        "root_cause": "Edit route assigned Numeric(15,2) DB values directly into IntegerField defaults, producing values like 43750.00 in browser inputs."
+      },
+      "tags": [
+        "enrollment",
+        "form",
+        "pricing",
+        "bugfix"
+      ],
+      "project_id": "aplikasi-lembaga",
+      "created_at": "2026-05-02T13:06:17Z"
+    },
+    {
+      "kind": "implementation",
+      "summary": "Added quick search to both WhatsApp bot tables: group list and contact directory.",
+      "details": {
+        "files": [
+          "app/templates/whatsapp/management.html",
+          "tests/test_whatsapp_bot_dashboard.py"
+        ],
+        "verification": "docker compose exec -T web python -m pytest tests/test_whatsapp_bot_dashboard.py -q => passed",
+        "notes": "Search is client-side, works together with validated/unvalidated filters and existing pagination."
+      },
+      "tags": [
+        "whatsapp",
+        "ui",
+        "search",
+        "dashboard"
+      ],
+      "project_id": "aplikasi-lembaga",
+      "created_at": "2026-05-02T13:22:31Z"
+    },
+    {
+      "kind": "implementation",
+      "summary": "Added quick search to daftar tutor and presensi sesi les tables.",
+      "details": {
+        "files": [
+          "app/templates/master/tutors_list.html",
+          "app/templates/attendance/list.html",
+          "tests/test_tutor_list_view.py",
+          "tests/test_attendance_list_view.py"
+        ],
+        "verification": "docker compose exec -T web python -m pytest tests/test_attendance_list_view.py tests/test_tutor_list_view.py -q => passed",
+        "notes": "Search is client-side for currently rendered rows on the active page."
+      },
+      "tags": [
+        "ui",
+        "search",
+        "tutors",
+        "attendance"
+      ],
+      "project_id": "aplikasi-lembaga",
+      "created_at": "2026-05-02T13:32:17Z"
+    },
+    {
+      "kind": "bugfix",
+      "summary": "Fixed tutor detail 500 caused by Jinja iterating day_bucket.items instead of the day bucket items key.",
+      "details": {
+        "files": [
+          "app/templates/master/tutor_detail.html",
+          "tests/test_tutor_detail_view.py"
+        ],
+        "verification": "docker compose exec -T web python -m pytest tests/test_tutor_detail_view.py -q => passed",
+        "root_cause": "Teaching schedule data is a list of dicts; Jinja resolved day_bucket.items to the dict method instead of the items payload."
+      },
+      "tags": [
+        "tutor",
+        "detail",
+        "jinja",
+        "bugfix"
+      ],
+      "project_id": "aplikasi-lembaga",
+      "created_at": "2026-05-02T13:36:06Z"
+    },
+    {
+      "kind": "implementation",
+      "summary": "Added taught-subject summary to tutor detail and a new subject detail page listing tutors who teach the subject.",
+      "details": {
+        "files": [
+          "app/routes/master.py",
+          "app/templates/master/tutor_detail.html",
+          "app/templates/master/subject_detail.html",
+          "app/templates/master/subjects_list.html",
+          "tests/test_tutor_detail_view.py",
+          "tests/test_subject_detail_view.py",
+          "tests/test_public_id_routes.py"
+        ],
+        "verification": "docker compose exec -T web python -m pytest tests/test_tutor_detail_view.py tests/test_subject_detail_view.py tests/test_public_id_routes.py -q => passed",
+        "notes": "Summaries combine attendance sessions and enrollment data to avoid losing tutor-subject relationships when one source is sparse."
+      },
+      "tags": [
+        "tutor",
+        "subject",
+        "detail",
+        "ui",
+        "attendance",
+        "enrollment"
+      ],
+      "project_id": "aplikasi-lembaga",
+      "created_at": "2026-05-02T13:40:43Z"
+    },
+    {
+      "kind": "verification",
+      "summary": "Tutor/subject detail teaching summaries verified in rebuilt web container.",
+      "details": {
+        "tests": "docker compose exec -T web python -m pytest tests/test_tutor_detail_view.py tests/test_subject_detail_view.py tests/test_public_id_routes.py -q => 7 passed in 0.09s",
+        "deploy": "hermes deploy_release_execute build web => success on retry; up web => recreated container successfully",
+        "note": "Initial build attempt failed due transient network unreachable to auth.docker.io; retry succeeded."
+      },
+      "tags": [
+        "tutor",
+        "subject",
+        "verification",
+        "runtime"
+      ],
+      "project_id": "aplikasi-lembaga",
+      "created_at": "2026-05-02T13:43:38Z"
+    },
+    {
+      "kind": "decision",
+      "summary": "Added a repo-side Hermes/GitHub sync workflow with version counter and context snapshot export.",
+      "details": {
+        "files": [
+          ".gitignore",
+          "scripts/hermes_github_sync.py",
+          "docs/hermes_github_sync_policy.md",
+          "state/agent-sync/README.md",
+          "state/agent-sync/version.json",
+          "state/agent-sync/hermes-state-manifest.json",
+          "state/agent-sync/context-mode/project-snapshot.json",
+          "state/agent-sync/RESTORE_NOTES.md"
+        ],
+        "verification": "python3 scripts/hermes_github_sync.py --skip-git => ok, version v0001 created",
+        "note": "Hermes github_required enforcement exists in Hermes project settings, not in repo code. Raw context-mode DB backup is optional via --include-global-context due privacy/scope risk."
+      },
+      "tags": [
+        "hermes",
+        "context-mode",
+        "github",
+        "sync",
+        "backup"
+      ],
+      "project_id": "aplikasi-lembaga",
+      "created_at": "2026-05-02T13:48:39Z"
+    }
+  ],
+  "task_memory_count": 42
+}

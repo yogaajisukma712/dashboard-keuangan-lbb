@@ -3,6 +3,16 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link
+            rel="icon"
+            type="image/svg+xml"
+            href="{{ branding_logo_mark_data_uri or '' }}"
+        />
+        <link
+            rel="shortcut icon"
+            href="{{ branding_logo_mark_data_uri or '' }}"
+        />
+        <meta name="theme-color" content="#253b9b" />
         <title>
             {% block title %}Dashboard Keuangan LBB Super Smart{% endblock %}
         </title>
@@ -94,14 +104,19 @@
             .topbar-icon-box {
                 width: 30px;
                 height: 30px;
-                background: var(--brand-accent);
+                background: transparent;
                 border-radius: 7px;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                color: var(--brand-dark);
                 font-size: 0.95rem;
                 flex-shrink: 0;
+            }
+            .brand-mark {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                display: block;
             }
             .topbar-brand-text {
                 font-weight: 700;
@@ -162,12 +177,11 @@
             .sidebar-icon-box {
                 width: 38px;
                 height: 38px;
-                background: var(--brand-accent);
+                background: transparent;
                 border-radius: 9px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                color: var(--brand-dark);
                 font-size: 1.1rem;
                 flex-shrink: 0;
             }
@@ -352,7 +366,11 @@
                         href="{{ url_for('dashboard.owner_dashboard') }}"
                     >
                         <span class="topbar-icon-box">
-                            <i class="bi bi-mortarboard-fill"></i>
+                            <img
+                                src="{{ branding_logo_mark_data_uri or '' }}"
+                                alt="Logo Super Smart"
+                                class="brand-mark"
+                            />
                         </span>
                         <span class="topbar-brand-text">LBB Super Smart</span>
                     </a>
@@ -429,7 +447,11 @@
             <!-- Brand area -->
             <div class="sidebar-brand-area">
                 <div class="sidebar-icon-box">
-                    <i class="bi bi-mortarboard-fill"></i>
+                    <img
+                        src="{{ branding_logo_mark_data_uri or '' }}"
+                        alt="Logo Super Smart"
+                        class="brand-mark"
+                    />
                 </div>
                 <div>
                     <span class="sidebar-app-name">LBB Super Smart</span>
@@ -480,6 +502,12 @@
             >
                 <i class="bi bi-tags-fill"></i> Tarif Sesi
             </a>
+            <a
+                href="{{ url_for('master.bulk_upload') }}"
+                class="sidebar-link {% if 'bulk-upload' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-cloud-arrow-up-fill"></i> Bulk Upload CSV
+            </a>
 
             <!-- ── Operasional ── -->
             <div class="sidebar-section">Operasional</div>
@@ -492,15 +520,27 @@
             </a>
             <a
                 href="/attendance/"
-                class="sidebar-link {% if 'attendance' in request.path and 'bulk-add' not in request.path %}active{% endif %}"
+                class="sidebar-link {% if 'attendance' in request.path and 'bulk-add' not in request.path and 'calendar' not in request.path %}active{% endif %}"
             >
                 <i class="bi bi-calendar-check-fill"></i> Presensi
+            </a>
+            <a
+                href="{{ url_for('attendance.calendar_view') }}"
+                class="sidebar-link {% if request.endpoint == 'attendance.calendar_view' %}active{% endif %}"
+            >
+                <i class="bi bi-calendar3"></i> Kalender Les
             </a>
             <a
                 href="/attendance/bulk-add"
                 class="sidebar-link {% if 'bulk-add' in request.path %}active{% endif %}"
             >
                 <i class="bi bi-calendar-plus"></i> Presensi Massal
+            </a>
+            <a
+                href="{{ url_for('whatsapp_bot.management') }}"
+                class="sidebar-link {% if request.endpoint and request.endpoint.startswith('whatsapp_bot.') %}active{% endif %}"
+            >
+                <i class="bi bi-whatsapp"></i> WhatsApp Bot
             </a>
 
             <!-- ── Keuangan ── -->

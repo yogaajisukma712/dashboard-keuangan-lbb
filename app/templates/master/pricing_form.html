@@ -29,7 +29,7 @@
 
 <form
   method="POST"
-  action="{% if action == 'edit' %}{{ url_for('master.edit_pricing', id=pricing.id) }}{% else %}{{ url_for('master.add_pricing') }}{% endif %}"
+  action="{% if action == 'edit' %}{{ url_for('master.edit_pricing', pricing_ref=pricing.public_id) }}{% else %}{{ url_for('master.add_pricing') }}{% endif %}"
   novalidate
   id="pricingForm"
 >

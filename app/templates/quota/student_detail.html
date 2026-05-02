@@ -280,10 +280,10 @@
     aria-hidden="true"
 >
     <div
-        class="modal-dialog modal-xl modal-dialog-scrollable"
-        style="max-height: 90vh"
+        class="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-md-down"
+        style="max-height: 100dvh"
     >
-        <div class="modal-content">
+        <div class="modal-content h-100" style="max-height: 100dvh">
             {# ── Modal header ── #}
             <div class="modal-header bg-primary text-white">
                 <div>
@@ -292,6 +292,16 @@
                     </h5>
                     <div class="small opacity-75 mt-1">
                         {{ student.name }} · {{ service_month_label }}
+                    </div>
+                    <div class="small mt-2 d-flex flex-wrap gap-3">
+                        <span
+                            ><i class="bi bi-check2-square me-1"></i
+                            ><span id="invoiceSelectedCount">0 / 0 mapel</span></span
+                        >
+                        <span
+                            ><i class="bi bi-cash-stack me-1"></i>Estimasi
+                            <span id="invoiceEstimatedTotal">Rp 0</span></span
+                        >
                     </div>
                 </div>
                 <button
@@ -302,11 +312,13 @@
             </div>
 
             {# ── Modal body ── #}
-            <div class="modal-body" style="overflow-y: auto">
+            <div class="modal-body flex-grow-1" style="min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 1rem">
                 <form
                     id="studentInvoiceForm"
                     method="POST"
                     action="{{ url_for('quota_invoice.create_invoice') }}"
+                    class="d-flex flex-column h-100"
+                    style="min-height: 0"
                 >
                     <input
                         type="hidden"
@@ -325,7 +337,7 @@
                     />
                     {# Tipe penagihan + preset #}
                     <div class="row g-3 mb-3">
-                        <div class="col-lg-7">
+                        <div class="col-lg-8">
                             <label class="form-label fw-semibold"
                                 >Tipe Penagihan</label
                             >
@@ -371,7 +383,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-lg-5">
+                        <div class="col-lg-4">
                             <label class="form-label fw-semibold"
                                 >Preset Sesi Pra Bayar</label
                             >
@@ -397,6 +409,13 @@
                                 >
                                     12
                                 </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-primary preset-btn"
+                                    data-count="16"
+                                >
+                                    16
+                                </button>
                             </div>
                             <div class="form-text">
                                 Preset hanya untuk pra bayar, bisa diubah manual
@@ -406,14 +425,28 @@
                     </div>
 
                     {# Tabel mapel #}
-                    <div class="table-responsive border rounded">
+                    <div
+                        class="table-responsive border rounded"
+                        style="max-height: 48vh; overflow-y: auto"
+                    >
                         <table
                             class="table align-middle mb-0"
                             id="invoiceBuilderTable"
                         >
                             <thead class="table-light">
                                 <tr>
-                                    <th style="width: 48px">Pilih</th>
+                                    <th
+                                        class="text-center"
+                                        style="width: 56px"
+                                    >
+                                        <input
+                                            class="form-check-input"
+                                            type="checkbox"
+                                            id="invoiceSelectAll"
+                                            title="Pilih semua mapel"
+                                            aria-label="Pilih semua mapel"
+                                        />
+                                    </th>
                                     <th>Mapel</th>
                                     <th>Tutor</th>
                                     <th class="text-center">Dibayar</th>
@@ -550,13 +583,13 @@
                 </form>
             </div>
             {# ── Modal footer ── #}
-            <div class="modal-footer justify-content-between">
+            <div class="modal-footer justify-content-between flex-column flex-lg-row align-items-stretch align-items-lg-center gap-3 bg-white" style="position: sticky; bottom: 0; z-index: 3; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem); box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.08)">
                 <div class="small text-muted">
                     <strong>Pra bayar:</strong> pilih mapel &amp; tentukan
                     jumlah sesi. &nbsp; <strong>Pasca bayar:</strong> sistem
                     otomatis ambil sesi minus.
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-grid d-sm-flex gap-2">
                     <button
                         type="button"
                         class="btn btn-secondary"
@@ -586,6 +619,9 @@
         var fmt = new Intl.NumberFormat("id-ID");
         var rows = Array.from(form.querySelectorAll(".invoice-row"));
         var totalEl = document.getElementById("invoiceGrandTotal");
+        var selectAll = document.getElementById("invoiceSelectAll");
+        var selectedCount = document.getElementById("invoiceSelectedCount");
+        var estimatedTotal = document.getElementById("invoiceEstimatedTotal");
 
         function billingType() {
             var el = form.querySelector(".billing-type-radio:checked");
@@ -594,6 +630,23 @@
 
         function currency(v) {
             return "Rp " + fmt.format(Math.round(Number(v || 0)));
+        }
+
+        function updateSelectionState() {
+            if (!selectAll || !selectedCount || !estimatedTotal) return;
+            var selectable = rows.filter(function (row) {
+                return !row.querySelector(".invoice-check").disabled;
+            });
+            var selected = selectable.filter(function (row) {
+                return row.querySelector(".invoice-check").checked;
+            }).length;
+
+            selectAll.checked =
+                selectable.length > 0 && selected === selectable.length;
+            selectAll.indeterminate =
+                selected > 0 && selected < selectable.length;
+            selectedCount.textContent =
+                selected + " / " + selectable.length + " mapel";
         }
 
         function updateRow(row) {
@@ -636,6 +689,7 @@
 
             var count = parseInt(qty.value || "0", 10) || 0;
             sub.textContent = currency(chk.checked ? count * rate : 0);
+            updateSelectionState();
         }
 
         function updateAll() {
@@ -648,12 +702,14 @@
                 return acc + (parseInt(qty.value || "0", 10) || 0) * rate;
             }, 0);
             totalEl.textContent = currency(total);
+            if (estimatedTotal) estimatedTotal.textContent = currency(total);
         }
 
         function applyPreset(n) {
             if (billingType() !== "prepaid") return;
             rows.forEach(function (row) {
                 var qty = row.querySelector(".invoice-qty");
+                row.dataset.defaultQuota = String(n);
                 if (!qty.readOnly) qty.value = n;
             });
             updateAll();
@@ -677,6 +733,17 @@
                 updateAll,
             );
         });
+
+        if (selectAll) {
+            selectAll.addEventListener("change", function () {
+                var shouldCheck = selectAll.checked;
+                rows.forEach(function (row) {
+                    var chk = row.querySelector(".invoice-check");
+                    if (!chk.disabled) chk.checked = shouldCheck;
+                });
+                updateAll();
+            });
+        }
 
         form.addEventListener("submit", function (e) {
             var checked = rows.filter(function (row) {
@@ -707,6 +774,7 @@
         });
 
         updateAll();
+        updateSelectionState();
     })();
 </script>
 {% endif %} {% endblock %}

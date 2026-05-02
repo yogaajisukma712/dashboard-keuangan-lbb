@@ -35,12 +35,12 @@
   <div class="card-body">
     <form method="GET" action="{{ url_for('payments.list_payments') }}" class="row g-3 align-items-end">
       <div class="col-md-4">
-        <label for="student_id" class="form-label muted-label">Siswa</label>
-        <select name="student_id" id="student_id" class="form-select">
+        <label for="student_ref" class="form-label muted-label">Siswa</label>
+        <select name="student_ref" id="student_ref" class="form-select">
           <option value="">-- Semua Siswa --</option>
           {% for student in students %}
-          <option value="{{ student.id }}"
-            {% if request.args.get('student_id', type=int) == student.id %}selected{% endif %}>
+          <option value="{{ student.public_id }}"
+            {% if current_student_ref == student.public_id %}selected{% endif %}>
             {{ student.name }}
           </option>
           {% endfor %}
@@ -103,7 +103,7 @@
             </td>
             <td>
               {% if payment.student %}
-              <a href="{{ url_for('payments.student_payment_history', student_id=payment.student.id) }}"
+              <a href="{{ url_for('payments.student_payment_history', student_ref=payment.student.public_id) }}"
                  class="text-decoration-none fw-semibold">
                 {{ payment.student.name }}
               </a>
@@ -144,20 +144,20 @@
               {% endif %}
             </td>
             <td class="text-center pe-3">
-              <a href="{{ url_for('payments.payment_invoice', payment_id=payment.id) }}"
+              <a href="{{ url_for('payments.payment_invoice', payment_ref=payment.public_id) }}"
                  class="btn btn-sm btn-outline-info me-1" title="Invoice">
                 <i class="bi bi-file-earmark-text"></i>
               </a>
-              <a href="{{ url_for('payments.detail_payment', payment_id=payment.id) }}"
+              <a href="{{ url_for('payments.detail_payment', payment_ref=payment.public_id) }}"
                  class="btn btn-sm btn-outline-primary me-1" title="Detail">
                 <i class="bi bi-eye"></i>
               </a>
-              <a href="{{ url_for('payments.edit_payment', payment_id=payment.id) }}"
+              <a href="{{ url_for('payments.edit_payment', payment_ref=payment.public_id) }}"
                  class="btn btn-sm btn-outline-secondary me-1" title="Edit">
                 <i class="bi bi-pencil"></i>
               </a>
               <form method="POST"
-                    action="{{ url_for('payments.delete_payment', payment_id=payment.id) }}"
+                    action="{{ url_for('payments.delete_payment', payment_ref=payment.public_id) }}"
                     class="d-inline"
                     onsubmit="return confirm('Yakin hapus pembayaran {{ payment.receipt_number }}?')">
                 {{ csrf_token() if csrf_token is defined else '' }}
@@ -194,7 +194,7 @@
           <li class="page-item {% if not paginated.has_prev %}disabled{% endif %}">
             <a class="page-link"
                href="{{ url_for('payments.list_payments', page=paginated.prev_num,
-                        student_id=request.args.get('student_id',''),
+                        student_ref=current_student_ref,
                         date_from=request.args.get('date_from',''),
                         date_to=request.args.get('date_to','')) }}">
               <i class="bi bi-chevron-left"></i>
@@ -205,7 +205,7 @@
             <li class="page-item {% if p == paginated.page %}active{% endif %}">
               <a class="page-link"
                  href="{{ url_for('payments.list_payments', page=p,
-                          student_id=request.args.get('student_id',''),
+                          student_ref=current_student_ref,
                           date_from=request.args.get('date_from',''),
                           date_to=request.args.get('date_to','')) }}">
                 {{ p }}
@@ -218,7 +218,7 @@
           <li class="page-item {% if not paginated.has_next %}disabled{% endif %}">
             <a class="page-link"
                href="{{ url_for('payments.list_payments', page=paginated.next_num,
-                        student_id=request.args.get('student_id',''),
+                        student_ref=current_student_ref,
                         date_from=request.args.get('date_from',''),
                         date_to=request.args.get('date_to','')) }}">
               <i class="bi bi-chevron-right"></i>
@@ -239,7 +239,7 @@
       <i class="bi bi-inbox display-4 text-muted d-block mb-3"></i>
       <h5 class="text-muted">Belum ada data pembayaran</h5>
       <p class="text-muted mb-3">
-        {% if request.args.get('student_id') or request.args.get('date_from') or request.args.get('date_to') %}
+        {% if current_student_ref or request.args.get('date_from') or request.args.get('date_to') %}
         Tidak ada pembayaran yang sesuai dengan filter yang dipilih.
         {% else %}
         Mulai tambahkan pembayaran siswa.

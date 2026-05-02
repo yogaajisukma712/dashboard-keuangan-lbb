@@ -45,7 +45,7 @@
       <div class="card-body">
 
         <form method="POST"
-              action="{{ url_for('expenses.edit_expense', id=expense.id) if expense else url_for('expenses.add_expense') }}"
+              action="{{ url_for('expenses.edit_expense', expense_ref=expense.public_id) if expense else url_for('expenses.add_expense') }}"
               novalidate>
           {{ form.hidden_tag() }}
 

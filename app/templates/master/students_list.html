@@ -19,7 +19,7 @@
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body py-3">
     <form method="GET" action="{{ url_for('master.students_list') }}" class="row g-2 align-items-center">
-      <div class="col-md-8 col-lg-6">
+      <div class="col-md-6 col-lg-5">
         <div class="input-group">
           <span class="input-group-text bg-white border-end-0">
             <i class="bi bi-search text-muted"></i>
@@ -33,10 +33,17 @@
           />
         </div>
       </div>
+      <div class="col-md-3 col-lg-3">
+        <select name="active_state" class="form-select">
+          <option value="">Semua Status</option>
+          <option value="active" {% if active_state == 'active' %}selected{% endif %}>Siswa Aktif</option>
+          <option value="inactive" {% if active_state == 'inactive' %}selected{% endif %}>Siswa Nonaktif</option>
+        </select>
+      </div>
       <div class="col-auto">
         <button type="submit" class="btn btn-primary px-4">Cari</button>
       </div>
-      {% if search %}
+      {% if search or active_state %}
       <div class="col-auto">
         <a href="{{ url_for('master.students_list') }}" class="btn btn-outline-secondary">
           <i class="bi bi-x-circle me-1"></i>Reset
@@ -56,6 +63,34 @@
   </span>
 </div>
 {% endif %}
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-7 col-lg-6">
+        <label for="quickStudentSearch" class="form-label small fw-semibold mb-1">
+          Pencarian Cepat Halaman Ini
+        </label>
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0">
+            <i class="bi bi-lightning-charge text-warning"></i>
+          </span>
+          <input
+            type="text"
+            id="quickStudentSearch"
+            class="form-control border-start-0 ps-0"
+            placeholder="Saring siswa yang sedang tampil di halaman ini..."
+          />
+        </div>
+      </div>
+      <div class="col-md-5 col-lg-4">
+        <div class="text-muted small pt-md-4">
+          Filter ini instan dan hanya berlaku untuk baris yang sedang tampil di halaman sekarang.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 {# Tabel Siswa #}
 <div class="card border-0 shadow-sm">
@@ -78,7 +113,11 @@
         <tbody>
           {% for student in students.items %}
           {% set row_num = (students.page - 1) * students.per_page + loop.index %}
-          <tr>
+          <tr
+            class="student-row"
+            data-student-search="{{ (student.student_code ~ ' ' ~ student.name ~ ' ' ~ (student.email or '') ~ ' ' ~ (student.phone or '') ~ ' ' ~ (student.level.name if student.level else '') ~ ' ' ~ (student.curriculum.name if student.curriculum else '') ~ ' ' ~ (student.grade or '')) | lower }}"
+            data-student-status="{{ 'active' if (student.status == 'active' or student.is_active) else 'inactive' }}"
+          >
             <td class="ps-4 text-muted small">{{ row_num }}</td>
             <td>
               <span class="badge bg-light text-dark border font-monospace">
@@ -130,18 +169,34 @@
                   <i class="bi bi-x-circle me-1"></i>Nonaktif
                 </span>
               {% endif %}
+              {% set quota_alert = quota_alert_map.get(student.id) if quota_alert_map is defined else None %}
+              {% if quota_alert %}
+                <div class="mt-1">
+                  <a
+                    href="{{ url_for('master.student_detail', student_ref=student.public_id, month=quota_alert_month.month, year=quota_alert_month.year) }}"
+                    class="badge bg-warning text-dark text-decoration-none"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Ada alert quota untuk siswa ini"
+                  >
+                    <i class="bi bi-exclamation-triangle me-1"></i>Alert quota {{ quota_alert.problem_subject_count }} mapel
+                  </a>
+                </div>
+              {% endif %}
             </td>
             <td class="text-center pe-4">
               <div class="btn-group btn-group-sm" role="group">
                 <a
-                  href="{{ url_for('master.student_detail', id=student.id) }}"
+                  href="{{ url_for('master.student_detail', student_ref=student.public_id) }}"
                   class="btn btn-outline-info"
                   title="Detail"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   <i class="bi bi-eye"></i>
                 </a>
                 <a
-                  href="{{ url_for('master.edit_student', id=student.id) }}"
+                  href="{{ url_for('master.edit_student', student_ref=student.public_id) }}"
                   class="btn btn-outline-primary"
                   title="Edit"
                 >
@@ -183,7 +238,7 @@
                     </div>
                     <div class="modal-footer border-0 pt-0">
                       <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
-                      <form method="POST" action="{{ url_for('master.delete_student', id=student.id) }}" class="d-inline">
+                      <form method="POST" action="{{ url_for('master.delete_student', student_ref=student.public_id) }}" class="d-inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-danger">
                           <i class="bi bi-trash me-1"></i>Hapus
@@ -212,11 +267,11 @@
       <nav aria-label="Navigasi halaman siswa">
         <ul class="pagination pagination-sm mb-0">
           <li class="page-item {% if not students.has_prev %}disabled{% endif %}">
-            <a
-              class="page-link"
-              href="{{ url_for('master.students_list', page=students.prev_num, search=search) if students.has_prev else '#' }}"
-              aria-label="Sebelumnya"
-            >
+              <a
+                class="page-link"
+                href="{{ url_for('master.students_list', page=students.prev_num, search=search, active_state=active_state) if students.has_prev else '#' }}"
+                aria-label="Sebelumnya"
+              >
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -226,7 +281,7 @@
               <li class="page-item {% if page_num == students.page %}active{% endif %}">
                 <a
                   class="page-link"
-                  href="{{ url_for('master.students_list', page=page_num, search=search) }}"
+                  href="{{ url_for('master.students_list', page=page_num, search=search, active_state=active_state) }}"
                 >{{ page_num }}</a>
               </li>
             {% else %}
@@ -237,11 +292,11 @@
           {% endfor %}
 
           <li class="page-item {% if not students.has_next %}disabled{% endif %}">
-            <a
-              class="page-link"
-              href="{{ url_for('master.students_list', page=students.next_num, search=search) if students.has_next else '#' }}"
-              aria-label="Berikutnya"
-            >
+              <a
+                class="page-link"
+                href="{{ url_for('master.students_list', page=students.next_num, search=search, active_state=active_state) if students.has_next else '#' }}"
+                aria-label="Berikutnya"
+              >
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>
@@ -252,7 +307,7 @@
 
     {% else %}
     {# Empty state #}
-    <div class="text-center py-5">
+    <div id="studentsEmptyState" class="text-center py-5">
       <i class="bi bi-people display-1 text-muted opacity-25"></i>
       <p class="text-muted mt-3 mb-1">
         {% if search %}
@@ -270,4 +325,52 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const quickSearchInput = document.getElementById('quickStudentSearch');
+    const studentRows = Array.from(document.querySelectorAll('.student-row'));
+    const emptyState = document.getElementById('studentsEmptyState');
+
+    if (!quickSearchInput || !studentRows.length) {
+      return;
+    }
+
+    const emptyQuickRow = document.createElement('tr');
+    emptyQuickRow.id = 'quickStudentSearchEmptyRow';
+    emptyQuickRow.className = 'd-none';
+    emptyQuickRow.innerHTML = `
+      <td colspan="8" class="text-center text-muted py-4">
+        Tidak ada siswa di halaman ini yang cocok dengan pencarian cepat.
+      </td>
+    `;
+    const tbody = studentRows[0].closest('tbody');
+    if (tbody) {
+      tbody.appendChild(emptyQuickRow);
+    }
+
+    function applyQuickSearch() {
+      const keyword = String(quickSearchInput.value || '').trim().toLowerCase();
+      let visibleCount = 0;
+      studentRows.forEach(function (row) {
+        const haystack = row.dataset.studentSearch || '';
+        const matches = !keyword || haystack.includes(keyword);
+        row.classList.toggle('d-none', !matches);
+        if (matches) {
+          visibleCount += 1;
+        }
+      });
+      if (emptyQuickRow) {
+        emptyQuickRow.classList.toggle('d-none', visibleCount > 0);
+      }
+      if (emptyState) {
+        emptyState.classList.add('d-none');
+      }
+    }
+
+    quickSearchInput.addEventListener('input', applyQuickSearch);
+  })();
+</script>
 {% endblock %}

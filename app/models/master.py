@@ -65,6 +65,12 @@ class Curriculum(db.Model):
         "Enrollment", backref="curriculum", lazy="dynamic", cascade="all, delete-orphan"
     )
 
+    @property
+    def public_id(self):
+        from app.utils import encode_public_id
+
+        return encode_public_id("curriculum", self.id)
+
     def __repr__(self):
         return f"<Curriculum {self.name}>"
 
@@ -87,6 +93,12 @@ class Level(db.Model):
     enrollments = db.relationship(
         "Enrollment", backref="level", lazy="dynamic", cascade="all, delete-orphan"
     )
+
+    @property
+    def public_id(self):
+        from app.utils import encode_public_id
+
+        return encode_public_id("level", self.id)
 
     def __repr__(self):
         return f"<Level {self.name}>"
@@ -119,6 +131,12 @@ class Subject(db.Model):
         cascade="all, delete-orphan",
     )
 
+    @property
+    def public_id(self):
+        from app.utils import encode_public_id
+
+        return encode_public_id("subject", self.id)
+
     def __repr__(self):
         return f"<Subject {self.name}>"
 
@@ -143,6 +161,7 @@ class Student(db.Model):
     address = db.Column(db.Text)
     status = db.Column(db.String(20), default="active")  # active, inactive, graduated
     is_active = db.Column(db.Boolean, default=True)
+    whatsapp_group_memberships_json = db.Column(db.JSON)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -167,6 +186,13 @@ class Student(db.Model):
     def get_active_enrollments(self):
         """Get active enrollments for this student"""
         return self.enrollments.filter_by(status="active").all()
+
+    @property
+    def public_id(self):
+        """Opaque public id for URLs."""
+        from app.utils import encode_public_id
+
+        return encode_public_id("student", self.id)
 
 
 class Tutor(db.Model):
@@ -208,6 +234,13 @@ class Tutor(db.Model):
 
     def __repr__(self):
         return f"<Tutor {self.name}>"
+
+    @property
+    def public_id(self):
+        """Opaque public id for URLs."""
+        from app.utils import encode_public_id
+
+        return encode_public_id("tutor", self.id)
 
     def get_total_payable(self, month=None):
         """

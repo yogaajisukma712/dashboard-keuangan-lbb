@@ -342,6 +342,8 @@
 (function () {
   'use strict';
 
+  const tutorPublicIds = {{ tutor_public_ids|default({}, true)|tojson }};
+
   /* ── Elemen ──────────────────────────────────────────────────────────── */
   const elTutor        = document.getElementById('{{ form.tutor_id.id }}');
   const elServiceMonth = document.getElementById('{{ form.service_month.id }}');
@@ -385,9 +387,10 @@
   /* ── Fetch saldo tutor via API ───────────────────────────────────────── */
   async function fetchBalance() {
     const tutorId = elTutor ? elTutor.value : null;
+    const tutorRef = tutorId ? tutorPublicIds[tutorId] : null;
     const svcVal  = elServiceMonth ? elServiceMonth.value : null;
 
-    if (!tutorId || tutorId === '0' || !svcVal) {
+    if (!tutorId || tutorId === '0' || !tutorRef || !svcVal) {
       balanceInfo.classList.add('d-none');
       if (btnFillBalance) btnFillBalance.disabled = true;
       return;
@@ -402,7 +405,7 @@
 
     try {
       const res = await fetch(
-        `/payroll/api/tutor/${tutorId}/balance?month=${parseInt(month)}&year=${parseInt(year)}`,
+        `/payroll/api/tutor/${tutorRef}/balance?month=${parseInt(month)}&year=${parseInt(year)}`,
         { headers: { 'Accept': 'application/json' } }
       );
 

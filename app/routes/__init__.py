@@ -19,6 +19,7 @@ from .payments import payments_bp
 from .payroll import payroll_bp
 from .quota_invoice import quota_invoice_bp
 from .reports import reports_bp
+from .whatsapp import whatsapp_bp, whatsapp_bot_bp
 
 __all__ = [
     "auth_bp",
@@ -33,4 +34,6 @@ __all__ = [
     "reports_bp",
     "closings_bp",
     "quota_invoice_bp",
+    "whatsapp_bp",
+    "whatsapp_bot_bp",
 ]

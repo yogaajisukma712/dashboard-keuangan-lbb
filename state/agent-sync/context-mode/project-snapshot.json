@@ -1,0 +1,19 @@
+{
+  "exported_at": "2026-05-02T14:16:21+00:00",
+  "project_context_files": [
+    {
+      "source": "/home/ubuntu/Documents/lembaga/aplikasi lembaga/docs/context_mode_app_analysis_2026-04-29.md",
+      "dest": "state/agent-sync/context-mode/context_mode_app_analysis_2026-04-29.md",
+      "size": 15211,
+      "sha256": "f78bbecde57d305a2478865381693f372ab5fea9fcbcd89f79d2346087c3d08d"
+    },
+    {
+      "source": "/home/ubuntu/Documents/lembaga/aplikasi lembaga/context_dashboard_keuangan_lbb_super_smart.txt",
+      "dest": "state/agent-sync/context-mode/context_dashboard_keuangan_lbb_super_smart.txt",
+      "size": 21369,
+      "sha256": "378d93e19a57989e905317990cf93beebeaa7045a262ffd78b73e8e0438a8337"
+    }
+  ],
+  "global_context_backup_included": false,
+  "global_context_note": "Raw context-mode DB files live under ~/.codex and are global to this machine. Use --include-global-context if you want a portable but broader backup."
+}

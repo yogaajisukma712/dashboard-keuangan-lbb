@@ -50,6 +50,13 @@ class TutorPayout(db.Model):
     def __repr__(self):
         return f"<TutorPayout {self.id} - {self.amount}>"
 
+    @property
+    def public_id(self):
+        """Opaque public id for URLs."""
+        from app.utils import encode_public_id
+
+        return encode_public_id("tutor_payout", self.id)
+
     def get_service_months(self):
         """Get all service months in this payout"""
         return [line.service_month for line in self.payout_lines]

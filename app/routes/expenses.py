@@ -3,14 +3,24 @@ Expense routes for Dashboard Keuangan LBB Super Smart
 Routes for managing operational expenses
 """
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db
 from app.forms import ExpenseForm
 from app.models import Expense
+from app.utils import decode_public_id
 
 expenses_bp = Blueprint("expenses", __name__, url_prefix="/expenses")
+
+
+def _get_expense_by_ref_or_404(expense_ref):
+    """Resolve opaque expense ref to model instance."""
+    try:
+        expense_id = decode_public_id(expense_ref, "expense")
+    except ValueError:
+        abort(404)
+    return Expense.query.get_or_404(expense_id)
 
 
 @expenses_bp.route("/")
@@ -53,11 +63,11 @@ def add_expense():
     return render_template("expenses/form.html", form=form, title="Tambah Pengeluaran")
 
 
-@expenses_bp.route("/<int:id>/edit", methods=["GET", "POST"])
+@expenses_bp.route("/<string:expense_ref>/edit", methods=["GET", "POST"])
 @login_required
-def edit_expense(id):
+def edit_expense(expense_ref):
     """Edit expense"""
-    expense = Expense.query.get_or_404(id)
+    expense = _get_expense_by_ref_or_404(expense_ref)
     form = ExpenseForm()
 
     if form.validate_on_submit():
@@ -91,11 +101,11 @@ def edit_expense(id):
     )
 
 
-@expenses_bp.route("/<int:id>/delete", methods=["POST"])
+@expenses_bp.route("/<string:expense_ref>/delete", methods=["POST"])
 @login_required
-def delete_expense(id):
+def delete_expense(expense_ref):
     """Delete expense"""
-    expense = Expense.query.get_or_404(id)
+    expense = _get_expense_by_ref_or_404(expense_ref)
     try:
         db.session.delete(expense)
         db.session.commit()

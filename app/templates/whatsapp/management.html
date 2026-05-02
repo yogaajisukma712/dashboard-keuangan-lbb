@@ -1,0 +1,1336 @@
+{% extends "base.html" %}
+
+{% block title %}Manajemen WhatsApp Bot{% endblock %}
+
+{% block head %}
+<style>
+    .wa-hero-card {
+        border: none;
+        border-radius: 20px;
+        background:
+            radial-gradient(circle at top right, rgba(37, 59, 155, 0.12), transparent 34%),
+            linear-gradient(145deg, #ffffff 0%, #f6f8ff 100%);
+        box-shadow: 0 20px 40px rgba(15, 29, 62, 0.08);
+    }
+    .wa-stat-card,
+    .wa-panel {
+        border: none;
+        border-radius: 18px;
+        box-shadow: 0 14px 30px rgba(15, 29, 62, 0.08);
+    }
+    .wa-stat-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        background: rgba(37, 59, 155, 0.1);
+        color: #253b9b;
+        font-size: 1.1rem;
+    }
+    .wa-qr-shell {
+        min-height: 320px;
+        border-radius: 18px;
+        border: 1px dashed rgba(37, 59, 155, 0.2);
+        background: linear-gradient(180deg, #f9fbff 0%, #f2f6ff 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+    }
+    .wa-qr-shell img {
+        max-width: min(100%, 320px);
+        border-radius: 16px;
+        background: #fff;
+        padding: 0.85rem;
+        box-shadow: 0 18px 34px rgba(15, 29, 62, 0.12);
+    }
+    .wa-empty-state {
+        text-align: center;
+        color: #5d6f89;
+        max-width: 320px;
+    }
+    .wa-empty-state i {
+        font-size: 2rem;
+        color: #253b9b;
+        display: block;
+        margin-bottom: 0.75rem;
+    }
+    .wa-group-table td,
+    .wa-group-table th {
+        vertical-align: middle;
+        font-size: 0.88rem;
+    }
+    .wa-muted-kv {
+        color: #60708a;
+        font-size: 0.88rem;
+    }
+    .wa-sync-progress {
+        height: 0.8rem;
+        border-radius: 999px;
+        background: rgba(37, 59, 155, 0.12);
+        overflow: hidden;
+    }
+    .wa-sync-progress .progress-bar {
+        background: linear-gradient(90deg, #253b9b 0%, #3f7cff 100%);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column gap-4">
+    <section class="card wa-hero-card">
+        <div class="card-body p-4 p-lg-5">
+            <div class="d-flex flex-column flex-lg-row justify-content-between gap-4">
+                <div class="pe-lg-4">
+                    <div class="text-uppercase small fw-semibold text-primary mb-2">
+                        Operasional WhatsApp
+                    </div>
+                    <h1 class="h3 fw-bold mb-2">Manajemen WhatsApp Bot</h1>
+                    <p class="text-muted mb-0">
+                        Halaman ini dipakai untuk memulai sesi WhatsApp Web, scan QR,
+                        memantau status bot, melihat group yang terbaca, dan menjalankan
+                        sinkronisasi chat evaluasi tutor ke database.
+                    </p>
+                </div>
+                <div class="d-flex flex-wrap gap-2 align-self-start">
+                    <button id="btnInitializeSession" class="btn btn-primary">
+                        <i class="bi bi-play-circle me-1"></i> Mulai / Login
+                    </button>
+                    <button id="btnRefreshSession" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Refresh Status
+                    </button>
+                    <button id="btnSyncGroups" class="btn btn-outline-success">
+                        <i class="bi bi-cloud-arrow-down me-1"></i> Sync Group Relevan
+                    </button>
+                    <button id="btnScanAllGroupMessages" class="btn btn-success">
+                        <i class="bi bi-database-down me-1"></i> Scan Semua Pesan Group
+                    </button>
+                    <button id="btnLogoutSession" class="btn btn-outline-danger">
+                        <i class="bi bi-box-arrow-right me-1"></i> Logout Sesi
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="row g-4">
+        <div class="col-xl-8">
+            <div class="card wa-panel h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <h2 class="h5 fw-bold mb-1">QR Login & Status Sesi</h2>
+                            <p class="text-muted small mb-0">
+                                Jika status masih <code>awaiting_qr</code>, scan QR ini
+                                dari WhatsApp di ponsel admin.
+                            </p>
+                        </div>
+                        <span id="sessionStatusBadge" class="badge text-bg-secondary px-3 py-2">
+                            idle
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="row g-4">
+                        <div class="col-lg-6">
+                            <div class="wa-qr-shell" id="sessionQrContainer">
+                                <div class="wa-empty-state" id="sessionQrPlaceholder">
+                                    <i class="bi bi-qr-code-scan"></i>
+                                    <div class="fw-semibold mb-1">QR belum tersedia</div>
+                                    <div class="small">
+                                        Tekan tombol <strong>Mulai / Login</strong> untuk
+                                        menginisialisasi WhatsApp bot dan menampilkan QR.
+                                    </div>
+                                </div>
+                                <img
+                                    id="sessionQrImage"
+                                    src=""
+                                    alt="QR login WhatsApp bot"
+                                    class="d-none"
+                                />
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="card wa-stat-card h-100">
+                                        <div class="card-body d-flex gap-3 align-items-start">
+                                            <span class="wa-stat-badge">
+                                                <i class="bi bi-robot"></i>
+                                            </span>
+                                            <div>
+                                                <div class="text-muted small mb-1">Session State</div>
+                                                <div class="fw-bold" id="sessionStateText">idle</div>
+                                                <div class="wa-muted-kv mt-2" id="sessionStateHint">
+                                                    Bot belum diinisialisasi.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="card wa-stat-card h-100">
+                                        <div class="card-body">
+                                            <div class="text-muted small mb-1">Authenticated</div>
+                                            <div class="fw-bold" id="sessionAuthenticatedText">No</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="card wa-stat-card h-100">
+                                        <div class="card-body">
+                                            <div class="text-muted small mb-1">Ready</div>
+                                            <div class="fw-bold" id="sessionReadyText">No</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="card wa-stat-card h-100">
+                                        <div class="card-body">
+                                            <div class="text-muted small mb-1">Last Error</div>
+                                            <div class="fw-semibold" id="sessionErrorText">-</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="card wa-stat-card h-100">
+                                        <div class="card-body">
+                                            <div class="text-muted small mb-1">Last Sync</div>
+                                            <div class="fw-semibold" id="sessionLastSyncText">-</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card wa-panel h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h2 class="h5 fw-bold mb-1">Ringkasan Bot</h2>
+                    <p class="text-muted small mb-0">
+                        Snapshot cepat dari koneksi dan group yang berhasil dibaca.
+                    </p>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="d-flex flex-column gap-3">
+                        <div class="p-3 rounded-4 bg-light">
+                            <div class="text-muted small mb-1">Group Terdeteksi</div>
+                            <div class="h4 mb-0 fw-bold" id="groupsCountText">0</div>
+                        </div>
+                        <div class="p-3 rounded-4 bg-light">
+                            <div class="text-muted small mb-1">Mode Login</div>
+                            <div class="fw-semibold">LocalAuth persisten</div>
+                            <div class="wa-muted-kv mt-1">
+                                Restart container tidak perlu scan ulang selama sesi masih valid.
+                            </div>
+                        </div>
+                        <div class="p-3 rounded-4 bg-light">
+                            <div class="text-muted small mb-1">Catatan Sinkronisasi</div>
+                            <div class="wa-muted-kv" id="syncSummaryText">
+                                Belum ada sinkronisasi yang dijalankan dari dashboard ini.
+                            </div>
+                        </div>
+                        <div class="p-3 rounded-4 bg-light">
+                            <div class="d-flex justify-content-between align-items-center gap-3">
+                                <div class="text-muted small">Progress Scan Semua Pesan Group</div>
+                                <div class="fw-semibold text-primary" id="syncProgressPercentText">0%</div>
+                            </div>
+                            <div class="progress wa-sync-progress mt-2" aria-label="Progress scan WhatsApp">
+                                <div
+                                    id="syncProgressBar"
+                                    class="progress-bar"
+                                    role="progressbar"
+                                    style="width: 0%;"
+                                    aria-valuemin="0"
+                                    aria-valuemax="100"
+                                    aria-valuenow="0"
+                                ></div>
+                            </div>
+                            <div class="wa-muted-kv mt-2" id="syncProgressText">
+                                Belum ada scan penuh yang berjalan.
+                            </div>
+                            <div class="wa-muted-kv mt-1" id="syncProgressMeta">
+                                Pesan yang sama di-update, bukan digandakan. Jika tutor kirim 2 pesan berbeda, keduanya tetap tersimpan.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card wa-panel">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                    <h2 class="h5 fw-bold mb-1">Daftar Group WhatsApp</h2>
+                    <p class="text-muted small mb-0">
+                        Data group dibaca dari database. Tekan refresh untuk scan ulang WhatsApp dan memperbarui database.
+                    </p>
+                </div>
+                <div class="d-flex flex-column flex-sm-row gap-2 align-items-sm-center">
+                    <input
+                        id="groupsQuickSearch"
+                        type="search"
+                        class="form-control form-control-sm"
+                        placeholder="Cari nama atau ID group..."
+                    >
+                    <select id="groupsValidationFilter" class="form-select form-select-sm">
+                        <option value="all">Semua Group</option>
+                        <option value="validated">Sudah divalidasi</option>
+                        <option value="unvalidated">Belum divalidasi</option>
+                    </select>
+                    <button id="btnRefreshGroups" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-repeat me-1"></i> Refresh Group
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body px-4 pb-4">
+            <div class="table-responsive">
+                <table class="table wa-group-table align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nama Group</th>
+                            <th>ID Group</th>
+                            <th class="text-center">Peserta</th>
+                            <th class="text-center">Pesan DB</th>
+                            <th>Saran Siswa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="groupsTableBody">
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                Group belum dimuat.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mt-3">
+                <div id="groupsPaginationSummary" class="wa-muted-kv">Belum ada data group.</div>
+                <div id="groupsPagination" class="d-flex justify-content-end"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card wa-panel">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                    <h2 class="h5 fw-bold mb-1">Direktori Kontak Group</h2>
+                    <p class="text-muted small mb-0">
+                        Data kontak dibaca dari database. Tekan refresh untuk scan ulang WhatsApp dan memperbarui database.
+                    </p>
+                    <div class="wa-muted-kv mt-2">
+                        Group dikecualikan:
+                        {% if excluded_group_names %}
+                            {{ excluded_group_names | join(", ") }}
+                        {% else %}
+                            tidak ada
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="d-flex flex-column flex-sm-row gap-2 align-items-sm-center">
+                    <input
+                        id="contactsQuickSearch"
+                        type="search"
+                        class="form-control form-control-sm"
+                        placeholder="Cari nama, nomor, atau group..."
+                    >
+                    <select id="contactsValidationFilter" class="form-select form-select-sm">
+                        <option value="all">Semua Kontak</option>
+                        <option value="validated">Sudah divalidasi</option>
+                        <option value="unvalidated">Belum divalidasi</option>
+                    </select>
+                    <button id="btnRefreshContacts" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-person-lines-fill me-1"></i> Refresh Kontak
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body px-4 pb-4">
+            <div class="table-responsive">
+                <table class="table wa-group-table align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nama Kontak</th>
+                            <th>Nomor WA</th>
+                            <th>Group</th>
+                            <th>Saran Tutor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contactsTableBody">
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                Kontak group belum dimuat.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mt-3">
+                <div id="contactsPaginationSummary" class="wa-muted-kv">Belum ada data kontak.</div>
+                <div id="contactsPagination" class="d-flex justify-content-end"></div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const csrfToken = {{ csrf_token() | tojson }};
+        const statusBadge = document.getElementById("sessionStatusBadge");
+        const stateText = document.getElementById("sessionStateText");
+        const stateHint = document.getElementById("sessionStateHint");
+        const authText = document.getElementById("sessionAuthenticatedText");
+        const readyText = document.getElementById("sessionReadyText");
+        const errorText = document.getElementById("sessionErrorText");
+        const lastSyncText = document.getElementById("sessionLastSyncText");
+        const qrImage = document.getElementById("sessionQrImage");
+        const qrPlaceholder = document.getElementById("sessionQrPlaceholder");
+        const groupsTableBody = document.getElementById("groupsTableBody");
+        const groupsCountText = document.getElementById("groupsCountText");
+        const syncSummaryText = document.getElementById("syncSummaryText");
+        const syncProgressBar = document.getElementById("syncProgressBar");
+        const syncProgressPercentText = document.getElementById("syncProgressPercentText");
+        const syncProgressText = document.getElementById("syncProgressText");
+        const syncProgressMeta = document.getElementById("syncProgressMeta");
+        const btnSyncGroups = document.getElementById("btnSyncGroups");
+        const btnScanAllGroupMessages = document.getElementById("btnScanAllGroupMessages");
+        const btnRefreshGroups = document.getElementById("btnRefreshGroups");
+        const btnRefreshContacts = document.getElementById("btnRefreshContacts");
+        const groupsQuickSearch = document.getElementById("groupsQuickSearch");
+        const contactsQuickSearch = document.getElementById("contactsQuickSearch");
+        const groupsValidationFilter = document.getElementById("groupsValidationFilter");
+        const contactsValidationFilter = document.getElementById("contactsValidationFilter");
+        const contactsTableBody = document.getElementById("contactsTableBody");
+        const groupsPagination = document.getElementById("groupsPagination");
+        const groupsPaginationSummary = document.getElementById("groupsPaginationSummary");
+        const contactsPagination = document.getElementById("contactsPagination");
+        const contactsPaginationSummary = document.getElementById("contactsPaginationSummary");
+        const excludedGroupNames = {{ excluded_group_names | tojson }};
+        let allStudents = [];
+        let allTutors = [];
+        let allGroups = [];
+        let allContacts = [];
+        let groupsPage = 1;
+        let contactsPage = 1;
+        const groupsPageSize = 8;
+        const contactsPageSize = 10;
+        let warmupPollingHandle = null;
+        let scanPollingHandle = null;
+
+        function filterByValidation(items, mode, key) {
+            const safeItems = Array.isArray(items) ? items : [];
+            if (mode === "validated") {
+                return safeItems.filter(function (item) {
+                    return Boolean(item && item[key]);
+                });
+            }
+            if (mode === "unvalidated") {
+                return safeItems.filter(function (item) {
+                    return !item || !item[key];
+                });
+            }
+            return safeItems;
+        }
+
+        function normalizeSearchTerm(value) {
+            return String(value || "").trim().toLowerCase();
+        }
+
+        function itemMatchesQuickSearch(item, searchTerm, fields) {
+            const normalizedTerm = normalizeSearchTerm(searchTerm);
+            if (!normalizedTerm) {
+                return true;
+            }
+            return fields.some(function (field) {
+                if (Array.isArray(field)) {
+                    return field.some(function (value) {
+                        return normalizeSearchTerm(value).includes(normalizedTerm);
+                    });
+                }
+                return normalizeSearchTerm(field).includes(normalizedTerm);
+            });
+        }
+
+        async function requestJson(url, options) {
+            const response = await fetch(
+                url,
+                Object.assign(
+                    {
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": csrfToken,
+                        },
+                    },
+                    options || {},
+                ),
+            );
+            const payload = await response.json().catch(function () {
+                return { ok: false, error: "Invalid JSON response" };
+            });
+            if (!response.ok) {
+                throw new Error(payload.error || "Request gagal");
+            }
+            return payload;
+        }
+
+        function renderSession(session) {
+            const status = session.status || "idle";
+            statusBadge.textContent = status;
+            statusBadge.className = "badge px-3 py-2 " + (
+                status === "ready"
+                    ? "text-bg-success"
+                    : status === "awaiting_qr"
+                      ? "text-bg-warning"
+                      : status === "error" || status === "auth_failure"
+                        ? "text-bg-danger"
+                        : "text-bg-secondary"
+            );
+            stateText.textContent = status;
+            stateHint.textContent =
+                status === "awaiting_qr"
+                    ? "Scan QR di sebelah kiri untuk menyelesaikan login."
+                    : status === "ready"
+                      ? "Bot siap, group dan sinkronisasi dapat dijalankan."
+                      : status === "initializing"
+                        ? "Bot sedang menyiapkan browser dan sesi WhatsApp. QR biasanya muncul dalam 20-30 detik."
+                        : "Bot belum aktif atau menunggu tindakan lanjutan.";
+            authText.textContent = session.authenticated ? "Yes" : "No";
+            readyText.textContent = session.ready ? "Yes" : "No";
+            errorText.textContent = session.lastError || "-";
+            lastSyncText.textContent = session.lastSyncAt || "-";
+            setSyncActionState(Boolean(session.syncInProgress));
+            renderSyncProgress(session.syncProgress || {}, Boolean(session.syncInProgress));
+
+            if (session.qrDataUrl) {
+                qrImage.src = session.qrDataUrl;
+                qrImage.classList.remove("d-none");
+                qrPlaceholder.classList.add("d-none");
+            } else {
+                qrImage.src = "";
+                qrImage.classList.add("d-none");
+                qrPlaceholder.classList.remove("d-none");
+            }
+        }
+
+        function setSyncActionState(isBusy) {
+            btnSyncGroups.disabled = isBusy;
+            btnScanAllGroupMessages.disabled = isBusy;
+            btnRefreshGroups.disabled = isBusy;
+            btnRefreshContacts.disabled = isBusy;
+        }
+
+        function renderSyncProgress(progress, isBusy) {
+            const phase = progress.phase || "idle";
+            const totalGroups = Number(progress.totalGroups || 0);
+            const processedGroups = Number(progress.processedGroups || 0);
+            const scannedMessages = Number(progress.scannedMessages || 0);
+            const relevantMessages = Number(progress.relevantMessages || 0);
+            const storedMessages = Number(progress.storedMessages || 0);
+            const evaluationCount = Number(progress.evaluationCount || 0);
+            const linkedAttendanceCount = Number(progress.linkedAttendanceCount || 0);
+            const percent = totalGroups > 0
+                ? Math.max(0, Math.min(100, Math.round((processedGroups / totalGroups) * 100)))
+                : phase === "completed"
+                  ? 100
+                  : 0;
+
+            syncProgressBar.style.width = `${percent}%`;
+            syncProgressBar.setAttribute("aria-valuenow", String(percent));
+            syncProgressPercentText.textContent = `${percent}%`;
+            syncProgressBar.className = "progress-bar";
+            if (phase === "failed") {
+                syncProgressBar.classList.add("bg-danger");
+            } else if (phase === "completed") {
+                syncProgressBar.classList.add("bg-success");
+            }
+
+            if (phase === "syncing_group") {
+                syncProgressText.textContent =
+                    `Memindai ${progress.currentGroupName || "group"} (${processedGroups}/${totalGroups})...`;
+                syncProgressMeta.textContent =
+                    `${scannedMessages} pesan dibaca, ${relevantMessages} evaluasi terdeteksi sementara.`;
+                return;
+            }
+            if (phase === "posting_to_backend" || phase === "saving_to_database") {
+                syncProgressText.textContent =
+                    "Menyimpan hasil scan ke database dan mencocokkan presensi tutor.";
+                syncProgressMeta.textContent =
+                    `${totalGroups} group, ${scannedMessages} pesan dibaca, ${relevantMessages} evaluasi terdeteksi.`;
+                return;
+            }
+            if (phase === "completed") {
+                syncProgressText.textContent =
+                    "Scan selesai. Tidak ada duplikat untuk pesan yang sama.";
+                syncProgressMeta.textContent =
+                    `${storedMessages} pesan diproses, ${evaluationCount} evaluasi, ` +
+                    `${linkedAttendanceCount} presensi tertaut.`;
+                return;
+            }
+            if (phase === "failed") {
+                syncProgressText.textContent = "Scan gagal sebelum selesai.";
+                syncProgressMeta.textContent = progress.error || "Periksa log bot untuk detail error.";
+                return;
+            }
+            if (isBusy) {
+                syncProgressText.textContent = "Menyiapkan scan penuh WhatsApp group...";
+                syncProgressMeta.textContent =
+                    "Progres akan bergerak otomatis saat bot mulai membaca group dan pesan.";
+                return;
+            }
+            syncProgressText.textContent = "Belum ada scan penuh yang berjalan.";
+            syncProgressMeta.textContent =
+                "Pesan yang sama di-update, bukan digandakan. Jika tutor kirim 2 pesan berbeda, keduanya tetap tersimpan.";
+        }
+
+        function paginateItems(items, page, pageSize) {
+            const safeItems = Array.isArray(items) ? items : [];
+            const totalItems = safeItems.length;
+            const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+            const currentPage = Math.min(Math.max(1, page), totalPages);
+            const startIndex = (currentPage - 1) * pageSize;
+            const endIndex = Math.min(startIndex + pageSize, totalItems);
+            return {
+                items: safeItems.slice(startIndex, endIndex),
+                totalItems,
+                totalPages,
+                currentPage,
+                startIndex,
+                endIndex,
+            };
+        }
+
+        function renderPaginationControls(container, type, pagination) {
+            if (!container) {
+                return;
+            }
+            if (pagination.totalItems <= pagination.pageSize) {
+                container.innerHTML = "";
+                return;
+            }
+
+            const buttons = [];
+            for (let page = 1; page <= pagination.totalPages; page += 1) {
+                buttons.push(`
+                    <button
+                        type="button"
+                        class="btn btn-sm ${page === pagination.currentPage ? "btn-primary" : "btn-outline-secondary"} me-1 mb-1 btnPaginationPage"
+                        data-pagination-type="${type}"
+                        data-page="${page}"
+                    >
+                        ${page}
+                    </button>
+                `);
+            }
+            container.innerHTML = `
+                <div class="d-flex flex-wrap justify-content-end">
+                    ${buttons.join("")}
+                </div>
+            `;
+        }
+
+        function renderGroups(groups) {
+            allGroups = Array.isArray(groups) ? groups : [];
+            const validationMode = groupsValidationFilter ? groupsValidationFilter.value : "all";
+            const quickSearchTerm = groupsQuickSearch ? groupsQuickSearch.value : "";
+            const validationFilteredGroups = filterByValidation(
+                allGroups,
+                validationMode,
+                "validated_student",
+            );
+            const filteredGroups = validationFilteredGroups.filter(function (group) {
+                return itemMatchesQuickSearch(group, quickSearchTerm, [
+                    group.group_name,
+                    group.name,
+                    group.whatsapp_group_id,
+                    group.id,
+                    group.validated_student && group.validated_student.student_name,
+                    group.validated_student && group.validated_student.student_code,
+                    group.historical_student_names || [],
+                    (group.suggested_students || []).map(function (item) {
+                        return item.student_name;
+                    }),
+                ]);
+            });
+            groupsCountText.textContent = String(filteredGroups.length || 0);
+            const pagination = paginateItems(filteredGroups, groupsPage, groupsPageSize);
+            groupsPage = pagination.currentPage;
+            groupsPaginationSummary.textContent = pagination.totalItems
+                ? `Menampilkan ${pagination.startIndex + 1}-${pagination.endIndex} dari ${pagination.totalItems} group`
+                : "Belum ada data group.";
+            renderPaginationControls(groupsPagination, "groups", {
+                ...pagination,
+                pageSize: groupsPageSize,
+            });
+            if (!filteredGroups.length) {
+                groupsTableBody.innerHTML =
+                    `<tr><td colspan="5" class="text-center text-muted py-4">${
+                        validationFilteredGroups.length
+                            ? "Tidak ada group yang cocok dengan pencarian cepat."
+                            : allGroups.length
+                                ? "Tidak ada group yang cocok dengan filter validasi."
+                            : "Belum ada group yang terbaca."
+                    }</td></tr>`;
+                return;
+            }
+
+            const studentOptions = allStudents
+                .map(function (student) {
+                    const suffix = [student.student_code, student.grade].filter(Boolean).join(" · ");
+                    return `<option value="${student.id}">${student.name || "-"}${suffix ? " · " + suffix : ""}</option>`;
+                })
+                .join("");
+            groupsTableBody.innerHTML = pagination.items
+                .map(function (group) {
+                    const validatedStudentBlock = group.validated_student
+                        ? `
+                            <div class="mb-2 p-2 rounded-3 border border-info-subtle bg-info-subtle">
+                                <div class="fw-semibold text-info-emphasis">
+                                    Tervalidasi ke siswa ${group.validated_student.student_name || "-"}
+                                </div>
+                                <div class="wa-muted-kv">
+                                    Kode siswa: ${group.validated_student.student_code || "-"}
+                                </div>
+                            </div>
+                        `
+                        : "";
+                    const historicalStudentBlock = (group.historical_student_names || []).length
+                        ? `<div class="wa-muted-kv mb-2">Siswa historis: ${(group.historical_student_names || []).join(", ")}</div>`
+                        : "";
+                    const studentSuggestions = (group.suggested_students || []).length
+                        ? group.suggested_students
+                              .map(function (item) {
+                                  const isValidated =
+                                      group.validated_student &&
+                                      Number(group.validated_student.student_id) === Number(item.student_id);
+                                  const matchedHistoricalNames = (item.matched_historical_names || []).length
+                                      ? `<div class="wa-muted-kv">Riwayat cocok: ${(item.matched_historical_names || []).join(", ")}</div>`
+                                      : "";
+                                  return `
+                                      <div class="mb-2">
+                                          <div class="fw-semibold">${item.student_name || "-"}</div>
+                                          <div class="wa-muted-kv">Confidence ${item.confidence || 0}%</div>
+                                          <div class="wa-muted-kv">${(item.reasons || []).join(" ") || "Perlu konfirmasi manual."}</div>
+                                          ${matchedHistoricalNames}
+                                          <button
+                                              type="button"
+                                              class="btn btn-sm ${isValidated ? "btn-info" : "btn-outline-info"} mt-2 btnValidateGroupStudent"
+                                              data-group-id="${group.group_id}"
+                                              data-student-id="${item.student_id}"
+                                              data-student-name="${item.student_name || ""}"
+                                              ${isValidated ? "disabled" : ""}
+                                          >
+                                              ${isValidated ? "Sudah Valid" : "Valid"}
+                                          </button>
+                                      </div>
+                                  `;
+                              })
+                              .join("")
+                        : '<span class="text-muted">Belum ada saran siswa.</span>';
+                    const manualSelectedStudentId = group.validated_student
+                        ? Number(group.validated_student.student_id)
+                        : "";
+                    const manualStudentSelectId = `manualStudentGroupSelect-${group.group_id}`;
+                    return `
+                        <tr>
+                            <td class="fw-semibold">${group.group_name || group.name || "-"}</td>
+                            <td><code>${group.whatsapp_group_id || group.id || "-"}</code></td>
+                            <td class="text-center">${group.participant_count || group.participantCount || 0}</td>
+                            <td class="text-center">
+                                <div class="fw-semibold">${group.message_count || 0}</div>
+                                <div class="wa-muted-kv">
+                                    Eval ${group.evaluation_count || 0} · Presensi ${group.linked_attendance_count || 0}
+                                </div>
+                            </td>
+                            <td>
+                                ${validatedStudentBlock}
+                                ${historicalStudentBlock}
+                                ${studentSuggestions}
+                                <div class="mt-3 pt-2 border-top">
+                                    <label class="form-label form-label-sm fw-semibold" for="${manualStudentSelectId}">
+                                        Pilih siswa manual
+                                    </label>
+                                    <select
+                                        id="${manualStudentSelectId}"
+                                        class="form-select form-select-sm mb-2 manualStudentGroupSelect"
+                                        data-group-id="${group.group_id}"
+                                    >
+                                        <option value="">Pilih siswa aktif...</option>
+                                        ${studentOptions}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-primary btnValidateGroupStudentManual"
+                                        data-group-id="${group.group_id}"
+                                    >
+                                        Validasi Siswa Terpilih
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                })
+                .join("");
+
+            pagination.items.forEach(function (group) {
+                const studentSelect = document.getElementById(
+                    `manualStudentGroupSelect-${group.group_id}`,
+                );
+                if (studentSelect && group.validated_student) {
+                    studentSelect.value = String(group.validated_student.student_id || "");
+                }
+            });
+        }
+
+        function renderContacts(contacts) {
+            allContacts = Array.isArray(contacts) ? contacts : [];
+            const validationMode = contactsValidationFilter ? contactsValidationFilter.value : "all";
+            const quickSearchTerm = contactsQuickSearch ? contactsQuickSearch.value : "";
+            const validationFilteredContacts = filterByValidation(
+                allContacts,
+                validationMode,
+                "validated_tutor",
+            );
+            const filteredContacts = validationFilteredContacts.filter(function (contact) {
+                return itemMatchesQuickSearch(contact, quickSearchTerm, [
+                    contact.resolved_name,
+                    contact.whatsapp_contact_id,
+                    contact.phone_number,
+                    contact.group_names || [],
+                    contact.excluded_group_names || [],
+                    contact.validated_tutor && contact.validated_tutor.tutor_name,
+                    contact.validated_tutor && contact.validated_tutor.phone_number,
+                    (contact.suggested_tutors || []).map(function (item) {
+                        return item.tutor_name;
+                    }),
+                ]);
+            });
+            const pagination = paginateItems(filteredContacts, contactsPage, contactsPageSize);
+            contactsPage = pagination.currentPage;
+            contactsPaginationSummary.textContent = pagination.totalItems
+                ? `Menampilkan ${pagination.startIndex + 1}-${pagination.endIndex} dari ${pagination.totalItems} kontak`
+                : "Belum ada data kontak.";
+            renderPaginationControls(contactsPagination, "contacts", {
+                ...pagination,
+                pageSize: contactsPageSize,
+            });
+            if (!filteredContacts.length) {
+                contactsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">
+                            ${
+                                validationFilteredContacts.length
+                                    ? "Tidak ada kontak yang cocok dengan pencarian cepat."
+                                    : allContacts.length
+                                        ? "Tidak ada kontak yang cocok dengan filter validasi."
+                                    : "Belum ada kontak group yang tersimpan. Jalankan sinkronisasi group terlebih dahulu."
+                            }
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const tutorOptions = allTutors
+                .map(function (tutor) {
+                    return `<option value="${tutor.id}">${tutor.name || "-"}${tutor.phone ? " · " + tutor.phone : ""}</option>`;
+                })
+                .join("");
+            contactsTableBody.innerHTML = pagination.items
+                .map(function (contact) {
+                    const groupBadges = (contact.group_names || [])
+                        .map(function (name) {
+                            return `<span class="badge text-bg-light border me-1 mb-1">${name}</span>`;
+                        })
+                        .join("");
+                    const excludedBadges = (contact.excluded_group_names || [])
+                        .map(function (name) {
+                            return `<span class="badge text-bg-warning-subtle border border-warning-subtle text-warning-emphasis me-1 mb-1">${name}</span>`;
+                        })
+                        .join("");
+                    const validatedBlock = contact.validated_tutor
+                        ? `
+                            <div class="mb-2 p-2 rounded-3 border border-success-subtle bg-success-subtle">
+                                <div class="fw-semibold text-success-emphasis">
+                                    Tervalidasi ke tutor ${contact.validated_tutor.tutor_name || "-"}
+                                </div>
+                                <div class="wa-muted-kv">
+                                    Nomor tersimpan: ${contact.validated_tutor.phone_number || "-"}
+                                </div>
+                            </div>
+                        `
+                        : "";
+                    const suggestions = (contact.suggested_tutors || []).length
+                        ? contact.suggested_tutors
+                              .map(function (item) {
+                                  const isValidated =
+                                      contact.validated_tutor &&
+                                      Number(contact.validated_tutor.tutor_id) === Number(item.tutor_id);
+                                  return `
+                                      <div class="mb-2">
+                                          <div class="fw-semibold">${item.tutor_name || "-"}</div>
+                                          <div class="wa-muted-kv">Confidence ${item.confidence || 0}%</div>
+                                          <div class="wa-muted-kv">${(item.reasons || []).join(" ") || "Perlu konfirmasi manual."}</div>
+                                          <button
+                                              type="button"
+                                              class="btn btn-sm ${isValidated ? "btn-success" : "btn-outline-success"} mt-2 btnValidateTutor"
+                                              data-contact-id="${contact.contact_id}"
+                                              data-tutor-id="${item.tutor_id}"
+                                              data-tutor-name="${item.tutor_name || ""}"
+                                              ${isValidated ? "disabled" : ""}
+                                          >
+                                              ${isValidated ? "Sudah Valid" : "Valid"}
+                                          </button>
+                                      </div>
+                                  `;
+                              })
+                              .join("")
+                        : '<span class="text-muted">Belum ada saran tutor.</span>';
+                    const manualSelectedTutorId = contact.validated_tutor
+                        ? Number(contact.validated_tutor.tutor_id)
+                        : "";
+                    const manualSelectId = `manualTutorSelect-${contact.contact_id}`;
+
+                    return `
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">${contact.resolved_name || "-"}</div>
+                                <div class="wa-muted-kv">${contact.whatsapp_contact_id || "-"}</div>
+                            </td>
+                            <td><code>${contact.phone_number || "-"}</code></td>
+                            <td>
+                                ${groupBadges || '<span class="text-muted">Tidak ada group aktif</span>'}
+                                ${
+                                    excludedBadges
+                                        ? `<div class="wa-muted-kv mt-2">Dikecualikan: ${excludedBadges}</div>`
+                                        : ""
+                                }
+                            </td>
+                            <td>
+                                ${validatedBlock}
+                                ${suggestions}
+                                <div class="mt-3 pt-2 border-top">
+                                    <label class="form-label form-label-sm fw-semibold" for="${manualSelectId}">
+                                        Pilih tutor manual
+                                    </label>
+                                    <select
+                                        id="${manualSelectId}"
+                                        class="form-select form-select-sm mb-2 manualTutorSelect"
+                                        data-contact-id="${contact.contact_id}"
+                                    >
+                                        <option value="">Pilih tutor aktif...</option>
+                                        ${tutorOptions}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-primary btnValidateTutorManual"
+                                        data-contact-id="${contact.contact_id}"
+                                    >
+                                        Validasi Tutor Terpilih
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                })
+                .join("");
+
+            pagination.items.forEach(function (contact) {
+                const select = document.getElementById(`manualTutorSelect-${contact.contact_id}`);
+                if (select && contact.validated_tutor) {
+                    select.value = String(contact.validated_tutor.tutor_id || "");
+                }
+            });
+        }
+
+        async function loadSession() {
+            const payload = await requestJson("{{ url_for('whatsapp_bot.bot_session') }}");
+            renderSession(payload.session || {});
+            return payload.session || {};
+        }
+
+        async function loadGroups(resetPage = false) {
+            const payload = await requestJson("{{ url_for('whatsapp_bot.bot_group_directory') }}");
+            allStudents = payload.students || [];
+            if (resetPage) {
+                groupsPage = 1;
+            }
+            renderGroups(payload.groups || []);
+            return payload.groups || [];
+        }
+
+        async function loadContacts(resetPage = false) {
+            const payload = await requestJson("{{ url_for('whatsapp_bot.bot_contact_directory') }}");
+            allTutors = payload.tutors || [];
+            if (resetPage) {
+                contactsPage = 1;
+            }
+            renderContacts(payload.contacts || []);
+            return payload.contacts || [];
+        }
+
+        async function validateGroupStudentSuggestion(groupId, studentId, studentName) {
+            const confirmed = window.confirm(
+                `Validasikan group ini untuk siswa ${studentName || "-" }?`,
+            );
+            if (!confirmed) {
+                return;
+            }
+
+            const payload = await requestJson(
+                "{{ url_for('whatsapp_bot.bot_group_directory_validate_student') }}",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        group_id: Number(groupId),
+                        student_id: Number(studentId),
+                    }),
+                },
+            );
+            const validation = payload.validation || {};
+            syncSummaryText.textContent =
+                `Validasi tersimpan untuk siswa ${validation.student_name || "-"} ` +
+                `pada group ${validation.group_name || "-"}.`;
+            await loadGroups(false);
+        }
+
+        async function validateTutorSuggestion(contactId, tutorId, tutorName) {
+            const confirmed = window.confirm(
+                `Validasikan nomor ini untuk tutor ${tutorName || "-" }?`,
+            );
+            if (!confirmed) {
+                return;
+            }
+
+            const payload = await requestJson(
+                "{{ url_for('whatsapp_bot.bot_contact_directory_validate') }}",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        contact_id: Number(contactId),
+                        tutor_id: Number(tutorId),
+                    }),
+                },
+            );
+            const validation = payload.validation || {};
+            syncSummaryText.textContent =
+                `Validasi tersimpan untuk tutor ${validation.tutor_name || "-"} ` +
+                `dengan ${validation.group_names ? validation.group_names.length : 0} group aktif.`;
+            await loadContacts(false);
+        }
+
+        async function initializeSession() {
+            const payload = await requestJson(
+                "{{ url_for('whatsapp_bot.bot_session_initialize') }}",
+                { method: "POST", body: "{}" },
+            );
+            renderSession(payload.session || {});
+            startWarmupPolling();
+        }
+
+        async function logoutSession() {
+            const payload = await requestJson(
+                "{{ url_for('whatsapp_bot.bot_session_logout') }}",
+                { method: "POST", body: "{}" },
+            );
+            renderSession(payload.session || {});
+            renderGroups([]);
+            renderContacts([]);
+        }
+
+        async function syncGroups(sourceLabel = "refresh") {
+            const payload = await requestJson(
+                "{{ url_for('whatsapp_bot.bot_sync_groups') }}",
+                { method: "POST", body: JSON.stringify({ limit: 500 }) },
+            );
+            const result = payload.result || {};
+            syncSummaryText.textContent =
+                `Scan ${sourceLabel} selesai: ${result.syncedGroups || 0} group, ` +
+                `${result.syncedMessages || 0} chat relevan, ` +
+                `${result.ingest?.result?.linked_attendance || 0} attendance tertaut, ` +
+                `${result.syncedContacts || 0} kontak diperbarui.`;
+            await loadSession();
+            await loadGroups(true);
+            await loadContacts(true);
+        }
+
+        async function scanAllGroupMessages() {
+            const confirmed = window.confirm(
+                "Scan semua pesan group bisa memakan waktu lebih lama. Lanjutkan?",
+            );
+            if (!confirmed) {
+                return;
+            }
+            setSyncActionState(true);
+            renderSyncProgress({}, true);
+            syncSummaryText.textContent =
+                "Scan penuh dimulai. Dashboard akan menampilkan progres per group sampai selesai.";
+            startScanPolling();
+            try {
+                const payload = await requestJson(
+                    "{{ url_for('whatsapp_bot.bot_sync_messages_full') }}",
+                    { method: "POST", body: JSON.stringify({}) },
+                );
+                const result = payload.result || {};
+                syncSummaryText.textContent =
+                    `Scan penuh selesai: ${result.syncedGroups || 0} group, ` +
+                    `${result.syncedMessages || 0} pesan group, ` +
+                    `${result.ingest?.result?.evaluations || 0} evaluasi, ` +
+                    `${result.ingest?.result?.linked_attendance || 0} presensi tertaut.`;
+                await loadSession();
+                await loadGroups(true);
+                await loadContacts(true);
+            } finally {
+                stopScanPolling();
+                await loadSession().catch(function () {
+                    setSyncActionState(false);
+                });
+            }
+        }
+
+        function stopWarmupPolling() {
+            if (warmupPollingHandle) {
+                clearInterval(warmupPollingHandle);
+                warmupPollingHandle = null;
+            }
+        }
+
+        function stopScanPolling() {
+            if (scanPollingHandle) {
+                clearInterval(scanPollingHandle);
+                scanPollingHandle = null;
+            }
+        }
+
+        function startWarmupPolling() {
+            stopWarmupPolling();
+            let attempts = 0;
+            warmupPollingHandle = setInterval(function () {
+                attempts += 1;
+                loadSession()
+                    .then(function (session) {
+                        if (
+                            session.ready ||
+                            session.hasQr ||
+                            session.status === "error" ||
+                            session.status === "auth_failure"
+                        ) {
+                            stopWarmupPolling();
+                        }
+                    })
+                    .catch(function () {
+                        if (attempts >= 12) {
+                            stopWarmupPolling();
+                        }
+                    });
+                if (attempts >= 12) {
+                    stopWarmupPolling();
+                }
+            }, 2500);
+        }
+
+        function startScanPolling() {
+            stopScanPolling();
+            scanPollingHandle = setInterval(function () {
+                loadSession()
+                    .then(function (session) {
+                        const phase = session.syncProgress?.phase || "idle";
+                        if (
+                            !session.syncInProgress &&
+                            (phase === "completed" || phase === "failed" || phase === "idle")
+                        ) {
+                            stopScanPolling();
+                        }
+                    })
+                    .catch(function () {
+                        stopScanPolling();
+                    });
+            }, 1500);
+        }
+
+        document
+            .getElementById("btnInitializeSession")
+            .addEventListener("click", function () {
+                initializeSession().catch(function (error) {
+                    errorText.textContent = error.message;
+                });
+            });
+        document
+            .getElementById("btnRefreshSession")
+            .addEventListener("click", function () {
+                loadSession().catch(function (error) {
+                    errorText.textContent = error.message;
+                });
+            });
+        document
+            .getElementById("btnLogoutSession")
+            .addEventListener("click", function () {
+                logoutSession().catch(function (error) {
+                    errorText.textContent = error.message;
+                });
+            });
+        btnRefreshGroups
+            .addEventListener("click", function () {
+                syncGroups("group").catch(function (error) {
+                    syncSummaryText.textContent = error.message;
+                });
+            });
+        btnRefreshContacts
+            .addEventListener("click", function () {
+                syncGroups("kontak").catch(function (error) {
+                    syncSummaryText.textContent = error.message;
+                });
+            });
+        if (groupsValidationFilter) {
+            groupsValidationFilter.addEventListener("change", function () {
+                groupsPage = 1;
+                renderGroups(allGroups);
+            });
+        }
+        if (groupsQuickSearch) {
+            groupsQuickSearch.addEventListener("input", function () {
+                groupsPage = 1;
+                renderGroups(allGroups);
+            });
+        }
+        if (contactsValidationFilter) {
+            contactsValidationFilter.addEventListener("change", function () {
+                contactsPage = 1;
+                renderContacts(allContacts);
+            });
+        }
+        if (contactsQuickSearch) {
+            contactsQuickSearch.addEventListener("input", function () {
+                contactsPage = 1;
+                renderContacts(allContacts);
+            });
+        }
+        btnSyncGroups
+            .addEventListener("click", function () {
+                syncGroups("manual").catch(function (error) {
+                    syncSummaryText.textContent = error.message;
+                });
+            });
+        btnScanAllGroupMessages
+            .addEventListener("click", function () {
+                scanAllGroupMessages().catch(function (error) {
+                    syncSummaryText.textContent = error.message;
+                    stopScanPolling();
+                });
+            });
+        groupsPagination.addEventListener("click", function (event) {
+            const button = event.target.closest(".btnPaginationPage");
+            if (!button || button.dataset.paginationType !== "groups") {
+                return;
+            }
+            groupsPage = Number(button.dataset.page || 1);
+            renderGroups(allGroups);
+        });
+        contactsPagination.addEventListener("click", function (event) {
+            const button = event.target.closest(".btnPaginationPage");
+            if (!button || button.dataset.paginationType !== "contacts") {
+                return;
+            }
+            contactsPage = Number(button.dataset.page || 1);
+            renderContacts(allContacts);
+        });
+        contactsTableBody.addEventListener("click", function (event) {
+            const button = event.target.closest(".btnValidateTutor");
+            if (button) {
+                validateTutorSuggestion(
+                    button.dataset.contactId,
+                    button.dataset.tutorId,
+                    button.dataset.tutorName,
+                ).catch(function (error) {
+                    syncSummaryText.textContent = error.message;
+                });
+                return;
+            }
+            const manualButton = event.target.closest(".btnValidateTutorManual");
+            if (manualButton) {
+                const contactId = manualButton.dataset.contactId;
+                const select = document.getElementById(`manualTutorSelect-${contactId}`);
+                const selectedTutorId = Number(select && select.value ? select.value : 0);
+                const selectedTutor = allTutors.find(function (item) {
+                    return Number(item.id) === selectedTutorId;
+                });
+                if (!selectedTutorId || !selectedTutor) {
+                    syncSummaryText.textContent = "Pilih tutor aktif terlebih dahulu sebelum validasi.";
+                    return;
+                }
+                validateTutorSuggestion(
+                    contactId,
+                    selectedTutorId,
+                    selectedTutor.name,
+                ).catch(function (error) {
+                    syncSummaryText.textContent = error.message;
+                });
+                return;
+            }
+        });
+        groupsTableBody.addEventListener("click", function (event) {
+            const studentButton = event.target.closest(".btnValidateGroupStudent");
+            if (studentButton) {
+                validateGroupStudentSuggestion(
+                    studentButton.dataset.groupId,
+                    studentButton.dataset.studentId,
+                    studentButton.dataset.studentName,
+                ).catch(function (error) {
+                    syncSummaryText.textContent = error.message;
+                });
+                return;
+            }
+            const manualStudentButton = event.target.closest(".btnValidateGroupStudentManual");
+            if (!manualStudentButton) {
+                return;
+            }
+            const groupId = manualStudentButton.dataset.groupId;
+            const select = document.getElementById(`manualStudentGroupSelect-${groupId}`);
+            const selectedStudentId = Number(select && select.value ? select.value : 0);
+            const selectedStudent = allStudents.find(function (item) {
+                return Number(item.id) === selectedStudentId;
+            });
+            if (!selectedStudentId || !selectedStudent) {
+                syncSummaryText.textContent = "Pilih siswa aktif terlebih dahulu sebelum validasi.";
+                return;
+            }
+            validateGroupStudentSuggestion(
+                groupId,
+                selectedStudentId,
+                selectedStudent.name,
+            ).catch(function (error) {
+                syncSummaryText.textContent = error.message;
+            });
+        });
+
+        loadSession()
+            .then(function (session) {
+                if (excludedGroupNames.length) {
+                    syncSummaryText.textContent =
+                        "Group dikecualikan: " + excludedGroupNames.join(", ");
+                }
+                if (session.status === "initializing") {
+                    startWarmupPolling();
+                }
+                return Promise.all([loadGroups(false), loadContacts(false)]);
+            })
+            .catch(function (error) {
+                errorText.textContent = error.message;
+            });
+
+        setInterval(function () {
+            loadSession().catch(function () {});
+        }, 5000);
+    })();
+</script>
+{% endblock %}

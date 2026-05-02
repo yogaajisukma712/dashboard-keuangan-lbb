@@ -43,6 +43,13 @@ class StudentPayment(db.Model):
     def __repr__(self):
         return f"<StudentPayment {self.receipt_number}>"
 
+    @property
+    def public_id(self):
+        """Opaque public id for URLs."""
+        from app.utils import encode_public_id
+
+        return encode_public_id("student_payment", self.id)
+
     def get_total_nominal(self):
         """Get total nominal from all payment lines"""
         return sum(line.nominal_amount or 0 for line in self.payment_lines)

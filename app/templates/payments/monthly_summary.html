@@ -239,14 +239,14 @@
               </span>
             </td>
             <td>
-              <a href="{{ url_for('payments.detail_payment', payment_id=payment.id) }}"
+              <a href="{{ url_for('payments.detail_payment', payment_ref=payment.public_id) }}"
                  class="font-monospace text-decoration-none">
                 {{ payment.receipt_number }}
               </a>
             </td>
             <td>
               {% if payment.student %}
-                <a href="{{ url_for('payments.student_payment_history', student_id=payment.student.id) }}"
+                <a href="{{ url_for('payments.student_payment_history', student_ref=payment.student.public_id) }}"
                    class="text-decoration-none fw-semibold">
                   {{ payment.student.name }}
                 </a>
@@ -295,11 +295,11 @@
               {% endif %}
             </td>
             <td class="text-center pe-3">
-              <a href="{{ url_for('payments.detail_payment', payment_id=payment.id) }}"
+              <a href="{{ url_for('payments.detail_payment', payment_ref=payment.public_id) }}"
                  class="btn btn-sm btn-outline-primary me-1" title="Detail">
                 <i class="bi bi-eye"></i>
               </a>
-              <a href="{{ url_for('payments.edit_payment', payment_id=payment.id) }}"
+              <a href="{{ url_for('payments.edit_payment', payment_ref=payment.public_id) }}"
                  class="btn btn-sm btn-outline-secondary" title="Edit">
                 <i class="bi bi-pencil"></i>
               </a>

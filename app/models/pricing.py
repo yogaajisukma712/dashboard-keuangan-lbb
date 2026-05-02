@@ -45,6 +45,12 @@ class PricingRule(db.Model):
     level = db.relationship("Level", backref="pricing_rules")
     subject = db.relationship("Subject", backref="pricing_rules")
 
+    @property
+    def public_id(self):
+        from app.utils import encode_public_id
+
+        return encode_public_id("pricing_rule", self.id)
+
     def __repr__(self):
         return f"<PricingRule {self.id}>"
 

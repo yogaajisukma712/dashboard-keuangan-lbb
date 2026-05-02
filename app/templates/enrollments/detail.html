@@ -37,12 +37,12 @@
   </div>
 
   <div class="d-flex gap-2 flex-wrap">
-    <a href="{{ url_for('enrollments.edit_enrollment', id=enrollment.id) }}"
+    <a href="{{ url_for('enrollments.edit_enrollment', enrollment_ref=enrollment.public_id) }}"
        class="btn btn-outline-primary btn-sm">
       <i class="bi bi-pencil me-1"></i>Edit
     </a>
     <form method="POST"
-          action="{{ url_for('enrollments.delete_enrollment', id=enrollment.id) }}"
+          action="{{ url_for('enrollments.delete_enrollment', enrollment_ref=enrollment.public_id) }}"
           onsubmit="return confirm('Hapus enrollment ini? Tindakan tidak dapat dibatalkan.')">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-outline-danger btn-sm">
@@ -135,6 +135,23 @@
             <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-normal px-2">
               {{ enrollment.subject.name }}
             </span>
+          </div>
+
+          <div class="col-5 fw-semibold">Group WhatsApp</div>
+          <div class="col-7">
+            {% set wa_groups = enrollment.whatsapp_group_memberships_json or [] %}
+            {% if wa_groups %}
+            <div class="d-flex flex-column gap-2">
+              {% for wa_group in wa_groups %}
+              <div>
+                <div class="fw-semibold text-body">{{ wa_group.group_name or '—' }}</div>
+                <code class="text-body">{{ wa_group.whatsapp_group_id or '—' }}</code>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <span>Belum match</span>
+            {% endif %}
           </div>
 
           {% if enrollment.tutor.phone %}
@@ -237,7 +254,7 @@
     </a>
   </div>
   <div class="card-body p-0">
-    {% set sessions = enrollment.attendance_sessions.order_by('session_date desc').limit(5).all() %}
+    {% set sessions = recent_sessions %}
     {% if sessions %}
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0 small">

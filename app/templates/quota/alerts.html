@@ -91,8 +91,10 @@
 
                     <td class="text-center">
                         <a
-                            href="{{ url_for('quota_invoice.student_quota_detail', student_id=item.student.id) }}"
+                            href="{{ url_for('master.student_detail', student_ref=item.student.public_id, month=service_month.month, year=service_month.year) }}"
                             class="btn btn-sm btn-primary"
+                            target="_blank"
+                            rel="noopener noreferrer"
                         >
                             📋 Detail &amp; Buat Invoice
                         </a>

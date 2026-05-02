@@ -127,7 +127,7 @@
   </div>
 
   <div class="col-12 col-sm-6 col-md-3">
-    <a href="{{ url_for('payments.payments_list') }}"
+    <a href="{{ url_for('payments.list_payments') }}"
        class="card border-0 shadow-sm text-decoration-none h-100">
       <div class="card-body text-center py-4">
         <i class="bi bi-credit-card fs-2 text-success mb-2 d-block"></i>
@@ -138,7 +138,7 @@
   </div>
 
   <div class="col-12 col-sm-6 col-md-3">
-    <a href="{{ url_for('attendance.attendance_list') }}"
+    <a href="{{ url_for('attendance.list_attendance') }}"
        class="card border-0 shadow-sm text-decoration-none h-100">
       <div class="card-body text-center py-4">
         <i class="bi bi-calendar-check fs-2 text-warning mb-2 d-block"></i>
@@ -206,10 +206,10 @@
           <a href="{{ url_for('dashboard.owner_dashboard') }}" class="btn btn-primary btn-sm">
             <i class="bi bi-speedometer2 me-1"></i>Lihat Dashboard
           </a>
-          <a href="{{ url_for('payments.payments_list') }}" class="btn btn-outline-success btn-sm">
+          <a href="{{ url_for('payments.list_payments') }}" class="btn btn-outline-success btn-sm">
             <i class="bi bi-credit-card me-1"></i>Data Pembayaran
           </a>
-          <a href="{{ url_for('attendance.attendance_list') }}" class="btn btn-outline-warning btn-sm">
+          <a href="{{ url_for('attendance.list_attendance') }}" class="btn btn-outline-warning btn-sm">
             <i class="bi bi-calendar-check me-1"></i>Data Presensi
           </a>
         </div>

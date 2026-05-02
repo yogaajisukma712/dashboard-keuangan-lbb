@@ -59,12 +59,16 @@ EXTRA_DDL = [
     # Students — possibly added after initial deploy
     "ALTER TABLE students ADD COLUMN IF NOT EXISTS status    VARCHAR(20)  DEFAULT 'active'",
     "ALTER TABLE students ADD COLUMN IF NOT EXISTS is_active BOOLEAN      DEFAULT TRUE",
+    "ALTER TABLE students ADD COLUMN IF NOT EXISTS whatsapp_group_memberships_json JSONB",
     # Tutors
     "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS status    VARCHAR(20)  DEFAULT 'active'",
     "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS is_active BOOLEAN      DEFAULT TRUE",
     # Enrollments
     "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS is_active                BOOLEAN  DEFAULT TRUE",
     "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS meeting_quota_per_month  INTEGER  DEFAULT 4",
+    "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS whatsapp_group_id        VARCHAR(255)",
+    "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS whatsapp_group_name      VARCHAR(255)",
+    "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS whatsapp_group_memberships_json JSONB",
     # Student payments — verification workflow
     "ALTER TABLE student_payments ADD COLUMN IF NOT EXISTS is_verified  BOOLEAN   DEFAULT FALSE",
     "ALTER TABLE student_payments ADD COLUMN IF NOT EXISTS verified_by  INTEGER   REFERENCES users(id)",

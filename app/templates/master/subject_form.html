@@ -32,7 +32,7 @@
 
     <form
       method="POST"
-      action="{% if action == 'edit' %}{{ url_for('master.edit_subject', id=subject.id) }}{% else %}{{ url_for('master.add_subject') }}{% endif %}"
+      action="{% if action == 'edit' %}{{ url_for('master.edit_subject', subject_ref=subject.public_id) }}{% else %}{{ url_for('master.add_subject') }}{% endif %}"
       novalidate
     >
       {{ form.hidden_tag() }}

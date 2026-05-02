@@ -28,7 +28,7 @@
         <label class="form-label small fw-semibold mb-1">Cari Siswa / Tutor / Mapel</label>
         <div class="input-group input-group-sm">
           <span class="input-group-text"><i class="bi bi-search"></i></span>
-          <input type="text" name="q" value="{{ request.args.get('q', '') }}"
+          <input type="text" name="q" value="{{ search_term or '' }}"
                  class="form-control" placeholder="Ketik nama siswa, tutor, atau mapel…">
         </div>
       </div>
@@ -37,7 +37,7 @@
         <select name="status" class="form-select form-select-sm">
           <option value="">Semua Status</option>
           {% for val, (_, lbl) in STATUS_BADGE.items() %}
-          <option value="{{ val }}" {% if request.args.get('status') == val %}selected{% endif %}>
+          <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>
             {{ lbl }}
           </option>
           {% endfor %}
@@ -59,6 +59,24 @@
 <div class="card border-0 shadow-sm">
   <div class="card-body p-0">
     {% if enrollments.items %}
+    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-2 px-3 py-3 border-bottom bg-light-subtle">
+      <div>
+        <div class="fw-semibold text-dark">Pencarian Cepat Halaman Ini</div>
+        <div class="text-muted small">Menyaring data pada tabel aktif tanpa memuat ulang halaman.</div>
+      </div>
+      <div class="w-100" style="max-width: 360px;">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="bi bi-lightning-charge"></i></span>
+          <input
+            type="text"
+            id="quickEnrollmentSearch"
+            class="form-control"
+            placeholder="Cari cepat di tabel aktif…"
+            autocomplete="off"
+          >
+        </div>
+      </div>
+    </div>
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0 small">
         <thead class="table-light">
@@ -67,6 +85,7 @@
             <th>Siswa</th>
             <th>Mapel</th>
             <th>Tutor</th>
+            <th>Group WA</th>
             <th>Kurikulum</th>
             <th>Jenjang</th>
             <th>Kelas</th>
@@ -77,11 +96,11 @@
             <th class="text-center pe-3">Aksi</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="enrollmentTableBody">
           {% set offset = (enrollments.page - 1) * enrollments.per_page %}
           {% for enrollment in enrollments.items %}
           {% set badge_cls, badge_lbl = STATUS_BADGE.get(enrollment.status, ('secondary', enrollment.status)) %}
-          <tr>
+          <tr class="enrollment-row">
             <td class="ps-3 text-muted">{{ loop.index + offset }}</td>
 
             <td>
@@ -94,6 +113,22 @@
             <td>{{ enrollment.subject.name }}</td>
 
             <td>{{ enrollment.tutor.name }}</td>
+
+            <td>
+              {% set wa_groups = enrollment.whatsapp_group_memberships_json or [] %}
+              {% if wa_groups %}
+              <div class="d-flex flex-column gap-1">
+                {% for wa_group in wa_groups %}
+                <div>
+                  <div class="fw-semibold">{{ wa_group.group_name or '—' }}</div>
+                  <div class="text-muted" style="font-size:.72rem"><code>{{ wa_group.whatsapp_group_id or '—' }}</code></div>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <span class="text-muted">Belum match</span>
+              {% endif %}
+            </td>
 
             <td>
               <span class="badge bg-light text-dark border">
@@ -127,16 +162,16 @@
 
             <td class="text-center pe-3">
               <div class="d-flex gap-1 justify-content-center">
-                <a href="{{ url_for('enrollments.enrollment_detail', id=enrollment.id) }}"
+                <a href="{{ url_for('enrollments.enrollment_detail', enrollment_ref=enrollment.public_id) }}"
                    class="btn btn-outline-primary btn-sm py-0 px-2" title="Detail">
                   <i class="bi bi-eye"></i>
                 </a>
-                <a href="{{ url_for('enrollments.edit_enrollment', id=enrollment.id) }}"
+                <a href="{{ url_for('enrollments.edit_enrollment', enrollment_ref=enrollment.public_id) }}"
                    class="btn btn-outline-secondary btn-sm py-0 px-2" title="Edit">
                   <i class="bi bi-pencil"></i>
                 </a>
                 <form method="POST"
-                      action="{{ url_for('enrollments.delete_enrollment', id=enrollment.id) }}"
+                      action="{{ url_for('enrollments.delete_enrollment', enrollment_ref=enrollment.public_id) }}"
                       onsubmit="return confirm('Hapus enrollment {{ enrollment.student.name }} — {{ enrollment.subject.name }}?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Hapus">
@@ -147,6 +182,11 @@
             </td>
           </tr>
           {% endfor %}
+          <tr id="quickSearchEmptyRow" class="d-none">
+            <td colspan="13" class="text-center text-muted py-4">
+              Tidak ada enrollment pada halaman ini yang cocok dengan pencarian cepat.
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -204,4 +244,41 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const quickSearchInput = document.getElementById("quickEnrollmentSearch");
+  const tableBody = document.getElementById("enrollmentTableBody");
+
+  if (!quickSearchInput || !tableBody) {
+    return;
+  }
+
+  const rows = Array.from(tableBody.querySelectorAll(".enrollment-row"));
+  const emptyRow = document.getElementById("quickSearchEmptyRow");
+
+  const applyQuickSearch = () => {
+    const keyword = (quickSearchInput.value || "").trim().toLowerCase();
+    let visibleRows = 0;
+
+    rows.forEach((row) => {
+      const haystack = (row.innerText || row.textContent || "").toLowerCase();
+      const isMatch = !keyword || haystack.includes(keyword);
+      row.classList.toggle("d-none", !isMatch);
+      if (isMatch) {
+        visibleRows += 1;
+      }
+    });
+
+    if (emptyRow) {
+      emptyRow.classList.toggle("d-none", visibleRows > 0 || !keyword);
+    }
+  };
+
+  quickSearchInput.addEventListener("input", applyQuickSearch);
+});
+</script>
 {% endblock %}

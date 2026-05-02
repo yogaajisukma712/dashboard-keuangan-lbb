@@ -43,6 +43,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PAGINATION_PER_PAGE: ${PAGINATION_PER_PAGE:-20}
       PYTHONUNBUFFERED: "1"
+      WHATSAPP_BOT_INTERNAL_URL: ${WHATSAPP_BOT_INTERNAL_URL:-http://whatsapp_bot:3000}
+      WHATSAPP_BOT_TOKEN: ${WHATSAPP_BOT_TOKEN:-change-this-whatsapp-bot-token}
+      WHATSAPP_EXCLUDED_GROUP_NAMES: ${WHATSAPP_EXCLUDED_GROUP_NAMES:-VPS / RDP MURAH III}
       APP_BASE_URL: ${APP_BASE_URL:-https://billing.supersmart.click}
       INSTITUTION_NAME: ${INSTITUTION_NAME:-LBB Super Smart}
       INSTITUTION_TAGLINE: ${INSTITUTION_TAGLINE:-BEING SMART FOR FUTURE}
@@ -60,9 +63,38 @@ services:
     networks:
       - billing_net
 
+  whatsapp_bot:
+    build:
+      context: ./whatsapp-bot
+      dockerfile: Dockerfile
+    container_name: billing_supersmart_whatsapp_bot
+    init: true
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_started
+    environment:
+      WHATSAPP_BOT_PORT: 3000
+      WHATSAPP_FLASK_BASE_URL: http://web:5000
+      WHATSAPP_BOT_TOKEN: ${WHATSAPP_BOT_TOKEN:-change-this-whatsapp-bot-token}
+      WHATSAPP_EXCLUDED_GROUP_NAMES: ${WHATSAPP_EXCLUDED_GROUP_NAMES:-VPS / RDP MURAH III}
+      WWEBJS_DATA_PATH: /app/.wwebjs_auth
+      WWEBJS_CLIENT_ID: ${WWEBJS_CLIENT_ID:-billing-supersmart}
+      WHATSAPP_SYNC_MESSAGE_LIMIT: ${WHATSAPP_SYNC_MESSAGE_LIMIT:-500}
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+    ports:
+      - "6002:3000"
+    volumes:
+      - whatsapp_bot_auth:/app/.wwebjs_auth
+    networks:
+      - billing_net
+
 networks:
   billing_net:
     driver: bridge
 
 volumes:
   billing_postgres_data:
+  whatsapp_bot_auth:

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('master.subjects_list') }}" class="btn btn-outline-secondary btn-sm me-3">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div class="flex-grow-1">
+    <h4 class="mb-0 fw-bold">
+      <i class="bi bi-book text-primary me-2"></i>{{ subject.name }}
+    </h4>
+    <p class="text-muted small mb-0">
+      Detail mata pelajaran dan tutor yang mengajar berdasarkan presensi serta enrollment.
+    </p>
+  </div>
+  <a href="{{ url_for('master.edit_subject', subject_ref=subject.public_id) }}" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-pencil me-1"></i>Edit
+  </a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <div class="small text-muted mb-1">Status</div>
+        <div class="mb-3">
+          {% if subject.is_active %}
+          <span class="badge bg-success-subtle text-success-emphasis px-2 py-1">
+            <i class="bi bi-check-circle me-1"></i>Aktif
+          </span>
+          {% else %}
+          <span class="badge bg-danger-subtle text-danger-emphasis px-2 py-1">
+            <i class="bi bi-x-circle me-1"></i>Nonaktif
+          </span>
+          {% endif %}
+        </div>
+
+        <div class="small text-muted mb-1">Deskripsi</div>
+        <div class="small">
+          {{ subject.description or 'Belum ada deskripsi mata pelajaran.' }}
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 text-muted fw-normal">Enrollment</dt>
+          <dd class="col-7">{{ enrollments|length }}</dd>
+          <dt class="col-5 text-muted fw-normal">Tutor</dt>
+          <dd class="col-7">{{ tutor_summary|length }}</dd>
+          <dt class="col-5 text-muted fw-normal">Dibuat</dt>
+          <dd class="col-7">{{ subject.created_at.strftime('%d %b %Y') if subject.created_at else '—' }}</dd>
+          <dt class="col-5 text-muted fw-normal">Diperbarui</dt>
+          <dd class="col-7">{{ subject.updated_at.strftime('%d %b %Y') if subject.updated_at else '—' }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-person-badge text-primary me-2"></i>Tutor Pengajar
+        </h6>
+      </div>
+      <div class="card-body">
+        {% if tutor_summary %}
+        <div class="row g-3">
+          {% for item in tutor_summary %}
+          <div class="col-md-6">
+            <div class="border rounded-4 h-100 p-3 bg-light-subtle">
+              <div class="d-flex align-items-start justify-content-between gap-2">
+                <div>
+                  <div class="fw-semibold">{{ item.tutor_name }}</div>
+                  <div class="small text-muted">{{ item.tutor_code or 'Tanpa kode tutor' }}</div>
+                  <div class="small text-muted mt-1">
+                    Enrollment aktif {{ item.active_enrollment_count }} • Presensi {{ item.attendance_count }}
+                  </div>
+                  <div class="small text-muted">
+                    Terakhir mengajar {{ item.latest_attendance_date.strftime('%d %b %Y') if item.latest_attendance_date else 'belum ada presensi' }}
+                  </div>
+                </div>
+                <a
+                  href="{{ url_for('master.tutor_detail', tutor_ref=item.tutor_ref) }}"
+                  class="btn btn-outline-primary btn-sm"
+                >
+                  Detail
+                </a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-muted small">
+          Belum ada tutor yang terhubung ke mapel ini melalui enrollment atau presensi.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-journals text-primary me-2"></i>Enrollment Terkait
+        </h6>
+      </div>
+      <div class="card-body p-0">
+        {% if enrollments %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">Siswa</th>
+                <th>Tutor</th>
+                <th>Kelas</th>
+                <th>Status</th>
+                <th class="text-end pe-3">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for enrollment in enrollments %}
+              <tr>
+                <td class="ps-3">
+                  <div class="fw-semibold">{{ enrollment.student.name if enrollment.student else '—' }}</div>
+                  <div class="small text-muted">{{ enrollment.student.student_code if enrollment.student else '—' }}</div>
+                </td>
+                <td>{{ enrollment.tutor.name if enrollment.tutor else '—' }}</td>
+                <td>{{ enrollment.grade or '—' }}</td>
+                <td>
+                  <span class="badge {% if enrollment.status == 'active' and enrollment.is_active %}bg-success-subtle text-success-emphasis{% else %}bg-secondary-subtle text-secondary-emphasis{% endif %}">
+                    {{ enrollment.status|title if enrollment.status else '—' }}
+                  </span>
+                </td>
+                <td class="text-end pe-3">
+                  <a
+                    href="{{ url_for('enrollments.enrollment_detail', enrollment_ref=enrollment.public_id) }}"
+                    class="btn btn-outline-primary btn-sm"
+                  >
+                    Detail
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-muted small">
+          Belum ada enrollment yang memakai mata pelajaran ini.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

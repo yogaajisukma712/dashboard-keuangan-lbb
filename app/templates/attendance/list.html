@@ -43,6 +43,12 @@
     {{ MONTHS[selected_month] }}
   </span>
   {% endif %}
+  {% if selected_year %}
+  <span class="badge bg-light text-dark border px-3 py-2 fw-normal">
+    <i class="bi bi-calendar-range me-1 text-info"></i>
+    {{ selected_year }}
+  </span>
+  {% endif %}
   {% if selected_status %}
   {% set sc, si, sl = STATUS_MAP.get(selected_status, ('secondary','bi-circle','?')) %}
   <span class="badge bg-{{ sc }}-subtle text-{{ sc }} border border-{{ sc }}-subtle px-3 py-2 fw-normal">
@@ -106,6 +112,22 @@
         </select>
       </div>
 
+      {# Tahun #}
+      <div class="col-sm-4 col-lg-2">
+        <label class="form-label small fw-semibold mb-1">
+          <i class="bi bi-calendar-range me-1 text-secondary"></i>Tahun
+        </label>
+        <select name="year" class="form-select form-select-sm">
+          <option value="">— Semua Tahun —</option>
+          {% for y in year_options %}
+          <option value="{{ y }}"
+                  {% if selected_year == y %}selected{% endif %}>
+            {{ y }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
       {# Status #}
       <div class="col-sm-4 col-lg-2">
         <label class="form-label small fw-semibold mb-1">
@@ -120,7 +142,7 @@
       </div>
 
       {# Tombol #}
-      <div class="col-sm-4 col-lg-3 d-flex gap-2">
+      <div class="col-sm-8 col-lg-3 d-flex gap-2 flex-wrap">
         <button type="submit" class="btn btn-primary btn-sm flex-shrink-0">
           <i class="bi bi-funnel me-1"></i>Filter
         </button>
@@ -130,7 +152,7 @@
         </a>
         {% if selected_month %}
         <a href="{{ url_for('attendance.monthly_summary', month=selected_month,
-                            year=2025) }}"
+                            year=selected_year or default_scan_year) }}"
            class="btn btn-outline-info btn-sm flex-shrink-0">
           <i class="bi bi-bar-chart-line me-1"></i>Ringkasan
         </a>
@@ -138,6 +160,75 @@
       </div>
 
     </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+      <div>
+        <h3 class="h6 mb-1">
+          <i class="bi bi-whatsapp me-2 text-success"></i>Scan Presensi dari Group WhatsApp
+        </h3>
+        <p class="text-muted small mb-0">
+          Scan hanya membaca evaluasi WhatsApp yang sudah tersimpan di database untuk bulan terpilih.
+          Jika chat terbaru belum masuk, lakukan refresh dari Manajemen WhatsApp lebih dulu.
+        </p>
+        <p class="text-muted small mb-0 mt-1">
+          Jika tutor hasil scan tidak sesuai atau tutor pengganti mengajar, buka tombol edit presensi untuk memilih tutor dan enrollment secara manual.
+        </p>
+      </div>
+      <form method="POST"
+            action="{{ url_for('attendance.scan_whatsapp_attendance') }}"
+            id="scanWhatsappAttendanceForm"
+            class="row g-2 align-items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="enrollment_id" value="{{ selected_enrollment_id or '' }}">
+        <input type="hidden" name="tutor_id" value="{{ selected_tutor_id or '' }}">
+        <input type="hidden" name="status" value="{{ selected_status or '' }}">
+        <div class="col-6 col-md-auto">
+          <label class="form-label small fw-semibold mb-1">Bulan Scan</label>
+          <select name="month" class="form-select form-select-sm" required>
+            {% for m in range(1, 13) %}
+            <option value="{{ m }}"
+                    {% if default_scan_month == m %}selected{% endif %}>
+              {{ MONTHS[m] }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-auto">
+          <label class="form-label small fw-semibold mb-1">Tahun Scan</label>
+          <select name="year" class="form-select form-select-sm" required>
+            {% for y in year_options %}
+            <option value="{{ y }}"
+                    {% if default_scan_year == y %}selected{% endif %}>
+              {{ y }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-auto">
+          <button type="submit" class="btn btn-success btn-sm">
+            <i class="bi bi-arrow-repeat me-1"></i>Scan Presensi WA
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <label for="quickAttendanceSearch" class="form-label small fw-semibold mb-2">
+      <i class="bi bi-lightning-charge me-1 text-warning"></i>Pencarian Cepat Halaman Ini
+    </label>
+    <input
+      id="quickAttendanceSearch"
+      type="search"
+      class="form-control"
+      placeholder="Cari siswa, tutor, mapel, tanggal, atau status di tabel ini..."
+    />
   </div>
 </div>
 
@@ -162,11 +253,25 @@
             <th class="text-center pe-3">Aksi</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="attendanceTableBody">
           {% set offset = (sessions.page - 1) * sessions.per_page %}
           {% for s in sessions.items %}
           {% set sc, si, sl = STATUS_MAP.get(s.status, ('secondary', 'bi-circle', s.status)) %}
-          <tr>
+          <tr
+            class="attendance-row"
+            data-attendance-search="{{ (
+              s.session_date.strftime('%d %b %Y') ~ ' ' ~
+              s.session_date.strftime('%A') ~ ' ' ~
+              ((s.student.name if s.student else (s.enrollment.student.name if s.enrollment else '')) or '') ~ ' ' ~
+              ((s.student.student_code if s.student else (s.enrollment.student.student_code if s.enrollment else '')) or '') ~ ' ' ~
+              ((s.tutor.name if s.tutor else (s.enrollment.tutor.name if s.enrollment and s.enrollment.tutor else '')) or '') ~ ' ' ~
+              ((s.subject.name if s.subject else (s.enrollment.subject.name if s.enrollment and s.enrollment.subject else '')) or '') ~ ' ' ~
+              ((s.enrollment.curriculum.name if s.enrollment and s.enrollment.curriculum else '') or '') ~ ' ' ~
+              ((s.enrollment.level.name if s.enrollment and s.enrollment.level else '') or '') ~ ' ' ~
+              (sl or '') ~ ' ' ~
+              (s.status or '')
+            ) | lower }}"
+          >
             {# No #}
             <td class="ps-3 text-muted">{{ loop.index + offset }}</td>
 
@@ -266,12 +371,19 @@
             {# Aksi #}
             <td class="text-center pe-3">
               <div class="d-flex gap-1 justify-content-center">
-                <a href="{{ url_for('attendance.edit_attendance', session_id=s.id) }}"
+                <a href="{{ url_for('attendance.edit_attendance',
+                                    session_ref=s.public_id,
+                                    page=request.args.get('page', 1),
+                                    enrollment_id=selected_enrollment_id or '',
+                                    tutor_id=selected_tutor_id or '',
+                                    month=selected_month or '',
+                                    year=selected_year or '',
+                                    status=selected_status or '') }}"
                    class="btn btn-outline-secondary btn-sm py-0 px-2" title="Edit">
                   <i class="bi bi-pencil"></i>
                 </a>
                 <form method="POST"
-                      action="{{ url_for('attendance.delete_attendance', session_id=s.id) }}"
+                      action="{{ url_for('attendance.delete_attendance', session_ref=s.public_id) }}"
                       onsubmit="return confirm('Hapus sesi presensi tanggal {{ s.session_date.strftime('%d %b %Y') }}?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Hapus">
@@ -315,6 +427,7 @@
                                 enrollment_id=selected_enrollment_id or '',
                                 tutor_id=selected_tutor_id or '',
                                 month=selected_month or '',
+                                year=selected_year or '',
                                 status=selected_status or '') }}">
               <i class="bi bi-chevron-left"></i>
             </a>
@@ -328,6 +441,7 @@
                                   enrollment_id=selected_enrollment_id or '',
                                   tutor_id=selected_tutor_id or '',
                                   month=selected_month or '',
+                                  year=selected_year or '',
                                   status=selected_status or '') }}">
                 {{ p }}
               </a>
@@ -343,6 +457,7 @@
                                 enrollment_id=selected_enrollment_id or '',
                                 tutor_id=selected_tutor_id or '',
                                 month=selected_month or '',
+                                year=selected_year or '',
                                 status=selected_status or '') }}">
               <i class="bi bi-chevron-right"></i>
             </a>
@@ -357,14 +472,14 @@
     <div class="text-center py-5 text-muted">
       <i class="bi bi-calendar2-x fs-1 d-block mb-2 opacity-25"></i>
       <p class="mb-1">
-        {% if selected_enrollment_id or selected_tutor_id or selected_month or selected_status %}
+        {% if selected_enrollment_id or selected_tutor_id or selected_month or selected_year or selected_status %}
           Tidak ada sesi yang cocok dengan filter yang dipilih.
         {% else %}
           Belum ada sesi presensi yang tercatat.
         {% endif %}
       </p>
       <div class="d-flex gap-2 justify-content-center mt-3">
-        {% if selected_enrollment_id or selected_tutor_id or selected_month or selected_status %}
+        {% if selected_enrollment_id or selected_tutor_id or selected_month or selected_year or selected_status %}
         <a href="{{ url_for('attendance.list_attendance') }}" class="btn btn-outline-secondary btn-sm">
           <i class="bi bi-x-lg me-1"></i>Reset Filter
         </a>
@@ -389,5 +504,44 @@ document.querySelectorAll('#filterForm select').forEach(function(sel) {
     document.getElementById('filterForm').submit();
   });
 });
+
+const quickAttendanceSearchInput = document.getElementById("quickAttendanceSearch");
+const attendanceRows = Array.from(document.querySelectorAll(".attendance-row"));
+const attendanceTableBody = document.getElementById("attendanceTableBody");
+
+if (quickAttendanceSearchInput && attendanceRows.length && attendanceTableBody) {
+  let quickAttendanceSearchEmptyRow = document.getElementById("quickAttendanceSearchEmptyRow");
+
+  function ensureAttendanceEmptyRow() {
+    if (!quickAttendanceSearchEmptyRow) {
+      quickAttendanceSearchEmptyRow = document.createElement("tr");
+      quickAttendanceSearchEmptyRow.id = "quickAttendanceSearchEmptyRow";
+      quickAttendanceSearchEmptyRow.className = "d-none";
+      quickAttendanceSearchEmptyRow.innerHTML = `
+        <td colspan="11" class="text-center text-muted py-4">
+          Tidak ada sesi di halaman ini yang cocok dengan pencarian cepat.
+        </td>
+      `;
+      attendanceTableBody.appendChild(quickAttendanceSearchEmptyRow);
+    }
+  }
+
+  quickAttendanceSearchInput.addEventListener("input", function () {
+    const keyword = String(this.value || "").trim().toLowerCase();
+    let visibleCount = 0;
+
+    attendanceRows.forEach(function (row) {
+      const haystack = row.dataset.attendanceSearch || "";
+      const isMatch = !keyword || haystack.includes(keyword);
+      row.classList.toggle("d-none", !isMatch);
+      if (isMatch) {
+        visibleCount += 1;
+      }
+    });
+
+    ensureAttendanceEmptyRow();
+    quickAttendanceSearchEmptyRow.classList.toggle("d-none", visibleCount > 0);
+  });
+}
 </script>
 {% endblock %}

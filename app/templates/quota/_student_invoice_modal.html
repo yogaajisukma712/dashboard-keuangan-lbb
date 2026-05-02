@@ -1,0 +1,305 @@
+{% if quota_details %}
+<div
+  class="modal fade"
+  id="studentInvoiceModal"
+  tabindex="-1"
+  aria-labelledby="studentInvoiceModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-md-down" style="max-height:100dvh;">
+    <div class="modal-content h-100" style="max-height:100dvh;">
+      <div class="modal-header bg-primary text-white">
+        <div>
+          <h5 class="modal-title mb-0" id="studentInvoiceModalLabel">
+            <i class="bi bi-receipt-cutoff me-2"></i>Buat Invoice Siswa
+          </h5>
+          <div class="small opacity-75">{{ student.name }} · {{ service_month_label }}</div>
+          <div class="small mt-2 d-flex flex-wrap gap-3">
+            <span><i class="bi bi-check2-square me-1"></i><span id="studentInvoiceSelectedCount">0 / 0 mapel</span></span>
+            <span><i class="bi bi-cash-stack me-1"></i>Estimasi <span id="studentInvoiceEstimatedTotal">Rp 0</span></span>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('quota_invoice.create_invoice') }}" id="studentInvoiceForm" class="d-flex flex-column h-100" style="min-height:0;">
+        <div class="modal-body flex-grow-1" style="min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-bottom:1rem;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="student_id" value="{{ student.id }}">
+          <input type="hidden" name="service_month" value="{{ service_month.strftime('%Y-%m') }}">
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Mode Tagihan</label>
+              <select name="billing_type" id="invoiceBillingType" class="form-select">
+                <option value="prepaid">Pra Bayar</option>
+                <option value="postpaid">Pasca Bayar</option>
+              </select>
+              <div class="form-text">Pasca bayar otomatis memakai sesi minus. Pra bayar bisa isi sesi manual.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Default Sesi</label>
+              <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-primary btn-sm invoice-preset-btn active" data-count="4">4</button>
+                <button type="button" class="btn btn-outline-primary btn-sm invoice-preset-btn" data-count="8">8</button>
+                <button type="button" class="btn btn-outline-primary btn-sm invoice-preset-btn" data-count="12">12</button>
+                <button type="button" class="btn btn-outline-primary btn-sm invoice-preset-btn" data-count="16">16</button>
+              </div>
+              <div class="form-text">Preset untuk pra bayar. Bisa diubah lagi per mapel.</div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Catatan</label>
+              <input
+                type="text"
+                name="notes"
+                class="form-control"
+                placeholder="Contoh: tagihan bulan {{ service_month_label }}"
+              >
+            </div>
+          </div>
+
+          <div class="table-responsive border rounded" style="max-height:48vh; overflow-y:auto;">
+            <table class="table align-middle mb-0" id="studentInvoiceTable">
+              <thead class="table-light">
+                <tr>
+                  <th class="text-center" style="width:56px">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      id="studentInvoiceSelectAll"
+                      title="Pilih semua mapel"
+                      aria-label="Pilih semua mapel"
+                    >
+                  </th>
+                  <th>Mapel</th>
+                  <th>Tutor</th>
+                  <th class="text-center">Paid</th>
+                  <th class="text-center">Used</th>
+                  <th class="text-center">Sisa</th>
+                  <th class="text-center">Sesi Ditagih</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in quota_details %}
+                <tr
+                  data-enrollment-id="{{ item.enrollment.id }}"
+                  data-default-quota="{{ item.enrollment.meeting_quota_per_month or 4 }}"
+                  data-deficit="{{ item.deficit }}"
+                  data-rate="{{ item.enrollment.student_rate_per_meeting | float }}"
+                >
+                  <td class="text-center">
+                    <input
+                      type="checkbox"
+                      class="form-check-input invoice-line-check"
+                      name="selected_enrollment_ids"
+                      value="{{ item.enrollment.id }}"
+                    >
+                  </td>
+                  <td>
+                    <div class="fw-semibold">{{ item.subject.name if item.subject else '—' }}</div>
+                    <div class="text-muted small">Enrollment #{{ item.enrollment.id }}</div>
+                  </td>
+                  <td>{{ item.tutor.name if item.tutor else '—' }}</td>
+                  <td class="text-center">{{ item.paid }}</td>
+                  <td class="text-center">{{ item.used }}</td>
+                  <td class="text-center">
+                    {% if item.remaining < 0 %}
+                      <span class="badge bg-danger">{{ item.remaining }}</span>
+                    {% elif item.remaining == 0 %}
+                      <span class="badge bg-warning text-dark">{{ item.remaining }}</span>
+                    {% else %}
+                      <span class="badge bg-success">{{ item.remaining }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center" style="max-width:160px">
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      name="meeting_count_{{ item.enrollment.id }}"
+                      class="form-control form-control-sm invoice-qty-input"
+                      value="{{ item.enrollment.meeting_quota_per_month or 4 }}"
+                      disabled
+                    >
+                    <div class="form-text small text-muted qty-help">
+                      {% if item.deficit > 0 %}
+                        Minus {{ item.deficit }} sesi
+                      {% else %}
+                        Default {{ item.enrollment.meeting_quota_per_month or 4 }} sesi
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer justify-content-between flex-column flex-lg-row align-items-stretch align-items-lg-center gap-3 bg-white" style="position:sticky; bottom:0; z-index:3; padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 1rem); box-shadow:0 -8px 20px rgba(15, 23, 42, 0.08);">
+          <div class="small text-muted">
+            Pilih mapel yang ingin ditagihkan. Pra bayar memungkinkan jumlah sesi manual.
+          </div>
+          <div class="d-grid d-sm-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-save me-1"></i>Simpan Invoice
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var form = document.getElementById("studentInvoiceForm");
+    if (!form) return;
+
+    var fmt = new Intl.NumberFormat("id-ID");
+    var billingType = document.getElementById("invoiceBillingType");
+    var selectAll = document.getElementById("studentInvoiceSelectAll");
+    var selectedCount = document.getElementById("studentInvoiceSelectedCount");
+    var estimatedTotal = document.getElementById("studentInvoiceEstimatedTotal");
+    var presetButtons = Array.from(form.querySelectorAll(".invoice-preset-btn"));
+    var rows = Array.from(form.querySelectorAll("tbody tr"));
+
+    function currency(value) {
+      return "Rp " + fmt.format(Math.round(Number(value || 0)));
+    }
+
+    function updateSelectionState() {
+      if (!selectAll || !selectedCount || !estimatedTotal) return;
+      var selectable = rows.filter(function (row) {
+        return !row.querySelector(".invoice-line-check").disabled;
+      });
+      var selectedRows = selectable.filter(function (row) {
+        return row.querySelector(".invoice-line-check").checked;
+      });
+      var selected = selectedRows.length;
+      var total = selectedRows.reduce(function (acc, row) {
+        var qty = parseInt(row.querySelector(".invoice-qty-input").value || "0", 10) || 0;
+        var rate = parseFloat(row.dataset.rate || "0");
+        return acc + (qty * rate);
+      }, 0);
+
+      selectAll.checked = selectable.length > 0 && selected === selectable.length;
+      selectAll.indeterminate = selected > 0 && selected < selectable.length;
+      selectedCount.textContent = selected + " / " + selectable.length + " mapel";
+      estimatedTotal.textContent = currency(total);
+    }
+
+    function setActivePreset(count) {
+      presetButtons.forEach(function (btn) {
+        var active = parseInt(btn.dataset.count || "0", 10) === count;
+        btn.classList.toggle("active", active);
+        btn.classList.toggle("btn-primary", active);
+        btn.classList.toggle("btn-outline-primary", !active);
+      });
+    }
+
+    function syncRow(row) {
+      var checked = row.querySelector(".invoice-line-check");
+      var qty = row.querySelector(".invoice-qty-input");
+      var help = row.querySelector(".qty-help");
+      var mode = billingType ? billingType.value : "prepaid";
+      var defaultQuota = parseInt(row.dataset.defaultQuota || "4", 10);
+      var deficit = parseInt(row.dataset.deficit || "0", 10);
+
+      if (mode === "postpaid" && deficit <= 0) {
+        checked.checked = false;
+        checked.disabled = true;
+        qty.disabled = true;
+        qty.value = 0;
+        help.textContent = "Tidak ada sesi minus";
+        row.classList.add("table-light");
+        updateSelectionState();
+        return;
+      }
+
+      checked.disabled = false;
+
+      if (!checked.checked) {
+        qty.disabled = true;
+        if (mode === "postpaid") {
+          qty.value = Math.max(deficit, 1);
+          help.textContent = "Centang untuk tagih " + deficit + " sesi minus";
+        } else {
+          if (!qty.value || parseInt(qty.value, 10) < 1) qty.value = defaultQuota;
+          help.textContent = "Default " + defaultQuota + " sesi, bisa diubah";
+        }
+        row.classList.add("table-light");
+        updateSelectionState();
+        return;
+      }
+
+      row.classList.remove("table-light");
+      if (mode === "postpaid") {
+        qty.disabled = true;
+        qty.value = Math.max(deficit, 1);
+        help.textContent = "Otomatis " + deficit + " sesi minus";
+      } else {
+        qty.disabled = false;
+        if (!qty.value || parseInt(qty.value, 10) < 1) qty.value = defaultQuota;
+        help.textContent = "Default " + defaultQuota + " sesi, bisa diubah";
+      }
+
+      updateSelectionState();
+    }
+
+    function applyPreset(count) {
+      if (billingType && billingType.value !== "prepaid") return;
+      rows.forEach(function (row) {
+        row.dataset.defaultQuota = String(count);
+        var qty = row.querySelector(".invoice-qty-input");
+        if (!qty.disabled || row.querySelector(".invoice-line-check").checked === false) {
+          qty.value = count;
+        }
+        syncRow(row);
+      });
+      setActivePreset(count);
+    }
+
+    rows.forEach(function (row) {
+      var checked = row.querySelector(".invoice-line-check");
+      var qty = row.querySelector(".invoice-qty-input");
+      checked.addEventListener("change", function () { syncRow(row); });
+      qty.addEventListener("input", function () {
+        if (parseInt(qty.value || "0", 10) < 1) qty.value = 1;
+        updateSelectionState();
+      });
+      syncRow(row);
+    });
+
+    if (selectAll) {
+      selectAll.addEventListener("change", function () {
+        var shouldCheck = selectAll.checked;
+        rows.forEach(function (row) {
+          var checked = row.querySelector(".invoice-line-check");
+          if (!checked.disabled) checked.checked = shouldCheck;
+          syncRow(row);
+        });
+        updateSelectionState();
+      });
+    }
+
+    presetButtons.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        applyPreset(parseInt(btn.dataset.count || "4", 10));
+      });
+    });
+
+    if (billingType) {
+      billingType.addEventListener("change", function () {
+        rows.forEach(syncRow);
+        updateSelectionState();
+      });
+    }
+
+    setActivePreset(4);
+    updateSelectionState();
+  })();
+</script>
+{% endif %}

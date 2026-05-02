@@ -46,6 +46,8 @@ def create_app(config_name=None):
     # Exempt selected JSON/AJAX endpoints that currently post without CSRF token
     if "payroll.api_quick_pay" in app.view_functions:
         csrf.exempt(app.view_functions["payroll.api_quick_pay"])
+    if "whatsapp_api.sync" in app.view_functions:
+        csrf.exempt(app.view_functions["whatsapp_api.sync"])
 
     # Register context processors
     register_context_processors(app)
@@ -117,6 +119,8 @@ def register_blueprints(app):
         payments_bp,
         payroll_bp,
         reports_bp,
+        whatsapp_bp,
+        whatsapp_bot_bp,
     )
     from app.routes.quota_invoice import quota_invoice_bp
 
@@ -132,16 +136,22 @@ def register_blueprints(app):
     app.register_blueprint(reports_bp)
     app.register_blueprint(closings_bp)
     app.register_blueprint(quota_invoice_bp)
+    app.register_blueprint(whatsapp_bp)
+    app.register_blueprint(whatsapp_bot_bp)
 
 
 def register_context_processors(app):
     """Register context processors for templates"""
+
+    from app.utils import get_branding_logo_data_uri, get_branding_logo_mark_data_uri
 
     @app.context_processor
     def inject_config():
         return {
             "app_name": "Dashboard Keuangan LBB Super Smart",
             "pagination_per_page": app.config["PAGINATION_PER_PAGE"],
+            "branding_logo_data_uri": get_branding_logo_data_uri(),
+            "branding_logo_mark_data_uri": get_branding_logo_mark_data_uri(),
         }
 
     @app.context_processor

@@ -12,6 +12,16 @@ from .income import OtherIncome
 from .expense import Expense
 from .payroll import TutorPayout, TutorPayoutLine
 from .closing import MonthlyClosing
+from .whatsapp import (
+    WhatsAppContact,
+    WhatsAppEvaluation,
+    WhatsAppGroup,
+    WhatsAppGroupParticipant,
+    WhatsAppMessage,
+    WhatsAppStudentGroupValidation,
+    WhatsAppStudentValidation,
+    WhatsAppTutorValidation,
+)
 
 __all__ = [
     'User', 'Student', 'Tutor', 'Subject', 'Curriculum', 'Level',
@@ -22,5 +32,13 @@ __all__ = [
     'OtherIncome',
     'Expense',
     'TutorPayout', 'TutorPayoutLine',
-    'MonthlyClosing'
+    'MonthlyClosing',
+    'WhatsAppGroup',
+    'WhatsAppContact',
+    'WhatsAppGroupParticipant',
+    'WhatsAppMessage',
+    'WhatsAppEvaluation',
+    'WhatsAppStudentGroupValidation',
+    'WhatsAppStudentValidation',
+    'WhatsAppTutorValidation',
 ]

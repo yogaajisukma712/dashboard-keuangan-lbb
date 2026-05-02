@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Detail Tutor — {{ tutor.name }} — LBB Super Smart{% endblock %}
+{% block title %}{{ tutor.name }}{% endblock %}
 
 {% block content %}
 <div class="d-flex align-items-center mb-4">
@@ -17,7 +17,7 @@
     <a href="{{ url_for('payroll.tutor_summary') }}" class="btn btn-outline-success btn-sm">
       <i class="bi bi-wallet2 me-1"></i>Lihat Payroll
     </a>
-    <a href="{{ url_for('master.edit_tutor', id=tutor.id) }}" class="btn btn-primary btn-sm">
+    <a href="{{ url_for('master.edit_tutor', tutor_ref=tutor.public_id) }}" class="btn btn-primary btn-sm">
       <i class="bi bi-pencil me-1"></i>Edit Tutor
     </a>
   </div>
@@ -109,6 +109,65 @@
       </div>
     </div>
 
+    {% if whatsapp_tutor_validation %}
+    <div class="card border-0 shadow-sm mb-4 border-start border-4 border-success">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-whatsapp text-success me-2"></i>Validasi WhatsApp Tutor
+        </h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-3 small">
+          <dt class="col-5 text-muted fw-normal">Nomor Valid</dt>
+          <dd class="col-7"><code>{{ whatsapp_tutor_validation.validated_phone_number or '—' }}</code></dd>
+
+          <dt class="col-5 text-muted fw-normal">Nama Kontak</dt>
+          <dd class="col-7">{{ whatsapp_tutor_validation.validated_contact_name or '—' }}</dd>
+
+          <dt class="col-5 text-muted fw-normal">Waktu Validasi</dt>
+          <dd class="col-7">
+            {{ whatsapp_tutor_validation.validated_at.strftime('%d %b %Y %H:%M') if whatsapp_tutor_validation.validated_at else '—' }}
+          </dd>
+        </dl>
+
+        <div class="small fw-semibold mb-2">Group Tervalidasi</div>
+        {% if validated_group_memberships %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0 small">
+            <thead class="table-light">
+              <tr>
+                <th>ID Group</th>
+                <th>Nama Group</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for group_item in validated_group_memberships %}
+              <tr>
+                <td><code>{{ group_item.group_id or '—' }}</code></td>
+                <td>{{ group_item.group_name or '—' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-muted small">Belum ada group aktif yang tersimpan pada snapshot validasi.</div>
+        {% endif %}
+
+        {% if excluded_group_names %}
+        <div class="mt-3">
+          <div class="small fw-semibold mb-2">Group Dikecualikan Saat Validasi</div>
+          <div class="d-flex flex-wrap gap-2">
+            {% for group_name in excluded_group_names %}
+            <span class="badge bg-warning-subtle text-warning-emphasis border">{{ group_name }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
     {# Identitas #}
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white py-3">
@@ -178,7 +237,7 @@
           <i class="bi bi-bank display-6 opacity-25 d-block mb-2"></i>
           Belum ada informasi rekening bank
           <div class="mt-2">
-            <a href="{{ url_for('master.edit_tutor', id=tutor.id) }}" class="btn btn-outline-primary btn-sm">
+            <a href="{{ url_for('master.edit_tutor', tutor_ref=tutor.public_id) }}" class="btn btn-outline-primary btn-sm">
               <i class="bi bi-plus me-1"></i>Tambah Rekening
             </a>
           </div>
@@ -208,6 +267,107 @@
   {# ── Kolom Kanan: Enrollment & Payroll ── #}
   <div class="col-lg-8">
 
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-journal-text text-primary me-2"></i>Mapel yang Diajarkan
+        </h6>
+      </div>
+      <div class="card-body">
+        {% if taught_subjects %}
+        <div class="row g-3">
+          {% for item in taught_subjects %}
+          <div class="col-md-6">
+            <div class="border rounded-4 h-100 p-3 bg-light-subtle">
+              <div class="d-flex align-items-start justify-content-between gap-2">
+                <div>
+                  <div class="fw-semibold">{{ item.subject_name }}</div>
+                  <div class="small text-muted mt-1">
+                    Enrollment aktif {{ item.active_enrollment_count }} • Presensi {{ item.attendance_count }}
+                  </div>
+                  <div class="small text-muted">
+                    Terakhir mengajar {{ item.latest_attendance_date.strftime('%d %b %Y') if item.latest_attendance_date else 'belum ada presensi' }}
+                  </div>
+                </div>
+                <a
+                  href="{{ url_for('master.subject_detail', subject_ref=item.subject_ref) }}"
+                  class="btn btn-outline-primary btn-sm"
+                >
+                  Detail
+                </a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-muted small">
+          Belum ada mapel yang bisa diringkas dari enrollment atau presensi tutor ini.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <div class="d-flex align-items-center justify-content-between gap-3">
+          <div>
+            <h6 class="mb-0 fw-semibold">
+              <i class="bi bi-calendar-week text-primary me-2"></i>Jadwal Mengajar
+            </h6>
+            <p class="text-muted small mb-0 mt-1">
+              Disusun dari Presensi Sesi Les yang sudah tercatat untuk tutor ini.
+            </p>
+          </div>
+          <a
+            href="{{ url_for('attendance.calendar_view', tutor_id=tutor.id) }}"
+            class="btn btn-outline-primary btn-sm"
+          >
+            <i class="bi bi-calendar3 me-1"></i>Lihat Kalender
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if teaching_schedule %}
+        <div class="row g-3">
+          {% for day_bucket in teaching_schedule %}
+          <div class="col-md-6">
+            <div class="border rounded-4 h-100 p-3 bg-light-subtle">
+              <div class="fw-bold text-primary mb-2">{{ day_bucket['day_name'] }}</div>
+              <div class="d-flex flex-column gap-2">
+                {% for item in day_bucket['items'] %}
+                <div class="bg-white border rounded-3 p-3">
+                  <div class="fw-semibold">{{ item.subject_name }}</div>
+                  <div class="small text-muted">{{ item.student_name }} • Kelas {{ item.grade }}</div>
+                  <div class="small text-muted mt-1">
+                    {{ item.session_count }} sesi tercatat • terakhir {{ item.latest_session_date.strftime('%d %b %Y') if item.latest_session_date else '—' }}
+                  </div>
+                  <div class="mt-2 d-flex align-items-center justify-content-between gap-2">
+                    <span class="badge bg-info-subtle text-info-emphasis">
+                      {{ item.latest_status|title if item.latest_status else '—' }}
+                    </span>
+                    <a
+                      href="{{ url_for('enrollments.enrollment_detail', enrollment_ref=item.enrollment_ref) }}"
+                      class="small text-decoration-none"
+                    >
+                      Detail enrollment
+                    </a>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-muted small">
+          Belum ada Presensi Sesi Les aktif yang cukup untuk membentuk jadwal mengajar tutor ini.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
     {# Payout / Fee Slip — tampilkan jika ada riwayat payout #}
     {% if tutor.payouts and tutor.payouts.count() > 0 %}
     <div class="card border-0 shadow-sm mb-4 border-start border-4 border-success">
@@ -222,10 +382,9 @@
             </p>
           </div>
           <div class="d-flex gap-2">
-            {% set last_payout = tutor.payouts.order_by('id desc').first() %}
             {% if last_payout %}
             <a
-              href="{{ url_for('payroll.fee_slip', payout_id=last_payout.id) }}"
+                  href="{{ url_for('payroll.fee_slip', payout_ref=last_payout.public_id) }}"
               class="btn btn-success btn-sm"
               target="_blank"
             >
@@ -239,7 +398,6 @@
         </div>
 
         {# Ringkasan payout terbaru #}
-        {% set recent_payouts = tutor.payouts.order_by('id desc').limit(3).all() %}
         {% if recent_payouts %}
         <div class="mt-3">
           <div class="table-responsive">
@@ -274,7 +432,7 @@
                   </td>
                   <td class="text-center">
                     <a
-                      href="{{ url_for('payroll.fee_slip', payout_id=payout.id) }}"
+                    href="{{ url_for('payroll.fee_slip', payout_ref=payout.public_id) }}"
                       class="btn btn-outline-success btn-sm py-0 px-2"
                       target="_blank"
                       title="Lihat Fee Slip"
@@ -328,7 +486,9 @@
                 <td>
                   {% if enr.student %}
                     <a
-                      href="{{ url_for('master.student_detail', id=enr.student.id) }}"
+                      href="{{ url_for('master.student_detail', student_ref=enr.student.public_id) }}"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       class="text-decoration-none fw-semibold"
                     >
                       {{ enr.student.name }}
@@ -387,7 +547,7 @@
                 </td>
                 <td class="text-center pe-4">
                   <a
-                    href="{{ url_for('enrollments.enrollment_detail', id=enr.id) }}"
+                    href="{{ url_for('enrollments.enrollment_detail', enrollment_ref=enr.public_id) }}"
                     class="btn btn-outline-info btn-sm"
                     title="Detail Enrollment"
                   >

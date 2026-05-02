@@ -10,7 +10,7 @@
 {# ── Action bar (hanya muncul di layar, disembunyikan saat print) ────────── #}
 <div class="no-print d-flex justify-content-between align-items-center mb-3">
   <div>
-    <a href="{{ url_for('payroll.payout_detail', payout_id=payout.id) }}"
+    <a href="{{ url_for('payroll.payout_detail', payout_ref=payout.public_id) }}"
        class="btn btn-outline-secondary btn-sm me-1">
       <i class="bi bi-arrow-left"></i> Kembali
     </a>
@@ -23,7 +23,7 @@
     <button onclick="window.print()" class="btn btn-primary btn-sm">
       <i class="bi bi-printer me-1"></i> Print
     </button>
-    <a href="{{ url_for('payroll.fee_slip_pdf', payout_id=payout.id) }}"
+    <a href="{{ url_for('payroll.fee_slip_pdf', payout_ref=payout.public_id) }}"
        class="btn btn-success btn-sm">
       <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
     </a>
@@ -39,26 +39,28 @@
     {# ── HEADER ─────────────────────────────────────────────────────────── #}
     <div class="slip-header">
       <div class="slip-header-left">
-        {# Logo placeholder — ganti dengan img tag jika logo tersedia #}
         <div class="slip-logo-area">
+          {% if branding_logo_mark_data_uri %}
+          <img src="{{ branding_logo_mark_data_uri }}" alt="Logo LBB Super Smart" class="slip-logo-img">
+          {% else %}
           <div class="slip-logo-text">LBB</div>
+          {% endif %}
         </div>
         <div class="slip-org-info">
           <div class="slip-org-name">LEMBAGA BIMBINGAN BELAJAR</div>
-          <div class="slip-org-brand">SUPER SMART</div>
+          <div class="slip-org-brand">{{ institution_name }}</div>
           <div class="slip-org-address">Jl. Menur Pumpungan No 63, Sukolilo, Surabaya</div>
           <div class="slip-org-contact">Email: lbbsupersmart@gmail.com</div>
-          <div class="slip-org-contact">Handphone: 0895-6359-07419</div>
+          <div class="slip-org-contact">Handphone: {{ institution_phone or '0895-6359-07419' }}</div>
         </div>
       </div>
       <div class="slip-header-right">
         <div class="slip-qr-box">
           <img
-            src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ encoded_verify_url }}"
+            src="{{ verification_qr_data_uri }}"
             alt="QR Verifikasi"
             width="100" height="100"
             class="slip-qr-img"
-            onerror="this.style.display='none'"
           >
           <div class="slip-qr-label">Scan untuk<br>verifikasi</div>
         </div>
@@ -183,6 +185,35 @@
     </div>
     {% endif %}
 
+    {% if proof_image_url or proof_is_pdf %}
+    <div class="slip-proof-section">
+      <div class="slip-proof-title">Bukti Pembayaran</div>
+      {% if proof_image_url %}
+      <div class="slip-proof-card">
+        <img src="{{ proof_image_url }}" alt="Bukti Pembayaran" class="slip-proof-image">
+      </div>
+      <div class="slip-proof-actions no-print">
+        <a href="{{ proof_download_url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Buka Bukti
+        </a>
+      </div>
+      {% elif proof_is_pdf %}
+      <div class="slip-proof-file">
+        <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+        Bukti pembayaran tersimpan sebagai PDF.
+      </div>
+      <div class="slip-proof-actions no-print">
+        <a href="{{ proof_download_url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Buka File Bukti
+        </a>
+      </div>
+      {% endif %}
+      {% if payout.proof_notes %}
+      <div class="slip-proof-notes"><strong>Catatan:</strong> {{ payout.proof_notes }}</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {# ── SEPARATOR ───────────────────────────────────────────────────────── #}
     <div class="slip-divider" style="margin-top:18px"></div>
 
@@ -200,7 +231,7 @@
 
       <div class="slip-footer-right">
         <div class="slip-sign-city">
-          Surabaya,
+          {{ institution_city }},
           {% if payout.payout_date %}
             {{ payout.payout_date.day }}
             {{ MONTHS_ID[payout.payout_date.month] }}
@@ -211,15 +242,14 @@
         {# QR tanda tangan #}
         <div class="slip-sign-qr">
           <img
-            src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data={{ encoded_verify_url }}"
+            src="{{ signature_qr_data_uri }}"
             alt="QR Tanda Tangan"
             width="70" height="70"
-            onerror="this.style.display='none'"
           >
         </div>
 
-        <div class="slip-sign-name">Yoga Aji Sukma, S.Mat., M.Stat.</div>
-        <div class="slip-sign-title">CEO</div>
+        <div class="slip-sign-name">{{ ceo_name }}</div>
+        <div class="slip-sign-title">{{ ceo_title }}</div>
       </div>
     </div>
 
@@ -301,6 +331,13 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+  }
+
+  .slip-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
   }
 
   .slip-logo-text {
@@ -502,6 +539,49 @@
     border: 1px dashed var(--slip-gold);
     border-radius: 4px;
     margin-bottom: 8px;
+  }
+
+  .slip-proof-section {
+    margin-top: 16px;
+    border: 1px solid rgba(218, 165, 32, 0.5);
+    border-radius: 8px;
+    background: #fffdf4;
+    padding: 14px 16px;
+  }
+
+  .slip-proof-title {
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #866900;
+    margin-bottom: 10px;
+    letter-spacing: .4px;
+  }
+
+  .slip-proof-card {
+    border: 1px solid #ead682;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    max-height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .slip-proof-image {
+    width: 100%;
+    max-height: 320px;
+    object-fit: contain;
+    display: block;
+  }
+
+  .slip-proof-actions,
+  .slip-proof-notes,
+  .slip-proof-file {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #5a4c14;
   }
 
   /* ── Footer ──────────────────────────────────────────────────────── */

@@ -10,6 +10,8 @@ from .payment_service import PaymentService
 from .payroll_service import PayrollService
 from .reporting_service import ReportingService
 from .reconciliation_service import ReconciliationService
+from .bulk_import_service import BulkImportService, DATASET_DEFINITIONS
+from .whatsapp_ingest_service import WhatsAppIngestService
 
 __all__ = [
     'DashboardService',
@@ -18,5 +20,8 @@ __all__ = [
     'PaymentService',
     'PayrollService',
     'ReportingService',
-    'ReconciliationService'
+    'ReconciliationService',
+    'BulkImportService',
+    'DATASET_DEFINITIONS',
+    'WhatsAppIngestService',
 ]

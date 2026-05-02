@@ -1,0 +1,957 @@
+DOKUMEN KONTEKS PROYEK
+Dashboard Keuangan LBB Super Smart
+Target Teknologi: Flask + PostgreSQL
+
+==================================================
+1. TUJUAN DOKUMEN
+==================================================
+
+Dokumen ini menjadi context utama untuk perancangan aplikasi dashboard keuangan LBB Super Smart.
+
+Tujuan utama sistem:
+1. Memindahkan sistem pembukuan yang saat ini berjalan di spreadsheet ke aplikasi berbasis Flask dan PostgreSQL.
+2. Menjaga agar seluruh angka yang ada di laporan tetap saling terhubung dan konsisten.
+3. Mengubah spreadsheet yang saat ini sangat rumit menjadi sistem dengan sumber data tunggal yang lebih stabil, mudah diaudit, dan mudah dikembangkan.
+4. Menjadikan seluruh ringkasan dashboard sebagai hasil perhitungan otomatis dari transaksi dasar, bukan dari input manual atau rumus silang antar sheet.
+
+Prinsip utama:
+- Spreadsheet saat ini sebenarnya sudah membentuk satu sistem pembukuan terpadu.
+- Semua gambar/laporan saling terkait dan merujuk ke satu logika keuangan yang sama.
+- Sistem baru harus meniru logika bisnis spreadsheet yang ada terlebih dahulu, baru setelah itu boleh disempurnakan.
+
+==================================================
+2. GAMBARAN UMUM SISTEM SAAT INI
+==================================================
+
+Spreadsheet yang ada saat ini terdiri dari beberapa lapisan logika yang saling terhubung:
+
+A. Operasional les
+- Data siswa
+- Data tutor
+- Kurikulum
+- Jenjang
+- Kelas
+- Mata pelajaran
+- Jadwal les
+- Jumlah pertemuan
+- Realisasi pertemuan
+- Sisa pertemuan
+
+B. Keuangan pemasukan siswa
+- Saat siswa melakukan pembayaran, sistem mencatat:
+  - Nominal pembayaran
+  - Hutang gaji tutor
+  - Margin lembaga
+
+C. Presensi tutor
+- Setiap pertemuan tutor yang terlaksana dicatat.
+- Presensi ini menjadi dasar estimasi gaji tutor.
+
+D. Pengeluaran operasional
+- Iklan
+- Kuota
+- Tarik tunai
+- Alat/perlengkapan
+- Pengeluaran lain
+
+E. Dashboard summary
+- Saldo bulan kemarin
+- Pemasukan bulan ini
+- Pengeluaran bulan ini
+- Hutang gaji
+- Profit
+- Estimasi gaji tutor
+- Estimasi sisa saldo
+- Margin dan rasio lainnya
+
+Kesimpulan:
+Spreadsheet yang ada bukan hanya laporan, tetapi sudah merupakan sistem operasional + keuangan yang saling terkoneksi.
+
+==================================================
+3. LOGIKA BESAR YANG BERHASIL DIIDENTIFIKASI
+==================================================
+
+Sistem saat ini memiliki 3 jalur logika utama:
+
+1. Jalur operasional
+Master data siswa, tutor, mapel, jadwal, enrollment, jumlah pertemuan, dan progres layanan.
+
+2. Jalur transaksi keuangan
+Pembayaran siswa, pemasukan lain-lain, pengeluaran, serta pembayaran gaji tutor.
+
+3. Jalur reporting
+Semua kartu summary di dashboard bagian atas merupakan hasil kalkulasi dari data operasional dan transaksi.
+
+Artinya:
+- Dashboard tidak boleh menjadi tempat input angka manual.
+- Dashboard harus menjadi hasil turunan dari database transaksi.
+
+==================================================
+4. PEMBACAAN STRUKTUR TIAP BAGIAN SPREADSHEET
+==================================================
+
+4.1. MASTER OPERASIONAL LES AKTIF
+Bagian ini memuat data seperti:
+- Id Siswa
+- Kurikulum
+- Jenjang
+- Kelas
+- Nama Siswa
+- Mata Pelajaran
+- Hari
+- Jam
+- Nama Tutor
+- ID Tutor & Nama
+- Jumlah Pertemuan
+- Jumlah saat ini
+- Sisa
+- Checkbox/status les
+
+Makna:
+- Satu siswa dapat mengambil satu atau lebih mapel.
+- Setiap mapel dapat diajar oleh tutor tertentu.
+- Ada target pertemuan bulanan.
+- Ada progres realisasi.
+- Ada sisa layanan yang belum dipakai.
+
+Bagian ini adalah sumber logika operasional.
+
+4.2. PRESENSI TUTOR DETAIL
+Bagian ini memuat:
+- Tanggal
+- Hari
+- Tutor
+- Siswa
+- Kurikulum
+- Jenjang
+- Mapel
+- Nominal
+
+Makna:
+- Satu baris = satu sesi les yang benar-benar terlaksana.
+- Setiap sesi menghasilkan nominal fee tutor.
+- Bagian ini menjadi sumber estimasi gaji tutor.
+
+4.3. REKAP GAJI TUTOR
+Bagian ini memuat:
+- Tutor
+- ID Tutor
+- Nominal
+- Rekening
+- Bank
+
+Makna:
+- Ini adalah agregasi dari data presensi.
+- Digunakan untuk proses transfer/daftar pembayaran tutor.
+
+4.4. CATATAN PEMASUKAN DARI SISWA
+Bagian ini memuat:
+- Tanggal
+- Id Siswa
+- Kurikulum
+- Jenjang
+- Kelas
+- Nama Siswa
+- Mata Pelajaran
+- Jumlah pertemuan
+- Nominal
+- Hutang Gaji
+- Margin
+
+Makna:
+Setiap pembayaran siswa menghasilkan 3 angka penting:
+1. Nominal pemasukan
+2. Hutang gaji tutor
+3. Margin lembaga
+
+Rumus dasar:
+Nominal - Hutang Gaji = Margin
+
+Contoh yang terbaca dari spreadsheet:
+- Nominal: Rp175.000
+- Hutang Gaji: Rp120.000
+- Margin: Rp55.000
+
+4.5. CATATAN PEMASUKAN LAIN-LAIN
+Bagian ini memuat pemasukan di luar pembayaran siswa.
+
+Contoh:
+- titipan
+- koreksi kas
+- pemasukan non-siswa lainnya
+
+4.6. CATATAN PENGELUARAN
+Bagian ini memuat:
+- iklan
+- tarik tunai
+- kuota
+- charger
+- tripod
+- modem
+- dll
+
+Makna:
+- Semua pengeluaran ini mengurangi saldo kas dan profit.
+
+4.7. DASHBOARD SUMMARY
+Bagian ini adalah output ringkasan, bukan sumber input.
+
+Berisi:
+- Grand Total Pemasukan Bulan Kemarin
+- Grand Saldo Bulan Kemarin
+- Hutang Gaji
+- Gaji Tutor Bulan Kemarin
+- Grand Profit Bulan Lalu
+- Grand Pengeluaran Bulan Lalu
+- Grand Total Pemasukan
+- Grand Total Saldo
+- Grand Hutang Gaji
+- Grand Profit
+- Grand Pengeluaran
+- Total Pemasukan Bulanan
+- Saldo Bulan Ini
+- Pengeluaran Bulan Ini
+- Estimasi Gaji Tutor
+- Estimasi Profit Bulan Ini
+- Estimasi Sisa Saldo
+- Rasio margin/profit
+
+==================================================
+5. RUMUS LOGIKA YANG BERHASIL DITANGKAP
+==================================================
+
+5.1. Total Pemasukan Bulanan
+Pemasukan Siswa + Pemasukan Lain-Lain
+
+Contoh dari data:
+- Pemasukan siswa = Rp13.700.000
+- Pemasukan lain-lain = Rp25.000
+
+Maka:
+Total Pemasukan Bulanan = Rp13.725.000
+
+5.2. Margin Bulan Ini
+Nominal pemasukan siswa - Hutang gaji dari pembayaran siswa
+
+Contoh:
+- Nominal siswa = Rp13.700.000
+- Hutang gaji = Rp9.610.000
+
+Maka:
+Margin Bulan Ini = Rp4.090.000
+
+5.3. Estimasi Profit Bulan Ini
+Margin Bulan Ini + Pemasukan Lain-Lain - Pengeluaran Bulan Ini
+
+Contoh:
+- Margin = Rp4.090.000
+- Pemasukan lain-lain = Rp25.000
+- Pengeluaran = Rp1.489.536
+
+Maka:
+Estimasi Profit Bulan Ini = Rp2.625.464
+
+5.4. Saldo Bulan Ini
+Saldo bulan kemarin + total pemasukan bulanan - pengeluaran bulan ini
+
+Contoh:
+- Saldo bulan kemarin = Rp10.665.281
+- Total pemasukan bulanan = Rp13.725.000
+- Pengeluaran bulan ini = Rp1.489.536
+
+Maka:
+Saldo Bulan Ini = Rp22.900.745
+
+5.5. Estimasi Sisa Saldo
+Saldo Bulan Ini - Estimasi Gaji Tutor Bulan Ini
+
+Contoh:
+- Saldo bulan ini = Rp22.900.745
+- Estimasi gaji tutor = Rp9.045.000
+
+Maka:
+Estimasi Sisa Saldo = Rp13.855.745
+
+5.6. Grand Hutang Gaji
+Hutang gaji lama + hutang gaji baru - pembayaran tutor
+
+Dari pola angka yang terbaca:
+- Hutang gaji bulan kemarin = Rp3.380.000
+- Hutang gaji dari pembayaran siswa bulan ini = Rp9.610.000
+
+Maka kemungkinan:
+Grand Hutang Gaji = Rp12.990.000
+(asumsi belum dikurangi payout tutor pada potongan data yang terlihat)
+
+5.7. Grand Profit
+Saldo kas / total saldo - grand hutang gaji
+
+Contoh:
+- Grand total saldo = Rp22.900.745
+- Grand hutang gaji = Rp12.990.000
+
+Maka:
+Grand Profit = Rp9.910.745
+
+Makna grand profit di sistem sekarang:
+Saldo yang benar-benar menjadi milik lembaga setelah dikurangi kewajiban ke tutor.
+
+==================================================
+6. TEMUAN PENTING: ADA 2 JALUR PERHITUNGAN TUTOR
+==================================================
+
+Sistem saat ini memuat dua jalur hitung terkait tutor:
+
+6.1. Hutang gaji dari pembayaran siswa
+Saat siswa bayar:
+- kas masuk
+- sebagian nominal dialokasikan menjadi hutang gaji tutor
+- sisanya menjadi margin lembaga
+
+6.2. Estimasi gaji dari presensi tutor
+Saat tutor mengajar:
+- sesi tercatat di presensi
+- nominal tutor terakumulasi
+- muncul estimasi gaji tutor bulanan
+
+Ini menghasilkan dua angka yang berbeda:
+- Hutang gaji dari pembayaran siswa
+- Estimasi gaji dari presensi
+
+Makna:
+Sistem baru harus memisahkan dengan jelas:
+1. Tutor payable from collection
+2. Tutor accrual from attendance
+3. Tutor payout (yang benar-benar dibayarkan)
+
+Jika tidak dipisah, dashboard akan rancu.
+
+==================================================
+7. PRINSIP DESAIN SISTEM BARU
+==================================================
+
+Prinsip 1:
+Simpan transaksi mentah, bukan summary manual.
+
+Prinsip 2:
+Setiap jenis angka punya satu sumber kebenaran.
+
+Prinsip 3:
+Pisahkan cash, hutang gaji, dan estimasi gaji.
+
+Prinsip 4:
+Semua angka di dashboard harus bisa ditelusuri ke transaksi asal.
+
+Prinsip 5:
+Gunakan database sebagai source of truth, bukan spreadsheet formula silang.
+
+Prinsip 6:
+Semua kartu dashboard dihitung otomatis melalui query/view/report engine.
+
+==================================================
+8. MODEL LAPISAN SISTEM YANG DIREKOMENDASIKAN
+==================================================
+
+Layer 1 - Master Data
+- students
+- tutors
+- subjects
+- curriculums
+- levels
+- pricing rules
+
+Layer 2 - Enrollment / Kontrak Les
+- siapa ambil mapel apa
+- tutor siapa
+- jadwal apa
+- kuota pertemuan berapa
+- tarif berapa
+
+Layer 3 - Presensi / Realisasi
+- sesi les yang benar-benar terjadi
+- nominal tutor per sesi
+- progres jumlah pertemuan
+- sisa pertemuan
+
+Layer 4 - Keuangan
+- pembayaran siswa
+- pemasukan lain
+- pengeluaran
+- pembayaran tutor
+
+Layer 5 - Dashboard dan Closing
+- ringkasan bulanan
+- KPI
+- hutang gaji
+- saldo
+- profit
+- rekonsiliasi
+- snapshot closing bulanan
+
+==================================================
+9. RANCANGAN ENTITAS DATABASE
+==================================================
+
+9.1. MASTER DATA
+
+Tabel: students
+Fungsi: menyimpan data siswa
+Field inti:
+- id
+- student_code
+- name
+- curriculum_id
+- level_id
+- grade
+- status
+- created_at
+
+Tabel: tutors
+Fungsi: menyimpan data tutor
+Field inti:
+- id
+- tutor_code
+- name
+- bank_name
+- bank_account_number
+- account_holder_name
+- status
+
+Tabel: subjects
+- id
+- name
+
+Tabel: curriculums
+- id
+- name
+
+Tabel: levels
+- id
+- name
+
+9.2. TARIF
+
+Tabel: pricing_rules
+Fungsi:
+Menyimpan aturan tarif standar per kombinasi layanan.
+
+Field inti:
+- id
+- curriculum_id
+- level_id
+- grade
+- subject_id
+- student_rate_per_meeting
+- tutor_rate_per_meeting
+- default_meeting_quota
+- active_from
+- active_to
+
+Catatan:
+Tarif di sistem terlihat berbeda-beda tergantung kombinasi mapel/jenjang/kurikulum, sehingga tabel tarif wajib fleksibel.
+
+9.3. ENROLLMENT / LES AKTIF
+
+Tabel: enrollments
+Fungsi:
+Satu baris = satu siswa mengambil satu mapel dengan satu tutor aktif.
+
+Field inti:
+- id
+- student_id
+- subject_id
+- tutor_id
+- curriculum_id
+- level_id
+- grade
+- meeting_quota_per_month
+- student_rate_per_meeting
+- tutor_rate_per_meeting
+- start_date
+- end_date
+- status
+
+Tabel: enrollment_schedules
+Fungsi:
+Menyimpan jadwal tetap dari enrollment.
+
+Field inti:
+- id
+- enrollment_id
+- day_of_week
+- start_time
+- is_active
+
+9.4. PRESENSI
+
+Tabel: attendance_sessions
+Fungsi:
+Satu baris = satu sesi les terlaksana.
+
+Field inti:
+- id
+- enrollment_id
+- session_date
+- status
+- student_present
+- tutor_present
+- subject_id
+- tutor_fee_amount
+- notes
+
+Status yang memungkinkan:
+- scheduled
+- attended
+- cancelled
+- rescheduled
+
+Keluaran dari tabel ini:
+- jumlah saat ini
+- sisa pertemuan
+- estimasi gaji tutor
+- rekap tutor
+
+9.5. PEMBAYARAN SISWA
+
+Tabel: student_payments
+Fungsi:
+Header pembayaran siswa.
+
+Field inti:
+- id
+- payment_date
+- student_id
+- receipt_number
+- payment_method
+- notes
+- total_amount
+
+Tabel: student_payment_lines
+Fungsi:
+Rincian pembayaran per enrollment/mapel.
+
+Field inti:
+- id
+- student_payment_id
+- enrollment_id
+- service_month
+- meeting_count
+- student_rate_per_meeting
+- tutor_rate_per_meeting
+- nominal_amount
+- tutor_payable_amount
+- margin_amount
+
+Catatan:
+Tabel ini menggantikan logika "Catatan Pemasukan Dari Siswa".
+
+9.6. PEMASUKAN LAIN-LAIN
+
+Tabel: other_incomes
+Field inti:
+- id
+- income_date
+- category
+- description
+- amount
+
+9.7. PENGELUARAN
+
+Tabel: expenses
+Field inti:
+- id
+- expense_date
+- category
+- description
+- amount
+- payment_method
+- notes
+
+9.8. PEMBAYARAN TUTOR
+
+Tabel: tutor_payouts
+Fungsi:
+Header pembayaran ke tutor.
+
+Field inti:
+- id
+- payout_date
+- tutor_id
+- amount
+- bank_name
+- account_number
+- notes
+
+Tabel: tutor_payout_lines
+Fungsi:
+Rincian pembayaran tutor per periode.
+
+Field inti:
+- id
+- tutor_payout_id
+- service_month
+- amount
+
+9.9. CLOSING BULANAN
+
+Tabel: monthly_closings
+Fungsi:
+Menyimpan snapshot saldo awal/akhir dan hutang awal/akhir per bulan.
+
+Field inti:
+- id
+- month
+- opening_cash_balance
+- opening_tutor_payable
+- closing_cash_balance
+- closing_tutor_payable
+- closing_profit
+- closed_at
+- closed_by
+
+==================================================
+10. ALUR INPUT DATA YANG DIREKOMENDASIKAN
+==================================================
+
+10.1. Alur setup master
+Admin input:
+- data siswa
+- data tutor
+- data mapel
+- data kurikulum
+- data jenjang
+- data tarif
+- data enrollment
+- data jadwal
+
+Output:
+- basis operasional siap
+- tarif otomatis tersedia
+- mapping siswa-tutor-mapel siap
+
+10.2. Alur input presensi tutor
+Saat sesi les terjadi:
+- pilih enrollment
+- tanggal
+- status hadir
+- nominal tutor otomatis terisi
+- catatan jika perlu
+
+Output:
+- progres pertemuan bertambah
+- sisa pertemuan berkurang
+- estimasi gaji tutor bertambah
+- rekap tutor ter-update
+
+10.3. Alur input pembayaran siswa
+Saat siswa bayar:
+- pilih siswa
+- pilih enrollment/mapel
+- input jumlah pertemuan
+- sistem ambil tarif
+- sistem hitung:
+  - nominal_amount
+  - tutor_payable_amount
+  - margin_amount
+
+Output:
+- kas bertambah
+- hutang gaji bertambah
+- margin bertambah
+- pemasukan siswa ter-update
+
+10.4. Alur input pemasukan lain-lain
+Saat ada pemasukan non-siswa:
+- input tanggal
+- kategori
+- deskripsi
+- nominal
+
+Output:
+- kas bertambah
+- profit bertambah
+- total pemasukan bertambah
+
+10.5. Alur input pengeluaran
+Saat ada biaya:
+- input tanggal
+- kategori
+- deskripsi
+- nominal
+
+Output:
+- kas berkurang
+- pengeluaran bertambah
+- profit turun
+
+10.6. Alur pembayaran tutor
+Saat lembaga membayar tutor:
+- pilih tutor
+- input nominal pembayaran
+- pilih bulan layanan bila perlu
+
+Output:
+- kas berkurang
+- hutang gaji berkurang
+
+10.7. Alur closing bulanan
+Di akhir bulan:
+- tarik semua summary bulan berjalan
+- hitung saldo akhir
+- hitung hutang akhir
+- simpan snapshot
+
+Output:
+- menjadi saldo awal bulan berikutnya
+- dashboard bulan berikutnya stabil
+
+==================================================
+11. KPI DAN FORMULA DASHBOARD YANG DIREKOMENDASIKAN
+==================================================
+
+11.1. Pemasukan Siswa Bulan Ini
+SUM(student_payment_lines.nominal_amount)
+
+11.2. Pemasukan Lain-Lain Bulan Ini
+SUM(other_incomes.amount)
+
+11.3. Total Pemasukan Bulanan
+Pemasukan siswa + pemasukan lain-lain
+
+11.4. Hutang Gaji dari Pembayaran Bulan Ini
+SUM(student_payment_lines.tutor_payable_amount)
+
+11.5. Margin Bulan Ini
+SUM(student_payment_lines.margin_amount)
+
+11.6. Pengeluaran Bulan Ini
+SUM(expenses.amount)
+
+11.7. Estimasi Gaji Tutor Bulan Ini
+SUM(attendance_sessions.tutor_fee_amount)
+dengan status = attended
+
+11.8. Estimasi Profit Bulan Ini
+Margin bulan ini + pemasukan lain-lain - pengeluaran bulan ini
+
+11.9. Grand Hutang Gaji
+Opening tutor payable + hutang gaji bulan ini - payout tutor bulan ini
+
+11.10. Saldo Bulan Ini
+Versi 1:
+Opening cash balance + total pemasukan - pengeluaran
+
+Versi 2:
+Opening cash balance + total pemasukan - pengeluaran - payout tutor
+
+Catatan:
+Perlu diputuskan versi saldo mana yang akan dipakai sebagai KPI utama.
+
+11.11. Grand Profit
+Saldo - grand hutang gaji
+
+11.12. Estimasi Sisa Saldo
+Saldo bulan ini - estimasi gaji tutor bulan ini
+
+==================================================
+12. DASHBOARD YANG DIRENCANAKAN
+==================================================
+
+12.1. Dashboard Owner / Utama
+KPI:
+- saldo bulan kemarin
+- total pemasukan bulan ini
+- pengeluaran bulan ini
+- hutang gaji bulan ini
+- grand hutang gaji
+- estimasi gaji tutor
+- estimasi profit bulan ini
+- grand profit
+- estimasi sisa saldo
+
+Grafik:
+- tren pemasukan
+- tren pengeluaran
+- tren profit
+- tren margin
+- tren hutang gaji
+
+Tabel ringkas:
+- top siswa
+- top mapel
+- top tutor
+- pengeluaran per kategori
+
+12.2. Dashboard Payroll Tutor
+- total nominal tutor per bulan
+- total sudah dibayar
+- saldo hutang per tutor
+- daftar rekening tutor
+- daftar transfer
+- filter bulan
+
+12.3. Dashboard Pemasukan Siswa
+- omzet per siswa
+- omzet per mapel
+- omzet per jenjang
+- omzet per kurikulum
+- pembayaran per bulan
+
+12.4. Dashboard Rekonsiliasi
+Menampilkan:
+- hutang gaji dari pembayaran siswa
+- estimasi gaji dari presensi
+- payout tutor
+- selisih
+
+Tujuan:
+Mendeteksi mismatch antara pembayaran siswa dan realisasi presensi tutor.
+
+==================================================
+13. HAL-HAL YANG MASIH PERLU DIKONFIRMASI
+==================================================
+
+Beberapa hal belum boleh diasumsikan final dan harus dikonfirmasi saat fase analisis detail:
+
+1. Arti tepat dari beberapa angka ganda pada kotak summary dashboard.
+2. Apakah pembayaran siswa selalu untuk bulan berjalan atau bisa lintas bulan.
+3. Apakah satu pembayaran siswa bisa mencakup beberapa mapel/enrollment sekaligus.
+4. Kapan hutang gaji dianggap lahir:
+   - saat siswa bayar
+   - saat tutor mengajar
+   - atau keduanya untuk kebutuhan report yang berbeda
+5. Bagaimana aturan jika ada:
+   - diskon
+   - refund
+   - pindah tutor
+   - pindah jadwal
+   - pertemuan pengganti
+   - siswa berhenti di tengah bulan
+6. Apakah payout tutor harus direkonsiliasi per bulan layanan atau cukup total.
+
+==================================================
+14. REKOMENDASI IMPLEMENTASI BERTAHAP
+==================================================
+
+Fase 1 - Reverse engineering spreadsheet
+Output:
+- kamus istilah bisnis
+- definisi final setiap angka
+- rumus final
+- mapping sheet ke entity database
+
+Fase 2 - Database design
+Output:
+- ERD
+- struktur tabel
+- relasi
+- constraint
+- index utama
+
+Fase 3 - Modul input transaksi
+Output:
+- form master
+- form enrollment
+- form presensi
+- form pembayaran siswa
+- form pengeluaran
+- form pemasukan lain
+- form pembayaran tutor
+
+Fase 4 - Reporting engine
+Output:
+- SQL views
+- service layer summary
+- KPI bulanan
+- rekap tutor
+- rekap siswa
+- rekonsiliasi
+
+Fase 5 - Dashboard frontend
+Output:
+- dashboard owner
+- dashboard finance
+- dashboard payroll
+- dashboard operasional
+
+Fase 6 - Closing dan audit
+Output:
+- monthly closing
+- lock periode
+- audit trail
+- export report
+
+==================================================
+15. ARAH ARSITEKTUR APLIKASI FLASK
+==================================================
+
+Modul aplikasi yang direkomendasikan:
+- auth
+- master
+- enrollments
+- attendance
+- payments
+- other_incomes
+- expenses
+- payroll
+- dashboard
+- reports
+- closings
+
+Pembagian tanggung jawab:
+- master = data referensi
+- enrollments = hubungan siswa-mapel-tutor-jadwal
+- attendance = realisasi sesi
+- payments = pembayaran siswa
+- expenses = pengeluaran
+- payroll = rekap dan payout tutor
+- dashboard = tampilan KPI
+- reports = laporan detail
+- closings = snapshot bulanan
+
+==================================================
+16. KESIMPULAN FINAL
+==================================================
+
+Sistem spreadsheet saat ini pada dasarnya adalah satu ekosistem pembukuan terpadu dengan komponen:
+1. data operasional les
+2. data pemasukan siswa
+3. data pemasukan lain-lain
+4. data pengeluaran
+5. data presensi tutor
+6. data rekap gaji tutor
+7. data dashboard summary
+
+Formula intinya adalah:
+- nominal - hutang gaji = margin
+- margin + pemasukan lain - pengeluaran = profit bulanan
+- saldo awal + pemasukan - pengeluaran = saldo
+- hutang lama + hutang baru - payout tutor = grand hutang gaji
+- saldo - grand hutang gaji = grand profit
+
+Arah sistem baru:
+- satu database transaksi
+- satu sumber kebenaran untuk semua angka
+- semua summary dihitung otomatis
+- semua angka bisa ditelusuri ke transaksi asal
+- dashboard menjadi hasil akhir, bukan tempat input manual
+
+Dokumen ini harus dijadikan context utama saat membangun aplikasi Flask dan PostgreSQL untuk Dashboard Keuangan LBB Super Smart.
+
+==================================================
+17. NEXT STEP YANG DISARANKAN
+==================================================
+
+Setelah dokumen context ini, langkah berikutnya yang ideal adalah membuat:
+
+1. Kamus istilah bisnis
+2. ERD final
+3. Data dictionary setiap tabel
+4. Daftar formula KPI final
+5. Flow menu aplikasi
+6. Wireframe dashboard
+7. Spesifikasi modul input
+8. SQL view/report plan
+9. Rencana migrasi data dari spreadsheet ke database
+
+Dokumen ini adalah fondasi analisis bisnis dan teknis untuk keseluruhan pengembangan aplikasi.

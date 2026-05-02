@@ -169,7 +169,7 @@
 
                 {# Lihat Fee Slip — muncul jika ada payout bulan ini #}
                 {% if item.latest_payout_id %}
-                <a href="{{ url_for('payroll.fee_slip', payout_id=item.latest_payout_id) }}"
+                        <a href="{{ url_for('payroll.fee_slip', payout_ref=item.latest_payout.public_id) }}"
                    class="btn btn-outline-primary btn-sm py-0 px-2" target="_blank"
                    title="Lihat Fee Slip">
                   <i class="bi bi-file-earmark-text"></i> Slip
@@ -178,7 +178,7 @@
 
                 {# Link ke payout detail #}
                 {% if item.latest_payout_id %}
-                <a href="{{ url_for('payroll.payout_detail', payout_id=item.latest_payout_id) }}"
+                        <a href="{{ url_for('payroll.payout_detail', payout_ref=item.latest_payout.public_id) }}"
                    class="btn btn-outline-secondary btn-sm py-0 px-2" title="Detail">
                   <i class="bi bi-eye"></i>
                 </a>

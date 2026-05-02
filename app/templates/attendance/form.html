@@ -63,6 +63,32 @@ set is_edit = session.session_date is defined %} {# ── Breadcrumb
                         </div>
                         {% endif %} {# Info card yang muncul setelah enrollment
                         dipilih #}
+                        <div class="form-text">
+                            Enrollment menentukan siswa dan mapel. Tutor bisa Anda ubah manual jika sesi diajar tutor pengganti.
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label
+                            for="{{ form.tutor_id.id }}"
+                            class="form-label fw-semibold small"
+                        >
+                            Tutor Pengajar
+                            <span class="text-danger">*</span>
+                        </label>
+                        {{ form.tutor_id(class_="form-select",
+                        id=form.tutor_id.id, required=true) }} {% if
+                        form.tutor_id.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for e in form.tutor_id.errors %}{{ e }}{%
+                            endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">
+                            Dipakai untuk presensi aktual. Tidak harus sama dengan tutor bawaan enrollment.
+                        </div>
+                        {# Info card yang muncul setelah enrollment
+                        dipilih #}
                         <div
                             id="enrollmentInfo"
                             class="alert alert-light border mt-2 small d-none"
@@ -272,8 +298,10 @@ set is_edit = session.session_date is defined %} {# ── Breadcrumb
        Injected here so JS logic can branch accordingly.
     ───────────────────────────────────────────────────────────────────────── */
     const IS_EDIT = {{ 'true' if is_edit else 'false' }};
+    const ENROLLMENT_TUTOR_MAP = {{ attendance_tutor_map | tojson }};
 
     const elEnrollment = document.getElementById('{{ form.enrollment_id.id }}');
+    const elTutorSelect = document.getElementById('{{ form.tutor_id.id }}');
     const elFeeAmount  = document.getElementById('{{ form.tutor_fee_amount.id }}');
     const elStudentChk = document.getElementById('{{ form.student_present.id }}');
     const elTutorChk   = document.getElementById('{{ form.tutor_present.id }}');
@@ -289,6 +317,14 @@ set is_edit = session.session_date is defined %} {# ── Breadcrumb
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
       });
+    }
+
+    function maybeSyncTutorFromEnrollment(enrollmentId) {
+      if (IS_EDIT || !elTutorSelect) return;
+      const mappedTutorId = ENROLLMENT_TUTOR_MAP[String(enrollmentId)] || ENROLLMENT_TUTOR_MAP[Number(enrollmentId)];
+      if (mappedTutorId) {
+        elTutorSelect.value = String(mappedTutorId);
+      }
     }
 
     /* ── Fetch tutor fee via AJAX ────────────────────────────────────────────
@@ -361,6 +397,7 @@ set is_edit = session.session_date is defined %} {# ── Breadcrumb
         // Isi otomatis hanya jika field fee masih 0 / kosong
         const currentFee = parseFloat(elFeeAmount ? elFeeAmount.value : '0') || 0;
         fetchTutorFee(selectedId, currentFee === 0);
+        maybeSyncTutorFromEnrollment(selectedId);
 
         // Default: centang keduanya hadir (hanya untuk form tambah baru)
         if (!IS_EDIT) {
@@ -385,6 +422,7 @@ set is_edit = session.session_date is defined %} {# ── Breadcrumb
       if (selectedId && selectedId !== '0') {
         // Edit mode: ambil info tapi jangan override fee yang sudah diisi
         fetchTutorFee(selectedId, !IS_EDIT);
+        maybeSyncTutorFromEnrollment(selectedId);
       }
 
       // Set default tanggal = hari ini (hanya form tambah baru)

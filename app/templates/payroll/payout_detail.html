@@ -23,21 +23,21 @@ Breadcrumb ───────────────────────
     </div>
     <div class="d-flex gap-2">
         <a
-            href="{{ url_for('payroll.fee_slip', payout_id=payout.id) }}"
+            href="{{ url_for('payroll.fee_slip', payout_ref=payout.public_id) }}"
             class="btn btn-outline-primary btn-sm"
             target="_blank"
         >
             <i class="bi bi-file-earmark-text me-1"></i> Lihat Fee Slip
         </a>
         <a
-            href="{{ url_for('payroll.fee_slip_pdf', payout_id=payout.id) }}"
+            href="{{ url_for('payroll.fee_slip_pdf', payout_ref=payout.public_id) }}"
             class="btn btn-outline-success btn-sm"
         >
             <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
         </a>
         <form
             method="POST"
-            action="{{ url_for('payroll.delete_payout', payout_id=payout.id) }}"
+            action="{{ url_for('payroll.delete_payout', payout_ref=payout.public_id) }}"
             onsubmit="
                 return confirm(
                     'Yakin hapus payout ini? Tindakan tidak dapat dibatalkan.',
@@ -254,7 +254,7 @@ Breadcrumb ───────────────────────
                         style="max-height: 280px"
                     >
                         <img
-                            src="{{ url_for('static', filename='../uploads/' + payout.proof_image) }}"
+                            src="{{ url_for('payroll.serve_payroll_proof', filename=payout.proof_image.rsplit('/', 1)[-1]) }}"
                             class="img-fluid w-100"
                             style="object-fit: contain; max-height: 280px"
                             alt="Bukti transfer"
@@ -271,7 +271,7 @@ Breadcrumb ───────────────────────
                         <i class="bi bi-file-earmark-pdf fs-5 text-danger"></i>
                         <span class="small">File PDF telah diupload.</span>
                         <a
-                            href="/uploads/{{ payout.proof_image }}"
+                            href="{{ url_for('payroll.serve_payroll_proof', filename=payout.proof_image.rsplit('/', 1)[-1]) }}"
                             target="_blank"
                             class="btn btn-sm btn-outline-danger ms-auto"
                             >Buka</a
@@ -298,7 +298,7 @@ Breadcrumb ───────────────────────
                 {% endif %} {# Form upload #}
                 <form
                     method="POST"
-                    action="{{ url_for('payroll.upload_proof', payout_id=payout.id) }}"
+                    action="{{ url_for('payroll.upload_proof', payout_ref=payout.public_id) }}"
                     enctype="multipart/form-data"
                     id="uploadForm"
                 >
@@ -387,7 +387,7 @@ Breadcrumb ───────────────────────
             </div>
             <div class="list-group list-group-flush">
                 <a
-                    href="{{ url_for('payroll.fee_slip', payout_id=payout.id) }}"
+                    href="{{ url_for('payroll.fee_slip', payout_ref=payout.public_id) }}"
                     class="list-group-item list-group-item-action d-flex align-items-center gap-2"
                     target="_blank"
                 >
@@ -398,7 +398,7 @@ Breadcrumb ───────────────────────
                     ></i>
                 </a>
                 <a
-                    href="{{ url_for('payroll.fee_slip_pdf', payout_id=payout.id) }}"
+                    href="{{ url_for('payroll.fee_slip_pdf', payout_ref=payout.public_id) }}"
                     class="list-group-item list-group-item-action d-flex align-items-center gap-2"
                 >
                     <i class="bi bi-file-earmark-pdf text-danger"></i>

@@ -54,6 +54,12 @@ class Config:
         "BCA (Yoga Aji Sukma) - 5200540672|BNI (Yoga Aji Sukma) - 0809530111|BRI (Yoga Aji Sukma) - 185901010065501|Permata (Yoga Aji Sukma) - 4129843662",
     )
     DEFAULT_REGISTRATION_FEE = int(os.environ.get("DEFAULT_REGISTRATION_FEE", 0))
+    WHATSAPP_BOT_INTERNAL_URL = os.environ.get(
+        "WHATSAPP_BOT_INTERNAL_URL", "http://whatsapp_bot:3000"
+    )
+    WHATSAPP_EXCLUDED_GROUP_NAMES = os.environ.get(
+        "WHATSAPP_EXCLUDED_GROUP_NAMES", "VPS / RDP MURAH III"
+    )
 
 
 class DevelopmentConfig(Config):

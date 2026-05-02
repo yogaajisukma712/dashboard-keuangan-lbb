@@ -14,10 +14,10 @@
     <form method="GET" class="row g-2 align-items-end">
       <div class="col-sm-3">
         <label class="form-label muted-label mb-1">Siswa</label>
-        <select name="student_id" class="form-select form-select-sm">
+        <select name="student_ref" class="form-select form-select-sm">
           <option value="">— Semua Siswa —</option>
           {% for s in students %}
-          <option value="{{ s.id }}"{% if filters.student_id == s.id %} selected{% endif %}>{{ s.name }}</option>
+          <option value="{{ s.public_id }}"{% if filters.student_ref == s.public_id %} selected{% endif %}>{{ s.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -111,11 +111,11 @@
           <td class="text-muted small">{{ inv.created_at.strftime('%d/%m/%Y') if inv.created_at else '—' }}</td>
           <td class="text-center">
             <div class="d-flex gap-1 justify-content-center">
-              <a href="{{ url_for('quota_invoice.invoice_detail', invoice_id=inv.id) }}"
+              <a href="{{ url_for('quota_invoice.invoice_detail', invoice_ref=inv.public_id) }}"
                  class="btn btn-sm btn-outline-primary" title="Detail">
                 <i class="bi bi-eye"></i>
               </a>
-              <a href="{{ url_for('quota_invoice.invoice_print', invoice_id=inv.id) }}"
+              <a href="{{ url_for('quota_invoice.invoice_print', invoice_ref=inv.public_id) }}"
                  class="btn btn-sm btn-outline-success" title="Download PNG" target="_blank">
                 <i class="bi bi-file-earmark-image"></i>
               </a>
@@ -133,17 +133,17 @@
   <ul class="pagination pagination-sm justify-content-center">
     {% if page > 1 %}
     <li class="page-item">
-      <a class="page-link" href="?page={{ page-1 }}&student_id={{ filters.student_id or '' }}&status={{ filters.status or '' }}&billing_type={{ filters.billing_type or '' }}&month={{ filters.month or '' }}&year={{ filters.year or '' }}">←</a>
+      <a class="page-link" href="?page={{ page-1 }}&student_ref={{ filters.student_ref or '' }}&status={{ filters.status or '' }}&billing_type={{ filters.billing_type or '' }}&month={{ filters.month or '' }}&year={{ filters.year or '' }}">←</a>
     </li>
     {% endif %}
     {% for p in range(1, total_pages+1) %}
     <li class="page-item{% if p == page %} active{% endif %}">
-      <a class="page-link" href="?page={{ p }}&student_id={{ filters.student_id or '' }}&status={{ filters.status or '' }}&billing_type={{ filters.billing_type or '' }}&month={{ filters.month or '' }}&year={{ filters.year or '' }}">{{ p }}</a>
+      <a class="page-link" href="?page={{ p }}&student_ref={{ filters.student_ref or '' }}&status={{ filters.status or '' }}&billing_type={{ filters.billing_type or '' }}&month={{ filters.month or '' }}&year={{ filters.year or '' }}">{{ p }}</a>
     </li>
     {% endfor %}
     {% if page < total_pages %}
     <li class="page-item">
-      <a class="page-link" href="?page={{ page+1 }}&student_id={{ filters.student_id or '' }}&status={{ filters.status or '' }}&billing_type={{ filters.billing_type or '' }}&month={{ filters.month or '' }}&year={{ filters.year or '' }}">→</a>
+      <a class="page-link" href="?page={{ page+1 }}&student_ref={{ filters.student_ref or '' }}&status={{ filters.status or '' }}&billing_type={{ filters.billing_type or '' }}&month={{ filters.month or '' }}&year={{ filters.year or '' }}">→</a>
     </li>
     {% endif %}
   </ul>

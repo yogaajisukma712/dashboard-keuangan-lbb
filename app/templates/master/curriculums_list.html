@@ -73,7 +73,7 @@
             <td class="text-center pe-4">
               <div class="btn-group btn-group-sm" role="group">
                 <a
-                  href="{{ url_for('master.edit_curriculum', id=curriculum.id) }}"
+                  href="{{ url_for('master.edit_curriculum', curriculum_ref=curriculum.public_id) }}"
                   class="btn btn-outline-primary"
                   title="Edit Kurikulum"
                 >
@@ -126,7 +126,7 @@
                       </button>
                       <form
                         method="POST"
-                        action="{{ url_for('master.delete_curriculum', id=curriculum.id) }}"
+                        action="{{ url_for('master.delete_curriculum', curriculum_ref=curriculum.public_id) }}"
                         class="d-inline"
                       >
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />

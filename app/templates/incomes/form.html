@@ -51,7 +51,7 @@ Super Smart{% endblock %} {% block content %}
             <div class="card-body">
                 <form
                     method="POST"
-                    action="{{ url_for('incomes.edit_income', income_id=income.id) if income else url_for('incomes.add_income') }}"
+                    action="{{ url_for('incomes.edit_income', income_ref=income.public_id) if income else url_for('incomes.add_income') }}"
                     novalidate
                 >
                     {{ form.hidden_tag() }} {# ── Tanggal Pemasukan

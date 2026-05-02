@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Bulk Upload CSV — LBB Super Smart{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1">Bulk Upload CSV</h2>
+    <p class="text-muted mb-0">Import massal dari file contoh project. Urutan aman: master data -> pricing -> enrollment -> presensi -> pembayaran -> payout.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <span class="badge rounded-pill text-bg-primary">10 dataset siap upload</span>
+    <span class="badge rounded-pill text-bg-light border">CSV utf-8</span>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-xl-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pt-4 px-4">
+        <h5 class="mb-1 fw-semibold">Upload File</h5>
+        <p class="text-muted small mb-0">Pilih tipe data lalu upload CSV yang sesuai contoh.</p>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <form method="POST" enctype="multipart/form-data" class="row g-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="col-12">
+            <label for="datasetKey" class="form-label fw-semibold">Tipe Dataset</label>
+            <select class="form-select" id="datasetKey" name="dataset_key" required>
+              {% for key, meta in dataset_options.items() %}
+              <option value="{{ key }}" {% if selected_dataset == key %}selected{% endif %}>{{ meta.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label for="serviceMonth" class="form-label fw-semibold">Bulan Layanan</label>
+            <input
+              type="month"
+              class="form-control"
+              id="serviceMonth"
+              name="service_month"
+              value="{{ selected_service_month }}"
+            >
+            <div class="form-text">Wajib untuk dataset Rekap Transfer Tutor.</div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label for="csvFile" class="form-label fw-semibold">File CSV</label>
+            <input class="form-control" type="file" id="csvFile" name="csv_file" accept=".csv,text/csv" required>
+            <div class="form-text">Gunakan file CSV dari export spreadsheet.</div>
+          </div>
+
+          <div class="col-12">
+            <div class="rounded-4 border bg-light-subtle p-3">
+              <div class="small text-muted mb-1">Catatan Import</div>
+              <ul class="small mb-0 ps-3">
+                <li>Importer akan create atau update data bila memungkinkan.</li>
+                <li>Presensi dan pembayaran sebaiknya diupload setelah siswa, tutor, dan enrollment tersedia.</li>
+                <li>Payout tutor butuh bulan layanan agar line payout tidak salah periode.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="col-12 d-grid d-md-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-upload me-2"></i>Proses Import
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pt-4 px-4">
+        <h5 class="mb-1 fw-semibold">Contoh CSV Project</h5>
+        <p class="text-muted small mb-0">Download file acuan sesuai dataset.</p>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <div class="d-grid gap-3">
+          {% for key, meta in dataset_options.items() %}
+          <div class="border rounded-4 p-3">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+              <div>
+                <div class="fw-semibold">{{ meta.label }}</div>
+                <div class="small text-muted">{{ meta.description }}</div>
+                <div class="small text-muted mt-1">{{ meta.sample_file }}</div>
+              </div>
+              <a href="{{ meta.download_url }}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-download me-1"></i>Contoh
+              </a>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if import_result %}
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-white border-0 pt-4 px-4">
+    <h5 class="mb-1 fw-semibold">Hasil Import</h5>
+    <p class="text-muted small mb-0">{{ import_result.dataset_label }} • {{ import_result.rows }} baris dibaca</p>
+  </div>
+  <div class="card-body px-4 pb-4">
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-lg-3">
+        <div class="rounded-4 bg-primary-subtle p-3 h-100">
+          <div class="text-muted small">Created</div>
+          <div class="fs-4 fw-bold text-primary">{{ import_result.created }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="rounded-4 bg-success-subtle p-3 h-100">
+          <div class="text-muted small">Updated</div>
+          <div class="fs-4 fw-bold text-success">{{ import_result.updated }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="rounded-4 bg-warning-subtle p-3 h-100">
+          <div class="text-muted small">Skipped</div>
+          <div class="fs-4 fw-bold text-warning-emphasis">{{ import_result.skipped }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="rounded-4 bg-light p-3 h-100 border">
+          <div class="text-muted small">Rows</div>
+          <div class="fs-4 fw-bold">{{ import_result.rows }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-4 border bg-light-subtle p-3">
+      <div class="fw-semibold mb-2">Warnings</div>
+      {% if import_result.warnings %}
+      <ul class="small mb-0 ps-3">
+        {% for warning in import_result.warnings %}
+        <li>{{ warning }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="small text-muted mb-0">Tidak ada warning.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var datasetField = document.getElementById("datasetKey");
+    var serviceMonthField = document.getElementById("serviceMonth");
+    if (!datasetField || !serviceMonthField) return;
+
+    function syncServiceMonthRequirement() {
+      var needsServiceMonth = datasetField.value === "tutor_payouts";
+      serviceMonthField.required = needsServiceMonth;
+      serviceMonthField.closest(".col-12").classList.toggle("opacity-75", !needsServiceMonth);
+    }
+
+    datasetField.addEventListener("change", syncServiceMonthRequirement);
+    syncServiceMonthRequirement();
+  });
+</script>
+{% endblock %}

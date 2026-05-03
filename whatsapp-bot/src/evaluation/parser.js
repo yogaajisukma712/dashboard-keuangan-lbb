@@ -51,9 +51,19 @@ function parseEnglishDate(value) {
   return `${match[3]}-${String(month).padStart(2, '0')}-${String(match[2]).padStart(2, '0')}`;
 }
 
+function matchFirstLabel(body, labels) {
+  const escaped = labels.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const pattern = new RegExp(`(?:^|\\n)\\s*(?:[📅🕒📚📝🔍✅⭐️✨\\-•]*\\s*)?(?:${escaped.join('|')})\\s*[:：-]\\s*([^\\n]+)`, 'i');
+  return String(body || '').match(pattern);
+}
+
+function cleanQuotedLabelValue(value) {
+  return normalizeWhitespace(value).replace(/^[\"“”'`]+|[\"“”'`]+$/g, '');
+}
+
 function extractTutorName(body) {
   const greetingMatch = body.match(
-    /(?:Salam hangat,|Warm regards,?|Regards,?)\s*\n+([^\n]+)/i,
+    /(?:Salam hangat,|Warm regards,?|Regards,?|Best regards,?|Tutor,?|Teacher,?)\s*\n+([^\n]+)/i,
   );
   if (greetingMatch) return normalizeWhitespace(greetingMatch[1]);
 
@@ -79,17 +89,32 @@ function splitIndonesianLessonDescriptor(segment) {
 }
 
 function findTitleMatch(body) {
-  const idTitle = body.match(/laporan evaluasi untuk sesi les\s+(.+?)\s+hari ini/i);
+  const idTitle = body.match(
+    /(?:laporan\s+(?:evaluasi|hasil belajar|pembelajaran)\s+(?:untuk\s+)?(?:sesi\s+)?les|evaluasi\s+(?:sesi\s+)?les|report\s+(?:sesi\s+)?les)\s+(.+?)(?:\s+hari ini|\s*$|:)/i,
+  );
   if (idTitle) {
     return { sourceLanguage: 'id', descriptor: normalizeWhitespace(idTitle[1]) };
   }
 
-  const enTitle = body.match(/evaluation report for\s+(.+?)[’']s\s+(.+?)\s+class/i);
+  const enTitle = body.match(
+    /(?:evaluation|lesson|class|learning)\s+report\s+for\s+(.+?)[’']s\s+(.+?)\s+(?:class|lesson)/i,
+  );
   if (enTitle) {
     return {
       sourceLanguage: 'en',
       studentName: normalizeWhitespace(enTitle[1]),
       subjectName: normalizeWhitespace(enTitle[2]),
+    };
+  }
+
+  const enTitleAlt = body.match(
+    /(.+?)[’']s\s+(.+?)\s+(?:class|lesson)\s+(?:evaluation|report)/i,
+  );
+  if (enTitleAlt) {
+    return {
+      sourceLanguage: 'en',
+      studentName: normalizeWhitespace(enTitleAlt[1]),
+      subjectName: normalizeWhitespace(enTitleAlt[2]),
     };
   }
 
@@ -99,14 +124,14 @@ function findTitleMatch(body) {
 function extractEvaluationBody(body) {
   const lines = String(body || '').replace(/\r/g, '').split('\n');
   const headerIndex = lines.findIndex((line) =>
-    /(?:🔍\s*)?(?:Evaluasi|Evaluation)\s*:/i.test(line),
+    /(?:🔍\s*)?(?:Evaluasi|Evaluation|Catatan\s+Evaluasi|Hasil\s+Belajar|Lesson\s+Summary|Learning\s+Summary|Progress\s+Report)\s*:/i.test(line),
   );
   if (headerIndex === -1) return '';
 
   const chunks = [];
   const headerLine = lines[headerIndex];
   const headerContent = normalizeWhitespace(
-    headerLine.replace(/.*?(?:Evaluasi|Evaluation)\s*:/i, ''),
+    headerLine.replace(/.*?(?:Evaluasi|Evaluation|Catatan\s+Evaluasi|Hasil\s+Belajar|Lesson\s+Summary|Learning\s+Summary|Progress\s+Report)\s*:/i, ''),
   );
   if (headerContent) {
     chunks.push(headerContent);
@@ -117,8 +142,9 @@ function extractEvaluationBody(body) {
     if (!line) continue;
     if (
       /^(?:📝\s*)?Additional Notes\s*:/i.test(line) ||
+      /^(?:📝\s*)?(?:Catatan|Notes)\s*:/i.test(line) ||
       /^Terima kasih\b/i.test(line) ||
-      /^(?:Salam hangat,|Warm regards,?|Regards,?)$/i.test(line)
+      /^(?:Salam hangat,|Warm regards,?|Regards,?|Best regards,?|Tutor,?|Teacher,?)$/i.test(line)
     ) {
       break;
     }
@@ -139,21 +165,21 @@ function hasLikelyTimeRange(value) {
 function classifyEvaluationMessage(body) {
   const text = String(body || '');
   const titleMatch = findTitleMatch(text);
-  const dateMatch = text.match(/(?:Tanggal|Date)\s*:\s*([^\n]+)/i);
-  const timeMatch = text.match(/(?:Waktu|Time)\s*:\s*([^\n]+)/i);
-  const topicMatch = text.match(/(?:Topik|Focus Topic)\s*:\s*([^\n]+)/i);
+  const dateMatch = matchFirstLabel(text, ['Tanggal', 'Tgl', 'Hari/Tanggal', 'Date', 'Lesson Date', 'Class Date']);
+  const timeMatch = matchFirstLabel(text, ['Waktu', 'Jam', 'Pukul', 'Waktu Les', 'Time', 'Class Time', 'Lesson Time']);
+  const topicMatch = matchFirstLabel(text, ['Topik', 'Materi', 'Materi/Topik', 'Pembahasan', 'Focus Topic', 'Topic', 'Lesson Topic', 'Focus']);
   const evaluationBody = extractEvaluationBody(text);
   const parsedDate = dateMatch
     ? parseIndonesianDate(dateMatch[1]) || parseEnglishDate(dateMatch[1])
     : null;
   const parsedTime = timeMatch ? normalizeWhitespace(timeMatch[1]) : null;
   const parsedTopic = topicMatch
-    ? normalizeWhitespace(topicMatch[1]).replace(/^[\"“]|[\"”]$/g, '')
+    ? cleanQuotedLabelValue(topicMatch[1])
     : null;
   const hasClosingIdentity = Boolean(extractTutorName(text));
   const hasGuardianGreeting =
     /(?:good\s+(?:morning|afternoon|evening)|hello|hi)\s+mom\/dad/i.test(text) ||
-    /berikut adalah laporan evaluasi/i.test(text);
+    /(?:berikut adalah|berikut laporan|kami sampaikan).*(?:evaluasi|hasil belajar|pembelajaran)/i.test(text);
 
   const markers = {
     hasTitle: Boolean(titleMatch),
@@ -205,18 +231,18 @@ function parseEvaluationMessage(body) {
     sourceLanguage = 'en';
   }
 
-  const dateMatch = text.match(/(?:Tanggal|Date)\s*:\s*([^\n]+)/i);
+  const dateMatch = matchFirstLabel(text, ['Tanggal', 'Tgl', 'Hari/Tanggal', 'Date', 'Lesson Date', 'Class Date']);
   if (dateMatch) {
     const dateText = normalizeWhitespace(dateMatch[1]);
     reportedLessonDate = parseIndonesianDate(dateText) || parseEnglishDate(dateText);
   }
 
-  const timeMatch = text.match(/(?:Waktu|Time)\s*:\s*([^\n]+)/i);
+  const timeMatch = matchFirstLabel(text, ['Waktu', 'Jam', 'Pukul', 'Waktu Les', 'Time', 'Class Time', 'Lesson Time']);
   if (timeMatch) reportedTimeLabel = normalizeWhitespace(timeMatch[1]);
 
-  const topicMatch = text.match(/(?:Topik|Focus Topic)\s*:\s*([^\n]+)/i);
+  const topicMatch = matchFirstLabel(text, ['Topik', 'Materi', 'Materi/Topik', 'Pembahasan', 'Focus Topic', 'Topic', 'Lesson Topic', 'Focus']);
   if (topicMatch) {
-    focusTopic = normalizeWhitespace(topicMatch[1]).replace(/^[\"“]|[\"”]$/g, '');
+    focusTopic = cleanQuotedLabelValue(topicMatch[1]);
   }
 
   const summaryText = extractEvaluationBody(text);

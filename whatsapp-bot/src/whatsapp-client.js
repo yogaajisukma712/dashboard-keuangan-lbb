@@ -56,6 +56,33 @@ function serializeGroup(chat) {
   };
 }
 
+function summarizeFetchedMessages(fetchedMessages, {
+  fullSync,
+  limit,
+  relevantMessages,
+} = {}) {
+  const sentAtValues = fetchedMessages
+    .map((item) => Number(item.timestamp || 0))
+    .filter((value) => value > 0)
+    .sort((left, right) => left - right);
+  const firstTimestamp = sentAtValues.length ? sentAtValues[0] : null;
+  const lastTimestamp = sentAtValues.length ? sentAtValues[sentAtValues.length - 1] : null;
+  const limited = Number.isFinite(limit) && limit > 0;
+  return {
+    scanned_at: new Date().toISOString(),
+    scan_mode: fullSync ? 'full_sync_all_available' : 'limited_recent',
+    requested_limit: limit === Infinity ? 'all_available' : limit,
+    fetched_message_count: fetchedMessages.length,
+    relevant_message_count: relevantMessages,
+    first_fetched_message_at: firstTimestamp ? toIsoFromUnix(firstTimestamp) : null,
+    last_fetched_message_at: lastTimestamp ? toIsoFromUnix(lastTimestamp) : null,
+    possibly_truncated: limited && fetchedMessages.length >= limit,
+    coverage_note: fullSync
+      ? 'Fetched all messages currently available to WhatsApp Web for this group. WhatsApp may still hide older history not loaded on the linked device.'
+      : 'Limited scan; older messages may not be included. Run Scan Semua Pesan Group for deeper sync.',
+  };
+}
+
 function pickContactName(participant, contactProfile) {
   return (
     participant?.name ||
@@ -346,7 +373,8 @@ async function buildSyncPayloadForGroups(groupIds, limit, { fullSync = false } =
       scannedMessages,
       relevantMessages,
     });
-    groups.push(serializeGroup(chat));
+    const groupRow = serializeGroup(chat);
+    groups.push(groupRow);
 
     const participantRows = Array.isArray(chat.participants) ? chat.participants : [];
     for (const participant of participantRows) {
@@ -428,6 +456,14 @@ async function buildSyncPayloadForGroups(groupIds, limit, { fullSync = false } =
           : null,
       });
     }
+    groupRow.metadata = {
+      ...(groupRow.metadata || {}),
+      sync: summarizeFetchedMessages(fetchedMessages, {
+        fullSync,
+        limit,
+        relevantMessages: groupRelevantMessages,
+      }),
+    };
     scannedMessages += fetchedMessages.length;
     relevantMessages += groupRelevantMessages;
     updateSyncProgress(state, {

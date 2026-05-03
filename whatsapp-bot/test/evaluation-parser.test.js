@@ -75,6 +75,53 @@ Today, Ratih learned how to use “Do you” to ask about activities.`;
   assert.equal(parsed.focusTopic, 'Do you ......?');
 });
 
+test('parseEvaluationMessage accepts varied Indonesian learning report labels', () => {
+  const body = `Berikut laporan hasil belajar untuk sesi les Matematika Nadine:
+
+📅 Hari/Tanggal: 11 April 2026
+🕒 Jam: 15.00-16.00 WIB
+📚 Materi: Pecahan
+
+Hasil Belajar:
+Nadine berlatih menyederhanakan pecahan, membandingkan nilai pecahan, dan menjawab soal cerita dengan runtut. Ia mulai lebih teliti saat membaca instruksi.
+
+Best regards,
+Ms. Rani`;
+
+  const parsed = parseEvaluationMessage(body);
+
+  assert.equal(parsed.studentName, 'Nadine');
+  assert.equal(parsed.subjectName, 'Matematika');
+  assert.equal(parsed.tutorName, 'Ms. Rani');
+  assert.equal(parsed.reportedLessonDate, '2026-04-11');
+  assert.equal(parsed.reportedTimeLabel, '15.00-16.00 WIB');
+  assert.equal(parsed.focusTopic, 'Pecahan');
+});
+
+test('parseEvaluationMessage accepts English lesson report summary labels', () => {
+  const body = `Good evening parents,
+Lesson report for Bima’s English lesson:
+
+Lesson Date: April 12th 2026
+Class Time: 07.00 - 08.00 PM
+Lesson Topic: Past Tense
+
+Lesson Summary:
+Bima practiced changing regular and irregular verbs into past tense sentences. He also answered short reading questions and explained the story sequence clearly.
+
+Teacher,
+Ms. Lia`;
+
+  const parsed = parseEvaluationMessage(body);
+
+  assert.equal(parsed.studentName, 'Bima');
+  assert.equal(parsed.subjectName, 'English');
+  assert.equal(parsed.tutorName, 'Ms. Lia');
+  assert.equal(parsed.reportedLessonDate, '2026-04-12');
+  assert.equal(parsed.reportedTimeLabel, '07.00 - 08.00 PM');
+  assert.equal(parsed.focusTopic, 'Past Tense');
+});
+
 test('parseEvaluationMessage keeps Indonesian evaluation body and tutor signature on duplicated template', () => {
   const body = `📄 Berikut adalah laporan evaluasi untuk sesi les Bahasa Inggris Salsa hari ini:
 

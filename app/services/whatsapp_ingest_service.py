@@ -1132,15 +1132,53 @@ class WhatsAppIngestService:
         for group in groups:
             if is_excluded_group_name(group.name, excluded_group_names):
                 continue
+            metadata = group.metadata_json or {}
+            sync_metadata = metadata.get("sync") if isinstance(metadata, dict) else {}
+            fetched_count = int((sync_metadata or {}).get("fetched_message_count") or 0)
+            db_message_count = message_counts.get(group.id, 0)
+            sync_gap = max(0, fetched_count - db_message_count)
 
             group_payload = {
                 "group_id": group.id,
                 "whatsapp_group_id": group.whatsapp_group_id,
                 "group_name": group.name,
                 "participant_count": group.participant_count,
-                "message_count": message_counts.get(group.id, 0),
+                "message_count": db_message_count,
                 "evaluation_count": evaluation_counts.get(group.id, 0),
                 "linked_attendance_count": linked_attendance_counts.get(group.id, 0),
+                "last_synced_at": (
+                    group.last_synced_at.isoformat() if group.last_synced_at else None
+                ),
+                "sync_scan": {
+                    "scan_mode": (sync_metadata or {}).get("scan_mode"),
+                    "scanned_at": (sync_metadata or {}).get("scanned_at"),
+                    "requested_limit": (sync_metadata or {}).get("requested_limit"),
+                    "fetched_message_count": fetched_count,
+                    "db_message_count": db_message_count,
+                    "sync_gap": sync_gap,
+                    "relevant_message_count": (sync_metadata or {}).get(
+                        "relevant_message_count"
+                    ),
+                    "first_fetched_message_at": (sync_metadata or {}).get(
+                        "first_fetched_message_at"
+                    ),
+                    "last_fetched_message_at": (sync_metadata or {}).get(
+                        "last_fetched_message_at"
+                    ),
+                    "possibly_truncated": bool(
+                        (sync_metadata or {}).get("possibly_truncated")
+                    ),
+                    "coverage_note": (sync_metadata or {}).get("coverage_note"),
+                    "status": (
+                        "pending-db"
+                        if sync_gap > 0
+                        else "limited"
+                        if (sync_metadata or {}).get("possibly_truncated")
+                        else "synced"
+                        if fetched_count
+                        else "unknown"
+                    ),
+                },
                 "historical_student_names": historical_student_names_by_group_id.get(
                     group.id, []
                 ),

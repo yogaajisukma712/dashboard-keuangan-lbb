@@ -943,6 +943,33 @@
                 .join("");
             groupsTableBody.innerHTML = pagination.items
                 .map(function (group) {
+                    const syncScan = group.sync_scan || {};
+                    const syncStatus = syncScan.status || "unknown";
+                    const syncStatusLabels = {
+                        synced: "Sinkron",
+                        "pending-db": "Belum Masuk DB",
+                        limited: "Scan Terbatas",
+                        unknown: "Belum Pernah Scan",
+                    };
+                    const syncBadgeClass =
+                        syncStatus === "synced"
+                            ? "text-bg-success"
+                            : syncStatus === "pending-db"
+                                ? "text-bg-danger"
+                                : syncStatus === "limited"
+                                    ? "text-bg-warning"
+                                    : "text-bg-secondary";
+                    const syncStatusLabel = syncStatusLabels[syncStatus] || syncStatus;
+                    const fetchedCount = Number(syncScan.fetched_message_count || 0);
+                    const dbMessageCount = Number(syncScan.db_message_count || group.message_count || 0);
+                    const syncGap = Number(syncScan.sync_gap || 0);
+                    const syncRange =
+                        syncScan.first_fetched_message_at || syncScan.last_fetched_message_at
+                            ? `<div class="wa-muted-kv">Rentang: ${formatDateTime(syncScan.first_fetched_message_at)} - ${formatDateTime(syncScan.last_fetched_message_at)}</div>`
+                            : "";
+                    const syncGapText = syncGap
+                        ? `<div class="wa-muted-kv text-danger">Gap scan: ${syncGap}</div>`
+                        : "";
                     const validatedStudentBlock = group.validated_student
                         ? `
                             <div class="mb-2 p-2 rounded-3 border border-info-subtle bg-info-subtle">
@@ -998,10 +1025,15 @@
                             <td><code>${group.whatsapp_group_id || group.id || "-"}</code></td>
                             <td class="text-center">${group.participant_count || group.participantCount || 0}</td>
                             <td class="text-center">
-                                <div class="fw-semibold">${group.message_count || 0}</div>
+                                <div class="fw-semibold">${dbMessageCount}</div>
+                                <div class="wa-muted-kv">DB dari scan ${fetchedCount}</div>
                                 <div class="wa-muted-kv">
                                     Eval ${group.evaluation_count || 0} · Presensi ${group.linked_attendance_count || 0}
                                 </div>
+                                <span class="badge ${syncBadgeClass} mt-1">${syncStatusLabel}</span>
+                                <div class="wa-muted-kv">Scan: ${formatDateTime(syncScan.scanned_at || group.last_synced_at)}</div>
+                                ${syncRange}
+                                ${syncGapText}
                             </td>
                             <td>
                                 ${validatedStudentBlock}

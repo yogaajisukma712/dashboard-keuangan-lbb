@@ -59,6 +59,11 @@ def test_whatsapp_management_template_contains_qr_and_session_controls():
     assert "Pilih siswa manual" in template_text
     assert "Saran Siswa" in template_text
     assert "Pesan DB" in template_text
+    assert "DB dari scan" in template_text
+    assert "Belum Masuk DB" in template_text
+    assert "Scan Terbatas" in template_text
+    assert "Belum Pernah Scan" in template_text
+    assert "Rentang:" in template_text
     assert "renderPaginationControls" in template_text
     assert "btnPaginationPage" in template_text
     assert "Data group dibaca dari database" in template_text
@@ -76,6 +81,26 @@ def test_whatsapp_management_template_contains_qr_and_session_controls():
     assert "startWarmupPolling" in template_text
     assert 'groupsQuickSearch.addEventListener("input"' in template_text
     assert 'contactsQuickSearch.addEventListener("input"' in template_text
+
+
+def test_whatsapp_group_directory_exposes_sync_scan_metadata():
+    project_root = Path(__file__).resolve().parents[1]
+    service_text = (
+        project_root / "app" / "services" / "whatsapp_ingest_service.py"
+    ).read_text(encoding="utf-8")
+    client_text = (
+        project_root / "whatsapp-bot" / "src" / "whatsapp-client.js"
+    ).read_text(encoding="utf-8")
+
+    assert '"sync_scan"' in service_text
+    assert '"fetched_message_count"' in service_text
+    assert '"db_message_count"' in service_text
+    assert '"sync_gap"' in service_text
+    assert '"possibly_truncated"' in service_text
+    assert "summarizeFetchedMessages" in client_text
+    assert "all_available" in client_text
+    assert "coverage_note" in client_text
+    assert "possibly_truncated" in client_text
 
 
 def test_whatsapp_routes_expose_management_page_and_proxy_endpoints():

@@ -1,28 +1,34 @@
 {
-  "goal": "Document new-server backup and migration flow in GitHub README",
-  "project_id": "aplikasi-lembaga",
+  "goal": "Improve WhatsApp evaluation parser diversity and group sync coverage visibility",
+  "project_id": "billing-supersmart",
   "phase": "verification_done",
-  "current_role": "implementer",
-  "updated_at": "2026-05-03T15:56:37Z",
+  "current_role": "codex",
+  "updated_at": "2026-05-03T16:26:44Z",
   "plan": [
     {
-      "step": "Add README table of contents entry",
-      "status": "completed"
+      "step": "Broaden evaluation parser variants with TDD coverage",
+      "status": "completed",
+      "note": "Added labels: Materi, Hari/Tanggal, Jam, Hasil Belajar, Lesson Date, Class Time, Lesson Summary."
     },
     {
-      "step": "Add migration and backup instructions for provision script",
-      "status": "completed"
+      "step": "Persist per-group scan coverage metadata",
+      "status": "completed",
+      "note": "Bot sends sync summary in group metadata; Flask exposes sync_scan."
     },
     {
-      "step": "Verify README content",
-      "status": "completed"
+      "step": "Display sync status in WhatsApp group table",
+      "status": "completed",
+      "note": "Shows DB count, fetched count, scan time, range, gap/status badge."
     },
     {
-      "step": "Commit and push README update",
-      "status": "in_progress"
+      "step": "Verify tests and runtime smoke",
+      "status": "completed",
+      "note": "pytest dashboard 5 passed, npm bot tests 16 passed, containers rebuilt, bot health 200, web login browser smoke passed on port 6001."
     }
   ],
   "notes": [
-    "README now documents scripts/provision_new_server.sh, DB restore, uploads restore, and WhatsApp auth restore."
+    "Parser accepts broader Indonesian/English evaluation report variants while still requiring title/date/time/topic/evaluation markers.",
+    "Group directory now exposes sync_scan fetched vs database message counts to detect possible WhatsApp Web sync gaps.",
+    "WhatsApp Web full sync means all messages currently available to the linked Web session, not guaranteed entire historic phone archive."
   ]
 }

@@ -186,6 +186,12 @@ class WhatsAppEvaluation(db.Model):
     match_status = db.Column(db.String(32), default="pending", index=True)
     confidence_score = db.Column(db.Integer, default=0)
     notes = db.Column(db.Text)
+    manual_review_status = db.Column(
+        db.String(20), default="pending", nullable=False, index=True
+    )
+    manual_reviewed_at = db.Column(db.DateTime)
+    manual_reviewed_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    manual_review_notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

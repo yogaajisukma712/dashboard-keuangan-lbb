@@ -76,6 +76,14 @@ EXTRA_DDL = [
     # Pricing rules
     "ALTER TABLE pricing_rules ADD COLUMN IF NOT EXISTS is_active              BOOLEAN  DEFAULT TRUE",
     "ALTER TABLE pricing_rules ADD COLUMN IF NOT EXISTS default_meeting_quota  INTEGER  DEFAULT 4",
+    # TutorPayout — session exclusion list and status default fix
+    "ALTER TABLE tutor_payouts ADD COLUMN IF NOT EXISTS excluded_session_ids JSONB DEFAULT '[]'",
+    # WhatsApp evaluation manual audit marker; does not affect attendance/payroll math
+    "ALTER TABLE whatsapp_evaluations ADD COLUMN IF NOT EXISTS manual_review_status VARCHAR(20) DEFAULT 'pending' NOT NULL",
+    "ALTER TABLE whatsapp_evaluations ADD COLUMN IF NOT EXISTS manual_reviewed_at TIMESTAMP",
+    "ALTER TABLE whatsapp_evaluations ADD COLUMN IF NOT EXISTS manual_reviewed_by INTEGER REFERENCES users(id)",
+    "ALTER TABLE whatsapp_evaluations ADD COLUMN IF NOT EXISTS manual_review_notes TEXT",
+    "CREATE INDEX IF NOT EXISTS ix_whatsapp_evaluations_manual_review_status ON whatsapp_evaluations(manual_review_status)",
     # Manual subject tutor visibility overrides
     "CREATE TABLE IF NOT EXISTS subject_tutor_assignments (\n        id         SERIAL PRIMARY KEY,\n        subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,\n        tutor_id   INTEGER NOT NULL REFERENCES tutors(id) ON DELETE CASCADE,\n        status     VARCHAR(20) NOT NULL DEFAULT 'included',\n        notes      TEXT,\n        created_at TIMESTAMP DEFAULT NOW(),\n        updated_at TIMESTAMP DEFAULT NOW(),\n        CONSTRAINT uq_subject_tutor_assignments_subject_tutor UNIQUE(subject_id, tutor_id)\n    )",
 ]

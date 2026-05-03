@@ -11,6 +11,12 @@
   'scheduled': ('primary', 'bi-calendar-event',    'Terjadwal'),
   'cancelled': ('danger',  'bi-x-circle-fill',     'Batal'),
 } %}
+{% set WA_REVIEW_MAP = {
+  'valid':   ('success', 'bi-shield-check', 'Sudah benar'),
+  'invalid': ('warning', 'bi-exclamation-triangle', 'Perlu koreksi'),
+  'mixed':   ('info',    'bi-shuffle', 'Campuran'),
+  'pending': ('secondary','bi-hourglass-split', 'Belum crosscheck'),
+} %}
 
 {# ── Page Header ─────────────────────────────────────────────────────────── #}
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -250,6 +256,7 @@
             <th class="text-center">Hadir</th>
             <th class="text-end">Fee Tutor</th>
             <th class="text-center">Status</th>
+            <th class="text-center">Validasi Manual WA</th>
             <th class="text-center pe-3">Aksi</th>
           </tr>
         </thead>
@@ -257,6 +264,8 @@
           {% set offset = (sessions.page - 1) * sessions.per_page %}
           {% for s in sessions.items %}
           {% set sc, si, sl = STATUS_MAP.get(s.status, ('secondary', 'bi-circle', s.status)) %}
+          {% set wa_review = whatsapp_review_map.get(s.id) %}
+          {% set wac, wai, wal = WA_REVIEW_MAP.get((wa_review.status if wa_review else 'pending'), WA_REVIEW_MAP['pending']) %}
           <tr
             class="attendance-row"
             data-attendance-search="{{ (
@@ -269,6 +278,7 @@
               ((s.enrollment.curriculum.name if s.enrollment and s.enrollment.curriculum else '') or '') ~ ' ' ~
               ((s.enrollment.level.name if s.enrollment and s.enrollment.level else '') or '') ~ ' ' ~
               (sl or '') ~ ' ' ~
+              (wal if wa_review else '') ~ ' ' ~
               (s.status or '')
             ) | lower }}"
           >
@@ -368,6 +378,79 @@
               </span>
             </td>
 
+            {# Validasi manual WA; audit marker only, not used by billing/payroll #}
+            <td class="text-center">
+              {% if wa_review and wa_review.requires_review %}
+              <div class="d-flex flex-column align-items-center gap-1">
+                <span class="badge bg-{{ wac }}-subtle text-{{ wac }} border border-{{ wac }}-subtle">
+                  <i class="bi {{ wai }} me-1"></i>{{ wal }}
+                </span>
+                <div class="text-muted" style="font-size:.7rem">
+                  {{ wa_review.count }} evaluasi WA
+                  {% if wa_review.latest_reviewed_at %}
+                    · {{ wa_review.latest_reviewed_at.strftime('%d %b %Y %H:%M') }}
+                  {% endif %}
+                </div>
+                {% if wa_review.group_names %}
+                <div class="text-muted text-truncate" style="font-size:.7rem; max-width: 160px" title="{{ wa_review.group_names | join(', ') }}">
+                  {{ wa_review.group_names | join(', ') }}
+                </div>
+                {% endif %}
+                <div class="btn-group btn-group-sm" role="group" aria-label="Validasi manual WhatsApp">
+                  <form method="POST"
+                        action="{{ url_for('attendance.review_whatsapp_attendance',
+                                           session_ref=s.public_id,
+                                           page=request.args.get('page', 1),
+                                           enrollment_ref=selected_enrollment_ref or '',
+                                           tutor_ref=selected_tutor_ref or '',
+                                           month=selected_month or '',
+                                           year=selected_year or '',
+                                           status=selected_status or '') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="review_status" value="valid">
+                    <button type="submit" class="btn btn-outline-success btn-sm py-0 px-2" title="Tandai sudah benar">
+                      <i class="bi bi-check-lg"></i>
+                    </button>
+                  </form>
+                  <form method="POST"
+                        action="{{ url_for('attendance.review_whatsapp_attendance',
+                                           session_ref=s.public_id,
+                                           page=request.args.get('page', 1),
+                                           enrollment_ref=selected_enrollment_ref or '',
+                                           tutor_ref=selected_tutor_ref or '',
+                                           month=selected_month or '',
+                                           year=selected_year or '',
+                                           status=selected_status or '') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="review_status" value="invalid">
+                    <button type="submit" class="btn btn-outline-warning btn-sm py-0 px-2" title="Tandai perlu koreksi">
+                      <i class="bi bi-exclamation-lg"></i>
+                    </button>
+                  </form>
+                  <form method="POST"
+                        action="{{ url_for('attendance.review_whatsapp_attendance',
+                                           session_ref=s.public_id,
+                                           page=request.args.get('page', 1),
+                                           enrollment_ref=selected_enrollment_ref or '',
+                                           tutor_ref=selected_tutor_ref or '',
+                                           month=selected_month or '',
+                                           year=selected_year or '',
+                                           status=selected_status or '') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="review_status" value="pending">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-2" title="Reset validasi">
+                      <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                  </form>
+                </div>
+              </div>
+              {% elif wa_review %}
+              <span class="badge bg-light text-muted border">Sebelum Apr 2026</span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+
             {# Aksi #}
             <td class="text-center pe-3">
               <div class="d-flex gap-1 justify-content-center">
@@ -405,7 +488,7 @@
             <td class="text-end fw-bold text-success">
               Rp {{ "{:,.0f}".format(sessions.items | sum(attribute='tutor_fee_amount') | float) }}
             </td>
-            <td colspan="2" class="pe-3"></td>
+            <td colspan="3" class="pe-3"></td>
           </tr>
         </tfoot>
       </table>
@@ -503,7 +586,7 @@ if (quickAttendanceSearchInput && attendanceRows.length && attendanceTableBody) 
       quickAttendanceSearchEmptyRow.id = "quickAttendanceSearchEmptyRow";
       quickAttendanceSearchEmptyRow.className = "d-none";
       quickAttendanceSearchEmptyRow.innerHTML = `
-        <td colspan="11" class="text-center text-muted py-4">
+        <td colspan="12" class="text-center text-muted py-4">
           Tidak ada sesi di halaman ini yang cocok dengan pencarian cepat.
         </td>
       `;

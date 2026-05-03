@@ -7,7 +7,7 @@ from calendar import monthrange
 from datetime import date, datetime, timedelta
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
 from app import db
@@ -51,6 +51,8 @@ INDONESIAN_WEEKDAY_NAMES = [
     "Sabtu",
     "Minggu",
 ]
+WHATSAPP_REVIEW_START_DATE = date(2026, 4, 1)
+WHATSAPP_REVIEW_STATUSES = {"pending", "valid", "invalid"}
 
 
 def _get_session_by_ref_or_404(session_ref):
@@ -266,6 +268,96 @@ def _sync_linked_whatsapp_evaluations(session: AttendanceSession):
             evaluation.notes = f"{evaluation.notes}\n{manual_note}"
 
 
+def _whatsapp_review_requires_manual_check(session: AttendanceSession) -> bool:
+    return bool(session.session_date and session.session_date >= WHATSAPP_REVIEW_START_DATE)
+
+
+def _build_whatsapp_review_map(sessions: list[AttendanceSession]) -> dict[int, dict]:
+    session_ids = [session.id for session in sessions if session.id]
+    if not session_ids:
+        return {}
+
+    evaluations = (
+        WhatsAppEvaluation.query.options(
+            joinedload(WhatsAppEvaluation.message),
+            joinedload(WhatsAppEvaluation.group),
+        )
+        .filter(WhatsAppEvaluation.attendance_session_id.in_(session_ids))
+        .order_by(WhatsAppEvaluation.id.asc())
+        .all()
+    )
+    evaluations_by_session = {}
+    for evaluation in evaluations:
+        evaluations_by_session.setdefault(evaluation.attendance_session_id, []).append(
+            evaluation
+        )
+
+    review_map = {}
+    for session in sessions:
+        linked_evaluations = evaluations_by_session.get(session.id, [])
+        if not linked_evaluations:
+            continue
+        statuses = {
+            (evaluation.manual_review_status or "pending")
+            for evaluation in linked_evaluations
+        }
+        if "invalid" in statuses:
+            aggregate_status = "invalid"
+        elif statuses == {"valid"}:
+            aggregate_status = "valid"
+        elif len(statuses) > 1:
+            aggregate_status = "mixed"
+        else:
+            aggregate_status = "pending"
+        latest_reviewed_at = max(
+            (
+                evaluation.manual_reviewed_at
+                for evaluation in linked_evaluations
+                if evaluation.manual_reviewed_at
+            ),
+            default=None,
+        )
+        review_map[session.id] = {
+            "status": aggregate_status,
+            "count": len(linked_evaluations),
+            "requires_review": _whatsapp_review_requires_manual_check(session),
+            "latest_reviewed_at": latest_reviewed_at,
+            "group_names": sorted(
+                {
+                    evaluation.group.name
+                    for evaluation in linked_evaluations
+                    if evaluation.group and evaluation.group.name
+                }
+            ),
+        }
+    return review_map
+
+
+def _set_whatsapp_attendance_manual_review(
+    session: AttendanceSession,
+    status: str,
+    reviewer_id: int | None = None,
+    notes: str | None = None,
+) -> int:
+    if status not in WHATSAPP_REVIEW_STATUSES:
+        raise ValueError("Status validasi manual WhatsApp tidak valid.")
+    if not _whatsapp_review_requires_manual_check(session):
+        return 0
+
+    linked_evaluations = WhatsAppEvaluation.query.filter_by(
+        attendance_session_id=session.id
+    ).all()
+    reviewed_at = datetime.utcnow() if status != "pending" else None
+    normalized_notes = (notes or "").strip() or None
+    for evaluation in linked_evaluations:
+        evaluation.manual_review_status = status
+        evaluation.manual_reviewed_at = reviewed_at
+        evaluation.manual_reviewed_by = reviewer_id if status != "pending" else None
+        evaluation.manual_review_notes = normalized_notes if status != "pending" else None
+        evaluation.updated_at = datetime.utcnow()
+    return len(linked_evaluations)
+
+
 def _build_tutor_enrollment_map(enrollments: list[Enrollment]) -> dict[int, int]:
     mapping = {}
     for enrollment in enrollments:
@@ -320,6 +412,7 @@ def list_attendance():
     sessions = query.order_by(AttendanceSession.session_date.desc()).paginate(
         page=page, per_page=per_page
     )
+    whatsapp_review_map = _build_whatsapp_review_map(sessions.items)
 
     # Get enrollments and tutors for filter dropdowns
     enrollments = Enrollment.query.filter_by(status="active").all()
@@ -348,6 +441,8 @@ def list_attendance():
         selected_status=status,
         default_scan_month=month or date.today().month,
         default_scan_year=year or date.today().year,
+        whatsapp_review_map=whatsapp_review_map,
+        whatsapp_review_start_date=WHATSAPP_REVIEW_START_DATE,
     )
 
 
@@ -400,6 +495,45 @@ def scan_whatsapp_attendance():
             "success" if summary["linked_attendance"] else "info",
         )
     return redirect(url_for("attendance.list_attendance", **redirect_kwargs))
+
+
+@attendance_bp.route("/<string:session_ref>/whatsapp-review", methods=["POST"])
+@login_required
+def review_whatsapp_attendance(session_ref):
+    """Mark linked WhatsApp-scanned attendance as manually crosschecked."""
+    session = _get_session_by_ref_or_404(session_ref)
+    review_status = (request.form.get("review_status") or "").strip()
+    review_notes = request.form.get("review_notes")
+
+    try:
+        updated_count = _set_whatsapp_attendance_manual_review(
+            session,
+            review_status,
+            reviewer_id=getattr(current_user, "id", None),
+            notes=review_notes,
+        )
+        db.session.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+        return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Validasi manual WhatsApp gagal: {exc}", "danger")
+        return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
+
+    if updated_count == 0:
+        flash(
+            "Tidak ada evaluasi WhatsApp yang perlu divalidasi untuk sesi ini.",
+            "warning",
+        )
+    elif review_status == "valid":
+        flash("Presensi WhatsApp ditandai sudah benar secara manual.", "success")
+    elif review_status == "invalid":
+        flash("Presensi WhatsApp ditandai perlu koreksi manual.", "warning")
+    else:
+        flash("Status validasi manual WhatsApp direset.", "info")
+    return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
 
 
 @attendance_bp.route("/calendar", methods=["GET"])

@@ -17,7 +17,10 @@ from app.models import (
     WhatsAppMessage,
 )
 from app.routes.attendance import (
+    WHATSAPP_REVIEW_START_DATE,
     _build_attendance_list_query,
+    _build_whatsapp_review_map,
+    _set_whatsapp_attendance_manual_review,
     _sync_linked_whatsapp_evaluations,
 )
 
@@ -155,6 +158,12 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert 'name="tutor_ref"' in template_text
     assert "enr.public_id" in template_text
     assert "t.public_id" in template_text
+    assert "whatsapp_review_map" in template_text
+    assert "Validasi Manual WA" in template_text
+    assert "Sudah benar" in template_text
+    assert "Perlu koreksi" in template_text
+    assert "Belum crosscheck" in template_text
+    assert "attendance.review_whatsapp_attendance" in template_text
 
 
 def test_attendance_form_template_contains_manual_tutor_selector():
@@ -179,6 +188,135 @@ def test_attendance_routes_support_public_ref_filters_in_source():
     assert '_decode_optional_query_ref("tutor_ref", "tutor")' in route_text
     assert '"enrollment_ref": request.args.get("enrollment_ref") or ""' in route_text
     assert '"tutor_ref": request.args.get("tutor_ref") or ""' in route_text
+    assert '@attendance_bp.route("/<string:session_ref>/whatsapp-review"' in route_text
+    assert "_set_whatsapp_attendance_manual_review" in route_text
+
+
+def test_whatsapp_manual_review_marks_linked_evaluations_without_attendance_change():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        seeded = _seed_attendance_sessions()
+        group = WhatsAppGroup(whatsapp_group_id="group-review@g.us", name="Review Ratih")
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-review-1",
+            group=group,
+            author_phone_number="081234567890",
+            author_name="Tutor Pengganti",
+            sent_at=seeded["may_session"].created_at,
+            body="Evaluasi",
+        )
+        evaluation = WhatsAppEvaluation(
+            message=message,
+            group=group,
+            student_name="Ratih",
+            tutor_name="Tutor Pengganti",
+            subject_name="Bahasa Inggris",
+            attendance_date=seeded["may_session"].session_date,
+            matched_student_id=seeded["may_session"].student_id,
+            matched_tutor_id=seeded["tutor_listya"].id,
+            matched_subject_id=seeded["may_session"].subject_id,
+            matched_enrollment_id=seeded["may_session"].enrollment_id,
+            attendance_session_id=seeded["may_session"].id,
+            match_status="attendance-linked",
+        )
+        original_tutor_id = seeded["may_session"].tutor_id
+        original_status = seeded["may_session"].status
+        db.session.add_all([group, message, evaluation])
+        db.session.flush()
+
+        updated_count = _set_whatsapp_attendance_manual_review(
+            seeded["may_session"],
+            "valid",
+            reviewer_id=7,
+            notes="Sudah dicrosscheck manual",
+        )
+
+        assert updated_count == 1
+        assert evaluation.manual_review_status == "valid"
+        assert evaluation.manual_reviewed_by == 7
+        assert evaluation.manual_review_notes == "Sudah dicrosscheck manual"
+        assert evaluation.manual_reviewed_at is not None
+        assert seeded["may_session"].tutor_id == original_tutor_id
+        assert seeded["may_session"].status == original_status
+
+
+def test_whatsapp_manual_review_only_applies_from_april_2026_onward():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        seeded = _seed_attendance_sessions()
+        assert WHATSAPP_REVIEW_START_DATE == date(2026, 4, 1)
+
+        group = WhatsAppGroup(whatsapp_group_id="group-old-review@g.us", name="Old")
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-old-review",
+            group=group,
+            author_phone_number="081234567890",
+            author_name="Tutor",
+            sent_at=seeded["april_session"].created_at,
+            body="Evaluasi lama",
+        )
+        old_session = AttendanceSession(
+            enrollment_id=seeded["april_session"].enrollment_id,
+            student_id=seeded["april_session"].student_id,
+            tutor_id=seeded["april_session"].tutor_id,
+            subject_id=seeded["april_session"].subject_id,
+            session_date=date(2026, 3, 31),
+            status="attended",
+            student_present=True,
+            tutor_present=True,
+            tutor_fee_amount=80000,
+        )
+        evaluation = WhatsAppEvaluation(
+            message=message,
+            group=group,
+            student_name="Nadine",
+            attendance_date=old_session.session_date,
+            attendance_session=old_session,
+        )
+        db.session.add_all([group, message, old_session, evaluation])
+        db.session.flush()
+
+        updated_count = _set_whatsapp_attendance_manual_review(old_session, "valid")
+
+        assert updated_count == 0
+        assert evaluation.manual_review_status == "pending"
+
+
+def test_build_whatsapp_review_map_aggregates_page_sessions():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        seeded = _seed_attendance_sessions()
+        group = WhatsAppGroup(whatsapp_group_id="group-map-review@g.us", name="Map")
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-map-review",
+            group=group,
+            author_phone_number="081234567890",
+            author_name="Tutor",
+            sent_at=seeded["may_session"].created_at,
+            body="Evaluasi",
+        )
+        evaluation = WhatsAppEvaluation(
+            message=message,
+            group=group,
+            student_name="Ratih",
+            attendance_date=seeded["may_session"].session_date,
+            attendance_session_id=seeded["may_session"].id,
+            manual_review_status="invalid",
+        )
+        db.session.add_all([group, message, evaluation])
+        db.session.flush()
+
+        review_map = _build_whatsapp_review_map([seeded["may_session"]])
+
+        assert review_map[seeded["may_session"].id]["status"] == "invalid"
+        assert review_map[seeded["may_session"].id]["count"] == 1
+        assert review_map[seeded["may_session"].id]["requires_review"] is True
 
 
 def test_sync_linked_whatsapp_evaluations_follows_manual_attendance_edit():

@@ -1,34 +1,34 @@
 {
-  "goal": "Improve WhatsApp evaluation parser diversity and group sync coverage visibility",
+  "goal": "Add manual crosscheck marker for WhatsApp-scanned attendance from April 2026 onward",
   "project_id": "billing-supersmart",
   "phase": "verification_done",
   "current_role": "codex",
-  "updated_at": "2026-05-03T16:26:44Z",
+  "updated_at": "2026-05-03T16:46:06Z",
   "plan": [
     {
-      "step": "Broaden evaluation parser variants with TDD coverage",
+      "step": "Add WhatsApp evaluation manual review fields",
       "status": "completed",
-      "note": "Added labels: Materi, Hari/Tanggal, Jam, Hasil Belajar, Lesson Date, Class Time, Lesson Summary."
+      "note": "manual_review_status, reviewed_at/by, notes plus entrypoint DDL."
     },
     {
-      "step": "Persist per-group scan coverage metadata",
+      "step": "Expose review controls in attendance list",
       "status": "completed",
-      "note": "Bot sends sync summary in group metadata; Flask exposes sync_scan."
+      "note": "Per-session linked WhatsApp evaluation badge and valid/invalid/reset forms."
     },
     {
-      "step": "Display sync status in WhatsApp group table",
+      "step": "Protect calculations from review marker",
       "status": "completed",
-      "note": "Shows DB count, fetched count, scan time, range, gap/status badge."
+      "note": "Helper only updates WhatsAppEvaluation audit fields."
     },
     {
-      "step": "Verify tests and runtime smoke",
+      "step": "Verify tests and runtime schema",
       "status": "completed",
-      "note": "pytest dashboard 5 passed, npm bot tests 16 passed, containers rebuilt, bot health 200, web login browser smoke passed on port 6001."
+      "note": "35 related tests passed; runtime DB columns present; web smoke OK."
     }
   ],
   "notes": [
-    "Parser accepts broader Indonesian/English evaluation report variants while still requiring title/date/time/topic/evaluation markers.",
-    "Group directory now exposes sync_scan fetched vs database message counts to detect possible WhatsApp Web sync gaps.",
-    "WhatsApp Web full sync means all messages currently available to the linked Web session, not guaranteed entire historic phone archive."
+    "Manual validation is stored on WhatsAppEvaluation only as audit marker.",
+    "Marker applies only to linked WhatsApp attendance sessions dated 2026-04-01 onward.",
+    "Statuses pending/valid/invalid do not change AttendanceSession, billing, payroll, or scan matching."
   ]
 }

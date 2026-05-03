@@ -1061,6 +1061,9 @@ class WhatsAppIngestService:
         }
 
         for evaluation in evaluations:
+            if evaluation.match_status == "manual-unlinked":
+                summary["already_linked"] += 1
+                continue
             if evaluation.attendance_session is not None:
                 summary["already_linked"] += 1
             result = WhatsAppIngestService.refresh_evaluation_attendance_link(evaluation)

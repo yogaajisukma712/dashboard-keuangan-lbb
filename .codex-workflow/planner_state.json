@@ -1,34 +1,28 @@
 {
-  "goal": "Add manual crosscheck marker for WhatsApp-scanned attendance from April 2026 onward",
+  "goal": "Fix attendance delete when linked to WhatsApp evaluations",
   "project_id": "billing-supersmart",
   "phase": "verification_done",
   "current_role": "codex",
-  "updated_at": "2026-05-03T16:46:06Z",
+  "updated_at": "2026-05-03T17:01:04Z",
   "plan": [
     {
-      "step": "Add WhatsApp evaluation manual review fields",
+      "step": "Reproduce FK cause from route/model",
       "status": "completed",
-      "note": "manual_review_status, reviewed_at/by, notes plus entrypoint DDL."
+      "note": "delete_attendance deleted AttendanceSession while WhatsAppEvaluation FK still referenced it."
     },
     {
-      "step": "Expose review controls in attendance list",
+      "step": "Add unlink helper and scan guard",
       "status": "completed",
-      "note": "Per-session linked WhatsApp evaluation badge and valid/invalid/reset forms."
+      "note": "Set attendance_session_id null, match_status manual-unlinked, append note; scan skips manual-unlinked evaluations."
     },
     {
-      "step": "Protect calculations from review marker",
+      "step": "Verify tests and runtime",
       "status": "completed",
-      "note": "Helper only updates WhatsAppEvaluation audit fields."
-    },
-    {
-      "step": "Verify tests and runtime schema",
-      "status": "completed",
-      "note": "35 related tests passed; runtime DB columns present; web smoke OK."
+      "note": "36 related tests passed; web rebuilt; login/attendance smoke OK."
     }
   ],
   "notes": [
-    "Manual validation is stored on WhatsAppEvaluation only as audit marker.",
-    "Marker applies only to linked WhatsApp attendance sessions dated 2026-04-01 onward.",
-    "Statuses pending/valid/invalid do not change AttendanceSession, billing, payroll, or scan matching."
+    "Delete attendance now unlinks WhatsAppEvaluation.attendance_session_id before deleting AttendanceSession.",
+    "WhatsApp evaluation/chat archive is preserved; deleted attendance is not recreated by scan because match_status becomes manual-unlinked."
   ]
 }

@@ -358,6 +358,26 @@ def _set_whatsapp_attendance_manual_review(
     return len(linked_evaluations)
 
 
+def _unlink_whatsapp_evaluations_before_attendance_delete(
+    session: AttendanceSession,
+) -> int:
+    linked_evaluations = WhatsAppEvaluation.query.filter_by(
+        attendance_session_id=session.id
+    ).all()
+    manual_note = (
+        f"Presensi terkait dihapus manual pada {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}."
+    )
+    for evaluation in linked_evaluations:
+        evaluation.attendance_session_id = None
+        evaluation.match_status = "manual-unlinked"
+        if not evaluation.notes:
+            evaluation.notes = manual_note
+        elif manual_note not in evaluation.notes:
+            evaluation.notes = f"{evaluation.notes}\n{manual_note}"
+        evaluation.updated_at = datetime.utcnow()
+    return len(linked_evaluations)
+
+
 def _build_tutor_enrollment_map(enrollments: list[Enrollment]) -> dict[int, int]:
     mapping = {}
     for enrollment in enrollments:
@@ -666,9 +686,19 @@ def delete_attendance(session_ref):
     session = _get_session_by_ref_or_404(session_ref)
 
     try:
+        unlinked_count = _unlink_whatsapp_evaluations_before_attendance_delete(session)
         db.session.delete(session)
         db.session.commit()
-        flash("Presensi berhasil dihapus", "success")
+        if unlinked_count:
+            flash(
+                (
+                    "Presensi berhasil dihapus. "
+                    f"{unlinked_count} evaluasi WhatsApp tetap disimpan dan dilepas dari presensi ini."
+                ),
+                "success",
+            )
+        else:
+            flash("Presensi berhasil dihapus", "success")
     except Exception as e:
         db.session.rollback()
         flash(f"Error: {str(e)}", "danger")

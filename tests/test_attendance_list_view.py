@@ -22,6 +22,7 @@ from app.routes.attendance import (
     _build_whatsapp_review_map,
     _set_whatsapp_attendance_manual_review,
     _sync_linked_whatsapp_evaluations,
+    _unlink_whatsapp_evaluations_before_attendance_delete,
 )
 
 
@@ -190,6 +191,7 @@ def test_attendance_routes_support_public_ref_filters_in_source():
     assert '"tutor_ref": request.args.get("tutor_ref") or ""' in route_text
     assert '@attendance_bp.route("/<string:session_ref>/whatsapp-review"' in route_text
     assert "_set_whatsapp_attendance_manual_review" in route_text
+    assert "_unlink_whatsapp_evaluations_before_attendance_delete(session)" in route_text
 
 
 def test_whatsapp_manual_review_marks_linked_evaluations_without_attendance_change():
@@ -317,6 +319,50 @@ def test_build_whatsapp_review_map_aggregates_page_sessions():
         assert review_map[seeded["may_session"].id]["status"] == "invalid"
         assert review_map[seeded["may_session"].id]["count"] == 1
         assert review_map[seeded["may_session"].id]["requires_review"] is True
+
+
+def test_delete_attendance_unlinks_whatsapp_evaluations_before_session_delete():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        seeded = _seed_attendance_sessions()
+        session_id = seeded["may_session"].id
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-delete-review@g.us",
+            name="Delete Ratih",
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-delete-review",
+            group=group,
+            author_phone_number="081234567890",
+            author_name="Tutor",
+            sent_at=seeded["may_session"].created_at,
+            body="Evaluasi",
+        )
+        evaluation = WhatsAppEvaluation(
+            message=message,
+            group=group,
+            student_name="Ratih",
+            attendance_date=seeded["may_session"].session_date,
+            attendance_session_id=session_id,
+            match_status="attendance-linked",
+            notes="Linked from WhatsApp scan.",
+        )
+        db.session.add_all([group, message, evaluation])
+        db.session.flush()
+
+        unlinked_count = _unlink_whatsapp_evaluations_before_attendance_delete(
+            seeded["may_session"]
+        )
+        db.session.delete(seeded["may_session"])
+        db.session.commit()
+
+        assert unlinked_count == 1
+        assert AttendanceSession.query.get(session_id) is None
+        assert evaluation.attendance_session_id is None
+        assert evaluation.match_status == "manual-unlinked"
+        assert "Presensi terkait dihapus manual" in evaluation.notes
 
 
 def test_sync_linked_whatsapp_evaluations_follows_manual_attendance_edit():

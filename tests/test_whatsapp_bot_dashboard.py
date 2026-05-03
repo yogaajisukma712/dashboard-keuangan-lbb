@@ -30,6 +30,9 @@ def test_whatsapp_management_template_contains_qr_and_session_controls():
     assert "btnBackupSession" in template_text
     assert "btnRefreshSessionManagement" in template_text
     assert "sessionDirectoriesBody" in template_text
+    assert "sessionCurrentIdText" in template_text
+    assert "ID Session Aktif" in template_text
+    assert "ID Session" in template_text
     assert "sessionBackupsBody" in template_text
     assert "backupSession" in template_text
     assert "restoreSessionBackup" in template_text
@@ -118,6 +121,7 @@ def test_whatsapp_bot_source_exposes_session_backup_restore_endpoints():
     assert "createSessionBackup" in backup_text
     assert "restoreSessionBackup" in backup_text
     assert "listAuthSessions" in backup_text
+    assert "sessionId" in backup_text
     assert "getSessionManagementState" in client_text
 
 

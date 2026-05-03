@@ -80,8 +80,12 @@ function listAuthSessions(runtimeState = {}) {
     .filter((entry) => entry.isDirectory() && entry.name !== '_backups')
     .map((entry) => {
       const fullPath = path.join(config.authDataPath, entry.name);
+      const sessionPrefix = 'session-';
       return {
         name: entry.name,
+        sessionId: entry.name.startsWith(sessionPrefix)
+          ? entry.name.slice(sessionPrefix.length)
+          : entry.name,
         active: entry.name === `session-${config.clientId}`,
         path: fullPath,
         sizeBytes: getDirectorySize(fullPath),

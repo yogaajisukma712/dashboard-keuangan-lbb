@@ -1,29 +1,24 @@
 {
-  "goal": "Add WhatsApp session backup restore and session management UI",
+  "goal": "Show WhatsApp session ID in bot session management",
   "project_id": "aplikasi-lembaga",
   "phase": "verification_done",
   "current_role": "implementer",
-  "updated_at": "2026-05-03T11:32:21Z",
+  "updated_at": "2026-05-03T14:01:53Z",
   "plan": [
     {
-      "step": "Audit WhatsApp bot session storage and dashboard flow",
+      "step": "Expose sessionId in bot session management payload",
       "status": "completed"
     },
     {
-      "step": "Add bot auth session management backup restore endpoints",
+      "step": "Render active session ID and session table ID in dashboard",
       "status": "completed"
     },
     {
-      "step": "Add Flask proxy and dashboard controls",
-      "status": "completed"
-    },
-    {
-      "step": "Run tests rebuild and smoke endpoints",
+      "step": "Run tests rebuild and smoke",
       "status": "completed"
     }
   ],
   "notes": [
-    "Backup files are stored in WhatsApp auth volume under /app/.wwebjs_auth/_backups and are not committed to git.",
-    "Smoke created one live backup file for current session."
+    "Current session displays as session-billing-supersmart and table sessionId displays billing-supersmart."
   ]
 }

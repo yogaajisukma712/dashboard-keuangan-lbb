@@ -297,11 +297,17 @@
                 </div>
                 <div class="col-lg-3">
                     <div class="p-3 rounded-4 bg-light h-100">
+                        <div class="text-muted small mb-1">ID Session Aktif</div>
+                        <div class="fw-semibold wa-session-path" id="sessionCurrentIdText">-</div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="p-3 rounded-4 bg-light h-100">
                         <div class="text-muted small mb-1">Nomor Aktif</div>
                         <div class="fw-semibold" id="sessionActivePhoneText">-</div>
                     </div>
                 </div>
-                <div class="col-lg-6">
+                <div class="col-lg-3">
                     <div class="p-3 rounded-4 bg-light h-100">
                         <div class="text-muted small mb-1">Path Auth</div>
                         <div class="fw-semibold wa-session-path" id="sessionAuthPathText">-</div>
@@ -317,13 +323,14 @@
                                 <thead>
                                     <tr>
                                         <th>Nama</th>
+                                        <th>ID Session</th>
                                         <th>Status</th>
                                         <th class="text-end">Ukuran</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sessionDirectoriesBody">
                                     <tr>
-                                        <td colspan="3" class="text-center text-muted py-3">Belum dimuat.</td>
+                                        <td colspan="4" class="text-center text-muted py-3">Belum dimuat.</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -533,6 +540,7 @@
         const btnRefreshSessionManagement = document.getElementById("btnRefreshSessionManagement");
         const btnBackupSession = document.getElementById("btnBackupSession");
         const sessionClientIdText = document.getElementById("sessionClientIdText");
+        const sessionCurrentIdText = document.getElementById("sessionCurrentIdText");
         const sessionActivePhoneText = document.getElementById("sessionActivePhoneText");
         const sessionAuthPathText = document.getElementById("sessionAuthPathText");
         const sessionDirectoriesBody = document.getElementById("sessionDirectoriesBody");
@@ -755,6 +763,7 @@
             const safeManagement = management || {};
             const runtime = safeManagement.runtime || {};
             sessionClientIdText.textContent = safeManagement.clientId || "-";
+            sessionCurrentIdText.textContent = safeManagement.currentSessionName || "-";
             sessionActivePhoneText.textContent =
                 (runtime.me && (runtime.me.phone_number || runtime.me.wid || runtime.me.pushname)) || "-";
             sessionAuthPathText.textContent = safeManagement.authDataPath || "-";
@@ -762,16 +771,18 @@
             const sessions = Array.isArray(safeManagement.sessions) ? safeManagement.sessions : [];
             if (!sessions.length) {
                 sessionDirectoriesBody.innerHTML =
-                    '<tr><td colspan="3" class="text-center text-muted py-3">Belum ada folder session.</td></tr>';
+                    '<tr><td colspan="4" class="text-center text-muted py-3">Belum ada folder session.</td></tr>';
             } else {
                 sessionDirectoriesBody.innerHTML = sessions
                     .map(function (item) {
+                        const sessionId = item.sessionId || item.name || "-";
                         return `
                             <tr>
                                 <td>
                                     <div class="fw-semibold">${item.name || "-"}</div>
                                     <div class="wa-muted-kv">${formatDateTime(item.updatedAt)}</div>
                                 </td>
+                                <td><code>${sessionId}</code></td>
                                 <td>
                                     <span class="badge ${item.active ? "text-bg-success" : "text-bg-secondary"}">
                                         ${item.active ? "Aktif" : "Tersimpan"}

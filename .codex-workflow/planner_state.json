@@ -1,26 +1,29 @@
 {
-  "goal": "Make GitHub sync and portable workspace state explicit for Hermes and context-mode",
+  "goal": "Add max rows per page controls to large paginated tables",
   "project_id": "aplikasi-lembaga",
   "phase": "verification_done",
   "current_role": "implementer",
-  "updated_at": "2026-05-02T13:48:38Z",
+  "updated_at": "2026-05-03T10:31:19Z",
   "plan": [
     {
-      "step": "Audit where Hermes and context-mode store state",
+      "step": "Inventory server-side and client-side paginated tables",
       "status": "completed"
     },
     {
-      "step": "Add repo-side sync script, version counter, and restore docs",
+      "step": "Add reusable per-page helper and UI component",
       "status": "completed"
     },
     {
-      "step": "Verify safe export mode and record policy",
+      "step": "Wire controls into large table routes/templates including WhatsApp tables",
+      "status": "completed"
+    },
+    {
+      "step": "Run targeted tests and source checks",
       "status": "completed"
     }
   ],
   "notes": [
-    "Repo now tracks Hermes project-local state via .codex-workflow planner/task memory files.",
-    "Repo now includes a versioned sync script and project-safe context snapshot export.",
-    "Full raw context-mode backup is available only as an explicit flag because home-level DB files may include other projects."
+    "Implemented per-page selector on large server-side tables and WhatsApp client-side group/contact tables.",
+    "Web container rebuilt after change because source is copied into image, not bind-mounted."
   ]
 }

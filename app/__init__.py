@@ -7,6 +7,7 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFError, CSRFProtect
+from markupsafe import Markup, escape
 
 from config import config
 
@@ -49,8 +50,22 @@ def create_app(config_name=None):
     if "whatsapp_api.sync" in app.view_functions:
         csrf.exempt(app.view_functions["whatsapp_api.sync"])
 
+    # Exempt data_manager write/API endpoints (JSON only, protected by login_required)
+    _dm_exempt = [
+        "data_manager.delete_row",
+        "data_manager.update_row",
+        "data_manager.insert_row",
+        "data_manager.restore_sql",
+    ]
+    for _vf in _dm_exempt:
+        if _vf in app.view_functions:
+            csrf.exempt(app.view_functions[_vf])
+
     # Register context processors
     register_context_processors(app)
+
+    # Register template filters
+    register_template_filters(app)
 
     # Register response hooks
     register_response_hooks(app)
@@ -105,6 +120,16 @@ def create_app(config_name=None):
     return app
 
 
+def register_template_filters(app):
+    """Register small presentation helpers used by templates."""
+
+    @app.template_filter("nl2br")
+    def nl2br(value):
+        if value is None:
+            return ""
+        return Markup("<br>".join(str(escape(value)).splitlines()))
+
+
 def register_blueprints(app):
     """Register all blueprints"""
     from app.routes import (
@@ -112,6 +137,7 @@ def register_blueprints(app):
         auth_bp,
         closings_bp,
         dashboard_bp,
+        data_manager_bp,
         enrollments_bp,
         expenses_bp,
         incomes_bp,
@@ -119,12 +145,13 @@ def register_blueprints(app):
         payments_bp,
         payroll_bp,
         reports_bp,
-        whatsapp_bp,
         whatsapp_bot_bp,
+        whatsapp_bp,
     )
     from app.routes.quota_invoice import quota_invoice_bp
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(data_manager_bp)
     app.register_blueprint(master_bp)
     app.register_blueprint(enrollments_bp)
     app.register_blueprint(attendance_bp)
@@ -143,13 +170,22 @@ def register_blueprints(app):
 def register_context_processors(app):
     """Register context processors for templates"""
 
-    from app.utils import get_branding_logo_data_uri, get_branding_logo_mark_data_uri
+    from app.utils import (
+        DEFAULT_PER_PAGE,
+        PER_PAGE_OPTIONS,
+        get_branding_logo_data_uri,
+        get_branding_logo_mark_data_uri,
+        pagination_url,
+    )
 
     @app.context_processor
     def inject_config():
         return {
             "app_name": "Dashboard Keuangan LBB Super Smart",
             "pagination_per_page": app.config["PAGINATION_PER_PAGE"],
+            "per_page_options": PER_PAGE_OPTIONS,
+            "default_per_page": DEFAULT_PER_PAGE,
+            "pagination_url": pagination_url,
             "branding_logo_data_uri": get_branding_logo_data_uri(),
             "branding_logo_mark_data_uri": get_branding_logo_mark_data_uri(),
         }

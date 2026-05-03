@@ -1,0 +1,22 @@
+{% set selected_per_page = pagination.per_page if pagination is defined and pagination else per_page|default(default_per_page) %}
+<form method="get" class="d-flex align-items-center gap-2 mb-0">
+  {% for key, values in request.args.lists() %}
+    {% if key not in ["page", "per_page"] %}
+      {% for value in values %}
+      <input type="hidden" name="{{ key }}" value="{{ value }}">
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+  <label class="text-muted small mb-0" for="{{ per_page_select_id|default('per-page-select') }}">Baris</label>
+  <select
+    id="{{ per_page_select_id|default('per-page-select') }}"
+    name="per_page"
+    class="form-select form-select-sm w-auto"
+    onchange="this.form.submit()"
+    aria-label="Jumlah baris per halaman"
+  >
+    {% for option in per_page_options %}
+    <option value="{{ option }}"{% if option == selected_per_page %} selected{% endif %}>{{ option }}</option>
+    {% endfor %}
+  </select>
+</form>

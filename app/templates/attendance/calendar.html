@@ -21,13 +21,13 @@
   </div>
   <div class="d-flex flex-wrap gap-2">
     <a
-      href="{{ url_for('attendance.calendar_view', month=calendar_data.previous_month, year=calendar_data.previous_year, tutor_id=selected_tutor_id or '') }}"
+      href="{{ url_for('attendance.calendar_view', month=calendar_data.previous_month, year=calendar_data.previous_year, tutor_ref=selected_tutor_ref or '') }}"
       class="btn btn-outline-secondary btn-sm"
     >
       <i class="bi bi-chevron-left me-1"></i>Bulan Sebelumnya
     </a>
     <a
-      href="{{ url_for('attendance.calendar_view', month=calendar_data.next_month, year=calendar_data.next_year, tutor_id=selected_tutor_id or '') }}"
+      href="{{ url_for('attendance.calendar_view', month=calendar_data.next_month, year=calendar_data.next_year, tutor_ref=selected_tutor_ref or '') }}"
       class="btn btn-outline-secondary btn-sm"
     >
       Bulan Berikutnya<i class="bi bi-chevron-right ms-1"></i>
@@ -61,11 +61,11 @@
         />
       </div>
       <div class="col-md-5 col-lg-4">
-        <label for="tutor_id" class="form-label fw-semibold small">Filter Tutor</label>
-        <select id="tutor_id" name="tutor_id" class="form-select">
+        <label for="tutor_ref" class="form-label fw-semibold small">Filter Tutor</label>
+        <select id="tutor_ref" name="tutor_ref" class="form-select">
           <option value="">Semua Tutor</option>
           {% for tutor in tutors %}
-          <option value="{{ tutor.id }}" {% if selected_tutor_id == tutor.id %}selected{% endif %}>
+          <option value="{{ tutor.public_id }}" {% if selected_tutor_ref == tutor.public_id %}selected{% endif %}>
             {{ tutor.name }}
           </option>
           {% endfor %}

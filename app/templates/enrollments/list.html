@@ -192,18 +192,20 @@
     </div>
 
     {# ── Pagination ─────────────────────────────────────────────────────── #}
-    {% if enrollments.pages > 1 %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
       <small class="text-muted">
         Menampilkan {{ enrollments.first }} – {{ enrollments.last }}
         dari {{ enrollments.total }} enrollment
       </small>
+      {% with pagination=enrollments, per_page_select_id="enrollments-per-page" %}
+        {% include "components/per_page_select.html" %}
+      {% endwith %}
+      {% if enrollments.pages > 1 %}
       <nav>
         <ul class="pagination pagination-sm mb-0">
           <li class="page-item {% if not enrollments.has_prev %}disabled{% endif %}">
             <a class="page-link"
-               href="{{ url_for('enrollments.list_enrollments', page=enrollments.prev_num,
-                                q=request.args.get('q',''), status=request.args.get('status','')) }}">
+               href="{{ pagination_url(enrollments.prev_num) }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -211,8 +213,7 @@
             {% if p %}
             <li class="page-item {% if p == enrollments.page %}active{% endif %}">
               <a class="page-link"
-                 href="{{ url_for('enrollments.list_enrollments', page=p,
-                                  q=request.args.get('q',''), status=request.args.get('status','')) }}">
+                 href="{{ pagination_url(p) }}">
                 {{ p }}
               </a>
             </li>
@@ -222,15 +223,14 @@
           {% endfor %}
           <li class="page-item {% if not enrollments.has_next %}disabled{% endif %}">
             <a class="page-link"
-               href="{{ url_for('enrollments.list_enrollments', page=enrollments.next_num,
-                                q=request.args.get('q',''), status=request.args.get('status','')) }}">
+               href="{{ pagination_url(enrollments.next_num) }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>
         </ul>
       </nav>
+      {% endif %}
     </div>
-    {% endif %}
 
     {% else %}
     {# ── Empty State ────────────────────────────────────────────────────── #}

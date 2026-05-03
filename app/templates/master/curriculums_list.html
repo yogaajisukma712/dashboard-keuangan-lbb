@@ -147,19 +147,22 @@
     </div>
 
     {# Footer tabel: total + pagination #}
-    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-top">
+    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-top flex-wrap gap-2">
       <div class="text-muted small">
         Menampilkan <strong>{{ curriculums.items | length }}</strong> dari
         <strong>{{ curriculums.total }}</strong> kurikulum
         (Halaman {{ curriculums.page }} / {{ curriculums.pages }})
       </div>
+      {% with pagination=curriculums, per_page_select_id="curriculums-per-page" %}
+        {% include "components/per_page_select.html" %}
+      {% endwith %}
       {% if curriculums.pages > 1 %}
       <nav aria-label="Navigasi halaman kurikulum">
         <ul class="pagination pagination-sm mb-0">
           <li class="page-item {% if not curriculums.has_prev %}disabled{% endif %}">
             <a
               class="page-link"
-              href="{{ url_for('master.curriculums_list', page=curriculums.prev_num) if curriculums.has_prev else '#' }}"
+              href="{{ pagination_url(curriculums.prev_num) if curriculums.has_prev else '#' }}"
               aria-label="Sebelumnya"
             >
               <i class="bi bi-chevron-left"></i>
@@ -171,7 +174,7 @@
               <li class="page-item {% if page_num == curriculums.page %}active{% endif %}">
                 <a
                   class="page-link"
-                  href="{{ url_for('master.curriculums_list', page=page_num) }}"
+                  href="{{ pagination_url(page_num) }}"
                 >{{ page_num }}</a>
               </li>
             {% else %}
@@ -184,7 +187,7 @@
           <li class="page-item {% if not curriculums.has_next %}disabled{% endif %}">
             <a
               class="page-link"
-              href="{{ url_for('master.curriculums_list', page=curriculums.next_num) if curriculums.has_next else '#' }}"
+              href="{{ pagination_url(curriculums.next_num) if curriculums.has_next else '#' }}"
               aria-label="Berikutnya"
             >
               <i class="bi bi-chevron-right"></i>

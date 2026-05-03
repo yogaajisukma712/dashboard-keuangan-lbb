@@ -68,11 +68,11 @@
         <label class="form-label small fw-semibold mb-1">
           <i class="bi bi-journals me-1 text-primary"></i>Enrollment (Siswa-Mapel)
         </label>
-        <select name="enrollment_id" class="form-select form-select-sm">
+        <select name="enrollment_ref" class="form-select form-select-sm">
           <option value="">— Semua Enrollment —</option>
           {% for enr in enrollments %}
-          <option value="{{ enr.id }}"
-                  {% if selected_enrollment_id == enr.id %}selected{% endif %}>
+          <option value="{{ enr.public_id }}"
+                  {% if selected_enrollment_ref == enr.public_id %}selected{% endif %}>
             {{ enr.student.name }} – {{ enr.subject.name }}
             {% if enr.tutor %}({{ enr.tutor.name }}){% endif %}
           </option>
@@ -85,11 +85,11 @@
         <label class="form-label small fw-semibold mb-1">
           <i class="bi bi-person-badge me-1 text-success"></i>Tutor
         </label>
-        <select name="tutor_id" class="form-select form-select-sm">
+        <select name="tutor_ref" class="form-select form-select-sm">
           <option value="">— Semua Tutor —</option>
           {% for t in tutors %}
-          <option value="{{ t.id }}"
-                  {% if selected_tutor_id == t.id %}selected{% endif %}>
+          <option value="{{ t.public_id }}"
+                  {% if selected_tutor_ref == t.public_id %}selected{% endif %}>
             {{ t.name }}
           </option>
           {% endfor %}
@@ -183,8 +183,8 @@
             id="scanWhatsappAttendanceForm"
             class="row g-2 align-items-end">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="enrollment_id" value="{{ selected_enrollment_id or '' }}">
-        <input type="hidden" name="tutor_id" value="{{ selected_tutor_id or '' }}">
+        <input type="hidden" name="enrollment_ref" value="{{ selected_enrollment_ref or '' }}">
+        <input type="hidden" name="tutor_ref" value="{{ selected_tutor_ref or '' }}">
         <input type="hidden" name="status" value="{{ selected_status or '' }}">
         <div class="col-6 col-md-auto">
           <label class="form-label small fw-semibold mb-1">Bulan Scan</label>
@@ -374,8 +374,8 @@
                 <a href="{{ url_for('attendance.edit_attendance',
                                     session_ref=s.public_id,
                                     page=request.args.get('page', 1),
-                                    enrollment_id=selected_enrollment_id or '',
-                                    tutor_id=selected_tutor_id or '',
+                                    enrollment_ref=selected_enrollment_ref or '',
+                                    tutor_ref=selected_tutor_ref or '',
                                     month=selected_month or '',
                                     year=selected_year or '',
                                     status=selected_status or '') }}"
@@ -412,23 +412,20 @@
     </div>
 
     {# ── Pagination ───────────────────────────────────────────────────────── #}
-    {% if sessions.pages > 1 %}
     <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
       <small class="text-muted">
         Menampilkan sesi {{ sessions.first }}–{{ sessions.last }}
         dari {{ sessions.total }}
       </small>
+      {% with pagination=sessions, per_page_select_id="attendance-per-page" %}
+        {% include "components/per_page_select.html" %}
+      {% endwith %}
+      {% if sessions.pages > 1 %}
       <nav>
         <ul class="pagination pagination-sm mb-0">
           <li class="page-item {% if not sessions.has_prev %}disabled{% endif %}">
             <a class="page-link"
-               href="{{ url_for('attendance.list_attendance',
-                                page=sessions.prev_num,
-                                enrollment_id=selected_enrollment_id or '',
-                                tutor_id=selected_tutor_id or '',
-                                month=selected_month or '',
-                                year=selected_year or '',
-                                status=selected_status or '') }}">
+               href="{{ pagination_url(sessions.prev_num) }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -436,13 +433,7 @@
             {% if p %}
             <li class="page-item {% if p == sessions.page %}active{% endif %}">
               <a class="page-link"
-                 href="{{ url_for('attendance.list_attendance',
-                                  page=p,
-                                  enrollment_id=selected_enrollment_id or '',
-                                  tutor_id=selected_tutor_id or '',
-                                  month=selected_month or '',
-                                  year=selected_year or '',
-                                  status=selected_status or '') }}">
+                 href="{{ pagination_url(p) }}">
                 {{ p }}
               </a>
             </li>
@@ -452,34 +443,28 @@
           {% endfor %}
           <li class="page-item {% if not sessions.has_next %}disabled{% endif %}">
             <a class="page-link"
-               href="{{ url_for('attendance.list_attendance',
-                                page=sessions.next_num,
-                                enrollment_id=selected_enrollment_id or '',
-                                tutor_id=selected_tutor_id or '',
-                                month=selected_month or '',
-                                year=selected_year or '',
-                                status=selected_status or '') }}">
+               href="{{ pagination_url(sessions.next_num) }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>
         </ul>
       </nav>
+      {% endif %}
     </div>
-    {% endif %}
 
     {% else %}
     {# ── Empty State ─────────────────────────────────────────────────────── #}
     <div class="text-center py-5 text-muted">
       <i class="bi bi-calendar2-x fs-1 d-block mb-2 opacity-25"></i>
       <p class="mb-1">
-        {% if selected_enrollment_id or selected_tutor_id or selected_month or selected_year or selected_status %}
+        {% if selected_enrollment_ref or selected_tutor_ref or selected_month or selected_year or selected_status %}
           Tidak ada sesi yang cocok dengan filter yang dipilih.
         {% else %}
           Belum ada sesi presensi yang tercatat.
         {% endif %}
       </p>
       <div class="d-flex gap-2 justify-content-center mt-3">
-        {% if selected_enrollment_id or selected_tutor_id or selected_month or selected_year or selected_status %}
+        {% if selected_enrollment_ref or selected_tutor_ref or selected_month or selected_year or selected_status %}
         <a href="{{ url_for('attendance.list_attendance') }}" class="btn btn-outline-secondary btn-sm">
           <i class="bi bi-x-lg me-1"></i>Reset Filter
         </a>

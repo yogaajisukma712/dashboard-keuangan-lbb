@@ -9,7 +9,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.forms import ExpenseForm
 from app.models import Expense
-from app.utils import decode_public_id
+from app.utils import decode_public_id, get_per_page
 
 expenses_bp = Blueprint("expenses", __name__, url_prefix="/expenses")
 
@@ -29,8 +29,9 @@ def _get_expense_by_ref_or_404(expense_ref):
 def list_expenses():
     """List all expenses"""
     page = request.args.get("page", 1, type=int)
+    per_page = get_per_page()
     expenses = Expense.query.order_by(Expense.expense_date.desc()).paginate(
-        page=page, per_page=20
+        page=page, per_page=per_page
     )
     return render_template("expenses/list.html", expenses=expenses)
 

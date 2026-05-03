@@ -634,6 +634,15 @@
                 <i class="bi bi-person-workspace"></i> Laporan Tutor
             </a>
 
+            <!-- ── Database ── -->
+            <div class="sidebar-section">Database</div>
+            <a
+                href="/data-manager/"
+                class="sidebar-link {% if 'data-manager' in request.path %}active{% endif %}"
+            >
+                <i class="bi bi-database-fill-gear"></i> Struktur Data
+            </a>
+
             <div style="height: 2rem"></div>
         </nav>
         {% endif %}
@@ -700,6 +709,21 @@
                     }
                 });
             })();
+        </script>
+
+        <script>
+            /* ── Scroll sidebar ke link aktif agar tidak terpotong di layar pendek ── */
+            document.addEventListener("DOMContentLoaded", function () {
+                var activeLink = document.querySelector(
+                    "#sidebar .sidebar-link.active",
+                );
+                if (activeLink) {
+                    activeLink.scrollIntoView({
+                        block: "center",
+                        behavior: "smooth",
+                    });
+                }
+            });
         </script>
 
         {% block scripts %}{% endblock %}

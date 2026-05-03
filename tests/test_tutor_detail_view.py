@@ -45,3 +45,4 @@ def test_tutor_detail_template_does_not_use_textual_order_by():
     assert "Mapel yang Diajarkan" in template_text
     assert "Enrollment aktif" in template_text
     assert "url_for('master.subject_detail', subject_ref=item.subject_ref)" in template_text
+    assert "url_for('attendance.calendar_view', tutor_ref=tutor.public_id)" in template_text

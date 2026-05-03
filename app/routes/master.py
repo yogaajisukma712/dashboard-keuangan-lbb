@@ -26,6 +26,7 @@ from app.forms import (
     PricingRuleForm,
     StudentForm,
     SubjectForm,
+    SubjectTutorAssignmentForm,
     TutorForm,
 )
 from app.models import (
@@ -36,13 +37,14 @@ from app.models import (
     PricingRule,
     Student,
     Subject,
+    SubjectTutorAssignment,
     Tutor,
     TutorPayout,
     User,
     WhatsAppTutorValidation,
 )
 from app.services import BulkImportService, DATASET_DEFINITIONS
-from app.utils import admin_required, decode_public_id
+from app.utils import admin_required, decode_public_id, get_per_page
 
 master_bp = Blueprint("master", __name__, url_prefix="/master")
 
@@ -234,36 +236,30 @@ def _build_subject_tutor_summary(subject_id: int):
         .filter(Enrollment.subject_id == subject_id)
         .all()
     )
+    active_enrollment_counts = {}
     for enrollment in enrollments:
         tutor = enrollment.tutor
         if tutor is None:
             continue
-        item = summary.setdefault(
-            tutor.id,
-            {
-                "tutor_id": tutor.id,
-                "tutor_name": tutor.name,
-                "tutor_ref": tutor.public_id,
-                "tutor_code": tutor.tutor_code,
-                "active_enrollment_count": 0,
-                "attendance_count": 0,
-                "latest_attendance_date": None,
-            },
-        )
+        active_enrollment_counts.setdefault(tutor.id, 0)
         if enrollment.status == "active" and enrollment.is_active:
-            item["active_enrollment_count"] += 1
+            active_enrollment_counts[tutor.id] += 1
 
     attendance_sessions = (
         AttendanceSession.query.join(AttendanceSession.enrollment)
         .filter(
-            or_(
-                AttendanceSession.subject_id == subject_id,
-                Enrollment.subject_id == subject_id,
-            )
+            Enrollment.subject_id == subject_id,
         )
         .all()
     )
     for session in attendance_sessions:
+        enrollment = session.enrollment
+        session_subject_id = session.subject_id
+        enrollment_subject_id = enrollment.subject_id if enrollment else None
+        if session_subject_id and session_subject_id != subject_id:
+            continue
+        if enrollment_subject_id != subject_id:
+            continue
         tutor = session.tutor or (session.enrollment.tutor if session.enrollment else None)
         if tutor is None:
             continue
@@ -274,15 +270,56 @@ def _build_subject_tutor_summary(subject_id: int):
                 "tutor_name": tutor.name,
                 "tutor_ref": tutor.public_id,
                 "tutor_code": tutor.tutor_code,
-                "active_enrollment_count": 0,
+                "active_enrollment_count": active_enrollment_counts.get(tutor.id, 0),
                 "attendance_count": 0,
                 "latest_attendance_date": None,
+                "manual_override": False,
+                "manual_source_label": "",
             },
         )
+        item["active_enrollment_count"] = active_enrollment_counts.get(tutor.id, 0)
         item["attendance_count"] += 1
         latest_attendance_date = item["latest_attendance_date"]
         if latest_attendance_date is None or session.session_date > latest_attendance_date:
             item["latest_attendance_date"] = session.session_date
+
+    manual_assignments = (
+        SubjectTutorAssignment.query.join(Tutor, SubjectTutorAssignment.tutor_id == Tutor.id)
+        .filter(SubjectTutorAssignment.subject_id == subject_id)
+        .all()
+    )
+    for assignment in manual_assignments:
+        tutor = assignment.tutor
+        if tutor is None:
+            continue
+        if assignment.status == "excluded":
+            summary.pop(tutor.id, None)
+            continue
+        item = summary.setdefault(
+            tutor.id,
+            {
+                "tutor_id": tutor.id,
+                "tutor_name": tutor.name,
+                "tutor_ref": tutor.public_id,
+                "tutor_code": tutor.tutor_code,
+                "active_enrollment_count": active_enrollment_counts.get(tutor.id, 0),
+                "attendance_count": 0,
+                "latest_attendance_date": None,
+                "manual_override": True,
+                "manual_source_label": (
+                    "Scan Presensi/Enrollment"
+                    if (assignment.notes or "").startswith("Auto-scanned")
+                    else "Manual"
+                ),
+            },
+        )
+        item["manual_override"] = True
+        item["manual_source_label"] = (
+            "Scan Presensi/Enrollment"
+            if (assignment.notes or "").startswith("Auto-scanned")
+            else "Manual"
+        )
+        item["active_enrollment_count"] = active_enrollment_counts.get(tutor.id, 0)
 
     return sorted(
         summary.values(),
@@ -292,6 +329,61 @@ def _build_subject_tutor_summary(subject_id: int):
             item["tutor_name"].lower(),
         ),
     )
+
+
+def _scan_subject_tutors_from_attendance_and_enrollment(subject_id: int):
+    """Persist current subject tutors discovered from attendance and enrollments."""
+    tutor_ids = set()
+
+    active_enrollments = Enrollment.query.filter(
+        Enrollment.subject_id == subject_id,
+        Enrollment.status == "active",
+        Enrollment.is_active.is_(True),
+        Enrollment.tutor_id.isnot(None),
+    ).all()
+    for enrollment in active_enrollments:
+        tutor_ids.add(enrollment.tutor_id)
+
+    attendance_sessions = (
+        AttendanceSession.query.join(AttendanceSession.enrollment)
+        .filter(Enrollment.subject_id == subject_id)
+        .all()
+    )
+    for session in attendance_sessions:
+        enrollment = session.enrollment
+        session_subject_id = session.subject_id
+        enrollment_subject_id = enrollment.subject_id if enrollment else None
+        if session_subject_id and session_subject_id != subject_id:
+            continue
+        if enrollment_subject_id != subject_id:
+            continue
+        tutor_id = session.tutor_id or (enrollment.tutor_id if enrollment else None)
+        if tutor_id:
+            tutor_ids.add(tutor_id)
+
+    created = 0
+    updated = 0
+    for tutor_id in tutor_ids:
+        assignment = SubjectTutorAssignment.query.filter_by(
+            subject_id=subject_id,
+            tutor_id=tutor_id,
+        ).first()
+        if assignment:
+            assignment.status = "included"
+            assignment.notes = "Auto-scanned from attendance/enrollment."
+            updated += 1
+        else:
+            db.session.add(
+                SubjectTutorAssignment(
+                    subject_id=subject_id,
+                    tutor_id=tutor_id,
+                    status="included",
+                    notes="Auto-scanned from attendance/enrollment.",
+                )
+            )
+            created += 1
+
+    return {"created": created, "updated": updated, "found": len(tutor_ids)}
 
 
 def _get_bulk_template_map():
@@ -314,6 +406,7 @@ def students_list():
     from app.routes.quota_invoice import _first_of_month, _get_student_quota_alert_map
 
     page = request.args.get("page", 1, type=int)
+    per_page = get_per_page()
     search = request.args.get("search", "", type=str)
     active_state = request.args.get("active_state", "", type=str).strip().lower()
 
@@ -333,7 +426,7 @@ def students_list():
     elif active_state == "inactive":
         query = query.filter(Student.is_active.is_(False))
 
-    students = query.paginate(page=page, per_page=20)
+    students = query.paginate(page=page, per_page=per_page)
     today = date.today()
     service_month = _first_of_month(today.year, today.month)
     quota_alert_map = _get_student_quota_alert_map(
@@ -575,6 +668,7 @@ def student_detail(student_ref):
 def tutors_list():
     """List all tutors"""
     page = request.args.get("page", 1, type=int)
+    per_page = get_per_page()
     search = request.args.get("search", "", type=str)
 
     query = Tutor.query
@@ -588,7 +682,7 @@ def tutors_list():
             )
         )
 
-    tutors = query.paginate(page=page, per_page=20)
+    tutors = query.paginate(page=page, per_page=per_page)
 
     return render_template("master/tutors_list.html", tutors=tutors, search=search)
 
@@ -725,7 +819,8 @@ def tutor_detail(tutor_ref):
 def subjects_list():
     """List all subjects"""
     page = request.args.get("page", 1, type=int)
-    subjects = Subject.query.paginate(page=page, per_page=20)
+    per_page = get_per_page()
+    subjects = Subject.query.paginate(page=page, per_page=per_page)
 
     return render_template("master/subjects_list.html", subjects=subjects)
 
@@ -735,6 +830,7 @@ def subjects_list():
 def subject_detail(subject_ref):
     """View subject detail"""
     subject = _get_subject_by_ref_or_404(subject_ref)
+    tutor_assignment_form = SubjectTutorAssignmentForm()
     enrollments = (
         subject.enrollments.join(Student, Enrollment.student_id == Student.id)
         .join(Tutor, Enrollment.tutor_id == Tutor.id)
@@ -748,7 +844,83 @@ def subject_detail(subject_ref):
         subject=subject,
         enrollments=enrollments,
         tutor_summary=tutor_summary,
+        tutor_assignment_form=tutor_assignment_form,
     )
+
+
+@master_bp.route("/subjects/<string:subject_ref>/tutors/scan", methods=["POST"])
+@login_required
+@admin_required
+def scan_subject_tutors(subject_ref):
+    """Refresh subject tutor assignments from attendance and active enrollments."""
+    subject = _get_subject_by_ref_or_404(subject_ref)
+    result = _scan_subject_tutors_from_attendance_and_enrollment(subject.id)
+    db.session.commit()
+    flash(
+        (
+            f"Scan tutor mapel {subject.name} selesai: "
+            f"{result['found']} tutor ditemukan, "
+            f"{result['created']} baru, {result['updated']} diperbarui."
+        ),
+        "success",
+    )
+    return redirect(url_for("master.subject_detail", subject_ref=subject.public_id))
+
+
+@master_bp.route("/subjects/<string:subject_ref>/tutors/add", methods=["POST"])
+@login_required
+@admin_required
+def add_subject_tutor(subject_ref):
+    """Add or re-include tutor on subject detail page."""
+    subject = _get_subject_by_ref_or_404(subject_ref)
+    form = SubjectTutorAssignmentForm()
+    if not form.validate_on_submit():
+        flash("Tutor mapel tidak valid.", "danger")
+        return redirect(url_for("master.subject_detail", subject_ref=subject.public_id))
+
+    tutor = Tutor.query.get_or_404(form.tutor_id.data)
+    assignment = SubjectTutorAssignment.query.filter_by(
+        subject_id=subject.id,
+        tutor_id=tutor.id,
+    ).first()
+    if assignment:
+        assignment.status = "included"
+    else:
+        assignment = SubjectTutorAssignment(
+            subject_id=subject.id,
+            tutor_id=tutor.id,
+            status="included",
+        )
+        db.session.add(assignment)
+    db.session.commit()
+    flash(f"Tutor {tutor.name} ditambahkan ke mapel {subject.name}.", "success")
+    return redirect(url_for("master.subject_detail", subject_ref=subject.public_id))
+
+
+@master_bp.route("/subjects/<string:subject_ref>/tutors/<string:tutor_ref>/remove", methods=["POST"])
+@login_required
+@admin_required
+def remove_subject_tutor(subject_ref, tutor_ref):
+    """Exclude tutor from subject detail page without deleting historical attendance."""
+    subject = _get_subject_by_ref_or_404(subject_ref)
+    tutor = _get_tutor_by_ref_or_404(tutor_ref)
+    assignment = SubjectTutorAssignment.query.filter_by(
+        subject_id=subject.id,
+        tutor_id=tutor.id,
+    ).first()
+    if assignment:
+        assignment.status = "excluded"
+    else:
+        assignment = SubjectTutorAssignment(
+            subject_id=subject.id,
+            tutor_id=tutor.id,
+            status="excluded",
+            notes="Excluded from subject detail page.",
+        )
+        db.session.add(assignment)
+    db.session.commit()
+    flash(f"Tutor {tutor.name} dihapus dari daftar mapel {subject.name}.", "success")
+    return redirect(url_for("master.subject_detail", subject_ref=subject.public_id))
 
 
 @master_bp.route("/subjects/add", methods=["GET", "POST"])
@@ -819,7 +991,8 @@ def delete_subject(subject_ref):
 def curriculums_list():
     """List all curriculums"""
     page = request.args.get("page", 1, type=int)
-    curriculums = Curriculum.query.paginate(page=page, per_page=20)
+    per_page = get_per_page()
+    curriculums = Curriculum.query.paginate(page=page, per_page=per_page)
 
     return render_template("master/curriculums_list.html", curriculums=curriculums)
 
@@ -892,7 +1065,8 @@ def delete_curriculum(curriculum_ref):
 def pricing_list():
     """List all pricing rules"""
     page = request.args.get("page", 1, type=int)
-    pricing_rules = PricingRule.query.paginate(page=page, per_page=20)
+    per_page = get_per_page()
+    pricing_rules = PricingRule.query.paginate(page=page, per_page=per_page)
 
     return render_template("master/pricing_list.html", pricing_rules=pricing_rules)
 

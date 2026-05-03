@@ -12,7 +12,7 @@
       <i class="bi bi-book text-primary me-2"></i>{{ subject.name }}
     </h4>
     <p class="text-muted small mb-0">
-      Detail mata pelajaran dan tutor yang mengajar berdasarkan presensi serta enrollment.
+      Detail mata pelajaran dan tutor yang mengajar berdasarkan Presensi yang benar-benar match dengan mapel ini.
     </p>
   </div>
   <a href="{{ url_for('master.edit_subject', subject_ref=subject.public_id) }}" class="btn btn-outline-primary btn-sm">
@@ -63,9 +63,43 @@
   <div class="col-lg-8">
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white py-3">
-        <h6 class="mb-0 fw-semibold">
-          <i class="bi bi-person-badge text-primary me-2"></i>Tutor Pengajar
-        </h6>
+        <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+          <div>
+            <h6 class="mb-0 fw-semibold">
+              <i class="bi bi-person-badge text-primary me-2"></i>Tutor Pengajar
+            </h6>
+            <p class="text-muted small mb-0 mt-1">
+              Tutor dihitung dari presensi yang subject sesi dan subject enrollment-nya sama-sama match.
+            </p>
+          </div>
+          <div class="d-flex flex-column flex-xl-row gap-2 align-items-xl-end">
+            <form
+              method="POST"
+              action="{{ url_for('master.scan_subject_tutors', subject_ref=subject.public_id) }}"
+            >
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-arrow-repeat me-1"></i>Scan Presensi/Enrollment
+              </button>
+            </form>
+            <form
+              method="POST"
+              action="{{ url_for('master.add_subject_tutor', subject_ref=subject.public_id) }}"
+              class="row g-2 align-items-end"
+            >
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="col-12 col-lg-auto">
+                <label class="form-label small fw-semibold mb-1">{{ tutor_assignment_form.tutor_id.label.text }}</label>
+                {{ tutor_assignment_form.tutor_id(class="form-select form-select-sm") }}
+              </div>
+              <div class="col-12 col-lg-auto">
+                <button type="submit" class="btn btn-primary btn-sm">
+                  <i class="bi bi-plus-lg me-1"></i>Tambah Tutor
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
       <div class="card-body">
         {% if tutor_summary %}
@@ -77,6 +111,11 @@
                 <div>
                   <div class="fw-semibold">{{ item.tutor_name }}</div>
                   <div class="small text-muted">{{ item.tutor_code or 'Tanpa kode tutor' }}</div>
+                  {% if item.manual_override %}
+                  <div class="small mt-1">
+                    <span class="badge bg-info-subtle text-info-emphasis">{{ item.manual_source_label or 'Manual' }}</span>
+                  </div>
+                  {% endif %}
                   <div class="small text-muted mt-1">
                     Enrollment aktif {{ item.active_enrollment_count }} • Presensi {{ item.attendance_count }}
                   </div>
@@ -84,12 +123,24 @@
                     Terakhir mengajar {{ item.latest_attendance_date.strftime('%d %b %Y') if item.latest_attendance_date else 'belum ada presensi' }}
                   </div>
                 </div>
-                <a
-                  href="{{ url_for('master.tutor_detail', tutor_ref=item.tutor_ref) }}"
-                  class="btn btn-outline-primary btn-sm"
-                >
-                  Detail
-                </a>
+                <div class="d-flex flex-column gap-2">
+                  <a
+                    href="{{ url_for('master.tutor_detail', tutor_ref=item.tutor_ref) }}"
+                    class="btn btn-outline-primary btn-sm"
+                  >
+                    Detail
+                  </a>
+                  <form
+                    method="POST"
+                    action="{{ url_for('master.remove_subject_tutor', subject_ref=subject.public_id, tutor_ref=item.tutor_ref) }}"
+                    onsubmit="return confirm('Hapus tutor {{ item.tutor_name }} dari daftar mapel {{ subject.name }}?')"
+                  >
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                      Hapus
+                    </button>
+                  </form>
+                </div>
               </div>
             </div>
           </div>
@@ -97,7 +148,7 @@
         </div>
         {% else %}
         <div class="text-muted small">
-          Belum ada tutor yang terhubung ke mapel ini melalui enrollment atau presensi.
+          Belum ada tutor yang terhubung ke mapel ini melalui presensi atau override manual.
         </div>
         {% endif %}
       </div>

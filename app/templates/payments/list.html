@@ -183,20 +183,20 @@
     </div>
 
     {# Pagination #}
-    {% if paginated.pages > 1 %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
       <small class="text-muted">
         Menampilkan {{ payments | length }} dari {{ paginated.total }} data
         (Halaman {{ paginated.page }} / {{ paginated.pages }})
       </small>
+      {% with pagination=paginated, per_page_select_id="payments-per-page" %}
+        {% include "components/per_page_select.html" %}
+      {% endwith %}
+      {% if paginated.pages > 1 %}
       <nav>
         <ul class="pagination pagination-sm mb-0">
           <li class="page-item {% if not paginated.has_prev %}disabled{% endif %}">
             <a class="page-link"
-               href="{{ url_for('payments.list_payments', page=paginated.prev_num,
-                        student_ref=current_student_ref,
-                        date_from=request.args.get('date_from',''),
-                        date_to=request.args.get('date_to','')) }}">
+               href="{{ pagination_url(paginated.prev_num) }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -204,10 +204,7 @@
             {% if p %}
             <li class="page-item {% if p == paginated.page %}active{% endif %}">
               <a class="page-link"
-                 href="{{ url_for('payments.list_payments', page=p,
-                          student_ref=current_student_ref,
-                          date_from=request.args.get('date_from',''),
-                          date_to=request.args.get('date_to','')) }}">
+                 href="{{ pagination_url(p) }}">
                 {{ p }}
               </a>
             </li>
@@ -217,21 +214,14 @@
           {% endfor %}
           <li class="page-item {% if not paginated.has_next %}disabled{% endif %}">
             <a class="page-link"
-               href="{{ url_for('payments.list_payments', page=paginated.next_num,
-                        student_ref=current_student_ref,
-                        date_from=request.args.get('date_from',''),
-                        date_to=request.args.get('date_to','')) }}">
+               href="{{ pagination_url(paginated.next_num) }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>
         </ul>
       </nav>
+      {% endif %}
     </div>
-    {% else %}
-    <div class="px-3 py-2 border-top">
-      <small class="text-muted">Total {{ paginated.total }} data</small>
-    </div>
-    {% endif %}
 
     {% else %}
     {# Empty state #}

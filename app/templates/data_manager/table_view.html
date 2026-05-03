@@ -1,0 +1,1065 @@
+{% extends "base.html" %} {% block title %}{{ table_label }} — Data Manager —
+LBB Super Smart{% endblock %} {% block head %}
+<style>
+    /* ── Data Manager Table View ── */
+    .dm-cell-truncate {
+        max-width: 260px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: inline-block;
+        vertical-align: middle;
+    }
+    .dm-null {
+        color: #adb5bd;
+        font-style: italic;
+        font-size: 0.8rem;
+    }
+    .dm-monospace {
+        font-family: "Courier New", Courier, monospace;
+        font-size: 0.78rem;
+    }
+    .table thead th {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    .dm-row-num {
+        color: #adb5bd;
+        font-size: 0.78rem;
+        width: 48px;
+    }
+    .dm-action-col {
+        width: 110px;
+    }
+</style>
+{% endblock %} {% block content %} {#
+═══════════════════════════════════════════════════════════ #} {# BREADCRUMB #}
+{# ═══════════════════════════════════════════════════════════ #}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item">
+            <a
+                href="{{ url_for('dashboard.owner_dashboard') }}"
+                class="text-decoration-none"
+            >
+                <i class="bi bi-house me-1"></i>Dashboard
+            </a>
+        </li>
+        <li class="breadcrumb-item">
+            <a
+                href="{{ url_for('data_manager.index') }}"
+                class="text-decoration-none"
+                >Data Manager</a
+            >
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">
+            {{ table_label }}
+        </li>
+    </ol>
+</nav>
+
+{# ═══════════════════════════════════════════════════════════ #} {# READONLY
+WARNING (WhatsApp tables) #} {#
+═══════════════════════════════════════════════════════════ #} {% if
+is_whatsapp_table %}
+<div
+    class="d-flex align-items-start gap-3 p-3 mb-4 rounded-3"
+    style="
+        background: #fff3cd;
+        border: 2px solid #ffc107;
+        border-left: 6px solid #ffc107;
+    "
+>
+    <i
+        class="bi bi-lock-fill text-warning"
+        style="font-size: 1.8rem; margin-top: 2px; flex-shrink: 0"
+    ></i>
+    <div>
+        <div class="fw-bold mb-1" style="font-size: 1rem">
+            Tabel Read-Only — Dikelola Otomatis oleh Modul WhatsApp
+        </div>
+        <div class="text-muted small">
+            Tabel <code>{{ table_name }}</code> hanya bisa
+            <strong>dilihat</strong> dan <strong>diekspor</strong> melalui Data
+            Manager. Tombol Tambah, Edit, dan Hapus dinonaktifkan untuk mencegah
+            kerusakan data WhatsApp. Untuk memodifikasi data ini, gunakan modul
+            WhatsApp langsung.
+        </div>
+    </div>
+</div>
+{% endif %} {# ═══════════════════════════════════════════════════════════ #} {#
+HEADER #} {# ═══════════════════════════════════════════════════════════ #}
+<div
+    class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3"
+>
+    <div>
+        <h4 class="mb-1 fw-bold">
+            <i class="bi bi-table text-primary me-2"></i>{{ table_label }}
+            <span class="text-muted fw-normal fs-6 dm-monospace ms-1"
+                >({{ table_name }})</span
+            >
+        </h4>
+        <p class="text-muted small mb-0">
+            Total <strong>{{ total }}</strong> baris &bull; {{ columns | length
+            }} kolom
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        {% if not is_whatsapp_table %}
+        <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            data-bs-toggle="modal"
+            data-bs-target="#addModal"
+        >
+            <i class="bi bi-plus-lg me-1"></i>Tambah Baris Baru
+        </button>
+        {% endif %}
+        <a
+            href="{{ url_for('data_manager.export_sql') }}?tables={{ table_name }}"
+            class="btn btn-outline-success btn-sm"
+        >
+            <i class="bi bi-download me-1"></i>Ekspor Tabel
+        </a>
+        <a
+            href="{{ url_for('data_manager.index') }}"
+            class="btn btn-outline-secondary btn-sm"
+        >
+            <i class="bi bi-arrow-left me-1"></i>Kembali
+        </a>
+    </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════ #} {# INLINE
+FLASH AREA (AJAX feedback) #} {#
+═══════════════════════════════════════════════════════════ #}
+<div id="tv-flash-area"></div>
+
+{# ═══════════════════════════════════════════════════════════ #} {# SEARCH BAR
+#} {# ═══════════════════════════════════════════════════════════ #}
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-3">
+        <form
+            method="GET"
+            action="{{ url_for('data_manager.table_view', table_name=table_name) }}"
+            class="row g-2 align-items-center"
+        >
+            <div class="col">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="bi bi-search text-muted"></i>
+                    </span>
+                    <input
+                        type="text"
+                        name="q"
+                        class="form-control border-start-0 ps-0"
+                        placeholder="Cari di kolom teks..."
+                        value="{{ q or '' }}"
+                        autocomplete="off"
+                    />
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary px-4">Cari</button>
+            </div>
+            {% if q %}
+            <div class="col-auto">
+                <a
+                    href="{{ url_for('data_manager.table_view', table_name=table_name) }}"
+                    class="btn btn-outline-secondary"
+                >
+                    <i class="bi bi-x-circle me-1"></i>Hapus Filter
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════ #} {# INFO BARIS
+#} {# ═══════════════════════════════════════════════════════════ #} {% if total
+> 0 %} {% set row_start = (current_page - 1) * 25 + 1 %} {% set row_end =
+[current_page * 25, total] | min %}
+<div class="text-muted small mb-2">
+    {% if q %} Hasil pencarian "<strong>{{ q }}</strong>" — menampilkan baris {%
+    else %} Menampilkan baris {% endif %}
+    <strong>{{ row_start }}</strong>–<strong>{{ row_end }}</strong> dari
+    <strong>{{ total }}</strong>
+</div>
+{% endif %} {# ═══════════════════════════════════════════════════════════ #} {#
+TABEL DATA #} {# ═══════════════════════════════════════════════════════════ #}
+{# Pilih kolom yang ditampilkan: prioritaskan id + non-JSON + non-notes, maks 8
+#} {% set skip_keywords = ['notes', 'description', 'body', 'content', 'message',
+'text'] %} {% set display_cols = [] %} {% for col in columns %} {% set cname =
+col.name | lower %} {% set ctype = col.type | upper %} {% if display_cols |
+length < 8 %} {% if col.name == 'id' or ( 'JSON' not in ctype and not
+(skip_keywords | select('in', cname) | list | length > 0 and display_cols |
+length > 4) ) %} {% set _ = display_cols.append(col) %} {% endif %} {% endif %}
+{% endfor %} {% set hidden_count = (columns | length) - (display_cols | length)
+%}
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-0">
+        {% if rows %}
+        <div class="table-responsive">
+            <table
+                class="table table-hover align-middle mb-0"
+                id="dm-data-table"
+            >
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3 dm-row-num">#</th>
+                        {% for col in display_cols %}
+                        <th title="{{ col.type }}">
+                            {{ col.name }} {% if col.name in readonly_columns %}
+                            <i
+                                class="bi bi-lock-fill text-muted ms-1"
+                                style="font-size: 0.6rem"
+                                title="Read-only"
+                            ></i>
+                            {% endif %}
+                        </th>
+                        {% endfor %} {% if hidden_count > 0 %}
+                        <th
+                            class="text-muted"
+                            title="{{ hidden_count }} kolom disembunyikan"
+                        >
+                            <i class="bi bi-three-dots"></i>
+                            <span class="small fw-normal"
+                                >(+{{ hidden_count }})</span
+                            >
+                        </th>
+                        {% endif %}
+                        <th class="pe-3 dm-action-col text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %} {% set row_num = (current_page - 1) *
+                    25 + loop.index %}
+                    <tr
+                        id="row-{{ row.get('id', loop.index) }}"
+                        data-row-id="{{ row.get('id', '') }}"
+                        data-row="{{ row | tojson | e }}"
+                    >
+                        <td class="ps-3 dm-row-num">{{ row_num }}</td>
+
+                        {% for col in display_cols %} {% set val =
+                        row.get(col.name) %}
+                        <td>
+                            {% if val is none or val == '' %}
+                            <span class="dm-null">—</span>
+
+                            {% elif val == 'true' or val == 'True' or val is
+                            sameas true %}
+                            <span
+                                class="badge bg-success-subtle text-success-emphasis"
+                                >TRUE</span
+                            >
+
+                            {% elif val == 'false' or val == 'False' or val is
+                            sameas false %}
+                            <span
+                                class="badge bg-secondary-subtle text-secondary-emphasis"
+                                >FALSE</span
+                            >
+
+                            {% elif 'TIMESTAMP' in col.type | upper or
+                            'DATETIME' in col.type | upper %} {# Format tanggal:
+                            coba parse dd/mm/yyyy HH:MM #}
+                            <span class="dm-monospace small"
+                                >{{ val | string | truncate(19, False, '')
+                                }}</span
+                            >
+
+                            {% elif 'JSON' in col.type | upper or (val |
+                            string).startswith('{') or (val |
+                            string).startswith('[') %}
+                            <span
+                                class="badge bg-light text-secondary border dm-monospace"
+                                data-bs-toggle="tooltip"
+                                title="{{ val | string | truncate(300, True, '...') }}"
+                                >JSON</span
+                            >
+
+                            {% elif (val | string) | length > 50 %}
+                            <span
+                                class="dm-cell-truncate"
+                                data-bs-toggle="tooltip"
+                                title="{{ val | string | e }}"
+                                >{{ val | string | truncate(50, True, '…')
+                                }}</span
+                            >
+
+                            {% else %} {{ val }} {% endif %}
+                        </td>
+                        {% endfor %} {% if hidden_count > 0 %}
+                        <td class="text-muted small">…</td>
+                        {% endif %} {# Kolom Aksi #}
+                        <td class="pe-3 text-center">
+                            {% if is_whatsapp_table %}
+                            <span class="text-muted small"
+                                ><i class="bi bi-lock" title="Read-only"></i
+                            ></span>
+                            {% else %}
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-primary btn-edit"
+                                    title="Edit"
+                                    data-row-id="{{ row.get('id', '') }}"
+                                    data-row="{{ row | tojson | e }}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editModal"
+                                >
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-danger btn-delete"
+                                    title="Hapus"
+                                    data-row-id="{{ row.get('id', '') }}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteModal"
+                                >
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Footer: info + pagination #}
+        <div
+            class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-3 border-top"
+        >
+            <div class="text-muted small">
+                Halaman <strong>{{ current_page }}</strong> /
+                <strong>{{ pages }}</strong> &bull; Total
+                <strong>{{ total }}</strong> baris
+            </div>
+
+            {% if pages > 1 %}
+            <nav aria-label="Navigasi halaman {{ table_label }}">
+                <ul class="pagination pagination-sm mb-0">
+                    <li
+                        class="page-item {% if current_page <= 1 %}disabled{% endif %}"
+                    >
+                        <a
+                            class="page-link"
+                            href="{{ url_for('data_manager.table_view', table_name=table_name, page=current_page - 1, q=q) if current_page > 1 else '#' }}"
+                            aria-label="Sebelumnya"
+                            ><i class="bi bi-chevron-left"></i
+                        ></a>
+                    </li>
+
+                    {% for p in range(1, pages + 1) %} {% if p == 1 or p ==
+                    pages or (p >= current_page - 2 and p <= current_page + 2)
+                    %}
+                    <li
+                        class="page-item {% if p == current_page %}active{% endif %}"
+                    >
+                        <a
+                            class="page-link"
+                            href="{{ url_for('data_manager.table_view', table_name=table_name, page=p, q=q) }}"
+                            >{{ p }}</a
+                        >
+                    </li>
+                    {% elif p == current_page - 3 or p == current_page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">…</span>
+                    </li>
+                    {% endif %} {% endfor %}
+
+                    <li
+                        class="page-item {% if current_page >= pages %}disabled{% endif %}"
+                    >
+                        <a
+                            class="page-link"
+                            href="{{ url_for('data_manager.table_view', table_name=table_name, page=current_page + 1, q=q) if current_page < pages else '#' }}"
+                            aria-label="Berikutnya"
+                            ><i class="bi bi-chevron-right"></i
+                        ></a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+
+        {% else %} {# Empty state #}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox display-1 text-muted opacity-25"></i>
+            <p class="text-muted mt-3 mb-0">
+                {% if q %} Tidak ada baris yang cocok dengan pencarian "<strong
+                    >{{ q }}</strong
+                >" {% else %} Tabel ini masih kosong {% endif %}
+            </p>
+            {% if q %}
+            <a
+                href="{{ url_for('data_manager.table_view', table_name=table_name) }}"
+                class="btn btn-outline-secondary btn-sm mt-3"
+            >
+                <i class="bi bi-x-circle me-1"></i>Hapus Filter
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════ #} {# MODAL: EDIT
+BARIS #} {# ═══════════════════════════════════════════════════════════ #} {% if
+not is_whatsapp_table %}
+<div
+    class="modal fade"
+    id="editModal"
+    tabindex="-1"
+    aria-labelledby="editModalLabel"
+    aria-hidden="true"
+>
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="editModalLabel">
+                    <i class="bi bi-pencil-square text-primary me-2"></i>Edit
+                    Baris
+                    <span
+                        id="editModalRowId"
+                        class="text-muted fw-normal fs-6"
+                    ></span>
+                </h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Tutup"
+                ></button>
+            </div>
+            <div class="modal-body">
+                <div id="editModalFlash" class="d-none mb-3"></div>
+                <form id="editForm" novalidate>
+                    <input
+                        type="hidden"
+                        id="editRowId"
+                        name="_row_id"
+                        value=""
+                    />
+                    {# Kolom dirender secara dinamis via JavaScript #}
+                    <div id="editFormFields"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Batal
+                </button>
+                <button type="button" class="btn btn-primary" id="editSaveBtn">
+                    <span
+                        id="editSpinner"
+                        class="spinner-border spinner-border-sm me-1 d-none"
+                        role="status"
+                    ></span>
+                    <i class="bi bi-floppy me-1"></i>Simpan Perubahan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════ #} {# MODAL:
+TAMBAH BARIS #} {# ═══════════════════════════════════════════════════════════
+#}
+<div
+    class="modal fade"
+    id="addModal"
+    tabindex="-1"
+    aria-labelledby="addModalLabel"
+    aria-hidden="true"
+>
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="addModalLabel">
+                    <i class="bi bi-plus-circle text-success me-2"></i>Tambah
+                    Baris Baru ke {{ table_label }}
+                </h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Tutup"
+                ></button>
+            </div>
+            <div class="modal-body">
+                <div id="addModalFlash" class="d-none mb-3"></div>
+                <form id="addForm" novalidate>
+                    <div id="addFormFields">
+                        {% set skip_auto = ['id', 'created_at', 'updated_at'] %}
+                        {% for col in columns %} {% if col.name not in skip_auto
+                        %}
+                        <div class="mb-3">
+                            <label
+                                class="form-label fw-semibold small"
+                                for="add_{{ col.name }}"
+                            >
+                                {{ col.name }}
+                                <span
+                                    class="text-muted fw-normal dm-monospace ms-1"
+                                    >{{ col.type }}</span
+                                >
+                                {% if col.name in readonly_columns %}
+                                <span
+                                    class="badge bg-warning text-dark ms-1"
+                                    style="font-size: 0.6rem"
+                                    >readonly</span
+                                >
+                                {% endif %}
+                            </label>
+                            {% set ctype = col.type | upper %} {% if 'BOOLEAN'
+                            in ctype %}
+                            <select
+                                class="form-select form-select-sm"
+                                id="add_{{ col.name }}"
+                                name="{{ col.name }}"
+                                {%
+                                if
+                                col.name
+                                in
+                                readonly_columns
+                                %}disabled{%
+                                endif
+                                %}
+                            >
+                                <option value="">— pilih —</option>
+                                <option value="true">True</option>
+                                <option value="false">False</option>
+                            </select>
+                            {% elif 'TEXT' in ctype and ('NOTES' in col.name |
+                            upper or 'DESCRIPTION' in col.name | upper or 'BODY'
+                            in col.name | upper or 'CONTENT' in col.name | upper
+                            or 'MESSAGE' in col.name | upper) %}
+                            <textarea
+                                class="form-control form-control-sm"
+                                id="add_{{ col.name }}"
+                                name="{{ col.name }}"
+                                rows="3"
+                                placeholder="{{ col.name }}"
+                                {%
+                                if
+                                col.name
+                                in
+                                readonly_columns
+                                %}disabled{%
+                                endif
+                                %}
+                            ></textarea>
+                            {% elif 'JSON' in ctype %}
+                            <textarea
+                                class="form-control form-control-sm dm-monospace"
+                                id="add_{{ col.name }}"
+                                name="{{ col.name }}"
+                                rows="4"
+                                placeholder="{}"
+                                {%
+                                if
+                                col.name
+                                in
+                                readonly_columns
+                                %}disabled{%
+                                endif
+                                %}
+                            ></textarea>
+                            {% elif 'INTEGER' in ctype or 'NUMERIC' in ctype or
+                            'BIGINT' in ctype or 'SMALLINT' in ctype or 'FLOAT'
+                            in ctype or 'REAL' in ctype or 'DOUBLE' in ctype or
+                            'DECIMAL' in ctype %}
+                            <input
+                                type="number"
+                                class="form-control form-control-sm"
+                                id="add_{{ col.name }}"
+                                name="{{ col.name }}"
+                                placeholder="{{ col.name }}"
+                                {%
+                                if
+                                col.name
+                                in
+                                readonly_columns
+                                %}disabled{%
+                                endif
+                                %}
+                            />
+                            {% elif 'TIMESTAMP' in ctype or 'DATETIME' in ctype
+                            %}
+                            <input
+                                type="datetime-local"
+                                class="form-control form-control-sm"
+                                id="add_{{ col.name }}"
+                                name="{{ col.name }}"
+                                {%
+                                if
+                                col.name
+                                in
+                                readonly_columns
+                                %}disabled{%
+                                endif
+                                %}
+                            />
+                            {% elif 'DATE' in ctype %}
+                            <input
+                                type="date"
+                                class="form-control form-control-sm"
+                                id="add_{{ col.name }}"
+                                name="{{ col.name }}"
+                                {%
+                                if
+                                col.name
+                                in
+                                readonly_columns
+                                %}disabled{%
+                                endif
+                                %}
+                            />
+                            {% else %}
+                            <input
+                                type="text"
+                                class="form-control form-control-sm"
+                                id="add_{{ col.name }}"
+                                name="{{ col.name }}"
+                                placeholder="{{ col.name }}"
+                                {%
+                                if
+                                col.name
+                                in
+                                readonly_columns
+                                %}disabled{%
+                                endif
+                                %}
+                            />
+                            {% endif %}
+                        </div>
+                        {% endif %} {% endfor %}
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Batal
+                </button>
+                <button type="button" class="btn btn-success" id="addSaveBtn">
+                    <span
+                        id="addSpinner"
+                        class="spinner-border spinner-border-sm me-1 d-none"
+                        role="status"
+                    ></span>
+                    <i class="bi bi-plus-lg me-1"></i>Simpan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════ #} {# MODAL:
+KONFIRMASI HAPUS #} {#
+═══════════════════════════════════════════════════════════ #}
+<div
+    class="modal fade"
+    id="deleteModal"
+    tabindex="-1"
+    aria-labelledby="deleteModalLabel"
+    aria-hidden="true"
+>
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title" id="deleteModalLabel">
+                    <i
+                        class="bi bi-exclamation-triangle-fill text-danger me-2"
+                    ></i
+                    >Konfirmasi Hapus
+                </h6>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Tutup"
+                ></button>
+            </div>
+            <div class="modal-body pt-2">
+                <p class="mb-0 small">
+                    Yakin ingin menghapus baris
+                    <strong id="deleteRowLabel">#—</strong>? Tindakan ini
+                    <u>tidak bisa dibatalkan</u>.
+                </p>
+                <div id="deleteModalFlash" class="d-none mt-2"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Batal
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-sm btn-danger"
+                    id="deleteConfirmBtn"
+                >
+                    <span
+                        id="deleteSpinner"
+                        class="spinner-border spinner-border-sm me-1 d-none"
+                        role="status"
+                    ></span>
+                    <i class="bi bi-trash me-1"></i>Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endif %}{# end if not is_whatsapp_table #} {# Simpan definisi kolom untuk
+JavaScript #}
+<script id="dm-columns-def" type="application/json">
+    {{ columns | tojson }}
+</script>
+<script id="dm-readonly-cols" type="application/json">
+    {{ readonly_columns | tojson }}
+</script>
+
+{% endblock %} {% block scripts %}
+<script>
+    (function () {
+      "use strict";
+
+      /* ──────────────────────────────────────────────────────────
+         KONFIGURASI
+      ────────────────────────────────────────────────────────── */
+      var TABLE_NAME     = {{ table_name | tojson }};
+      var IS_READONLY    = {{ is_whatsapp_table | tojson }};
+      var COLUMNS        = JSON.parse(document.getElementById("dm-columns-def").textContent);
+      var READONLY_COLS  = JSON.parse(document.getElementById("dm-readonly-cols").textContent);
+      var SKIP_ON_ADD    = ["id", "created_at", "updated_at"];
+
+      /* CSRF — coba dari meta tag dulu, lalu dari cookie */
+      function getCsrf() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) return meta.getAttribute("content");
+        var match = document.cookie.match(/csrf_token=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : "";
+      }
+
+      /* ──────────────────────────────────────────────────────────
+         HELPER: Flash message inline
+      ────────────────────────────────────────────────────────── */
+      function showFlash(containerId, type, msg) {
+        var el = document.getElementById(containerId);
+        if (!el) return;
+        el.className = "mb-3";
+        el.innerHTML = '<div class="alert alert-' + type + ' alert-dismissible py-2 mb-0">' +
+          '<i class="bi bi-' + (type === 'success' ? 'check-circle' : type === 'danger' ? 'x-circle' : 'info-circle') + ' me-2"></i>' +
+          escHtml(msg) +
+          '<button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>' +
+          '</div>';
+      }
+
+      function escHtml(s) {
+        return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+      }
+
+      /* ──────────────────────────────────────────────────────────
+         HELPER: Render input field sesuai tipe kolom
+      ────────────────────────────────────────────────────────── */
+      function renderField(col, currentVal, forAdd) {
+        var ctype   = (col.type || "").toUpperCase();
+        var cname   = col.name;
+        var isRo    = READONLY_COLS.indexOf(cname) !== -1;
+        var idAttr  = (forAdd ? "add_" : "edit_") + cname;
+        var val     = (currentVal === null || currentVal === undefined) ? "" : String(currentVal);
+
+        var disabledAttr = isRo ? " disabled" : "";
+        var labelHtml =
+          '<label class="form-label fw-semibold small mb-1" for="' + idAttr + '">' +
+          escHtml(cname) +
+          '<span class="text-muted fw-normal dm-monospace ms-1">' + escHtml(col.type) + '</span>' +
+          (isRo ? ' <span class="badge bg-secondary ms-1" style="font-size:.6rem">readonly</span>' : '') +
+          '</label>';
+
+        var inputHtml;
+        if (ctype.indexOf("BOOLEAN") !== -1) {
+          var selTrue  = val === "true"  || val === "True"  ? " selected" : "";
+          var selFalse = val === "false" || val === "False" ? " selected" : "";
+          inputHtml =
+            '<select class="form-select form-select-sm" id="' + idAttr + '" name="' + cname + '"' + disabledAttr + '>' +
+            '<option value="">— pilih —</option>' +
+            '<option value="true"' + selTrue + '>True</option>' +
+            '<option value="false"' + selFalse + '>False</option>' +
+            '</select>';
+
+        } else if (ctype.indexOf("JSON") !== -1) {
+          inputHtml =
+            '<textarea class="form-control form-control-sm dm-monospace" id="' + idAttr + '" name="' + cname + '" rows="4"' + disabledAttr + '>' +
+            escHtml(val) + '</textarea>';
+
+        } else if (
+          ctype.indexOf("TIMESTAMP") !== -1 ||
+          ctype.indexOf("DATETIME") !== -1
+        ) {
+          /* Normalize ISO string ke datetime-local format (YYYY-MM-DDTHH:MM) */
+          var dtVal = val.replace(" ", "T").substring(0, 16);
+          inputHtml =
+            '<input type="datetime-local" class="form-control form-control-sm" id="' + idAttr + '" name="' + cname + '" value="' + escHtml(dtVal) + '"' + disabledAttr + '>';
+
+        } else if (ctype.indexOf("DATE") !== -1) {
+          inputHtml =
+            '<input type="date" class="form-control form-control-sm" id="' + idAttr + '" name="' + cname + '" value="' + escHtml(val.substring(0,10)) + '"' + disabledAttr + '>';
+
+        } else if (
+          ctype.indexOf("INTEGER")  !== -1 ||
+          ctype.indexOf("NUMERIC")  !== -1 ||
+          ctype.indexOf("BIGINT")   !== -1 ||
+          ctype.indexOf("SMALLINT") !== -1 ||
+          ctype.indexOf("FLOAT")    !== -1 ||
+          ctype.indexOf("REAL")     !== -1 ||
+          ctype.indexOf("DOUBLE")   !== -1 ||
+          ctype.indexOf("DECIMAL")  !== -1
+        ) {
+          inputHtml =
+            '<input type="number" class="form-control form-control-sm" id="' + idAttr + '" name="' + cname + '" value="' + escHtml(val) + '" step="any"' + disabledAttr + '>';
+
+        } else if (val.length > 200 || ctype.indexOf("TEXT") !== -1) {
+          inputHtml =
+            '<textarea class="form-control form-control-sm" id="' + idAttr + '" name="' + cname + '" rows="3"' + disabledAttr + '>' +
+            escHtml(val) + '</textarea>';
+
+        } else {
+          inputHtml =
+            '<input type="text" class="form-control form-control-sm" id="' + idAttr + '" name="' + cname + '" value="' + escHtml(val) + '"' + disabledAttr + '>';
+        }
+
+        return '<div class="mb-3">' + labelHtml + inputHtml + '</div>';
+      }
+
+      /* ──────────────────────────────────────────────────────────
+         HELPER: Ambil data form sebagai object JSON
+      ────────────────────────────────────────────────────────── */
+      function collectFormData(formId, skipCols) {
+        var form = document.getElementById(formId);
+        if (!form) return {};
+        var data = {};
+        var inputs = form.querySelectorAll("input:not([disabled]), select:not([disabled]), textarea:not([disabled])");
+        inputs.forEach(function (el) {
+          var name = el.name;
+          if (!name || name.startsWith("_") || (skipCols && skipCols.indexOf(name) !== -1)) return;
+          var val = el.value.trim();
+          data[name] = val === "" ? null : val;
+        });
+        return data;
+      }
+
+      /* ──────────────────────────────────────────────────────────
+         EDIT MODAL
+      ────────────────────────────────────────────────────────── */
+      if (!IS_READONLY) {
+        document.querySelectorAll(".btn-edit").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var rowId   = this.getAttribute("data-row-id");
+            var rowData = {};
+            try { rowData = JSON.parse(this.getAttribute("data-row") || "{}"); } catch(e) {}
+
+            document.getElementById("editRowId").value = rowId;
+            document.getElementById("editModalRowId").textContent = rowId ? "#" + rowId : "";
+
+            /* Render semua kolom */
+            var fieldsHtml = "";
+            COLUMNS.forEach(function (col) {
+              fieldsHtml += renderField(col, rowData[col.name], false);
+            });
+            document.getElementById("editFormFields").innerHTML = fieldsHtml;
+
+            /* Reset flash */
+            var flash = document.getElementById("editModalFlash");
+            if (flash) { flash.className = "d-none mb-3"; flash.innerHTML = ""; }
+          });
+        });
+
+        /* Simpan edit */
+        var editSaveBtn = document.getElementById("editSaveBtn");
+        if (editSaveBtn) {
+          editSaveBtn.addEventListener("click", function () {
+            var rowId = document.getElementById("editRowId").value;
+            if (!rowId) return;
+
+            var payload = collectFormData("editForm", ["_row_id"]);
+
+            var spinner = document.getElementById("editSpinner");
+            if (spinner) spinner.classList.remove("d-none");
+            editSaveBtn.disabled = true;
+
+            fetch("/data-manager/table/" + TABLE_NAME + "/row/" + rowId + "/update", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCsrf(),
+              },
+              body: JSON.stringify(payload),
+            })
+              .then(function (res) { return res.json(); })
+              .then(function (data) {
+                if (data.success) {
+                  showFlash("tv-flash-area", "success", data.message || "Baris berhasil diupdate.");
+                  /* Tutup modal lalu reload tabel */
+                  var modal = bootstrap.Modal.getInstance(document.getElementById("editModal"));
+                  if (modal) modal.hide();
+                  setTimeout(function () { window.location.reload(); }, 600);
+                } else {
+                  showFlash("editModalFlash", "danger", data.message || "Gagal mengupdate baris.");
+                }
+              })
+              .catch(function (err) {
+                showFlash("editModalFlash", "danger", "Kesalahan jaringan: " + err);
+              })
+              .finally(function () {
+                if (spinner) spinner.classList.add("d-none");
+                editSaveBtn.disabled = false;
+              });
+          });
+        }
+
+        /* ──────────────────────────────────────────────────────
+           ADD MODAL
+        ────────────────────────────────────────────────────── */
+        var addSaveBtn = document.getElementById("addSaveBtn");
+        if (addSaveBtn) {
+          addSaveBtn.addEventListener("click", function () {
+            var payload = collectFormData("addForm", SKIP_ON_ADD);
+
+            var spinner = document.getElementById("addSpinner");
+            if (spinner) spinner.classList.remove("d-none");
+            addSaveBtn.disabled = true;
+
+            fetch("/data-manager/table/" + TABLE_NAME + "/row/new", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCsrf(),
+              },
+              body: JSON.stringify(payload),
+            })
+              .then(function (res) { return res.json(); })
+              .then(function (data) {
+                if (data.success) {
+                  showFlash("tv-flash-area", "success", data.message || "Baris baru berhasil ditambahkan.");
+                  var modal = bootstrap.Modal.getInstance(document.getElementById("addModal"));
+                  if (modal) modal.hide();
+                  setTimeout(function () { window.location.reload(); }, 600);
+                } else {
+                  showFlash("addModalFlash", "danger", data.message || "Gagal menambah baris.");
+                }
+              })
+              .catch(function (err) {
+                showFlash("addModalFlash", "danger", "Kesalahan jaringan: " + err);
+              })
+              .finally(function () {
+                if (spinner) spinner.classList.add("d-none");
+                addSaveBtn.disabled = false;
+              });
+          });
+        }
+
+        /* Reset add modal saat ditutup */
+        var addModalEl = document.getElementById("addModal");
+        if (addModalEl) {
+          addModalEl.addEventListener("hidden.bs.modal", function () {
+            document.getElementById("addForm").reset();
+            var flash = document.getElementById("addModalFlash");
+            if (flash) { flash.className = "d-none mb-3"; flash.innerHTML = ""; }
+          });
+        }
+
+        /* ──────────────────────────────────────────────────────
+           DELETE MODAL
+        ────────────────────────────────────────────────────── */
+        var deleteRowId = null;
+
+        document.querySelectorAll(".btn-delete").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            deleteRowId = this.getAttribute("data-row-id");
+            var label = document.getElementById("deleteRowLabel");
+            if (label) label.textContent = "#" + deleteRowId;
+
+            var flash = document.getElementById("deleteModalFlash");
+            if (flash) { flash.className = "d-none mt-2"; flash.innerHTML = ""; }
+          });
+        });
+
+        var deleteConfirmBtn = document.getElementById("deleteConfirmBtn");
+        if (deleteConfirmBtn) {
+          deleteConfirmBtn.addEventListener("click", function () {
+            if (!deleteRowId) return;
+
+            var spinner = document.getElementById("deleteSpinner");
+            if (spinner) spinner.classList.remove("d-none");
+            deleteConfirmBtn.disabled = true;
+
+            fetch("/data-manager/table/" + TABLE_NAME + "/row/" + deleteRowId + "/delete", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCsrf(),
+              },
+              body: JSON.stringify({}),
+            })
+              .then(function (res) { return res.json(); })
+              .then(function (data) {
+                if (data.success) {
+                  showFlash("tv-flash-area", "success", data.message || "Baris berhasil dihapus.");
+                  var modal = bootstrap.Modal.getInstance(document.getElementById("deleteModal"));
+                  if (modal) modal.hide();
+                  /* Hapus baris dari tabel tanpa reload */
+                  var tr = document.getElementById("row-" + deleteRowId);
+                  if (tr) {
+                    tr.style.transition = "opacity .3s";
+                    tr.style.opacity = "0";
+                    setTimeout(function () { tr.remove(); }, 300);
+                  }
+                } else {
+                  showFlash("deleteModalFlash", "danger", data.message || "Gagal menghapus baris.");
+                }
+              })
+              .catch(function (err) {
+                showFlash("deleteModalFlash", "danger", "Kesalahan jaringan: " + err);
+              })
+              .finally(function () {
+                if (spinner) spinner.classList.add("d-none");
+                deleteConfirmBtn.disabled = false;
+              });
+          });
+        }
+
+      } /* end if (!IS_READONLY) */
+
+      /* ──────────────────────────────────────────────────────────
+         BOOTSTRAP TOOLTIPS (untuk nilai terpotong)
+      ────────────────────────────────────────────────────────── */
+      var tooltipEls = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+      tooltipEls.forEach(function (el) {
+        new bootstrap.Tooltip(el, { trigger: "hover focus", placement: "top" });
+      });
+
+    })();
+</script>
+{% endblock %}

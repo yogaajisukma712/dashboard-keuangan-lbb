@@ -9,7 +9,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.forms import IncomeForm
 from app.models import OtherIncome
-from app.utils import decode_public_id
+from app.utils import decode_public_id, get_per_page
 
 incomes_bp = Blueprint("incomes", __name__, url_prefix="/incomes")
 
@@ -28,7 +28,7 @@ def _get_income_by_ref_or_404(income_ref):
 def list_incomes():
     """List all incomes with pagination"""
     page = request.args.get("page", 1, type=int)
-    per_page = 20
+    per_page = get_per_page()
 
     incomes = OtherIncome.query.order_by(OtherIncome.income_date.desc()).paginate(
         page=page, per_page=per_page

@@ -12,6 +12,7 @@ from .master_forms import (
     PricingRuleForm,
     StudentForm,
     SubjectForm,
+    SubjectTutorAssignmentForm,
     TutorForm,
 )
 from .payment_forms import StudentPaymentForm, StudentPaymentLineForm
@@ -23,6 +24,7 @@ __all__ = [
     "StudentForm",
     "TutorForm",
     "SubjectForm",
+    "SubjectTutorAssignmentForm",
     "CurriculumForm",
     "PricingRuleForm",
     "EnrollmentForm",

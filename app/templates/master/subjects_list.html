@@ -154,19 +154,22 @@
     </div>
 
     {# Footer tabel: total + pagination #}
-    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-top">
+    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-top flex-wrap gap-2">
       <div class="text-muted small">
         Menampilkan <strong>{{ subjects.items | length }}</strong> dari
         <strong>{{ subjects.total }}</strong> mata pelajaran
         (Halaman {{ subjects.page }} / {{ subjects.pages }})
       </div>
+      {% with pagination=subjects, per_page_select_id="subjects-per-page" %}
+        {% include "components/per_page_select.html" %}
+      {% endwith %}
       {% if subjects.pages > 1 %}
       <nav aria-label="Navigasi halaman mata pelajaran">
         <ul class="pagination pagination-sm mb-0">
           <li class="page-item {% if not subjects.has_prev %}disabled{% endif %}">
             <a
               class="page-link"
-              href="{{ url_for('master.subjects_list', page=subjects.prev_num) if subjects.has_prev else '#' }}"
+              href="{{ pagination_url(subjects.prev_num) if subjects.has_prev else '#' }}"
               aria-label="Sebelumnya"
             >
               <i class="bi bi-chevron-left"></i>
@@ -178,7 +181,7 @@
               <li class="page-item {% if page_num == subjects.page %}active{% endif %}">
                 <a
                   class="page-link"
-                  href="{{ url_for('master.subjects_list', page=page_num) }}"
+                  href="{{ pagination_url(page_num) }}"
                 >{{ page_num }}</a>
               </li>
             {% else %}
@@ -191,7 +194,7 @@
           <li class="page-item {% if not subjects.has_next %}disabled{% endif %}">
             <a
               class="page-link"
-              href="{{ url_for('master.subjects_list', page=subjects.next_num) if subjects.has_next else '#' }}"
+              href="{{ pagination_url(subjects.next_num) if subjects.has_next else '#' }}"
               aria-label="Berikutnya"
             >
               <i class="bi bi-chevron-right"></i>

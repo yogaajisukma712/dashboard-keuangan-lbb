@@ -244,19 +244,20 @@
     </div>
 
     {# Pagination #}
-    {% if paginated.pages > 1 %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
       <small class="text-muted">
         Menampilkan {{ payments | length }} dari {{ paginated.total }} transaksi
         (Halaman {{ paginated.page }} / {{ paginated.pages }})
       </small>
+      {% with pagination=paginated, per_page_select_id="student-payment-history-per-page" %}
+        {% include "components/per_page_select.html" %}
+      {% endwith %}
+      {% if paginated.pages > 1 %}
       <nav>
         <ul class="pagination pagination-sm mb-0">
           <li class="page-item {% if not paginated.has_prev %}disabled{% endif %}">
             <a class="page-link"
-               href="{{ url_for('payments.student_payment_history',
-                        student_ref=student.public_id,
-                        page=paginated.prev_num) }}">
+               href="{{ pagination_url(paginated.prev_num) }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -264,9 +265,7 @@
             {% if p %}
             <li class="page-item {% if p == paginated.page %}active{% endif %}">
               <a class="page-link"
-                 href="{{ url_for('payments.student_payment_history',
-                          student_ref=student.public_id,
-                          page=p) }}">
+                 href="{{ pagination_url(p) }}">
                 {{ p }}
               </a>
             </li>
@@ -276,20 +275,14 @@
           {% endfor %}
           <li class="page-item {% if not paginated.has_next %}disabled{% endif %}">
             <a class="page-link"
-               href="{{ url_for('payments.student_payment_history',
-                        student_ref=student.public_id,
-                        page=paginated.next_num) }}">
+               href="{{ pagination_url(paginated.next_num) }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>
         </ul>
       </nav>
+      {% endif %}
     </div>
-    {% else %}
-    <div class="px-3 py-2 border-top">
-      <small class="text-muted">Total {{ paginated.total }} transaksi</small>
-    </div>
-    {% endif %}
 
     {% else %}
     {# Empty state #}

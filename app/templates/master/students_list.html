@@ -257,19 +257,22 @@
     </div>
 
     {# Footer tabel: total + pagination #}
-    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-top">
+    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-top flex-wrap gap-2">
       <div class="text-muted small">
         Menampilkan <strong>{{ students.items | length }}</strong> dari
         <strong>{{ students.total }}</strong> siswa
         (Halaman {{ students.page }} / {{ students.pages }})
       </div>
+      {% with pagination=students, per_page_select_id="students-per-page" %}
+        {% include "components/per_page_select.html" %}
+      {% endwith %}
       {% if students.pages > 1 %}
       <nav aria-label="Navigasi halaman siswa">
         <ul class="pagination pagination-sm mb-0">
           <li class="page-item {% if not students.has_prev %}disabled{% endif %}">
               <a
                 class="page-link"
-                href="{{ url_for('master.students_list', page=students.prev_num, search=search, active_state=active_state) if students.has_prev else '#' }}"
+                href="{{ pagination_url(students.prev_num) if students.has_prev else '#' }}"
                 aria-label="Sebelumnya"
               >
               <i class="bi bi-chevron-left"></i>
@@ -281,7 +284,7 @@
               <li class="page-item {% if page_num == students.page %}active{% endif %}">
                 <a
                   class="page-link"
-                  href="{{ url_for('master.students_list', page=page_num, search=search, active_state=active_state) }}"
+                  href="{{ pagination_url(page_num) }}"
                 >{{ page_num }}</a>
               </li>
             {% else %}
@@ -294,7 +297,7 @@
           <li class="page-item {% if not students.has_next %}disabled{% endif %}">
               <a
                 class="page-link"
-                href="{{ url_for('master.students_list', page=students.next_num, search=search, active_state=active_state) if students.has_next else '#' }}"
+                href="{{ pagination_url(students.next_num) if students.has_next else '#' }}"
                 aria-label="Berikutnya"
               >
               <i class="bi bi-chevron-right"></i>

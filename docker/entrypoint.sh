@@ -76,6 +76,8 @@ EXTRA_DDL = [
     # Pricing rules
     "ALTER TABLE pricing_rules ADD COLUMN IF NOT EXISTS is_active              BOOLEAN  DEFAULT TRUE",
     "ALTER TABLE pricing_rules ADD COLUMN IF NOT EXISTS default_meeting_quota  INTEGER  DEFAULT 4",
+    # Manual subject tutor visibility overrides
+    "CREATE TABLE IF NOT EXISTS subject_tutor_assignments (\n        id         SERIAL PRIMARY KEY,\n        subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,\n        tutor_id   INTEGER NOT NULL REFERENCES tutors(id) ON DELETE CASCADE,\n        status     VARCHAR(20) NOT NULL DEFAULT 'included',\n        notes      TEXT,\n        created_at TIMESTAMP DEFAULT NOW(),\n        updated_at TIMESTAMP DEFAULT NOW(),\n        CONSTRAINT uq_subject_tutor_assignments_subject_tutor UNIQUE(subject_id, tutor_id)\n    )",
 ]
 with app.app_context():
     for stmt in EXTRA_DDL:

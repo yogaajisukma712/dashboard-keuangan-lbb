@@ -22,6 +22,7 @@ from app.utils import (
     build_qr_code_data_uri,
     decode_public_id,
     encode_public_id,
+    get_per_page,
     get_branding_logo_mark_data_uri,
 )
 
@@ -862,10 +863,8 @@ def invoice_detail(invoice_ref):
 @login_required
 def invoice_list():
     """Daftar semua invoice dengan filter dan pagination."""
-    from flask import current_app
-
     page = request.args.get("page", 1, type=int)
-    per_page = current_app.config.get("PAGINATION_PER_PAGE", 20)
+    per_page = get_per_page()
     student_ref = (request.args.get("student_ref") or "").strip()
     student_id = None
     status = request.args.get("status", "").strip()

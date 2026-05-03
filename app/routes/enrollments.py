@@ -11,7 +11,7 @@ from app import db
 from app.forms import EnrollmentForm
 from app.models import AttendanceSession, Curriculum, Enrollment, Level, Student, Subject, Tutor
 from app.services.whatsapp_ingest_service import WhatsAppIngestService
-from app.utils import decode_public_id
+from app.utils import decode_public_id, get_per_page
 
 enrollments_bp = Blueprint("enrollments", __name__, url_prefix="/enrollments")
 
@@ -76,10 +76,11 @@ def _build_enrollment_list_query(search_term: str = "", status: str = ""):
 def list_enrollments():
     """List all enrollments"""
     page = request.args.get("page", 1, type=int)
+    per_page = get_per_page()
     search_term = request.args.get("q", "", type=str)
     status = request.args.get("status", "", type=str)
     enrollments = _build_enrollment_list_query(search_term, status).paginate(
-        page=page, per_page=20
+        page=page, per_page=per_page
     )
     return render_template(
         "enrollments/list.html",

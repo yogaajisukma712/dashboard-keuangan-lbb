@@ -151,6 +151,10 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert 'quickAttendanceSearchEmptyRow' in template_text
     assert 'Tidak ada sesi di halaman ini yang cocok dengan pencarian cepat.' in template_text
     assert 'quickAttendanceSearchInput.addEventListener("input"' in template_text
+    assert 'name="enrollment_ref"' in template_text
+    assert 'name="tutor_ref"' in template_text
+    assert "enr.public_id" in template_text
+    assert "t.public_id" in template_text
 
 
 def test_attendance_form_template_contains_manual_tutor_selector():
@@ -163,6 +167,18 @@ def test_attendance_form_template_contains_manual_tutor_selector():
     assert "attendance_tutor_map" in template_text
     assert "maybeSyncTutorFromEnrollment" in template_text
     assert "Tidak harus sama dengan tutor bawaan enrollment" in template_text
+
+
+def test_attendance_routes_support_public_ref_filters_in_source():
+    project_root = Path(__file__).resolve().parents[1]
+    route_text = (project_root / "app" / "routes" / "attendance.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert '_decode_optional_query_ref("enrollment_ref", "enrollment")' in route_text
+    assert '_decode_optional_query_ref("tutor_ref", "tutor")' in route_text
+    assert '"enrollment_ref": request.args.get("enrollment_ref") or ""' in route_text
+    assert '"tutor_ref": request.args.get("tutor_ref") or ""' in route_text
 
 
 def test_sync_linked_whatsapp_evaluations_follows_manual_attendance_edit():

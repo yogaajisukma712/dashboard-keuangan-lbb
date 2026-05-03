@@ -22,7 +22,7 @@ from app.models import (
 )
 from app.services import AttendanceService
 from app.services.whatsapp_ingest_service import WhatsAppIngestService
-from app.utils import decode_public_id
+from app.utils import decode_public_id, get_per_page
 
 attendance_bp = Blueprint("attendance", __name__, url_prefix="/attendance")
 
@@ -72,6 +72,16 @@ def _normalize_calendar_period(month: int | None, year: int | None):
     if target_year < 2000 or target_year > 2100:
         target_year = today.year
     return target_month, target_year
+
+
+def _decode_optional_query_ref(param_name: str, kind: str) -> int | None:
+    value = (request.args.get(param_name) or "").strip()
+    if not value:
+        return None
+    try:
+        return decode_public_id(value, kind)
+    except ValueError:
+        return None
 
 
 def _build_lesson_calendar(month: int, year: int, tutor_id: int | None = None):
@@ -228,8 +238,8 @@ def _build_attendance_list_query(
 def _attendance_redirect_filters():
     return {
         "page": request.args.get("page", 1, type=int),
-        "enrollment_id": request.args.get("enrollment_id", type=int) or "",
-        "tutor_id": request.args.get("tutor_id", type=int) or "",
+        "enrollment_ref": request.args.get("enrollment_ref") or "",
+        "tutor_ref": request.args.get("tutor_ref") or "",
         "month": request.args.get("month", type=int) or "",
         "year": request.args.get("year", type=int) or "",
         "status": request.args.get("status") or "",
@@ -286,11 +296,15 @@ def _build_attendance_year_options() -> list[int]:
 def list_attendance():
     """List all attendance sessions"""
     page = request.args.get("page", 1, type=int)
-    per_page = 20
+    per_page = get_per_page()
 
     # Filter options
-    enrollment_id = request.args.get("enrollment_id", type=int)
-    tutor_id = request.args.get("tutor_id", type=int)
+    enrollment_id = _decode_optional_query_ref("enrollment_ref", "enrollment")
+    tutor_id = _decode_optional_query_ref("tutor_ref", "tutor")
+    if enrollment_id is None:
+        enrollment_id = request.args.get("enrollment_id", type=int)
+    if tutor_id is None:
+        tutor_id = request.args.get("tutor_id", type=int)
     month = request.args.get("month", type=int)
     year = request.args.get("year", type=int)
     status = request.args.get("status")
@@ -320,7 +334,15 @@ def list_attendance():
         attendance_tutor_map=_build_tutor_enrollment_map(enrollments),
         year_options=year_options,
         selected_enrollment_id=enrollment_id,
+        selected_enrollment_ref=next(
+            (enr.public_id for enr in enrollments if enr.id == enrollment_id),
+            "",
+        ),
         selected_tutor_id=tutor_id,
+        selected_tutor_ref=next(
+            (tutor.public_id for tutor in tutors if tutor.id == tutor_id),
+            "",
+        ),
         selected_month=month,
         selected_year=year,
         selected_status=status,
@@ -335,15 +357,15 @@ def scan_whatsapp_attendance():
     """Scan WhatsApp evaluations for one selected month and link to attendance."""
     month = request.form.get("month", type=int)
     year = request.form.get("year", type=int)
-    enrollment_id = request.form.get("enrollment_id", type=int)
-    tutor_id = request.form.get("tutor_id", type=int)
     status = request.form.get("status")
+    enrollment_ref = (request.form.get("enrollment_ref") or "").strip()
+    tutor_ref = (request.form.get("tutor_ref") or "").strip()
 
     redirect_kwargs = {
         "month": month or "",
         "year": year or "",
-        "enrollment_id": enrollment_id or "",
-        "tutor_id": tutor_id or "",
+        "enrollment_ref": enrollment_ref,
+        "tutor_ref": tutor_ref,
         "status": status or "",
     }
 
@@ -386,13 +408,19 @@ def calendar_view():
     """Monthly lesson calendar built from enrollment schedules."""
     month = request.args.get("month", type=int)
     year = request.args.get("year", type=int)
-    tutor_id = request.args.get("tutor_id", type=int)
+    tutor_id = _decode_optional_query_ref("tutor_ref", "tutor")
+    if tutor_id is None:
+        tutor_id = request.args.get("tutor_id", type=int)
     tutors = Tutor.query.filter_by(is_active=True).order_by(Tutor.name.asc()).all()
     calendar_data = _build_lesson_calendar(month, year, tutor_id=tutor_id)
     return render_template(
         "attendance/calendar.html",
         tutors=tutors,
         selected_tutor_id=tutor_id,
+        selected_tutor_ref=next(
+            (tutor.public_id for tutor in tutors if tutor.id == tutor_id),
+            "",
+        ),
         month_options=list(enumerate(INDONESIAN_MONTH_NAMES))[1:],
         calendar_data=calendar_data,
     )

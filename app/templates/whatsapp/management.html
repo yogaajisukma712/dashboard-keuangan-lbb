@@ -314,7 +314,17 @@
             </div>
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mt-3">
                 <div id="groupsPaginationSummary" class="wa-muted-kv">Belum ada data group.</div>
-                <div id="groupsPagination" class="d-flex justify-content-end"></div>
+                <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                    <label class="wa-muted-kv" for="groupsPageSizeSelect">Baris</label>
+                    <select id="groupsPageSizeSelect" class="form-select form-select-sm w-auto" aria-label="Jumlah baris group">
+                        <option value="8" selected>8</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <div id="groupsPagination" class="d-flex justify-content-end"></div>
+                </div>
             </div>
         </div>
     </section>
@@ -376,7 +386,16 @@
             </div>
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mt-3">
                 <div id="contactsPaginationSummary" class="wa-muted-kv">Belum ada data kontak.</div>
-                <div id="contactsPagination" class="d-flex justify-content-end"></div>
+                <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                    <label class="wa-muted-kv" for="contactsPageSizeSelect">Baris</label>
+                    <select id="contactsPageSizeSelect" class="form-select form-select-sm w-auto" aria-label="Jumlah baris kontak">
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <div id="contactsPagination" class="d-flex justify-content-end"></div>
+                </div>
             </div>
         </div>
     </section>
@@ -411,6 +430,8 @@
         const contactsQuickSearch = document.getElementById("contactsQuickSearch");
         const groupsValidationFilter = document.getElementById("groupsValidationFilter");
         const contactsValidationFilter = document.getElementById("contactsValidationFilter");
+        const groupsPageSizeSelect = document.getElementById("groupsPageSizeSelect");
+        const contactsPageSizeSelect = document.getElementById("contactsPageSizeSelect");
         const contactsTableBody = document.getElementById("contactsTableBody");
         const groupsPagination = document.getElementById("groupsPagination");
         const groupsPaginationSummary = document.getElementById("groupsPaginationSummary");
@@ -423,8 +444,8 @@
         let allContacts = [];
         let groupsPage = 1;
         let contactsPage = 1;
-        const groupsPageSize = 8;
-        const contactsPageSize = 10;
+        let groupsPageSize = 8;
+        let contactsPageSize = 10;
         let warmupPollingHandle = null;
         let scanPollingHandle = null;
 
@@ -445,6 +466,11 @@
 
         function normalizeSearchTerm(value) {
             return String(value || "").trim().toLowerCase();
+        }
+
+        function readPageSize(selectElement, fallback) {
+            const parsed = Number(selectElement && selectElement.value ? selectElement.value : fallback);
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
         }
 
         function itemMatchesQuickSearch(item, searchTerm, fields) {
@@ -1203,6 +1229,13 @@
                 renderGroups(allGroups);
             });
         }
+        if (groupsPageSizeSelect) {
+            groupsPageSizeSelect.addEventListener("change", function () {
+                groupsPageSize = readPageSize(groupsPageSizeSelect, groupsPageSize);
+                groupsPage = 1;
+                renderGroups(allGroups);
+            });
+        }
         if (contactsValidationFilter) {
             contactsValidationFilter.addEventListener("change", function () {
                 contactsPage = 1;
@@ -1211,6 +1244,13 @@
         }
         if (contactsQuickSearch) {
             contactsQuickSearch.addEventListener("input", function () {
+                contactsPage = 1;
+                renderContacts(allContacts);
+            });
+        }
+        if (contactsPageSizeSelect) {
+            contactsPageSizeSelect.addEventListener("change", function () {
+                contactsPageSize = readPageSize(contactsPageSizeSelect, contactsPageSize);
                 contactsPage = 1;
                 renderContacts(allContacts);
             });

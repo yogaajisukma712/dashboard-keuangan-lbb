@@ -14,7 +14,7 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional
 
-from app.models import Curriculum, Level, Subject
+from app.models import Curriculum, Level, Subject, Tutor
 
 
 class StudentForm(FlaskForm):
@@ -94,6 +94,20 @@ class SubjectForm(FlaskForm):
     )
     description = TextAreaField("Deskripsi", validators=[Optional()])
     submit = SubmitField("Simpan")
+
+
+class SubjectTutorAssignmentForm(FlaskForm):
+    """Form for manual tutor include on a subject detail page."""
+
+    tutor_id = SelectField("Tutor", coerce=int, validators=[DataRequired()])
+    submit = SubmitField("Tambah Tutor")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tutor_id.choices = [
+            (t.id, f"{t.name} ({t.tutor_code})" if t.tutor_code else t.name)
+            for t in Tutor.query.filter_by(is_active=True).order_by(Tutor.name.asc()).all()
+        ]
 
 
 class CurriculumForm(FlaskForm):

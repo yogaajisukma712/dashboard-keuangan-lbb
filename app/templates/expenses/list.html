@@ -161,17 +161,20 @@
     </div>
 
     {# Pagination #}
-    {% if expenses.pages > 1 %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
       <small class="text-muted">
         Menampilkan {{ expenses.items | length }} dari {{ expenses.total }} data
         (Halaman {{ expenses.page }} / {{ expenses.pages }})
       </small>
+      {% with pagination=expenses, per_page_select_id="expenses-per-page" %}
+        {% include "components/per_page_select.html" %}
+      {% endwith %}
+      {% if expenses.pages > 1 %}
       <nav>
         <ul class="pagination pagination-sm mb-0">
           <li class="page-item {% if not expenses.has_prev %}disabled{% endif %}">
             <a class="page-link"
-               href="{{ url_for('expenses.list_expenses', page=expenses.prev_num) }}">
+               href="{{ pagination_url(expenses.prev_num) }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -179,7 +182,7 @@
             {% if p %}
             <li class="page-item {% if p == expenses.page %}active{% endif %}">
               <a class="page-link"
-                 href="{{ url_for('expenses.list_expenses', page=p) }}">{{ p }}</a>
+                 href="{{ pagination_url(p) }}">{{ p }}</a>
             </li>
             {% else %}
             <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -187,18 +190,14 @@
           {% endfor %}
           <li class="page-item {% if not expenses.has_next %}disabled{% endif %}">
             <a class="page-link"
-               href="{{ url_for('expenses.list_expenses', page=expenses.next_num) }}">
+               href="{{ pagination_url(expenses.next_num) }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>
         </ul>
       </nav>
-    </div>
-    {% else %}
-    <div class="px-3 py-2 border-top">
-      <small class="text-muted">Total {{ expenses.total }} data</small>
-    </div>
     {% endif %}
+    </div>
 
     {% else %}
     {# Empty state #}

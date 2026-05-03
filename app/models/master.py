@@ -130,6 +130,12 @@ class Subject(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
+    tutor_assignments = db.relationship(
+        "SubjectTutorAssignment",
+        back_populates="subject",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def public_id(self):
@@ -231,6 +237,12 @@ class Tutor(db.Model):
     payouts = db.relationship(
         "TutorPayout", backref="tutor", lazy="dynamic", cascade="all, delete-orphan"
     )
+    subject_assignments = db.relationship(
+        "SubjectTutorAssignment",
+        back_populates="tutor",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self):
         return f"<Tutor {self.name}>"
@@ -292,6 +304,38 @@ class Tutor(db.Model):
     def get_balance(self, month=None):
         """Get unpaid balance for this tutor"""
         return self.get_total_payable(month) - self.get_total_paid(month)
+
+
+class SubjectTutorAssignment(db.Model):
+    """Manual include/exclude override for tutor visibility on subject detail."""
+
+    __tablename__ = "subject_tutor_assignments"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "subject_id",
+            "tutor_id",
+            name="uq_subject_tutor_assignments_subject_tutor",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey("subjects.id"), nullable=False)
+    tutor_id = db.Column(db.Integer, db.ForeignKey("tutors.id"), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="included")
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    subject = db.relationship("Subject", back_populates="tutor_assignments")
+    tutor = db.relationship("Tutor", back_populates="subject_assignments")
+
+    def __repr__(self):
+        return (
+            f"<SubjectTutorAssignment subject_id={self.subject_id} "
+            f"tutor_id={self.tutor_id} status={self.status}>"
+        )
 
 
 # Import models at the end to avoid circular imports

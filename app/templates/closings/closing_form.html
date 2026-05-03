@@ -1,197 +1,427 @@
-{% extends "base.html" %}
-
-{% block title %}Buat Closing Baru — LBB Super Smart{% endblock %}
-
-{% block content %}
-{% set MONTHS = ['','Januari','Februari','Maret','April','Mei','Juni',
-                 'Juli','Agustus','September','Oktober','November','Desember'] %}
-
-{# ── Page Header ─────────────────────────────────────────────────────────── #}
+{% extends "base.html" %} {% block title %}Buat Closing Baru — LBB Super Smart{%
+endblock %} {% block content %} {% set MONTHS =
+['','Januari','Februari','Maret','April','Mei','Juni',
+'Juli','Agustus','September','Oktober','November','Desember'] %} {# ── Page
+Header ─────────────────────────────────────────────────────────── #}
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="h4 mb-0"><i class="bi bi-plus-circle me-2 text-primary"></i>Buat Closing Baru</h2>
-    <p class="text-muted mb-0 small">Tutup buku keuangan untuk periode bulan tertentu</p>
-  </div>
-  <a href="{{ url_for('closings.monthly_closing') }}" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-arrow-left me-1"></i>Kembali
-  </a>
+    <div>
+        <h2 class="h4 mb-0">
+            <i class="bi bi-plus-circle me-2 text-primary"></i>Buat Closing Baru
+        </h2>
+        <p class="text-muted mb-0 small">
+            Tutup buku keuangan untuk periode bulan tertentu
+        </p>
+    </div>
+    <a
+        href="{{ url_for('closings.monthly_closing') }}"
+        class="btn btn-outline-secondary btn-sm"
+    >
+        <i class="bi bi-arrow-left me-1"></i>Kembali
+    </a>
 </div>
 
-{# ── Flash Messages ───────────────────────────────────────────────────────── #}
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
-        <i class="bi bi-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
+{# ── Flash Messages ─────────────────────────────────────────────────────────
+#} {% with messages = get_flashed_messages(with_categories=true) %} {% if
+messages %} {% for category, message in messages %}
+<div
+    class="alert alert-{{ category }} alert-dismissible fade show shadow-sm"
+    role="alert"
+>
+    <i
+        class="bi bi-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"
+    ></i>
+    {{ message }}
+    <button
+        type="button"
+        class="btn-close"
+        data-bs-dismiss="alert"
+        aria-label="Close"
+    ></button>
+</div>
+{% endfor %} {% endif %} {% endwith %} {# ── Preview Panel (tampil hanya jika
+preview sudah dihitung) ──────────────── #} {% if preview %}
+<div
+    class="card border-0 shadow-sm mb-4"
+    style="border-left: 4px solid #198754 !important"
+>
+    <div
+        class="card-header bg-success bg-opacity-10 py-3 d-flex justify-content-between align-items-center"
+    >
+        <span class="fw-semibold text-success">
+            <i class="bi bi-calculator-fill me-2"></i>
+            Preview Closing — {{ preview.month_name }} {{ preview.year }}
+        </span>
+        <span class="badge bg-info rounded-pill">Belum Disimpan</span>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-borderless mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-3" colspan="2">Rincian</th>
+                    <th class="text-end pe-3">Nilai</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="border-bottom">
+                    <td class="ps-3 text-muted small" colspan="2">
+                        Saldo Awal (Opening Cash)
+                    </td>
+                    <td class="text-end pe-3 fw-semibold">
+                        Rp {{ "{:,.0f}".format(preview.opening_cash_balance) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="ps-3" colspan="2">Pemasukan Siswa</td>
+                    <td class="text-end pe-3 text-success">
+                        Rp {{ "{:,.0f}".format(preview.student_income) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="ps-3" colspan="2">Pemasukan Lain-lain</td>
+                    <td class="text-end pe-3 text-success">
+                        Rp {{ "{:,.0f}".format(preview.other_income) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="ps-3" colspan="2">Pengeluaran Operasional</td>
+                    <td class="text-end pe-3 text-danger">
+                        Rp {{ "{:,.0f}".format(preview.expenses) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="ps-3" colspan="2">Estimasi Gaji Tutor</td>
+                    <td class="text-end pe-3 text-warning">
+                        Rp {{ "{:,.0f}".format(preview.tutor_salary) }}
+                    </td>
+                </tr>
+                <tr class="table-light border-top">
+                    <td class="ps-3 fw-semibold" colspan="2">
+                        Grand Total Saldo
+                    </td>
+                    <td class="text-end pe-3 fw-bold text-primary">
+                        Rp {{ "{:,.0f}".format(preview.grand_saldo) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="ps-3" colspan="2">
+                        Grand Hutang Gaji (Kumulatif)
+                    </td>
+                    <td class="text-end pe-3 text-danger">
+                        Rp {{ "{:,.0f}".format(preview.grand_hutang) }}
+                    </td>
+                </tr>
+                <tr class="table-success">
+                    <td class="ps-3 fw-bold" colspan="2">Grand Profit</td>
+                    <td
+                        class="text-end pe-3 fw-bold {% if preview.grand_profit >= 0 %}text-success{% else %}text-danger{% endif %}"
+                    >
+                        Rp {{ "{:,.0f}".format(preview.grand_profit) }}
+                    </td>
+                </tr>
+                <tr class="table-primary">
+                    <td class="ps-3 fw-semibold" colspan="2">
+                        Estimasi Sisa Saldo (disimpan sebagai Closing Cash)
+                    </td>
+                    <td class="text-end pe-3 fw-bold text-primary">
+                        Rp {{ "{:,.0f}".format(preview.closing_cash_balance) }}
+                    </td>
+                </tr>
+                <tr class="border-top">
+                    <td class="ps-3 text-muted small" colspan="2">
+                        Hutang Tutor Terbawa ke Bulan Depan
+                    </td>
+                    <td class="text-end pe-3 text-secondary">
+                        Rp {{ "{:,.0f}".format(preview.closing_tutor_payable) }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-white py-3">
+        <form method="POST" action="{{ url_for('closings.create_closing') }}">
+            {% if csrf_token is defined %}<input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token() }}"
+            />{% endif %}
+            <input type="hidden" name="month" value="{{ preview.month }}" />
+            <input type="hidden" name="year" value="{{ preview.year }}" />
+            <input
+                type="hidden"
+                name="notes"
+                value="{{ preview.notes or '' }}"
+            />
+            <div class="d-flex flex-wrap gap-2 justify-content-end">
+                <span class="text-muted small align-self-center me-auto">
+                    <i class="bi bi-info-circle me-1"></i>Periksa angka di atas
+                    sebelum mengunci.
+                </span>
+                <button
+                    type="submit"
+                    name="action"
+                    value="save"
+                    class="btn btn-outline-primary btn-sm"
+                >
+                    <i class="bi bi-floppy me-1"></i>Simpan Draft
+                </button>
+                <button
+                    type="submit"
+                    name="action"
+                    value="confirm"
+                    class="btn btn-success btn-sm"
+                >
+                    <i class="bi bi-lock-fill me-1"></i>Konfirmasi &amp; Kunci
+                    Sekarang
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
 
 <div class="row justify-content-center">
-  <div class="col-12 col-md-8 col-lg-6">
+    <div class="col-12 col-md-8 col-lg-6">
+        {# ── Info Card
+        ────────────────────────────────────────────────────────── #}
+        <div
+            class="alert alert-info border-0 shadow-sm mb-4 d-flex align-items-start gap-2"
+        >
+            <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+            <div>
+                <strong>Perhatian:</strong> Proses closing akan merangkum
+                seluruh transaksi pada periode yang dipilih — pemasukan,
+                pengeluaran, dan gaji tutor — lalu menghitung saldo akhir dan
+                profit bulan tersebut. Pastikan semua data transaksi sudah
+                lengkap sebelum melakukan closing.
+            </div>
+        </div>
 
-    {# ── Info Card ────────────────────────────────────────────────────────── #}
-    <div class="alert alert-info border-0 shadow-sm mb-4 d-flex align-items-start gap-2">
-      <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
-      <div>
-        <strong>Perhatian:</strong> Proses closing akan merangkum seluruh transaksi
-        pada periode yang dipilih — pemasukan, pengeluaran, dan gaji tutor —
-        lalu menghitung saldo akhir dan profit bulan tersebut.
-        Pastikan semua data transaksi sudah lengkap sebelum melakukan closing.
-      </div>
+        {# ── Form Card
+        ────────────────────────────────────────────────────────── #}
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <span class="fw-semibold">
+                    <i class="bi bi-calendar3 me-2 text-primary"></i>Pilih
+                    Periode Closing
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <form
+                    method="POST"
+                    action="{{ url_for('closings.create_closing') }}"
+                    novalidate
+                >
+                    {# CSRF token jika menggunakan Flask-WTF #} {% if csrf_token
+                    is defined %}
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token() }}"
+                    />
+                    {% endif %} {# ── Bulan
+                    ─────────────────────────────────────────────────────── #}
+                    <div class="mb-4">
+                        <label for="month" class="form-label fw-semibold">
+                            Bulan <span class="text-danger">*</span>
+                        </label>
+                        <select
+                            id="month"
+                            name="month"
+                            class="form-select"
+                            required
+                        >
+                            <option value="" disabled selected>
+                                — Pilih Bulan —
+                            </option>
+                            {% for i in range(1, 13) %}
+                            <option value="{{ i }}">{{ MONTHS[i] }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback">Bulan harus dipilih.</div>
+                        <div class="form-text text-muted">
+                            Pilih bulan yang akan di-closing.
+                        </div>
+                    </div>
+
+                    {# ── Tahun
+                    ─────────────────────────────────────────────────────── #}
+                    <div class="mb-4">
+                        <label for="year" class="form-label fw-semibold">
+                            Tahun <span class="text-danger">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            id="year"
+                            name="year"
+                            class="form-control"
+                            placeholder="Contoh: 2025"
+                            min="2020"
+                            max="2099"
+                            value="{{ now.year if now is defined else '' }}"
+                            required
+                        />
+                        <div class="invalid-feedback">
+                            Tahun harus diisi dengan format 4 digit.
+                        </div>
+                        <div class="form-text text-muted">
+                            Masukkan tahun periode (contoh: 2025).
+                        </div>
+                    </div>
+
+                    {# ── Catatan / Notes
+                    ───────────────────────────────────────────── #}
+                    <div class="mb-4">
+                        <label for="notes" class="form-label fw-semibold">
+                            Catatan
+                            <span class="text-muted fw-normal">(opsional)</span>
+                        </label>
+                        <textarea
+                            id="notes"
+                            name="notes"
+                            class="form-control"
+                            rows="4"
+                            placeholder="Tambahkan catatan untuk closing ini, misalnya kondisi keuangan khusus bulan ini..."
+                            maxlength="500"
+                        ></textarea>
+                        <div class="form-text text-muted">
+                            Maksimal 500 karakter.
+                        </div>
+                    </div>
+
+                    {# ── Divider
+                    ───────────────────────────────────────────────────── #}
+                    <hr class="my-4" />
+
+                    {# ── Action Buttons
+                    ────────────────────────────────────────────── #}
+                    <div class="d-flex flex-wrap justify-content-end gap-2">
+                        <a
+                            href="{{ url_for('closings.monthly_closing') }}"
+                            class="btn btn-outline-secondary"
+                        >
+                            <i class="bi bi-x-lg me-1"></i>Batal
+                        </a>
+                        <button
+                            type="submit"
+                            name="action"
+                            value="preview"
+                            class="btn btn-outline-info"
+                        >
+                            <i class="bi bi-eye me-1"></i>Lihat Preview
+                        </button>
+                        <button
+                            type="submit"
+                            name="action"
+                            value="save"
+                            class="btn btn-outline-primary"
+                        >
+                            <i class="bi bi-floppy me-1"></i>Simpan Draft
+                        </button>
+                        <button
+                            type="submit"
+                            name="action"
+                            value="confirm"
+                            class="btn btn-success"
+                        >
+                            <i class="bi bi-lock-fill me-1"></i>Simpan &amp;
+                            Kunci
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {# ── Checklist Sebelum Closing ───────────────────────────────────────
+        #}
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-header bg-white py-3">
+                <span class="fw-semibold">
+                    <i class="bi bi-list-check me-2 text-success"></i>Checklist
+                    Sebelum Closing
+                </span>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="d-flex align-items-start gap-2 mb-2">
+                        <i
+                            class="bi bi-check2-circle text-success mt-1 flex-shrink-0"
+                        ></i>
+                        <span class="small"
+                            >Semua pembayaran siswa sudah diinput untuk bulan
+                            ini</span
+                        >
+                    </li>
+                    <li class="d-flex align-items-start gap-2 mb-2">
+                        <i
+                            class="bi bi-check2-circle text-success mt-1 flex-shrink-0"
+                        ></i>
+                        <span class="small"
+                            >Seluruh pengeluaran operasional sudah dicatat</span
+                        >
+                    </li>
+                    <li class="d-flex align-items-start gap-2 mb-2">
+                        <i
+                            class="bi bi-check2-circle text-success mt-1 flex-shrink-0"
+                        ></i>
+                        <span class="small"
+                            >Presensi tutor sudah lengkap dan
+                            terverifikasi</span
+                        >
+                    </li>
+                    <li class="d-flex align-items-start gap-2 mb-2">
+                        <i
+                            class="bi bi-check2-circle text-success mt-1 flex-shrink-0"
+                        ></i>
+                        <span class="small"
+                            >Payroll tutor sudah dihitung dan disetujui</span
+                        >
+                    </li>
+                    <li class="d-flex align-items-start gap-2">
+                        <i
+                            class="bi bi-check2-circle text-success mt-1 flex-shrink-0"
+                        ></i>
+                        <span class="small"
+                            >Saldo kas awal periode sudah sesuai dengan closing
+                            bulan lalu</span
+                        >
+                    </li>
+                </ul>
+            </div>
+        </div>
     </div>
-
-    {# ── Form Card ────────────────────────────────────────────────────────── #}
-    <div class="card border-0 shadow-sm">
-      <div class="card-header bg-white py-3">
-        <span class="fw-semibold">
-          <i class="bi bi-calendar3 me-2 text-primary"></i>Pilih Periode Closing
-        </span>
-      </div>
-      <div class="card-body p-4">
-        <form method="POST" action="{{ url_for('closings.create_closing') }}" novalidate>
-
-          {# CSRF token jika menggunakan Flask-WTF #}
-          {% if csrf_token is defined %}
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          {% endif %}
-
-          {# ── Bulan ─────────────────────────────────────────────────────── #}
-          <div class="mb-4">
-            <label for="month" class="form-label fw-semibold">
-              Bulan <span class="text-danger">*</span>
-            </label>
-            <select id="month" name="month" class="form-select" required>
-              <option value="" disabled selected>— Pilih Bulan —</option>
-              {% for i in range(1, 13) %}
-                <option value="{{ i }}">{{ MONTHS[i] }}</option>
-              {% endfor %}
-            </select>
-            <div class="invalid-feedback">Bulan harus dipilih.</div>
-            <div class="form-text text-muted">Pilih bulan yang akan di-closing.</div>
-          </div>
-
-          {# ── Tahun ─────────────────────────────────────────────────────── #}
-          <div class="mb-4">
-            <label for="year" class="form-label fw-semibold">
-              Tahun <span class="text-danger">*</span>
-            </label>
-            <input
-              type="number"
-              id="year"
-              name="year"
-              class="form-control"
-              placeholder="Contoh: 2025"
-              min="2020"
-              max="2099"
-              value="{{ now.year if now is defined else '' }}"
-              required
-            >
-            <div class="invalid-feedback">Tahun harus diisi dengan format 4 digit.</div>
-            <div class="form-text text-muted">Masukkan tahun periode (contoh: 2025).</div>
-          </div>
-
-          {# ── Catatan / Notes ───────────────────────────────────────────── #}
-          <div class="mb-4">
-            <label for="notes" class="form-label fw-semibold">
-              Catatan <span class="text-muted fw-normal">(opsional)</span>
-            </label>
-            <textarea
-              id="notes"
-              name="notes"
-              class="form-control"
-              rows="4"
-              placeholder="Tambahkan catatan untuk closing ini, misalnya kondisi keuangan khusus bulan ini..."
-              maxlength="500"
-            ></textarea>
-            <div class="form-text text-muted">Maksimal 500 karakter.</div>
-          </div>
-
-          {# ── Divider ───────────────────────────────────────────────────── #}
-          <hr class="my-4">
-
-          {# ── Action Buttons ────────────────────────────────────────────── #}
-          <div class="d-flex justify-content-end gap-2">
-            <a href="{{ url_for('closings.monthly_closing') }}" class="btn btn-outline-secondary">
-              <i class="bi bi-x-lg me-1"></i>Batal
-            </a>
-            <button type="submit" class="btn btn-primary">
-              <i class="bi bi-archive-fill me-1"></i>Simpan Closing
-            </button>
-          </div>
-
-        </form>
-      </div>
-    </div>
-
-    {# ── Checklist Sebelum Closing ─────────────────────────────────────── #}
-    <div class="card border-0 shadow-sm mt-4">
-      <div class="card-header bg-white py-3">
-        <span class="fw-semibold">
-          <i class="bi bi-list-check me-2 text-success"></i>Checklist Sebelum Closing
-        </span>
-      </div>
-      <div class="card-body">
-        <ul class="list-unstyled mb-0">
-          <li class="d-flex align-items-start gap-2 mb-2">
-            <i class="bi bi-check2-circle text-success mt-1 flex-shrink-0"></i>
-            <span class="small">Semua pembayaran siswa sudah diinput untuk bulan ini</span>
-          </li>
-          <li class="d-flex align-items-start gap-2 mb-2">
-            <i class="bi bi-check2-circle text-success mt-1 flex-shrink-0"></i>
-            <span class="small">Seluruh pengeluaran operasional sudah dicatat</span>
-          </li>
-          <li class="d-flex align-items-start gap-2 mb-2">
-            <i class="bi bi-check2-circle text-success mt-1 flex-shrink-0"></i>
-            <span class="small">Presensi tutor sudah lengkap dan terverifikasi</span>
-          </li>
-          <li class="d-flex align-items-start gap-2 mb-2">
-            <i class="bi bi-check2-circle text-success mt-1 flex-shrink-0"></i>
-            <span class="small">Payroll tutor sudah dihitung dan disetujui</span>
-          </li>
-          <li class="d-flex align-items-start gap-2">
-            <i class="bi bi-check2-circle text-success mt-1 flex-shrink-0"></i>
-            <span class="small">Saldo kas awal periode sudah sesuai dengan closing bulan lalu</span>
-          </li>
-        </ul>
-      </div>
-    </div>
-
-  </div>
 </div>
 
-{% endblock %}
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script>
-  // Bootstrap form validation
-  (function () {
-    'use strict';
-    const form = document.querySelector('form');
-    form.addEventListener('submit', function (e) {
-      if (!form.checkValidity()) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-      form.classList.add('was-validated');
-    }, false);
+    // Bootstrap form validation
+    (function () {
+        "use strict";
+        const form = document.querySelector("form");
+        form.addEventListener(
+            "submit",
+            function (e) {
+                if (!form.checkValidity()) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                form.classList.add("was-validated");
+            },
+            false,
+        );
 
-    // Auto-set tahun ke tahun sekarang jika belum terisi
-    const yearInput = document.getElementById('year');
-    if (!yearInput.value) {
-      yearInput.value = new Date().getFullYear();
-    }
+        // Auto-set tahun ke tahun sekarang jika belum terisi
+        const yearInput = document.getElementById("year");
+        if (!yearInput.value) {
+            yearInput.value = new Date().getFullYear();
+        }
 
-    // Counter karakter notes
-    const notesArea = document.getElementById('notes');
-    const notesHelp = notesArea.nextElementSibling;
-    notesArea.addEventListener('input', function () {
-      const remaining = 500 - this.value.length;
-      notesHelp.textContent = remaining + ' karakter tersisa.';
-    });
-  })();
+        // Counter karakter notes
+        const notesArea = document.getElementById("notes");
+        const notesHelp = notesArea.nextElementSibling;
+        notesArea.addEventListener("input", function () {
+            const remaining = 500 - this.value.length;
+            notesHelp.textContent = remaining + " karakter tersisa.";
+        });
+    })();
 </script>
 {% endblock %}

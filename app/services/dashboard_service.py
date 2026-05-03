@@ -21,6 +21,7 @@ from app.models import (
     StudentPaymentLine,
     Subject,
     Tutor,
+    TutorPayout,
     TutorPayoutLine,
 )
 
@@ -30,21 +31,24 @@ class DashboardService:
 
     @staticmethod
     def get_opening_balance(month, year):
-        """Get opening cash balance for the month (= previous month closing balance)"""
-        prev_month = month - 1
-        prev_year = year
-        if prev_month < 1:
-            prev_month = 12
-            prev_year -= 1
+        """Get opening cash balance (= previous month estimated remaining balance)."""
+        current_closing = MonthlyClosing.query.filter_by(month=month, year=year).first()
+        if current_closing:
+            prev_month, prev_year = DashboardService._prev_month(month, year)
+            prev_closing = MonthlyClosing.query.filter_by(
+                month=prev_month, year=prev_year
+            ).first()
+            if not prev_closing:
+                return (
+                    float(current_closing.closing_cash_balance or 0)
+                    + DashboardService.get_tutor_salary_accrual(month, year)
+                    - DashboardService.get_monthly_cash_flow(month, year)
+                )
 
-        prev_closing = MonthlyClosing.query.filter_by(
-            month=prev_month, year=prev_year
-        ).first()
-
-        if prev_closing:
-            return float(prev_closing.closing_cash_balance or 0)
-
-        return 0.0
+        earliest_period = DashboardService._get_earliest_dashboard_period()
+        return DashboardService._get_opening_balance_internal(
+            month, year, earliest_period
+        )
 
     @staticmethod
     def get_total_income_this_month(month, year):
@@ -121,13 +125,14 @@ class DashboardService:
 
     @staticmethod
     def get_tutor_salary_accrual(month, year):
-        """Get total tutor salary accrual from attendance this month"""
+        """Get tutor salary paid/recorded for this service month."""
         total = (
-            db.session.query(func.sum(AttendanceSession.tutor_fee_amount))
+            db.session.query(func.sum(TutorPayoutLine.amount))
+            .join(TutorPayout, TutorPayoutLine.tutor_payout_id == TutorPayout.id)
             .filter(
-                extract("month", AttendanceSession.session_date) == month,
-                extract("year", AttendanceSession.session_date) == year,
-                AttendanceSession.status == "attended",
+                extract("month", TutorPayoutLine.service_month) == month,
+                extract("year", TutorPayoutLine.service_month) == year,
+                TutorPayout.status != "cancelled",
             )
             .scalar()
             or 0
@@ -150,26 +155,16 @@ class DashboardService:
 
         Payouts are NOT deducted here.
         """
-        # Previous month's accumulated tutor payable (from MonthlyClosing)
-        prev_month = month - 1
-        prev_year = year
-        if prev_month < 1:
-            prev_month = 12
-            prev_year -= 1
+        current_closing = MonthlyClosing.query.filter_by(month=month, year=year).first()
+        if current_closing:
+            return float(
+                current_closing.closing_tutor_payable or 0
+            ) + DashboardService.get_tutor_salary_accrual(month, year)
 
-        prev_closing = MonthlyClosing.query.filter_by(
-            month=prev_month, year=prev_year
-        ).first()
-        prev_payable = (
-            float(prev_closing.closing_tutor_payable or 0) if prev_closing else 0
+        earliest_period = DashboardService._get_earliest_dashboard_period()
+        return DashboardService._get_grand_tutor_payable_internal(
+            month, year, earliest_period
         )
-
-        # Current month's new tutor payable from student payments
-        current_payable = DashboardService.get_tutor_payable_from_collection(
-            month, year
-        )
-
-        return prev_payable + current_payable
 
     @staticmethod
     def get_estimated_profit(month, year):
@@ -192,11 +187,14 @@ class DashboardService:
     def get_cash_balance(month, year):
         """Get grand total saldo = opening + income + other_income - expenses.
         Corresponds to 'Grand Total Saldo' in the acuan."""
-        opening = DashboardService.get_opening_balance(month, year)
-        income = DashboardService.get_total_income_this_month(month, year)
-        other_income = DashboardService.get_other_income_this_month(month, year)
-        expenses = DashboardService.get_total_expenses_this_month(month, year)
-        return opening + income + other_income - expenses
+        current_closing = MonthlyClosing.query.filter_by(month=month, year=year).first()
+        if current_closing:
+            return float(
+                current_closing.closing_cash_balance or 0
+            ) + DashboardService.get_tutor_salary_accrual(month, year)
+
+        earliest_period = DashboardService._get_earliest_dashboard_period()
+        return DashboardService._get_cash_balance_internal(month, year, earliest_period)
 
     @staticmethod
     def get_grand_profit(month, year):
@@ -208,9 +206,14 @@ class DashboardService:
     @staticmethod
     def get_estimated_remaining_balance(month, year):
         """Estimasi sisa saldo = Grand Total Saldo - Estimasi Gaji Tutor (accrual)"""
-        cash_balance = DashboardService.get_cash_balance(month, year)
-        salary_accrual = DashboardService.get_tutor_salary_accrual(month, year)
-        return cash_balance - salary_accrual
+        current_closing = MonthlyClosing.query.filter_by(month=month, year=year).first()
+        if current_closing:
+            return float(current_closing.closing_cash_balance or 0)
+
+        earliest_period = DashboardService._get_earliest_dashboard_period()
+        return DashboardService._get_estimated_remaining_balance_internal(
+            month, year, earliest_period
+        )
 
     @staticmethod
     def _prev_month(month, year):
@@ -221,6 +224,143 @@ class DashboardService:
             m = 12
             y -= 1
         return m, y
+
+    @staticmethod
+    def _period_key(month, year):
+        """Sortable integer key for month/year comparisons."""
+        return year * 12 + month
+
+    @staticmethod
+    def _get_earliest_dashboard_period():
+        """Find earliest month/year that can anchor cumulative dashboard math."""
+        candidates = []
+
+        first_closing = MonthlyClosing.query.order_by(
+            MonthlyClosing.year.asc(), MonthlyClosing.month.asc()
+        ).first()
+        if first_closing:
+            candidates.append((first_closing.month, first_closing.year))
+
+        first_payment = (
+            db.session.query(StudentPayment.payment_date)
+            .order_by(StudentPayment.payment_date.asc())
+            .first()
+        )
+        if first_payment and first_payment[0]:
+            candidates.append((first_payment[0].month, first_payment[0].year))
+
+        first_other_income = (
+            db.session.query(OtherIncome.income_date)
+            .order_by(OtherIncome.income_date.asc())
+            .first()
+        )
+        if first_other_income and first_other_income[0]:
+            candidates.append((first_other_income[0].month, first_other_income[0].year))
+
+        first_expense = (
+            db.session.query(Expense.expense_date)
+            .order_by(Expense.expense_date.asc())
+            .first()
+        )
+        if first_expense and first_expense[0]:
+            candidates.append((first_expense[0].month, first_expense[0].year))
+
+        first_payout = (
+            db.session.query(TutorPayoutLine.service_month)
+            .order_by(TutorPayoutLine.service_month.asc())
+            .first()
+        )
+        if first_payout and first_payout[0]:
+            candidates.append((first_payout[0].month, first_payout[0].year))
+
+        if not candidates:
+            return None
+
+        return min(candidates, key=lambda item: DashboardService._period_key(*item))
+
+    @staticmethod
+    def _is_before_earliest_period(month, year, earliest_period):
+        if earliest_period is None:
+            return True
+        return DashboardService._period_key(month, year) < DashboardService._period_key(
+            *earliest_period
+        )
+
+    @staticmethod
+    def _get_opening_balance_internal(month, year, earliest_period):
+        prev_month, prev_year = DashboardService._prev_month(month, year)
+        prev_closing = MonthlyClosing.query.filter_by(
+            month=prev_month, year=prev_year
+        ).first()
+        if prev_closing:
+            return float(prev_closing.closing_cash_balance or 0)
+
+        if DashboardService._is_before_earliest_period(
+            prev_month, prev_year, earliest_period
+        ):
+            return 0.0
+
+        return DashboardService._get_estimated_remaining_balance_internal(
+            prev_month, prev_year, earliest_period
+        )
+
+    @staticmethod
+    def _get_cash_balance_internal(month, year, earliest_period):
+        opening = DashboardService._get_opening_balance_internal(
+            month, year, earliest_period
+        )
+        income = DashboardService.get_total_income_this_month(month, year)
+        other_income = DashboardService.get_other_income_this_month(month, year)
+        expenses = DashboardService.get_total_expenses_this_month(month, year)
+        return opening + income + other_income - expenses
+
+    @staticmethod
+    def _get_estimated_remaining_balance_internal(month, year, earliest_period):
+        cash_balance = DashboardService._get_cash_balance_internal(
+            month, year, earliest_period
+        )
+        salary_accrual = DashboardService.get_tutor_salary_accrual(month, year)
+        return cash_balance - salary_accrual
+
+    @staticmethod
+    def _get_opening_tutor_payable_internal(month, year, earliest_period):
+        prev_month, prev_year = DashboardService._prev_month(month, year)
+        prev_closing = MonthlyClosing.query.filter_by(
+            month=prev_month, year=prev_year
+        ).first()
+        if prev_closing:
+            return float(prev_closing.closing_tutor_payable or 0)
+
+        if DashboardService._is_before_earliest_period(
+            prev_month, prev_year, earliest_period
+        ):
+            return 0.0
+
+        return DashboardService._get_closing_tutor_payable_internal(
+            prev_month, prev_year, earliest_period
+        )
+
+    @staticmethod
+    def _get_grand_tutor_payable_internal(month, year, earliest_period):
+        opening_payable = DashboardService._get_opening_tutor_payable_internal(
+            month, year, earliest_period
+        )
+        current_payable = DashboardService.get_tutor_payable_from_collection(
+            month, year
+        )
+        return opening_payable + current_payable
+
+    @staticmethod
+    def _get_closing_tutor_payable_internal(month, year, earliest_period):
+        current_closing = MonthlyClosing.query.filter_by(month=month, year=year).first()
+        if current_closing:
+            return float(current_closing.closing_tutor_payable or 0)
+
+        grand_payable = DashboardService._get_grand_tutor_payable_internal(
+            month, year, earliest_period
+        )
+        salary_accrual = DashboardService.get_tutor_salary_accrual(month, year)
+        return grand_payable - salary_accrual
 
     @staticmethod
     def get_monthly_trend(num_months):
@@ -307,14 +447,25 @@ class DashboardService:
 
     @staticmethod
     def get_payroll_summary(month, year):
-        """Get payroll summary for a specific month"""
-        payable = DashboardService.get_tutor_salary_accrual(month, year)
+        """Get payroll summary for a specific month.
 
+        total_payable  = tutor share collected from student payments this month
+                         (StudentPaymentLine.tutor_payable_amount).
+        total_paid     = tutor salary actually disbursed for this service month
+                         (TutorPayoutLine, status != 'cancelled').
+        total_unpaid   = total_payable - total_paid  (outstanding balance).
+        """
+        # What students paid that is earmarked for tutors this month
+        payable = DashboardService.get_tutor_payable_from_collection(month, year)
+
+        # What has actually been disbursed to tutors for this service month
         paid = (
             db.session.query(func.sum(TutorPayoutLine.amount))
+            .join(TutorPayout, TutorPayoutLine.tutor_payout_id == TutorPayout.id)
             .filter(
                 extract("month", TutorPayoutLine.service_month) == month,
                 extract("year", TutorPayoutLine.service_month) == year,
+                TutorPayout.status != "cancelled",
             )
             .scalar()
             or 0

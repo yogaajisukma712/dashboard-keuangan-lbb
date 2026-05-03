@@ -1,189 +1,231 @@
-{% extends "base.html" %}
-
-{% block title %}Monthly Closing — LBB Super Smart{% endblock %}
-
-{% block content %}
-{% set MONTHS = ['','Januari','Februari','Maret','April','Mei','Juni',
-                 'Juli','Agustus','September','Oktober','November','Desember'] %}
-
-{# ── Page Header ─────────────────────────────────────────────────────────── #}
+{% extends "base.html" %} {% block title %}Monthly Closing — LBB Super Smart{%
+endblock %} {% block content %} {% set MONTHS =
+['','Januari','Februari','Maret','April','Mei','Juni',
+'Juli','Agustus','September','Oktober','November','Desember'] %} {# ── Page
+Header ─────────────────────────────────────────────────────────── #}
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="h4 mb-0"><i class="bi bi-archive me-2 text-primary"></i>Monthly Closing</h2>
-    <p class="text-muted mb-0 small">Manajemen penutupan buku keuangan bulanan</p>
-  </div>
-  <a href="{{ url_for('closings.create_closing') }}" class="btn btn-primary btn-sm">
-    <i class="bi bi-plus-lg me-1"></i>Buat Closing Baru
-  </a>
+    <div>
+        <h2 class="h4 mb-0">
+            <i class="bi bi-archive me-2 text-primary"></i>Monthly Closing
+        </h2>
+        <p class="text-muted mb-0 small">
+            Manajemen penutupan buku keuangan bulanan
+        </p>
+    </div>
+    <a
+        href="{{ url_for('closings.create_closing') }}"
+        class="btn btn-primary btn-sm"
+    >
+        <i class="bi bi-plus-lg me-1"></i>Buat Closing Baru
+    </a>
 </div>
 
-{# ── Flash Messages ───────────────────────────────────────────────────────── #}
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
-        <i class="bi bi-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
-
-{# ── Summary Cards ────────────────────────────────────────────────────────── #}
+{# ── Flash Messages ─────────────────────────────────────────────────────────
+#} {% with messages = get_flashed_messages(with_categories=true) %} {% if
+messages %} {% for category, message in messages %}
+<div
+    class="alert alert-{{ category }} alert-dismissible fade show shadow-sm"
+    role="alert"
+>
+    <i
+        class="bi bi-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"
+    ></i>
+    {{ message }}
+    <button
+        type="button"
+        class="btn-close"
+        data-bs-dismiss="alert"
+        aria-label="Close"
+    ></button>
+</div>
+{% endfor %} {% endif %} {% endwith %} {# ── Summary Cards
+────────────────────────────────────────────────────────── #}
 <div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center">
-        <div class="muted-label mb-1">Total Closing</div>
-        <div class="fs-4 fw-bold text-primary">{{ closings | length }}</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center">
-        <div class="muted-label mb-1">Sudah Ditutup</div>
-        <div class="fs-4 fw-bold text-success">{{ closings | selectattr('is_closed') | list | length }}</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center">
-        <div class="muted-label mb-1">Masih Draft</div>
-        <div class="fs-4 fw-bold text-warning">{{ closings | rejectattr('is_closed') | list | length }}</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center">
-        <div class="muted-label mb-1">Periode Terbaru</div>
-        <div class="fs-6 fw-bold text-dark">
-          {% if closings %}
-            {{ MONTHS[closings[0].month] }} {{ closings[0].year }}
-          {% else %}
-            —
-          {% endif %}
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <div class="muted-label mb-1">Total Closing</div>
+                <div class="fs-4 fw-bold text-primary">
+                    {{ closings | length }}
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <div class="muted-label mb-1">Sudah Ditutup</div>
+                <div class="fs-4 fw-bold text-success">
+                    {{ closings | selectattr('is_closed') | list | length }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <div class="muted-label mb-1">Masih Draft</div>
+                <div class="fs-4 fw-bold text-warning">
+                    {{ closings | rejectattr('is_closed') | list | length }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <div class="muted-label mb-1">Periode Terbaru</div>
+                <div class="fs-6 fw-bold text-dark">
+                    {% if closings %} {{ MONTHS[closings[0].month] }} {{
+                    closings[0].year }} {% else %} — {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-{# ── Tabel Closing ────────────────────────────────────────────────────────── #}
+{# ── Tabel Closing ──────────────────────────────────────────────────────────
+#}
 <div class="card border-0 shadow-sm">
-  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-    <span class="fw-semibold"><i class="bi bi-table me-2 text-secondary"></i>Daftar Closing Bulanan</span>
-    <span class="badge bg-secondary rounded-pill">{{ closings | length }} periode</span>
-  </div>
-  <div class="card-body p-0">
-    {% if closings %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="width:50px">No</th>
-            <th>Periode</th>
-            <th class="text-end">Total Pemasukan</th>
-            <th class="text-end">Total Pengeluaran</th>
-            <th class="text-end">Saldo Penutup</th>
-            <th class="text-end">Hutang Tutor</th>
-            <th class="text-end">Profit</th>
-            <th class="text-center">Status</th>
-            <th class="text-center pe-3" style="width:110px">Aksi</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for c in closings %}
-          <tr>
-            <td class="ps-3 text-muted small">{{ loop.index }}</td>
-
-            {# Periode #}
-            <td>
-              <div class="fw-semibold">{{ MONTHS[c.month] }} {{ c.year }}</div>
-              {% if c.closed_at %}
-                <div class="text-muted" style="font-size:.78rem;">
-                  Ditutup: {{ c.closed_at.strftime('%d %b %Y %H:%M') }}
-                </div>
-              {% endif %}
-            </td>
-
-            {# Total Pemasukan #}
-            <td class="text-end">
-              <span class="text-success fw-semibold">
-                Rp {{ "{:,.0f}".format(c.total_income or 0) }}
-              </span>
-            </td>
-
-            {# Total Pengeluaran #}
-            <td class="text-end">
-              <span class="text-danger fw-semibold">
-                Rp {{ "{:,.0f}".format(c.total_expense or 0) }}
-              </span>
-            </td>
-
-            {# Saldo Penutup #}
-            <td class="text-end">
-              <span class="{% if (c.closing_cash_balance or 0) >= 0 %}text-primary{% else %}text-danger{% endif %} fw-semibold">
-                Rp {{ "{:,.0f}".format(c.closing_cash_balance or 0) }}
-              </span>
-            </td>
-
-            {# Hutang Tutor #}
-            <td class="text-end">
-              <span class="text-secondary">
-                Rp {{ "{:,.0f}".format(c.closing_tutor_payable or 0) }}
-              </span>
-            </td>
-
-            {# Profit #}
-            <td class="text-end">
-              {% set profit = c.closing_profit or 0 %}
-              <span class="{% if profit >= 0 %}text-success{% else %}text-danger{% endif %} fw-semibold">
-                Rp {{ "{:,.0f}".format(profit) }}
-              </span>
-            </td>
-
-            {# Status Badge #}
-            <td class="text-center">
-              {% if c.is_closed %}
-                <span class="badge bg-success rounded-pill px-3">
-                  <i class="bi bi-lock-fill me-1"></i>Tutup
-                </span>
-              {% else %}
-                <span class="badge bg-warning text-dark rounded-pill px-3">
-                  <i class="bi bi-pencil-fill me-1"></i>Draft
-                </span>
-              {% endif %}
-            </td>
-
-            {# Aksi #}
-            <td class="text-center pe-3">
-              <a href="{{ url_for('closings.closing_detail', month=c.month) }}"
-                 class="btn btn-outline-primary btn-sm"
-                 title="Lihat Detail">
-                <i class="bi bi-eye"></i>
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div
+        class="card-header bg-white py-3 d-flex justify-content-between align-items-center"
+    >
+        <span class="fw-semibold"
+            ><i class="bi bi-table me-2 text-secondary"></i>Daftar Closing
+            Bulanan</span
+        >
+        <span class="badge bg-secondary rounded-pill"
+            >{{ closings | length }} periode</span
+        >
     </div>
-    {% else %}
-    {# Empty State #}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-archive display-4 d-block mb-3 text-secondary opacity-50"></i>
-      <h5 class="fw-semibold">Belum Ada Data Closing</h5>
-      <p class="mb-3 small">Belum ada penutupan buku yang dibuat. Mulai dengan membuat closing pertama.</p>
-      <a href="{{ url_for('closings.create_closing') }}" class="btn btn-primary btn-sm">
-        <i class="bi bi-plus-lg me-1"></i>Buat Closing Pertama
-      </a>
+    <div class="card-body p-0">
+        {% if closings %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3" style="width: 50px">No</th>
+                        <th>Periode</th>
+                        <th class="text-end">Total Pemasukan</th>
+                        <th class="text-end">Total Pengeluaran</th>
+                        <th class="text-end">Saldo Penutup</th>
+                        <th class="text-end">Hutang Tutor</th>
+                        <th class="text-end">Profit</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center pe-3" style="width: 110px">
+                            Aksi
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in closings %}
+                    <tr>
+                        <td class="ps-3 text-muted small">{{ loop.index }}</td>
+
+                        {# Periode #}
+                        <td>
+                            <div class="fw-semibold">
+                                {{ MONTHS[c.month] }} {{ c.year }}
+                            </div>
+                            {% if c.closed_at %}
+                            <div class="text-muted" style="font-size: 0.78rem">
+                                Ditutup: {{ c.closed_at.strftime('%d %b %Y
+                                %H:%M') }}
+                            </div>
+                            {% endif %}
+                        </td>
+
+                        {# Total Pemasukan #}
+                        <td class="text-end">
+                            <span class="text-success fw-semibold">
+                                Rp {{ "{:,.0f}".format(c.total_income or 0) }}
+                            </span>
+                        </td>
+
+                        {# Total Pengeluaran #}
+                        <td class="text-end">
+                            <span class="text-danger fw-semibold">
+                                Rp {{ "{:,.0f}".format(c.total_expense or 0) }}
+                            </span>
+                        </td>
+
+                        {# Saldo Penutup #}
+                        <td class="text-end">
+                            <span
+                                class="{% if (c.closing_cash_balance or 0) >= 0 %}text-primary{% else %}text-danger{% endif %} fw-semibold"
+                            >
+                                Rp {{ "{:,.0f}".format(c.closing_cash_balance or
+                                0) }}
+                            </span>
+                        </td>
+
+                        {# Hutang Tutor #}
+                        <td class="text-end">
+                            <span class="text-secondary">
+                                Rp {{ "{:,.0f}".format(c.closing_tutor_payable
+                                or 0) }}
+                            </span>
+                        </td>
+
+                        {# Profit #}
+                        <td class="text-end">
+                            {% set profit = c.closing_profit or 0 %}
+                            <span
+                                class="{% if profit >= 0 %}text-success{% else %}text-danger{% endif %} fw-semibold"
+                            >
+                                Rp {{ "{:,.0f}".format(profit) }}
+                            </span>
+                        </td>
+
+                        {# Status Badge #}
+                        <td class="text-center">
+                            {% if c.is_closed %}
+                            <span class="badge bg-success rounded-pill px-3">
+                                <i class="bi bi-lock-fill me-1"></i>Tutup
+                            </span>
+                            {% else %}
+                            <span
+                                class="badge bg-warning text-dark rounded-pill px-3"
+                            >
+                                <i class="bi bi-pencil-fill me-1"></i>Draft
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        {# Aksi #}
+                        <td class="text-center pe-3">
+                            <a
+                                href="{{ url_for('closings.closing_detail', month=c.month, year=c.year) }}"
+                                class="btn btn-outline-primary btn-sm"
+                                title="Lihat Detail"
+                            >
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %} {# Empty State #}
+        <div class="text-center py-5 text-muted">
+            <i
+                class="bi bi-archive display-4 d-block mb-3 text-secondary opacity-50"
+            ></i>
+            <h5 class="fw-semibold">Belum Ada Data Closing</h5>
+            <p class="mb-3 small">
+                Belum ada penutupan buku yang dibuat. Mulai dengan membuat
+                closing pertama.
+            </p>
+            <a
+                href="{{ url_for('closings.create_closing') }}"
+                class="btn btn-primary btn-sm"
+            >
+                <i class="bi bi-plus-lg me-1"></i>Buat Closing Pertama
+            </a>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
-  </div>
 </div>
 
 {% endblock %}

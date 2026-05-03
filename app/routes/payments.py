@@ -16,6 +16,7 @@ from app.services import PaymentService
 from app.utils import (
     build_qr_code_data_uri,
     decode_public_id,
+    get_per_page,
     get_branding_logo_mark_data_uri,
 )
 
@@ -47,7 +48,7 @@ def _get_payment_by_ref_or_404(payment_ref):
 def list_payments():
     """List all student payments"""
     page = request.args.get("page", 1, type=int)
-    per_page = 20
+    per_page = get_per_page()
 
     # Get filter parameters
     student_ref = (request.args.get("student_ref") or "").strip()
@@ -245,7 +246,7 @@ def student_payment_history(student_ref):
     """View payment history for a specific student"""
     student = _get_student_by_ref_or_404(student_ref)
     page = request.args.get("page", 1, type=int)
-    per_page = 20
+    per_page = get_per_page()
 
     paginated = (
         StudentPayment.query.filter_by(student_id=student.id)

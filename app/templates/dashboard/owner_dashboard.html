@@ -1,6 +1,7 @@
 {% extends "base.html" %} {% block title %}Dashboard Owner — LBB Super Smart{%
 endblock %} {% block head %}
 <style>
+    /* ── Quick-action buttons ── */
     .quick-action-btn {
         font-size: 0.8rem;
         font-weight: 600;
@@ -12,6 +13,7 @@ endblock %} {% block head %}
         white-space: nowrap;
         transition: all 0.18s;
     }
+    /* ── Top-student / top-subject cards ── */
     .top-card {
         border: none;
         border-radius: 0.9rem;
@@ -80,6 +82,7 @@ endblock %} {% block head %}
         font-size: 0.82rem;
         white-space: nowrap;
     }
+    /* ── Period navigation ── */
     .period-nav {
         display: flex;
         align-items: center;
@@ -124,27 +127,113 @@ endblock %} {% block head %}
         padding: 0.3rem 0.75rem;
         border-radius: 8px;
     }
+
+    /* ── KPI info button (ⓘ) ── */
+    .kpi-info-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border: none;
+        background: transparent;
+        color: #94a3b8;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+        border-radius: 50%;
+        transition:
+            color 0.15s,
+            background 0.15s;
+        vertical-align: middle;
+        flex-shrink: 0;
+    }
+    .kpi-info-btn:hover,
+    .kpi-info-btn:focus {
+        color: #3b82f6;
+        background: rgba(59, 130, 246, 0.1);
+        outline: none;
+    }
+    .kpi-info-btn i {
+        font-size: 0.72rem;
+    }
+
+    /* ── Popover formula content ── */
+    .popover {
+        max-width: 320px;
+        font-size: 0.82rem;
+    }
+    .popover-body {
+        padding: 0.6rem 0.8rem;
+    }
+    .formula-section {
+        margin-bottom: 0.5rem;
+    }
+    .formula-section:last-child {
+        margin-bottom: 0;
+    }
+    .formula-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #64748b;
+        margin-bottom: 0.2rem;
+    }
+    .formula-code {
+        font-family: "Courier New", monospace;
+        font-size: 0.78rem;
+        background: #f1f5f9;
+        border-radius: 4px;
+        padding: 0.25rem 0.4rem;
+        color: #1e3a5f;
+        display: block;
+        line-height: 1.5;
+    }
+    .formula-note {
+        font-size: 0.72rem;
+        color: #64748b;
+        margin-top: 0.2rem;
+    }
 </style>
-{% endblock %} {% block content %} {% set k = kpi or {} %} {# ── KPI card macro
-── #} {% macro kpi_card(label, value, icon, border_color, icon_bg, icon_color,
-col="col-md-6 col-xl-4") %}
+{% endblock %} {% block content %} {% set k = kpi or {} %} {#
+════════════════════════════════════════════════════════════════════════════ KPI
+CARD MACRO — formula_key digunakan untuk lookup ke JS object KPI_FORMULAS
+════════════════════════════════════════════════════════════════════════════ #}
+{% macro kpi_card(label, value, icon, border_color, icon_bg, icon_color,
+col="col-md-6 col-xl-4", formula_key="") %}
 <div class="{{ col }}">
     <div
         class="kpi-card card h-100"
-        style="border-left: 4px solid {{ border_color }};"
+        style="border-left:4px solid {{ border_color }};"
     >
         <div
             class="card-body d-flex align-items-start justify-content-between p-3"
         >
             <div class="flex-grow-1 overflow-hidden pe-2">
-                <div class="kpi-label">{{ label }}</div>
+                <div
+                    class="kpi-label d-flex align-items-center gap-1 flex-wrap"
+                >
+                    <span>{{ label }}</span>
+                    {% if formula_key %}
+                    <button
+                        type="button"
+                        class="kpi-info-btn"
+                        data-kpi-key="{{ formula_key }}"
+                        title="{{ label }}"
+                        aria-label="Lihat rumus {{ label }}"
+                    >
+                        <i class="bi bi-info-circle-fill"></i>
+                    </button>
+                    {% endif %}
+                </div>
                 <div class="kpi-value mt-1">
                     Rp {{ "{:,.0f}".format(value or 0) }}
                 </div>
             </div>
             <div
                 class="kpi-icon flex-shrink-0"
-                style="background: {{ icon_bg }}; color: {{ icon_color }};"
+                style="background:{{ icon_bg }}; color:{{ icon_color }};"
             >
                 <i class="bi {{ icon }}"></i>
             </div>
@@ -163,15 +252,13 @@ col="col-md-6 col-xl-4") %}
         >
     </div>
 
-    {# ── Period navigation ── #}
     <div class="d-flex flex-wrap align-items-center gap-2">
         <div class="period-nav">
             <a
                 href="{{ url_for('dashboard.owner_dashboard', month=prev_month, year=prev_year) }}"
                 title="Bulan sebelumnya"
-            >
-                <i class="bi bi-chevron-left"></i>
-            </a>
+                ><i class="bi bi-chevron-left"></i
+            ></a>
             <span class="period-sep">|</span>
             <span class="period-label"
                 >{{ current_month_name }} {{ current_year }}</span
@@ -181,31 +268,23 @@ col="col-md-6 col-xl-4") %}
             <a
                 href="{{ url_for('dashboard.owner_dashboard', month=next_month, year=next_year) }}"
                 title="Bulan berikutnya"
-            >
-                <i class="bi bi-chevron-right"></i>
-            </a>
-            {% else %}
-            <span style="color: #d1d5db; padding: 0.2rem 0.5rem"
                 ><i class="bi bi-chevron-right"></i
+            ></a>
+            {% else %}
+            <span style="color: #d1d5db; padding: 0.2rem 0.5rem">
+                <i class="bi bi-chevron-right"></i
             ></span>
             {% endif %}
         </div>
 
-        {# ── Month/Year picker (JS navigation, no form element) ── #}
         <div class="d-flex align-items-center gap-1 month-form">
             <select aria-label="Bulan" id="dashMonthPicker" class="month-form">
-                <option value="1">Januari</option>
-                <option value="2">Februari</option>
-                <option value="3">Maret</option>
-                <option value="4">April</option>
-                <option value="5">Mei</option>
-                <option value="6">Juni</option>
-                <option value="7">Juli</option>
-                <option value="8">Agustus</option>
-                <option value="9">September</option>
-                <option value="10">Oktober</option>
-                <option value="11">November</option>
-                <option value="12">Desember</option>
+                {% for mn in [("1","Januari"),("2","Februari"),("3","Maret"),
+                ("4","April"),("5","Mei"),("6","Juni"),
+                ("7","Juli"),("8","Agustus"),("9","September"),
+                ("10","Oktober"),("11","November"),("12","Desember")] %}
+                <option value="{{ mn[0] }}">{{ mn[1] }}</option>
+                {% endfor %}
             </select>
             <select aria-label="Tahun" id="dashYearPicker" class="month-form">
                 <option value="2024">2024</option>
@@ -257,59 +336,69 @@ col="col-md-6 col-xl-4") %}
     <a
         href="/attendance/bulk-add"
         class="btn btn-outline-primary quick-action-btn btn-sm"
-        ><i class="bi bi-calendar-plus"></i>Presensi Baru</a
     >
-    <a href="/payments/" class="btn btn-outline-success quick-action-btn btn-sm"
-        ><i class="bi bi-cash-stack"></i>Catat Pembayaran</a
+        <i class="bi bi-calendar-plus"></i>Presensi Baru</a
+    >
+    <a
+        href="/payments/"
+        class="btn btn-outline-success quick-action-btn btn-sm"
+    >
+        <i class="bi bi-cash-stack"></i>Catat Pembayaran</a
     >
     <a
         href="/quota/alerts"
         class="btn btn-outline-warning quick-action-btn btn-sm"
-        ><i class="bi bi-exclamation-triangle-fill"></i>Alert Quota</a
+    >
+        <i class="bi bi-exclamation-triangle-fill"></i>Alert Quota</a
     >
     <a
         href="/payroll/tutor-summary"
         class="btn btn-outline-secondary quick-action-btn btn-sm"
-        ><i class="bi bi-wallet2"></i>Rekap Gaji</a
+    >
+        <i class="bi bi-wallet2"></i>Rekap Gaji</a
     >
 </div>
 
 {# ══════════════ KPI CARDS ══════════════ #}
 <div class="row g-3 mb-4">
-    {# Row 1 — Pemasukan #} {{ kpi_card("Saldo Awal Bulan",
+    {# ── Baris 1: Saldo Awal + Pemasukan ── #} {{ kpi_card("Saldo Awal Bulan",
     k.get("opening_balance", 0) or 0, "bi-bank", "#64748b", "#64748b15",
-    "#64748b") }} {{ kpi_card("Pemasukan Siswa",
-    k.get("total_income_this_month", 0) or 0,
-    "bi-arrow-down-circle-fill","#10b981", "#10b98115", "#10b981") }} {{
+    "#64748b", formula_key="opening_balance") }} {{ kpi_card("Pemasukan Siswa",
+    k.get("total_income_this_month", 0) or 0, "bi-arrow-down-circle-fill",
+    "#10b981", "#10b98115", "#10b981", formula_key="income_siswa") }} {{
     kpi_card("Pemasukan Lain-Lain", k.get("other_income_this_month", 0) or 0,
-    "bi-plus-circle-fill", "#06b6d4", "#06b6d415", "#06b6d4") }} {# Row 2 —
-    Pengeluaran & Tutor #} {{ kpi_card("Pengeluaran Operasional",
-    k.get("total_expenses_this_month", 0) or 0, "bi-arrow-up-circle-fill",
-    "#ef4444", "#ef444415", "#ef4444") }} {{ kpi_card("Hutang Tutor (Koleksi)",
-    k.get("tutor_payable_from_collection", 0) or 0,
-    "bi-person-badge-fill","#f59e0b", "#f59e0b15", "#f59e0b") }} {{
+    "bi-plus-circle-fill", "#06b6d4", "#06b6d415", "#06b6d4",
+    formula_key="income_lain") }} {# ── Baris 2: Pengeluaran + Tutor ── #} {{
+    kpi_card("Pengeluaran Operasional", k.get("total_expenses_this_month", 0) or
+    0, "bi-arrow-up-circle-fill", "#ef4444", "#ef444415", "#ef4444",
+    formula_key="pengeluaran") }} {{ kpi_card("Hutang Tutor (Koleksi)",
+    k.get("tutor_payable_from_collection", 0) or 0, "bi-person-badge-fill",
+    "#f59e0b", "#f59e0b15", "#f59e0b", formula_key="hutang_tutor_koleksi") }} {{
     kpi_card("Margin Bulan Ini", k.get("margin_this_month", 0) or 0,
-    "bi-graph-up-arrow", "#3b82f6", "#3b82f615", "#3b82f6") }} {# Row 3 — Saldo
-    & Tutor Accrual #} {{ kpi_card("Saldo Bulan Ini", k.get("monthly_cash_flow",
-    0) or 0, "bi-wallet-fill", "#0ea5e9", "#0ea5e915", "#0ea5e9") }} {{
-    kpi_card("Estimasi Gaji Tutor", k.get("tutor_salary_accrual", 0) or 0,
-    "bi-calculator-fill", "#8b5cf6", "#8b5cf615", "#8b5cf6") }} {{
-    kpi_card("Estimasi Profit Bulan Ini",k.get("estimated_profit", 0) or 0,
-    "bi-piggy-bank", "#14b8a6", "#14b8a615", "#14b8a6") }} {# Row 4 — Grand /
-    Kumulatif (wider cards) #} {{ kpi_card("Grand Total Saldo",
-    k.get("cash_balance", 0) or 0, "bi-safe2-fill", "#6366f1", "#6366f115",
-    "#6366f1", "col-md-6 col-xl-3") }} {{ kpi_card("Grand Hutang Gaji",
-    k.get("grand_tutor_payable", 0) or 0, "bi-cash-stack", "#f97316",
-    "#f9731615", "#f97316", "col-md-6 col-xl-3") }} {{ kpi_card("Grand Profit",
+    "bi-graph-up-arrow", "#3b82f6", "#3b82f615", "#3b82f6",
+    formula_key="margin_bulan") }} {# ── Baris 3: Saldo Bulanan + Tutor Accrual
+    ── #} {{ kpi_card("Saldo Bulan Ini", k.get("monthly_cash_flow", 0) or 0,
+    "bi-wallet-fill", "#0ea5e9", "#0ea5e915", "#0ea5e9",
+    formula_key="saldo_bulan") }} {{ kpi_card("Estimasi Gaji Tutor",
+    k.get("tutor_salary_accrual", 0) or 0, "bi-calculator-fill", "#8b5cf6",
+    "#8b5cf615", "#8b5cf6", formula_key="gaji_tutor") }} {{ kpi_card("Estimasi
+    Profit Bulan Ini", k.get("estimated_profit", 0) or 0, "bi-piggy-bank",
+    "#14b8a6", "#14b8a615", "#14b8a6", formula_key="profit_bulan") }} {# ──
+    Baris 4: Grand / Kumulatif (card lebih lebar) ── #} {{ kpi_card("Grand Total
+    Saldo", k.get("cash_balance", 0) or 0, "bi-safe2-fill", "#6366f1",
+    "#6366f115", "#6366f1", "col-md-6 col-xl-3", formula_key="grand_saldo") }}
+    {{ kpi_card("Grand Hutang Gaji", k.get("grand_tutor_payable", 0) or 0,
+    "bi-cash-stack", "#f97316", "#f9731615", "#f97316", "col-md-6 col-xl-3",
+    formula_key="grand_hutang") }} {{ kpi_card("Grand Profit",
     k.get("grand_profit", 0) or 0, "bi-piggy-bank-fill", "#059669", "#05966915",
-    "#059669", "col-md-6 col-xl-3") }} {{ kpi_card("Estimasi Sisa Saldo",
-    k.get("estimated_remaining_balance", 0) or 0,"bi-database-fill", "#253b9b",
-    "#253b9b15", "#253b9b", "col-md-6 col-xl-3") }}
+    "#059669", "col-md-6 col-xl-3", formula_key="grand_profit") }} {{
+    kpi_card("Estimasi Sisa Saldo", k.get("estimated_remaining_balance", 0) or
+    0, "bi-database-fill", "#253b9b", "#253b9b15", "#253b9b", "col-md-6
+    col-xl-3", formula_key="estimasi_sisa") }}
 </div>
 
 {# ══════════════ BOTTOM — Top Siswa & Top Mata Pelajaran ══════════════ #}
 <div class="row g-4">
-    {# ─── Top Siswa ─── #}
     <div class="col-lg-6">
         <div class="top-card card">
             <div
@@ -325,8 +414,8 @@ col="col-md-6 col-xl-4") %}
                         {{ loop.index }}
                     </div>
                     <span class="top-name">{{ student.name }}</span>
-                    <span class="top-amount-student"
-                        >Rp {{ "{:,.0f}".format(student.income or 0) }}</span
+                    <span class="top-amount-student">
+                        Rp {{ "{:,.0f}".format(student.income or 0) }}</span
                     >
                 </div>
                 {% endfor %} {% else %}
@@ -338,7 +427,6 @@ col="col-md-6 col-xl-4") %}
         </div>
     </div>
 
-    {# ─── Top Mata Pelajaran ─── #}
     <div class="col-lg-6">
         <div class="top-card card">
             <div
@@ -355,8 +443,8 @@ col="col-md-6 col-xl-4") %}
                         {{ loop.index }}
                     </div>
                     <span class="top-name">{{ subject.name }}</span>
-                    <span class="top-amount-subject"
-                        >Rp {{ "{:,.0f}".format(subject.income or 0) }}</span
+                    <span class="top-amount-subject">
+                        Rp {{ "{:,.0f}".format(subject.income or 0) }}</span
                     >
                 </div>
                 {% endfor %} {% else %}
@@ -368,4 +456,262 @@ col="col-md-6 col-xl-4") %}
         </div>
     </div>
 </div>
+{% endblock %} {% block scripts %}
+<script>
+    /* ══════════════════════════════════════════════════════════════════════════
+   KPI FORMULA DICTIONARY
+   Setiap entry adalah HTML yang ditampilkan di dalam Bootstrap Popover.
+   ══════════════════════════════════════════════════════════════════════════ */
+    const KPI_FORMULAS = {
+        opening_balance: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Saldo kas yang tersedia di awal bulan ini — diwarisi dari akhir bulan lalu.
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Estimasi Sisa Saldo bulan lalu</code>
+      <div class="formula-note">Atau = 0 jika ini bulan pertama operasional.</div>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📦 Sumber</div>
+      <code class="formula-code">closing_cash_balance</code> dari MonthlyClosing bulan lalu,
+      atau dihitung rekursif dari awal jika belum ada closing.
+    </div>`,
+
+        income_siswa: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Total uang yang masuk dari pembayaran les siswa bulan ini.
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Σ Nominal Pembayaran Siswa (bulan ini)</code>
+      <div class="formula-note">Nominal per baris = Jumlah Sesi × Tarif Siswa per Sesi</div>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📦 Sumber</div>
+      Tabel <code class="formula-code">student_payment_lines</code> kolom <strong>nominal_amount</strong>,
+      difilter berdasarkan tanggal pembayaran bulan ini.
+    </div>`,
+
+        income_lain: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Pemasukan selain dari siswa: bunga bank, titipan, refund, dll.
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Σ Input Pemasukan Lain (bulan ini)</code>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📦 Sumber</div>
+      Menu <strong>Pemasukan Lain-Lain</strong> → tabel <code class="formula-code">other_incomes</code>.
+    </div>`,
+
+        pengeluaran: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Total biaya operasional yang sudah dikeluarkan bulan ini (iklan, admin bank, ATK, dll).
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Σ Input Pengeluaran (bulan ini)</code>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📦 Sumber</div>
+      Menu <strong>Pengeluaran</strong> → tabel <code class="formula-code">expenses</code>.
+    </div>`,
+
+        hutang_tutor_koleksi: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Bagian gaji tutor yang sudah terkumpul dari siswa bulan ini
+      — belum tentu sudah dibayarkan ke tutor.
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Σ Hutang Gaji per baris pembayaran (bulan ini)</code>
+      <div class="formula-note">Per baris = Jumlah Sesi × Tarif Tutor per Sesi</div>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📦 Sumber</div>
+      Tabel <code class="formula-code">student_payment_lines</code> kolom <strong>tutor_payable_amount</strong>.
+    </div>`,
+
+        margin_bulan: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Keuntungan bersih lembaga dari penerimaan siswa bulan ini (sebelum dikurangi pengeluaran operasional).
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Pemasukan Siswa − Hutang Tutor (Koleksi)</code>
+      <code class="formula-code">= Σ (Nominal − Hutang Gaji) per baris</code>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📦 Sumber</div>
+      Tabel <code class="formula-code">student_payment_lines</code> kolom <strong>margin_amount</strong>.
+    </div>`,
+
+        saldo_bulan: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Net cash flow bulan ini saja — berapa uang yang "bertambah" di kas bulan ini,
+      sebelum ditambah saldo awal.
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Pemasukan Siswa + Lain-Lain − Pengeluaran</code>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">⚠️ Catatan</div>
+      Angka ini BELUM memperhitungkan saldo awal bulan dan hutang gaji tutor.
+    </div>`,
+
+        gaji_tutor: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Total gaji yang sudah diakumulasikan dan dibayarkan ke tutor untuk layanan bulan ini.
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Σ Nominal Presensi Tutor Akumulasi (bulan ini)</code>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📦 Sumber</div>
+      File <strong>Data Presensi Tutor Akumulasi.csv</strong> →
+      tabel <code class="formula-code">tutor_payout_lines</code>,
+      difilter per <strong>service_month</strong> bulan ini.
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">⚠️ Catatan</div>
+      Bukan "estimasi" — ini gaji yang sudah benar-benar dicatat/dibayarkan.
+    </div>`,
+
+        profit_bulan: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Perkiraan laba bersih operasional bulan ini saja (belum kumulatif).
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Margin Bulan Ini + Lain-Lain − Pengeluaran</code>
+      <code class="formula-code">= (Pemasukan Siswa − Hutang Tutor) + Lain-Lain − Pengeluaran</code>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">⚠️ Catatan</div>
+      Disebut "estimasi" karena gaji tutor bisa berubah sebelum benar-benar dibayarkan.
+    </div>`,
+
+        grand_saldo: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Total kas kumulatif dari AWAL operasional sampai akhir bulan ini,
+      sebelum dikurangi hutang gaji tutor yang masih terutang.
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Saldo Awal Bulan + Saldo Bulan Ini</code>
+      <code class="formula-code">= Σ (Semua Pemasukan − Semua Pengeluaran) sejak bulan pertama</code>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">⚠️ Catatan</div>
+      Angka "kotor" — di dalamnya masih ada kewajiban gaji tutor yang belum dibayar (Grand Hutang Gaji).
+    </div>`,
+
+        grand_hutang: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Total kumulatif gaji tutor yang masih terutang (dari awal s.d. bulan ini),
+      dihitung berdasarkan koleksi pembayaran siswa.
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Hutang Gaji Closing Bulan Lalu + Hutang Tutor Koleksi Bulan Ini</code>
+      <div class="formula-note">Hutang Gaji Closing = Grand Hutang Gaji(lalu) − Gaji Tutor(lalu)</div>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📦 Sumber</div>
+      <code class="formula-code">closing_tutor_payable</code> bulan lalu +
+      kolom <strong>Hutang Gaji</strong> pembayaran siswa bulan ini.
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">⚠️ Catatan</div>
+      Semakin kecil nilainya = semakin sedikit hutang ke tutor. Idealnya mendekati 0.
+    </div>`,
+
+        grand_profit: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Laba bersih kumulatif sejak awal operasional — uang yang benar-benar "milik lembaga"
+      setelah semua kewajiban tutor diperhitungkan.
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Grand Total Saldo − Grand Hutang Gaji</code>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">⚠️ Catatan</div>
+      Jika negatif, artinya lembaga menggunakan kas lebih banyak dari yang diterima sebagai margin.
+    </div>`,
+
+        estimasi_sisa: `
+    <div class="formula-section">
+      <div class="formula-label">📌 Apa ini?</div>
+      Perkiraan kas yang tersisa jika gaji tutor bulan ini selesai dibayar semua.
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">📐 Rumus</div>
+      <code class="formula-code">= Grand Total Saldo − Estimasi Gaji Tutor</code>
+    </div>
+    <div class="formula-section">
+      <div class="formula-label">🔗 Kaitan antar bulan</div>
+      Nilai ini menjadi <strong>Saldo Awal Bulan berikutnya</strong>,
+      dan disimpan sebagai <code class="formula-code">closing_cash_balance</code>
+      saat closing bulanan dilakukan.
+    </div>`,
+    }; // end KPI_FORMULAS
+
+    /* ════════════════════════════════════════════════════════════════════════════
+   INIT BOOTSTRAP POPOVERS
+   Baca setiap .kpi-info-btn → ambil formula dari KPI_FORMULAS → init popover
+   ════════════════════════════════════════════════════════════════════════════ */
+    document.addEventListener("DOMContentLoaded", function () {
+        // Tutup semua popover lain saat satu dibuka
+        var activePopover = null;
+
+        document.querySelectorAll(".kpi-info-btn").forEach(function (btn) {
+            var key = btn.getAttribute("data-kpi-key");
+            var html = KPI_FORMULAS[key];
+            if (!html) return;
+
+            var pop = new bootstrap.Popover(btn, {
+                trigger: "manual",
+                html: true,
+                content: html,
+                placement: "auto",
+                container: "body",
+                customClass: "kpi-formula-popover",
+            });
+
+            btn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                if (activePopover && activePopover !== pop) {
+                    activePopover.hide();
+                }
+                pop.toggle();
+                activePopover = pop;
+            });
+        });
+
+        // Klik di luar → tutup semua popover
+        document.addEventListener("click", function () {
+            if (activePopover) {
+                activePopover.hide();
+                activePopover = null;
+            }
+        });
+    });
+</script>
 {% endblock %}

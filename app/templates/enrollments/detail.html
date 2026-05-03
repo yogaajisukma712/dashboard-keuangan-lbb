@@ -248,7 +248,7 @@
     <h6 class="fw-bold mb-0 small text-uppercase text-muted" style="letter-spacing:.06em">
       <i class="bi bi-calendar-check me-1 text-info"></i>Riwayat Presensi Terbaru
     </h6>
-    <a href="{{ url_for('attendance.list_attendance', enrollment_id=enrollment.id) }}"
+    <a href="{{ url_for('attendance.list_attendance', enrollment_ref=enrollment.public_id) }}"
        class="btn btn-outline-secondary btn-sm py-0">
       <i class="bi bi-list-ul me-1"></i>Lihat Semua
     </a>

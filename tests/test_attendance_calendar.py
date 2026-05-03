@@ -155,3 +155,6 @@ def test_calendar_route_and_sidebar_link_exist_in_source():
     assert "Detail enrollment" in calendar_template
     assert "day['items']" in calendar_template
     assert "day.items" not in calendar_template
+    assert 'name="tutor_ref"' in calendar_template
+    assert "tutor.public_id" in calendar_template
+    assert "selected_tutor_ref" in calendar_template

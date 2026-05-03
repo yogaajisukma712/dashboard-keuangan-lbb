@@ -11,6 +11,7 @@ Sistem pembukuan dan dashboard keuangan terintegrasi untuk Lembaga Bimbingan Bel
 - [Instalasi](#instalasi)
 - [Konfigurasi](#konfigurasi)
 - [Menjalankan Aplikasi](#menjalankan-aplikasi)
+- [Migrasi Server & Backup](#migrasi-server--backup)
 - [Struktur Proyek](#struktur-proyek)
 - [Database](#database)
 - [API Endpoints](#api-endpoints)
@@ -264,6 +265,58 @@ flask drop-db
 # Seed dengan data awal
 flask seed-db
 ```
+
+## 🔁 Migrasi Server & Backup
+
+Project ini menyediakan satu script eksekusi untuk migrasi ke server baru:
+
+```bash
+scripts/provision_new_server.sh
+```
+
+Script ini menyiapkan server baru dari repo GitHub:
+
+- Clone/pull repo dari GitHub.
+- Membuat `.env.docker` dari template dan mengisi secret aman.
+- Membuat folder mount: `logs`, `uploads`, `backups`, `whatsapp-auth`, `deploy`.
+- Membuat override compose agar sesi WhatsApp `.wwebjs_auth` persisten.
+- Build semua image Docker.
+- Start PostgreSQL, web, dan WhatsApp bot.
+- Init schema via entrypoint app.
+- Optional restore database `.sql/.sql.gz`, uploads archive, dan WhatsApp auth archive.
+- Smoke check HTTP.
+- Optional `CREATE_ADMIN=true`.
+
+Contoh menjalankan di server baru:
+
+```bash
+REPO_URL=https://github.com/yogaajisukma712/dashboard-keuangan-lbb.git \
+APP_DIR=/opt/billing-supersmart \
+APP_BASE_URL=https://billing.supersmart.click \
+bash scripts/provision_new_server.sh
+```
+
+Restore backup database:
+
+```bash
+DB_BACKUP=/path/backup.sql.gz \
+FORCE_RESTORE=true \
+bash scripts/provision_new_server.sh
+```
+
+Restore uploads dan session WhatsApp:
+
+```bash
+UPLOADS_ARCHIVE=/path/uploads.tgz \
+WHATSAPP_AUTH_ARCHIVE=/path/whatsapp-auth.tgz \
+bash scripts/provision_new_server.sh
+```
+
+Catatan penting:
+
+- Jangan jalankan `docker compose down -v` kecuali siap menghapus database.
+- Session WhatsApp juga bisa dibackup/restore dari halaman **WhatsApp Bot** di dashboard.
+- Backup session WhatsApp disimpan di volume auth bot: `/app/.wwebjs_auth/_backups`.
 
 ## 📂 Struktur Proyek
 

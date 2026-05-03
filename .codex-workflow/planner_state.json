@@ -1,24 +1,28 @@
 {
-  "goal": "Show WhatsApp session ID in bot session management",
+  "goal": "Document new-server backup and migration flow in GitHub README",
   "project_id": "aplikasi-lembaga",
   "phase": "verification_done",
   "current_role": "implementer",
-  "updated_at": "2026-05-03T14:01:53Z",
+  "updated_at": "2026-05-03T15:56:37Z",
   "plan": [
     {
-      "step": "Expose sessionId in bot session management payload",
+      "step": "Add README table of contents entry",
       "status": "completed"
     },
     {
-      "step": "Render active session ID and session table ID in dashboard",
+      "step": "Add migration and backup instructions for provision script",
       "status": "completed"
     },
     {
-      "step": "Run tests rebuild and smoke",
+      "step": "Verify README content",
       "status": "completed"
+    },
+    {
+      "step": "Commit and push README update",
+      "status": "in_progress"
     }
   ],
   "notes": [
-    "Current session displays as session-billing-supersmart and table sessionId displays billing-supersmart."
+    "README now documents scripts/provision_new_server.sh, DB restore, uploads restore, and WhatsApp auth restore."
   ]
 }

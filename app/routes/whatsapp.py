@@ -8,7 +8,17 @@ import json
 import os
 from urllib import error, request as urllib_request
 
-from flask import Blueprint, current_app, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    Response,
+    current_app,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    stream_with_context,
+    url_for,
+)
 from flask_login import login_required
 
 from app.services import WhatsAppIngestService
@@ -37,7 +47,7 @@ def _bot_base_url() -> str:
     return current_app.config["WHATSAPP_BOT_INTERNAL_URL"].rstrip("/")
 
 
-def _bot_request(method: str, path: str, payload: dict | None = None):
+def _bot_request(method: str, path: str, payload: dict | None = None, timeout: int = 30):
     body = None
     headers = {}
     if payload is not None:
@@ -51,7 +61,7 @@ def _bot_request(method: str, path: str, payload: dict | None = None):
         headers=headers,
     )
     try:
-        with urllib_request.urlopen(req, timeout=30) as response:
+        with urllib_request.urlopen(req, timeout=timeout) as response:
             text = response.read().decode("utf-8")
             data = json.loads(text) if text else {}
             return data, response.status
@@ -64,6 +74,36 @@ def _bot_request(method: str, path: str, payload: dict | None = None):
         return data, exc.code
     except Exception as exc:
         return {"ok": False, "error": str(exc)}, 502
+
+
+def _bot_stream_request(path: str, timeout: int = 300):
+    req = urllib_request.Request(f"{_bot_base_url()}{path}", method="GET")
+    try:
+        upstream = urllib_request.urlopen(req, timeout=timeout)
+    except error.HTTPError as exc:
+        text = exc.read().decode("utf-8")
+        return jsonify({"ok": False, "error": text or str(exc)}), exc.code
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 502
+
+    def generate():
+        with upstream:
+            while True:
+                chunk = upstream.read(1024 * 64)
+                if not chunk:
+                    break
+                yield chunk
+
+    headers = {}
+    content_disposition = upstream.headers.get("Content-Disposition")
+    if content_disposition:
+        headers["Content-Disposition"] = content_disposition
+    return Response(
+        stream_with_context(generate()),
+        status=upstream.status,
+        headers=headers,
+        content_type=upstream.headers.get("Content-Type", "application/gzip"),
+    )
 
 
 @whatsapp_bot_bp.route("/", methods=["GET"])
@@ -91,6 +131,14 @@ def bot_session():
     return jsonify(payload), status_code
 
 
+@whatsapp_bot_bp.route("/api/session/management", methods=["GET"])
+@login_required
+@admin_required
+def bot_session_management():
+    payload, status_code = _bot_request("GET", "/session/management")
+    return jsonify(payload), status_code
+
+
 @whatsapp_bot_bp.route("/api/session/initialize", methods=["POST"])
 @login_required
 @admin_required
@@ -104,6 +152,40 @@ def bot_session_initialize():
 @admin_required
 def bot_session_logout():
     payload, status_code = _bot_request("POST", "/session/logout", {})
+    return jsonify(payload), status_code
+
+
+@whatsapp_bot_bp.route("/api/session/backup", methods=["POST"])
+@login_required
+@admin_required
+def bot_session_backup():
+    payload, status_code = _bot_request("POST", "/session/backup", {}, timeout=300)
+    return jsonify(payload), status_code
+
+
+@whatsapp_bot_bp.route("/api/session/restore", methods=["POST"])
+@login_required
+@admin_required
+def bot_session_restore():
+    payload = request.get_json(silent=True) or {}
+    backup_payload, status_code = _bot_request(
+        "POST", "/session/restore", payload, timeout=300
+    )
+    return jsonify(backup_payload), status_code
+
+
+@whatsapp_bot_bp.route("/api/session/backup/<path:filename>/download", methods=["GET"])
+@login_required
+@admin_required
+def bot_session_backup_download(filename):
+    return _bot_stream_request(f"/session/backup/{filename}/download")
+
+
+@whatsapp_bot_bp.route("/api/session/backup/<path:filename>", methods=["DELETE"])
+@login_required
+@admin_required
+def bot_session_backup_delete(filename):
+    payload, status_code = _bot_request("DELETE", f"/session/backup/{filename}", {})
     return jsonify(payload), status_code
 
 

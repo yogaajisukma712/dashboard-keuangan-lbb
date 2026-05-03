@@ -75,6 +75,10 @@
     .wa-sync-progress .progress-bar {
         background: linear-gradient(90deg, #253b9b 0%, #3f7cff 100%);
     }
+    .wa-session-path {
+        max-width: 100%;
+        word-break: break-all;
+    }
 </style>
 {% endblock %}
 
@@ -266,6 +270,100 @@
 
     <section class="card wa-panel">
         <div class="card-header bg-white border-0 pt-4 px-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3">
+                <div>
+                    <h2 class="h5 fw-bold mb-1">Manajemen Session WhatsApp</h2>
+                    <p class="text-muted small mb-0">
+                        Lihat session LocalAuth aktif, buat backup session, restore backup, dan download arsip session untuk migrasi server.
+                    </p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button id="btnRefreshSessionManagement" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Refresh Session
+                    </button>
+                    <button id="btnBackupSession" class="btn btn-primary btn-sm">
+                        <i class="bi bi-archive me-1"></i> Backup Session
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body px-4 pb-4">
+            <div class="row g-3 mb-3">
+                <div class="col-lg-3">
+                    <div class="p-3 rounded-4 bg-light h-100">
+                        <div class="text-muted small mb-1">Client ID</div>
+                        <div class="fw-semibold" id="sessionClientIdText">-</div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="p-3 rounded-4 bg-light h-100">
+                        <div class="text-muted small mb-1">Nomor Aktif</div>
+                        <div class="fw-semibold" id="sessionActivePhoneText">-</div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="p-3 rounded-4 bg-light h-100">
+                        <div class="text-muted small mb-1">Path Auth</div>
+                        <div class="fw-semibold wa-session-path" id="sessionAuthPathText">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-xl-5">
+                    <div class="border rounded-4 p-3 h-100">
+                        <div class="fw-bold mb-2">Session Terdeteksi</div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Nama</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Ukuran</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sessionDirectoriesBody">
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted py-3">Belum dimuat.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-7">
+                    <div class="border rounded-4 p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                            <div class="fw-bold">Backup Session</div>
+                            <div class="wa-muted-kv" id="sessionBackupSummaryText">Belum dimuat.</div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>File</th>
+                                        <th class="text-end">Ukuran</th>
+                                        <th>Dibuat</th>
+                                        <th class="text-end">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sessionBackupsBody">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-3">Belum ada backup.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="wa-muted-kv mt-2">
+                            Restore akan menutup client WhatsApp di bot, menyimpan safety backup otomatis, lalu memuat arsip yang dipilih.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card wa-panel">
+        <div class="card-header bg-white border-0 pt-4 px-4">
             <div class="d-flex justify-content-between align-items-start gap-3">
                 <div>
                     <h2 class="h5 fw-bold mb-1">Daftar Group WhatsApp</h2>
@@ -432,6 +530,14 @@
         const contactsValidationFilter = document.getElementById("contactsValidationFilter");
         const groupsPageSizeSelect = document.getElementById("groupsPageSizeSelect");
         const contactsPageSizeSelect = document.getElementById("contactsPageSizeSelect");
+        const btnRefreshSessionManagement = document.getElementById("btnRefreshSessionManagement");
+        const btnBackupSession = document.getElementById("btnBackupSession");
+        const sessionClientIdText = document.getElementById("sessionClientIdText");
+        const sessionActivePhoneText = document.getElementById("sessionActivePhoneText");
+        const sessionAuthPathText = document.getElementById("sessionAuthPathText");
+        const sessionDirectoriesBody = document.getElementById("sessionDirectoriesBody");
+        const sessionBackupsBody = document.getElementById("sessionBackupsBody");
+        const sessionBackupSummaryText = document.getElementById("sessionBackupSummaryText");
         const contactsTableBody = document.getElementById("contactsTableBody");
         const groupsPagination = document.getElementById("groupsPagination");
         const groupsPaginationSummary = document.getElementById("groupsPaginationSummary");
@@ -471,6 +577,32 @@
         function readPageSize(selectElement, fallback) {
             const parsed = Number(selectElement && selectElement.value ? selectElement.value : fallback);
             return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+        }
+
+        function formatBytes(value) {
+            const bytes = Number(value || 0);
+            if (!bytes) {
+                return "0 B";
+            }
+            const units = ["B", "KB", "MB", "GB"];
+            let amount = bytes;
+            let index = 0;
+            while (amount >= 1024 && index < units.length - 1) {
+                amount /= 1024;
+                index += 1;
+            }
+            return `${amount.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+        }
+
+        function formatDateTime(value) {
+            if (!value) {
+                return "-";
+            }
+            const parsed = new Date(value);
+            if (Number.isNaN(parsed.getTime())) {
+                return value;
+            }
+            return parsed.toLocaleString("id-ID");
         }
 
         function itemMatchesQuickSearch(item, searchTerm, fields) {
@@ -617,6 +749,88 @@
             syncProgressText.textContent = "Belum ada scan penuh yang berjalan.";
             syncProgressMeta.textContent =
                 "Pesan yang sama di-update, bukan digandakan. Jika tutor kirim 2 pesan berbeda, keduanya tetap tersimpan.";
+        }
+
+        function renderSessionManagement(management) {
+            const safeManagement = management || {};
+            const runtime = safeManagement.runtime || {};
+            sessionClientIdText.textContent = safeManagement.clientId || "-";
+            sessionActivePhoneText.textContent =
+                (runtime.me && (runtime.me.phone_number || runtime.me.wid || runtime.me.pushname)) || "-";
+            sessionAuthPathText.textContent = safeManagement.authDataPath || "-";
+
+            const sessions = Array.isArray(safeManagement.sessions) ? safeManagement.sessions : [];
+            if (!sessions.length) {
+                sessionDirectoriesBody.innerHTML =
+                    '<tr><td colspan="3" class="text-center text-muted py-3">Belum ada folder session.</td></tr>';
+            } else {
+                sessionDirectoriesBody.innerHTML = sessions
+                    .map(function (item) {
+                        return `
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">${item.name || "-"}</div>
+                                    <div class="wa-muted-kv">${formatDateTime(item.updatedAt)}</div>
+                                </td>
+                                <td>
+                                    <span class="badge ${item.active ? "text-bg-success" : "text-bg-secondary"}">
+                                        ${item.active ? "Aktif" : "Tersimpan"}
+                                    </span>
+                                </td>
+                                <td class="text-end">${formatBytes(item.sizeBytes)}</td>
+                            </tr>
+                        `;
+                    })
+                    .join("");
+            }
+
+            const backups = Array.isArray(safeManagement.backups) ? safeManagement.backups : [];
+            sessionBackupSummaryText.textContent = backups.length
+                ? `${backups.length} backup tersedia`
+                : "Belum ada backup.";
+            if (!backups.length) {
+                sessionBackupsBody.innerHTML =
+                    '<tr><td colspan="4" class="text-center text-muted py-3">Belum ada backup session.</td></tr>';
+                return;
+            }
+            sessionBackupsBody.innerHTML = backups
+                .map(function (item) {
+                    const downloadUrl =
+                        "{{ url_for('whatsapp_bot.bot_session_backup_download', filename='__FILENAME__') }}"
+                            .replace("__FILENAME__", encodeURIComponent(item.filename || ""));
+                    return `
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">${item.filename || "-"}</div>
+                                <div class="wa-muted-kv">${formatDateTime(item.updatedAt)}</div>
+                            </td>
+                            <td class="text-end">${formatBytes(item.sizeBytes)}</td>
+                            <td>${formatDateTime(item.createdAt)}</td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <a class="btn btn-outline-secondary" href="${downloadUrl}">
+                                        Download
+                                    </a>
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-primary btnRestoreSessionBackup"
+                                        data-filename="${item.filename || ""}"
+                                    >
+                                        Restore
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-danger btnDeleteSessionBackup"
+                                        data-filename="${item.filename || ""}"
+                                    >
+                                        Hapus
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                })
+                .join("");
         }
 
         function paginateItems(items, page, pageSize) {
@@ -985,6 +1199,12 @@
             return payload.session || {};
         }
 
+        async function loadSessionManagement() {
+            const payload = await requestJson("{{ url_for('whatsapp_bot.bot_session_management') }}");
+            renderSessionManagement(payload.management || {});
+            return payload.management || {};
+        }
+
         async function loadGroups(resetPage = false) {
             const payload = await requestJson("{{ url_for('whatsapp_bot.bot_group_directory') }}");
             allStudents = payload.students || [];
@@ -1061,6 +1281,7 @@
                 { method: "POST", body: "{}" },
             );
             renderSession(payload.session || {});
+            await loadSessionManagement();
             startWarmupPolling();
         }
 
@@ -1072,6 +1293,58 @@
             renderSession(payload.session || {});
             renderGroups([]);
             renderContacts([]);
+            await loadSessionManagement();
+        }
+
+        async function backupSession() {
+            btnBackupSession.disabled = true;
+            syncSummaryText.textContent = "Membuat backup session WhatsApp...";
+            try {
+                const payload = await requestJson(
+                    "{{ url_for('whatsapp_bot.bot_session_backup') }}",
+                    { method: "POST", body: "{}" },
+                );
+                renderSessionManagement(payload.management || payload.backup?.session || {});
+                const backup = payload.backup || {};
+                syncSummaryText.textContent =
+                    `Backup session selesai: ${backup.filename || "-"} (${formatBytes(backup.sizeBytes)}).`;
+            } finally {
+                btnBackupSession.disabled = false;
+            }
+        }
+
+        async function restoreSessionBackup(filename) {
+            const confirmed = window.confirm(
+                `Restore backup ${filename}? Client WhatsApp bot akan ditutup dan perlu dimulai ulang setelah restore.`,
+            );
+            if (!confirmed) {
+                return;
+            }
+            syncSummaryText.textContent = `Restore backup ${filename}...`;
+            const payload = await requestJson(
+                "{{ url_for('whatsapp_bot.bot_session_restore') }}",
+                {
+                    method: "POST",
+                    body: JSON.stringify({ filename }),
+                },
+            );
+            renderSession(payload.session || {});
+            renderSessionManagement(payload.management || payload.restore?.session || {});
+            syncSummaryText.textContent =
+                `Restore selesai dari ${payload.restore?.restoredFrom || filename}. ` +
+                `Safety backup: ${payload.restore?.safetyBackup || "-"}. Klik Mulai / Login untuk memuat sesi.`;
+        }
+
+        async function deleteSessionBackup(filename) {
+            const confirmed = window.confirm(`Hapus backup ${filename}?`);
+            if (!confirmed) {
+                return;
+            }
+            const endpoint = "{{ url_for('whatsapp_bot.bot_session_backup_delete', filename='__FILENAME__') }}"
+                .replace("__FILENAME__", encodeURIComponent(filename));
+            const payload = await requestJson(endpoint, { method: "DELETE" });
+            renderSessionManagement(payload.management || {});
+            syncSummaryText.textContent = `Backup ${filename} dihapus.`;
         }
 
         async function syncGroups(sourceLabel = "refresh") {
@@ -1194,7 +1467,7 @@
         document
             .getElementById("btnRefreshSession")
             .addEventListener("click", function () {
-                loadSession().catch(function (error) {
+                Promise.all([loadSession(), loadSessionManagement()]).catch(function (error) {
                     errorText.textContent = error.message;
                 });
             });
@@ -1205,6 +1478,17 @@
                     errorText.textContent = error.message;
                 });
             });
+        btnRefreshSessionManagement.addEventListener("click", function () {
+            loadSessionManagement().catch(function (error) {
+                syncSummaryText.textContent = error.message;
+            });
+        });
+        btnBackupSession.addEventListener("click", function () {
+            backupSession().catch(function (error) {
+                syncSummaryText.textContent = error.message;
+                btnBackupSession.disabled = false;
+            });
+        });
         btnRefreshGroups
             .addEventListener("click", function () {
                 syncGroups("group").catch(function (error) {
@@ -1284,6 +1568,21 @@
             contactsPage = Number(button.dataset.page || 1);
             renderContacts(allContacts);
         });
+        sessionBackupsBody.addEventListener("click", function (event) {
+            const restoreButton = event.target.closest(".btnRestoreSessionBackup");
+            if (restoreButton) {
+                restoreSessionBackup(restoreButton.dataset.filename).catch(function (error) {
+                    syncSummaryText.textContent = error.message;
+                });
+                return;
+            }
+            const deleteButton = event.target.closest(".btnDeleteSessionBackup");
+            if (deleteButton) {
+                deleteSessionBackup(deleteButton.dataset.filename).catch(function (error) {
+                    syncSummaryText.textContent = error.message;
+                });
+            }
+        });
         contactsTableBody.addEventListener("click", function (event) {
             const button = event.target.closest(".btnValidateTutor");
             if (button) {
@@ -1362,7 +1661,7 @@
                 if (session.status === "initializing") {
                     startWarmupPolling();
                 }
-                return Promise.all([loadGroups(false), loadContacts(false)]);
+                return Promise.all([loadGroups(false), loadContacts(false), loadSessionManagement()]);
             })
             .catch(function (error) {
                 errorText.textContent = error.message;
@@ -1370,6 +1669,7 @@
 
         setInterval(function () {
             loadSession().catch(function () {});
+            loadSessionManagement().catch(function () {});
         }, 5000);
     })();
 </script>

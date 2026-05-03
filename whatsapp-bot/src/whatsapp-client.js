@@ -6,6 +6,13 @@ const { classifyEvaluationMessage, parseEvaluationMessage } = require('./evaluat
 const { postSyncPayload } = require('./flask-client');
 const { isExcludedGroupName } = require('./group-filters');
 const {
+  createSessionBackup,
+  deleteSessionBackup,
+  listAuthSessions,
+  listSessionBackups,
+  restoreSessionBackup,
+} = require('./session-backup');
+const {
   clearChromiumSingletonLocks,
   createInitialState,
   errorMessage,
@@ -269,6 +276,35 @@ function getSessionState() {
   };
 }
 
+function getSessionManagementState() {
+  return {
+    ...listAuthSessions(state),
+    backups: listSessionBackups(),
+  };
+}
+
+async function backupSession() {
+  return createSessionBackup(state);
+}
+
+async function restoreSession(filename) {
+  await destroyClientInstance();
+  const result = await restoreSessionBackup(filename);
+  resetRuntime({
+    status: 'idle',
+    lastError: `Session restored from ${filename}. Klik Mulai / Login untuk memuat ulang sesi.`,
+  });
+  logBotEvent('session_restore', { filename });
+  return {
+    ...result,
+    session: getSessionManagementState(),
+  };
+}
+
+async function deleteBackup(filename) {
+  return deleteSessionBackup(filename);
+}
+
 async function listGroups() {
   const bot = await ensureReady();
   const chats = await bot.getChats();
@@ -488,8 +524,12 @@ module.exports = {
   startClient,
   ensureReady,
   getSessionState,
+  getSessionManagementState,
   listGroups,
   syncGroupsAndMessages,
+  backupSession,
+  restoreSession,
+  deleteBackup,
   logout,
   recoverFromRuntimeError,
   __private: {

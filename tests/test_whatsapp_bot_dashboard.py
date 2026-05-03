@@ -27,6 +27,15 @@ def test_whatsapp_management_template_contains_qr_and_session_controls():
     assert "btnValidateGroupStudent" in template_text
     assert "btnValidateGroupStudentManual" in template_text
     assert "btnScanAllGroupMessages" in template_text
+    assert "btnBackupSession" in template_text
+    assert "btnRefreshSessionManagement" in template_text
+    assert "sessionDirectoriesBody" in template_text
+    assert "sessionBackupsBody" in template_text
+    assert "backupSession" in template_text
+    assert "restoreSessionBackup" in template_text
+    assert "deleteSessionBackup" in template_text
+    assert "loadSessionManagement" in template_text
+    assert "Manajemen Session WhatsApp" in template_text
     assert "syncProgressBar" in template_text
     assert "syncProgressPercentText" in template_text
     assert "syncProgressText" in template_text
@@ -75,7 +84,11 @@ def test_whatsapp_routes_expose_management_page_and_proxy_endpoints():
     assert 'Blueprint("whatsapp_bot"' in route_text
     assert '@whatsapp_bot_bp.route("/management"' in route_text
     assert '@whatsapp_bot_bp.route("/api/session"' in route_text
+    assert '@whatsapp_bot_bp.route("/api/session/management"' in route_text
     assert '@whatsapp_bot_bp.route("/api/session/initialize"' in route_text
+    assert '@whatsapp_bot_bp.route("/api/session/backup"' in route_text
+    assert '@whatsapp_bot_bp.route("/api/session/restore"' in route_text
+    assert '@whatsapp_bot_bp.route("/api/session/backup/<path:filename>/download"' in route_text
     assert '@whatsapp_bot_bp.route("/api/groups"' in route_text
     assert '@whatsapp_bot_bp.route("/api/group-directory"' in route_text
     assert '@whatsapp_bot_bp.route("/api/contact-directory"' in route_text
@@ -84,6 +97,28 @@ def test_whatsapp_routes_expose_management_page_and_proxy_endpoints():
     assert '@whatsapp_bot_bp.route("/api/sync/messages/full"' in route_text
     assert '"students": students' in route_text
     assert '"tutors": tutors' in route_text
+
+
+def test_whatsapp_bot_source_exposes_session_backup_restore_endpoints():
+    project_root = Path(__file__).resolve().parents[1]
+    server_text = (
+        project_root / "whatsapp-bot" / "src" / "server.js"
+    ).read_text(encoding="utf-8")
+    backup_text = (
+        project_root / "whatsapp-bot" / "src" / "session-backup.js"
+    ).read_text(encoding="utf-8")
+    client_text = (
+        project_root / "whatsapp-bot" / "src" / "whatsapp-client.js"
+    ).read_text(encoding="utf-8")
+
+    assert "app.get('/session/management'" in server_text
+    assert "app.post('/session/backup'" in server_text
+    assert "app.post('/session/restore'" in server_text
+    assert "app.get('/session/backup/:filename/download'" in server_text
+    assert "createSessionBackup" in backup_text
+    assert "restoreSessionBackup" in backup_text
+    assert "listAuthSessions" in backup_text
+    assert "getSessionManagementState" in client_text
 
 
 def test_base_sidebar_links_to_whatsapp_management_page():

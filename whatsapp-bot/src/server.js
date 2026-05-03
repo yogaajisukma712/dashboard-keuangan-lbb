@@ -4,11 +4,16 @@ const config = require('./config');
 const {
   startClient,
   getSessionState,
+  getSessionManagementState,
   listGroups,
+  backupSession,
+  deleteBackup,
   logout,
   recoverFromRuntimeError,
+  restoreSession,
   syncGroupsAndMessages,
 } = require('./whatsapp-client');
+const { backupPathFor } = require('./session-backup');
 
 const app = express();
 
@@ -44,6 +49,14 @@ app.get('/session', (_req, res) => {
   res.json({ ok: true, session: getSessionState() });
 });
 
+app.get('/session/management', (_req, res) => {
+  try {
+    res.json({ ok: true, management: getSessionManagementState() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 app.post('/session/initialize', async (_req, res) => {
   try {
     await startClient();
@@ -59,6 +72,47 @@ app.post('/session/logout', async (_req, res) => {
     res.json({ ok: true, session: getSessionState() });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.post('/session/backup', async (_req, res) => {
+  try {
+    const backup = await backupSession();
+    res.json({ ok: true, backup, management: getSessionManagementState() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.post('/session/restore', async (req, res) => {
+  try {
+    const filename = req.body?.filename;
+    if (!filename) {
+      res.status(400).json({ ok: false, error: 'filename wajib diisi' });
+      return;
+    }
+    const restore = await restoreSession(filename);
+    res.json({ ok: true, restore, session: getSessionState(), management: getSessionManagementState() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.delete('/session/backup/:filename', async (req, res) => {
+  try {
+    const result = await deleteBackup(req.params.filename);
+    res.json({ ok: true, result, management: getSessionManagementState() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.get('/session/backup/:filename/download', (req, res) => {
+  try {
+    const filePath = backupPathFor(req.params.filename);
+    res.download(filePath, req.params.filename);
+  } catch (error) {
+    res.status(404).json({ ok: false, error: error.message });
   }
 });
 

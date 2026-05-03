@@ -1,28 +1,29 @@
 {
-  "goal": "Prepare one-file new-server migration/provision script",
+  "goal": "Add WhatsApp session backup restore and session management UI",
   "project_id": "aplikasi-lembaga",
   "phase": "verification_done",
   "current_role": "implementer",
-  "updated_at": "2026-05-03T10:59:19Z",
+  "updated_at": "2026-05-03T11:32:21Z",
   "plan": [
     {
-      "step": "Read compose/env/runtime requirements",
+      "step": "Audit WhatsApp bot session storage and dashboard flow",
       "status": "completed"
     },
     {
-      "step": "Create executable migration script",
+      "step": "Add bot auth session management backup restore endpoints",
       "status": "completed"
     },
     {
-      "step": "Validate script syntax",
+      "step": "Add Flask proxy and dashboard controls",
       "status": "completed"
     },
     {
-      "step": "Commit and push script",
-      "status": "in_progress"
+      "step": "Run tests rebuild and smoke endpoints",
+      "status": "completed"
     }
   ],
   "notes": [
-    "Script provisions clone/pull, env generation, mounts, image build, DB startup, optional restore, smoke check, and WhatsApp auth persistence."
+    "Backup files are stored in WhatsApp auth volume under /app/.wwebjs_auth/_backups and are not committed to git.",
+    "Smoke created one live backup file for current session."
   ]
 }

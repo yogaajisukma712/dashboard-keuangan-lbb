@@ -1,28 +1,29 @@
 {
-  "goal": "Fix attendance delete when linked to WhatsApp evaluations",
+  "goal": "Preserve duplicate tutor attendance CSV rows for back-to-back sessions",
   "project_id": "billing-supersmart",
   "phase": "verification_done",
   "current_role": "codex",
-  "updated_at": "2026-05-03T17:01:04Z",
+  "updated_at": "2026-05-04T23:40:42Z",
   "plan": [
     {
-      "step": "Reproduce FK cause from route/model",
+      "step": "Analyze CSV and runtime DB mismatch",
       "status": "completed",
-      "note": "delete_attendance deleted AttendanceSession while WhatsAppEvaluation FK still referenced it."
+      "note": "alldata Data Presensi Tutor has 4 Rafi rows on 2026-03-01; DB had 2 before re-import."
     },
     {
-      "step": "Add unlink helper and scan guard",
+      "step": "Fix bulk and legacy attendance import dedupe",
       "status": "completed",
-      "note": "Set attendance_session_id null, match_status manual-unlinked, append note; scan skips manual-unlinked evaluations."
+      "note": "Duplicate rows no longer collapse into one AttendanceSession."
     },
     {
-      "step": "Verify tests and runtime",
+      "step": "Verify and re-import runtime attendance",
       "status": "completed",
-      "note": "36 related tests passed; web rebuilt; login/attendance smoke OK."
+      "note": "Target duplicate tests passed; runtime import done; Rafi now 4 sessions."
     }
   ],
   "notes": [
-    "Delete attendance now unlinks WhatsAppEvaluation.attendance_session_id before deleting AttendanceSession.",
-    "WhatsApp evaluation/chat archive is preserved; deleted attendance is not recreated by scan because match_status becomes manual-unlinked."
+    "Attendance CSV rows with same student/date/tutor/subject are valid when a student takes back-to-back sessions.",
+    "Import note keys now add occurrence suffix for duplicate attendance rows; old first-row key remains backward compatible.",
+    "Runtime alldata attendance re-import restored Rafi 2026-03-01 from 2 rows to 4 rows."
   ]
 }

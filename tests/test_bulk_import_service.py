@@ -1,9 +1,23 @@
 from io import BytesIO
 
 import pytest
+from flask import Flask
 from werkzeug.datastructures import FileStorage
 
+from app import db
+from app.models import AttendanceSession, Student, Tutor
 from app.services.bulk_import_service import BulkImportService, DATASET_DEFINITIONS
+
+
+def _make_test_app():
+    app = Flask(__name__)
+    app.config.update(
+        SECRET_KEY="test-secret",
+        SQLALCHEMY_DATABASE_URI="sqlite://",
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    )
+    db.init_app(app)
+    return app
 
 
 def _file_storage(payload, filename="data.csv"):
@@ -89,3 +103,32 @@ def test_import_tutor_payouts_requires_yyyy_mm_format():
             [{"nama tutor": "A", "nominal": "1000"}],
             service_month="05/2026",
         )
+
+
+def test_import_attendance_preserves_duplicate_sessions_same_student_date():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        db.session.add_all(
+            [
+                Student(student_code="STD-RAFI", name="Rafi", grade="8"),
+                Tutor(tutor_code="TTR-DINDA", name="Ms Dinda"),
+            ]
+        )
+        db.session.commit()
+        service = BulkImportService(session=db.session)
+        payload = (
+            "Tanggal,Tutor,Siswa,Kurikulum,Jenjang,Mapel,Nominal\n"
+            "01/03/2026 09:00,Ms Dinda,Rafi,Nasional,SMP,Matematika,Rp50.000\n"
+            "01/03/2026 10:00,Ms Dinda,Rafi,Nasional,SMP,Matematika,Rp50.000\n"
+        ).encode("utf-8")
+
+        result = service.import_dataset("attendance", _file_storage(payload))
+        db.session.commit()
+
+        sessions = AttendanceSession.query.order_by(AttendanceSession.id.asc()).all()
+        assert result["created"] >= 2
+        assert len(sessions) == 2
+        assert sessions[0].session_date.isoformat() == "2026-03-01"
+        assert sessions[0].notes != sessions[1].notes

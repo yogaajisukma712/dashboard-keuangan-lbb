@@ -702,6 +702,9 @@ class BulkImportService:
             self._upsert_schedule(enrollment, row.get("hari"), row.get("jam"))
 
     def _import_attendance(self, rows, **_kwargs):
+        seen_attendance_keys = set()
+        duplicate_attendance_counters = {}
+
         for index, row in enumerate(rows, start=1):
             session_at = self._parse_datetime(row.get("tanggal"))
             if not session_at:
@@ -744,18 +747,38 @@ class BulkImportService:
                     notes="Auto-created from attendance import.",
                 )
 
-            attendance = AttendanceSession.query.filter_by(
-                enrollment_id=enrollment.id,
-                student_id=student.id,
-                tutor_id=tutor.id,
-                subject_id=subject.id,
-                session_date=session_at.date(),
-            ).first()
+            base_note = "|".join(
+                [
+                    "Imported from tutor attendance CSV",
+                    session_at.date().isoformat(),
+                    str(student.id),
+                    str(tutor.id),
+                    str(subject.id),
+                ]
+            )
+            note = base_note
+            if base_note in seen_attendance_keys:
+                duplicate_attendance_counters[base_note] += 1
+                note = f"{base_note}|{duplicate_attendance_counters[base_note]}"
+            else:
+                seen_attendance_keys.add(base_note)
+                duplicate_attendance_counters[base_note] = 1
+
+            attendance = AttendanceSession.query.filter_by(notes=note).first()
+            if not attendance and note == base_note:
+                attendance = AttendanceSession.query.filter_by(
+                    enrollment_id=enrollment.id,
+                    student_id=student.id,
+                    tutor_id=tutor.id,
+                    subject_id=subject.id,
+                    session_date=session_at.date(),
+                ).first()
             if attendance:
                 attendance.status = "attended"
                 attendance.student_present = True
                 attendance.tutor_present = True
                 attendance.tutor_fee_amount = self._parse_currency(row.get("nominal"))
+                attendance.notes = note
                 self._mark_updated()
                 continue
 
@@ -769,7 +792,7 @@ class BulkImportService:
                 student_present=True,
                 tutor_present=True,
                 tutor_fee_amount=self._parse_currency(row.get("nominal")),
-                notes="Imported from tutor attendance CSV.",
+                notes=note,
             )
             self.session.add(attendance)
             self._mark_created()

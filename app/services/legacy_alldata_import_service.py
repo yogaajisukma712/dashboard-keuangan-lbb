@@ -666,6 +666,8 @@ class LegacyAlldataImportService:
     def _import_attendance(self, path):
         rows = self._read_rows(path)
         result = {"created": 0, "updated": 0, "skipped": 0, "rows": len(rows)}
+        seen_attendance_keys: set = set()
+        duplicate_attendance_counters: dict = defaultdict(int)
 
         for index, row in enumerate(rows, start=1):
             session_date = self.bulk._parse_datetime(row.get("tanggal"))
@@ -710,8 +712,26 @@ class LegacyAlldataImportService:
                     ]
                 ),
             )
+            base_note = note
+            if base_note in seen_attendance_keys:
+                duplicate_attendance_counters[base_note] += 1
+                note = self._make_note(
+                    "attendance",
+                    "|".join(
+                        [
+                            session_date.date().isoformat(),
+                            str(student.id),
+                            str(tutor.id),
+                            str(subject.id),
+                            str(duplicate_attendance_counters[base_note]),
+                        ]
+                    ),
+                )
+            else:
+                seen_attendance_keys.add(base_note)
+                duplicate_attendance_counters[base_note] = 1
             attendance = AttendanceSession.query.filter_by(notes=note).first()
-            if not attendance:
+            if not attendance and note == base_note:
                 attendance = AttendanceSession.query.filter_by(
                     enrollment_id=enrollment.id,
                     student_id=student.id,

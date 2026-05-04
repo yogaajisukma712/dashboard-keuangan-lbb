@@ -1,7 +1,22 @@
 from pathlib import Path
 from datetime import datetime
 
+from flask import Flask
+
+from app import db
+from app.models import AttendanceSession, Student, Tutor
 from app.services.legacy_alldata_import_service import LegacyAlldataImportService
+
+
+def _make_test_app():
+    app = Flask(__name__)
+    app.config.update(
+        SECRET_KEY="test-secret",
+        SQLALCHEMY_DATABASE_URI="sqlite://",
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    )
+    db.init_app(app)
+    return app
 
 
 def test_parse_period_label_handles_indonesian_month_names():
@@ -57,3 +72,34 @@ def test_legacy_payment_exclusion_matches_dashboard_reference_row():
         225000,
         200000,
     )
+
+
+def test_import_attendance_preserves_duplicate_sessions_same_student_date(tmp_path: Path):
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        db.session.add_all(
+            [
+                Student(student_code="STD-RAFI", name="Rafi", grade="8"),
+                Tutor(tutor_code="TTR-DINDA", name="Ms Dinda"),
+            ]
+        )
+        db.session.commit()
+        csv_path = tmp_path / "Data Presensi Tutor.csv"
+        csv_path.write_text(
+            "No,Tanggal,Hari,Tutor,Siswa,Kurikulum,Jenjang,Mapel,Nominal\n"
+            "1,01/03/2026 09:00,Minggu,Ms Dinda,Rafi,Nasional,SMP,Matematika,Rp50.000\n"
+            "2,01/03/2026 10:00,Minggu,Ms Dinda,Rafi,Nasional,SMP,Matematika,Rp50.000\n",
+            encoding="utf-8",
+        )
+        service = LegacyAlldataImportService(session=db.session)
+
+        result = service._import_attendance(csv_path)
+        db.session.commit()
+
+        sessions = AttendanceSession.query.order_by(AttendanceSession.id.asc()).all()
+        assert result["created"] == 2
+        assert len(sessions) == 2
+        assert sessions[0].session_date.isoformat() == "2026-03-01"
+        assert sessions[0].notes != sessions[1].notes

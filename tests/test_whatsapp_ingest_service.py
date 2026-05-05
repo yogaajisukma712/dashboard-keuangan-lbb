@@ -835,6 +835,75 @@ def test_sync_enrollment_whatsapp_group_keeps_multiple_shared_groups():
         ]
 
 
+def test_sync_enrollment_whatsapp_group_uses_group_validation_and_contact_membership():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="Merdeka")
+        level = Level(name="SMA")
+        subject = Subject(name="Kimia")
+        student = Student(student_code="STD-107", name="Alysha", is_active=True)
+        tutor = Tutor(
+            tutor_code="TTR-107",
+            name="Anggi",
+            phone="08984089204",
+            is_active=True,
+        )
+        contact = WhatsAppContact(
+            whatsapp_contact_id="628984089204@c.us",
+            phone_number="628984089204",
+            display_name="Anggi",
+            is_group=False,
+        )
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-alysha@g.us",
+            name="Alysha Kimia",
+        )
+        enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="10",
+            student_rate_per_meeting=70000,
+            tutor_rate_per_meeting=40000,
+            status="active",
+        )
+        db.session.add_all(
+            [curriculum, level, subject, student, tutor, contact, group, enrollment]
+        )
+        db.session.flush()
+        db.session.add_all(
+            [
+                WhatsAppStudentGroupValidation(
+                    group_id=group.id,
+                    student_id=student.id,
+                ),
+                WhatsAppGroupParticipant(
+                    group_id=group.id,
+                    contact_id=contact.id,
+                    display_name="Anggi",
+                ),
+            ]
+        )
+        db.session.commit()
+
+        result = WhatsAppIngestService.sync_enrollment_whatsapp_group(enrollment)
+
+        assert result["matched"] is True
+        assert enrollment.whatsapp_group_id == "group-alysha@g.us"
+        assert enrollment.whatsapp_group_name == "Alysha Kimia"
+        assert enrollment.whatsapp_group_memberships_json == [
+            {
+                "group_id": group.id,
+                "whatsapp_group_id": "group-alysha@g.us",
+                "group_name": "Alysha Kimia",
+            }
+        ]
+
+
 def test_scan_attendance_for_month_uses_validated_tutor_and_group_context():
     app = _make_test_app()
 

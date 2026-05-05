@@ -634,7 +634,33 @@ def get_student_group_memberships(student: Student | None) -> list[dict]:
         normalized = normalize_group_membership_item(item)
         if normalized is not None:
             rows.append(normalized)
-    return rows
+
+    if student is not None:
+        for validation in WhatsAppStudentGroupValidation.query.filter_by(
+            student_id=student.id
+        ).all():
+            group = validation.group
+            normalized = normalize_group_membership_item(
+                {
+                    "group_id": group.id if group else validation.group_id,
+                    "whatsapp_group_id": group.whatsapp_group_id if group else None,
+                    "group_name": group.name if group else None,
+                }
+            )
+            if normalized is not None:
+                rows.append(normalized)
+
+        contact_validation = WhatsAppStudentValidation.query.filter_by(
+            student_id=student.id
+        ).first()
+        if contact_validation is not None:
+            rows.extend(get_contact_group_memberships(contact_validation.contact))
+
+        for phone_number in [student.phone, student.parent_phone]:
+            for contact in find_contacts_by_phone_number(phone_number):
+                rows.extend(get_contact_group_memberships(contact))
+
+    return dedupe_group_memberships(rows)
 
 
 def get_tutor_group_memberships(tutor: Tutor | None) -> list[dict]:
@@ -646,6 +672,55 @@ def get_tutor_group_memberships(tutor: Tutor | None) -> list[dict]:
         normalized = normalize_group_membership_item(item)
         if normalized is not None:
             rows.append(normalized)
+    if validation is not None:
+        rows.extend(get_contact_group_memberships(validation.contact))
+    for contact in find_contacts_by_phone_number(tutor.phone):
+        rows.extend(get_contact_group_memberships(contact))
+    return dedupe_group_memberships(rows)
+
+
+def get_contact_group_memberships(contact: WhatsAppContact | None) -> list[dict]:
+    if contact is None:
+        return []
+    rows: list[dict] = []
+    for membership in contact.memberships.all():
+        group = membership.group
+        normalized = normalize_group_membership_item(
+            {
+                "group_id": group.id if group else membership.group_id,
+                "whatsapp_group_id": group.whatsapp_group_id if group else None,
+                "group_name": group.name if group else None,
+            }
+        )
+        if normalized is not None:
+            rows.append(normalized)
+    return dedupe_group_memberships(rows)
+
+
+def find_contacts_by_phone_number(phone_number: str | None) -> list[WhatsAppContact]:
+    normalized_phone = normalize_phone_number(phone_number)
+    if not normalized_phone:
+        return []
+    return [
+        contact
+        for contact in WhatsAppContact.query.filter_by(is_group=False).all()
+        if phone_numbers_match(contact.phone_number, normalized_phone)
+        or phone_numbers_match(contact.whatsapp_contact_id, normalized_phone)
+    ]
+
+
+def dedupe_group_memberships(items: list[dict]) -> list[dict]:
+    rows: list[dict] = []
+    seen_keys: set[tuple[object, object]] = set()
+    for item in items:
+        normalized = normalize_group_membership_item(item)
+        if normalized is None:
+            continue
+        key = (normalized.get("group_id"), normalized.get("whatsapp_group_id"))
+        if key in seen_keys:
+            continue
+        rows.append(normalized)
+        seen_keys.add(key)
     return rows
 
 

@@ -1,29 +1,29 @@
 {
-  "goal": "Tambah paste clipboard gambar bukti transfer di detail payout",
+  "goal": "Tambah checkbox total dan filter nomor rekening di rekap gaji tutor",
   "project_id": "billing-supersmart",
   "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-05T18:37:24Z",
+  "updated_at": "2026-05-05T19:22:04Z",
   "plan": [
     {
-      "step": "Inspect payout proof upload flow",
+      "step": "Inspect tutor summary payroll template",
       "status": "completed"
     },
     {
-      "step": "Add clipboard paste zone and JS file injection",
+      "step": "Add row checkboxes selected totals and account filter",
       "status": "completed"
     },
     {
-      "step": "Add TDD/static template coverage",
+      "step": "Add template tests and rebuild web",
       "status": "completed"
     },
     {
-      "step": "Run tests, rebuild, smoke, push",
+      "step": "Run Hermes verification and push",
       "status": "completed",
-      "note": "Targeted tests passed; web rebuilt; smoke reached login page on port 6001."
+      "note": "Targeted tests passed; web rebuilt; smoke reached login page for tutor summary route."
     }
   ],
   "notes": [
-    "Input proof_file tetap dipakai; clipboard image dibuat menjadi File browser sehingga backend upload lama tidak berubah."
+    "Rekap gaji tutor memakai checkbox client-side untuk total saldo/payable dipilih dan filter cepat nomor rekening tanpa reload."
   ]
 }

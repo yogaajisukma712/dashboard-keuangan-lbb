@@ -1,461 +1,807 @@
-{% extends "base.html" %}
+{% extends "base.html" %} {% block title %}Ringkasan Payroll Tutor{% endblock %}
+{% block content %} {% set MONTHS =
+['','Januari','Februari','Maret','April','Mei','Juni',
+'Juli','Agustus','September','Oktober','November','Desember'] %}
 
-{% block title %}Ringkasan Payroll Tutor{% endblock %}
-
-{% block content %}
-{% set MONTHS = ['','Januari','Februari','Maret','April','Mei','Juni',
-                 'Juli','Agustus','September','Oktober','November','Desember'] %}
-
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h2 class="h4 mb-0">Ringkasan Payroll Tutor</h2>
-    <p class="text-muted mb-0 small">Periode: <strong>{{ MONTHS[month] }} {{ year }}</strong></p>
-  </div>
-  <div class="d-flex gap-2">
-    <a href="{{ url_for('payroll.transfer_list', month=month, year=year) }}" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-list-check"></i> Transfer List
-    </a>
-    <a href="{{ url_for('payroll.add_payout') }}" class="btn btn-primary btn-sm">
-      <i class="bi bi-plus-lg"></i> Tambah Payout
-    </a>
-  </div>
+<div
+    class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3"
+>
+    <div>
+        <h2 class="h4 mb-0">Ringkasan Payroll Tutor</h2>
+        <p class="text-muted mb-0 small">
+            Periode: <strong>{{ MONTHS[month] }} {{ year }}</strong> {% if not
+            show_all %} &bull;
+            <span class="text-warning fw-semibold"
+                >Hanya tutor dengan fee belum lunas</span
+            >
+            &mdash;
+            <a
+                href="?month={{ month }}&year={{ year }}&show_all=1"
+                class="small"
+                >Tampilkan Semua</a
+            >
+            {% else %} &bull;
+            <a href="?month={{ month }}&year={{ year }}" class="small"
+                >Sembunyikan yang Lunas</a
+            >
+            {% endif %}
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a
+            href="{{ url_for('payroll.transfer_list', month=month, year=year) }}"
+            class="btn btn-outline-secondary btn-sm"
+        >
+            <i class="bi bi-list-check"></i> Transfer List
+        </a>
+        <a
+            href="{{ url_for('payroll.add_payout') }}"
+            class="btn btn-primary btn-sm"
+        >
+            <i class="bi bi-plus-lg"></i> Tambah Payout
+        </a>
+    </div>
 </div>
 
 {# ── Filter Bulan / Tahun ────────────────────────────────────────────────── #}
 <div class="card mb-4 border-0 shadow-sm">
-  <div class="card-body py-2">
-    <form method="GET" class="row g-2 align-items-end">
-      <div class="col-auto">
-        <label class="form-label small fw-semibold mb-1">Bulan</label>
-        <select name="month" class="form-select form-select-sm" style="min-width:130px">
-          {% for m in range(1,13) %}
-          <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ MONTHS[m] }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-auto">
-        <label class="form-label small fw-semibold mb-1">Tahun</label>
-        <select name="year" class="form-select form-select-sm">
-          {% for y in range(2023, 2030) %}
-          <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-auto">
-        <button type="submit" class="btn btn-primary btn-sm">
-          <i class="bi bi-funnel"></i> Filter
-        </button>
-      </div>
-    </form>
-  </div>
+    <div class="card-body py-2">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label small fw-semibold mb-1">Bulan</label>
+                <select
+                    name="month"
+                    class="form-select form-select-sm"
+                    style="min-width: 130px"
+                >
+                    {% for m in range(1,13) %}
+                    <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ MONTHS[m] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small fw-semibold mb-1">Tahun</label>
+                <select name="year" class="form-select form-select-sm">
+                    {% for y in range(2023, 2030) %}
+                    <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-funnel"></i> Filter
+                </button>
+            </div>
+            <div class="col-12 col-md-4 ms-md-auto">
+                <label class="form-label small fw-semibold mb-1">
+                    Filter No. Rekening
+                </label>
+                <input
+                    type="search"
+                    id="accountFilter"
+                    class="form-control form-control-sm"
+                    placeholder="Ketik nomor rekening..."
+                    autocomplete="off"
+                />
+                <div class="form-text small">
+                    Filter cepat tanpa reload halaman.
+                </div>
+            </div>
+        </form>
+    </div>
 </div>
 
 {# ── Summary Cards ──────────────────────────────────────────────────────── #}
-{% set total_payable = tutor_data | sum(attribute='payable') %}
-{% set total_paid    = tutor_data | sum(attribute='paid') %}
-{% set total_balance = tutor_data | sum(attribute='balance') %}
-{% set count_paid    = tutor_data | selectattr('paid','gt',0) | list | length %}
-{% set count_unpaid  = tutor_data | selectattr('balance','gt',0) | list | length %}
+{% set total_payable = tutor_data | sum(attribute='payable') %} {% set
+total_paid = tutor_data | sum(attribute='paid') %} {% set total_balance =
+tutor_data | sum(attribute='balance') %} {% set count_paid = tutor_data |
+selectattr('paid','gt',0) | list | length %} {% set count_unpaid = tutor_data |
+selectattr('balance','gt',0) | list | length %}
 <div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body">
-        <div class="muted-label">Total Payable</div>
-        <div class="fs-5 fw-semibold text-primary">Rp {{ "{:,.0f}".format(total_payable) }}</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body">
-        <div class="muted-label">Sudah Dibayar</div>
-        <div class="fs-5 fw-semibold text-success">Rp {{ "{:,.0f}".format(total_paid) }}</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body">
-        <div class="muted-label">Saldo Tersisa</div>
-        <div class="fs-5 fw-semibold {% if total_balance > 0 %}text-danger{% else %}text-success{% endif %}">
-          Rp {{ "{:,.0f}".format(total_balance) }}
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="muted-label">Total Payable</div>
+                <div class="fs-5 fw-semibold text-primary">
+                    Rp {{ "{:,.0f}".format(total_payable) }}
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body">
-        <div class="muted-label">Status Tutor</div>
-        <div class="fs-5 fw-semibold">
-          <span class="text-success">{{ count_paid }}</span>
-          <span class="text-muted small">dibayar</span> /
-          <span class="text-danger">{{ count_unpaid }}</span>
-          <span class="text-muted small">belum</span>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="muted-label">Sudah Dibayar</div>
+                <div class="fs-5 fw-semibold text-success">
+                    Rp {{ "{:,.0f}".format(total_paid) }}
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="muted-label">Saldo Tersisa</div>
+                <div
+                    class="fs-5 fw-semibold {% if total_balance > 0 %}text-danger{% else %}text-success{% endif %}"
+                >
+                    Rp {{ "{:,.0f}".format(total_balance) }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="muted-label">Status Tutor</div>
+                <div class="fs-5 fw-semibold">
+                    <span class="text-success">{{ count_paid }}</span>
+                    <span class="text-muted small">dibayar</span> /
+                    <span class="text-danger">{{ count_unpaid }}</span>
+                    <span class="text-muted small">belum</span>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {# ── Tabel Tutor ─────────────────────────────────────────────────────────── #}
 <div class="card border-0 shadow-sm">
-  <div class="card-header bg-white fw-semibold">Daftar Tutor — {{ MONTHS[month] }} {{ year }}</div>
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0" id="tutorTable">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="width:42px">No</th>
-            <th>Nama Tutor</th>
-            <th>Bank</th>
-            <th>No. Rekening</th>
-            <th class="text-end">Payable</th>
-            <th class="text-end">Dibayar</th>
-            <th class="text-end">Saldo</th>
-            <th class="text-center" style="width:160px">Aksi</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in tutor_data %}
-          {% set tutor = item.tutor %}
-          {% set is_paid = item.balance <= 0 and item.paid > 0 %}
-          {% set has_balance = item.balance > 0 %}
-          <tr id="row-tutor-{{ tutor.id }}">
-            <td class="ps-3 text-muted">{{ loop.index }}</td>
-            <td>
-              <div class="fw-semibold">{{ tutor.name }}</div>
-              <div class="text-muted small">{{ tutor.tutor_code }}</div>
-            </td>
-            <td class="small">{{ tutor.bank_name or '-' }}</td>
-            <td class="small font-monospace">{{ tutor.bank_account_number or '-' }}</td>
-            <td class="text-end small">Rp {{ "{:,.0f}".format(item.payable) }}</td>
-            <td class="text-end small">
-              {% if item.paid > 0 %}
-              <span class="text-success">Rp {{ "{:,.0f}".format(item.paid) }}</span>
-              {% else %}
-              <span class="text-muted">Rp 0</span>
-              {% endif %}
-            </td>
-            <td class="text-end small">
-              {% if is_paid %}
-                <span class="badge bg-success rounded-pill">LUNAS</span>
-              {% elif has_balance %}
-                <span class="badge bg-danger rounded-pill">Rp {{ "{:,.0f}".format(item.balance) }}</span>
-              {% else %}
-                <span class="badge bg-secondary rounded-pill">-</span>
-              {% endif %}
-            </td>
-            <td class="text-center">
-              <div class="d-flex gap-1 justify-content-center flex-wrap">
-                {# Checkbox bayar — muncul hanya kalau masih ada saldo #}
-                {% if has_balance %}
-                <div class="form-check form-switch d-inline-flex align-items-center gap-1 me-1"
-                     title="Tandai Sudah Dibayar">
-                  <input
-                    class="form-check-input pay-toggle"
-                    type="checkbox"
-                    id="pay-{{ tutor.id }}"
-                    data-tutor-id="{{ tutor.id }}"
-                    data-tutor-name="{{ tutor.name }}"
-                    data-balance="{{ item.balance }}"
-                    data-month="{{ month }}"
-                    data-year="{{ year }}"
-                    style="cursor:pointer"
-                  >
-                  <label class="form-check-label small" for="pay-{{ tutor.id }}">Bayar</label>
-                </div>
-                {% endif %}
-
-                {# Lihat Fee Slip — muncul jika ada payout bulan ini #}
-                {% if item.latest_payout_id %}
-                        <a href="{{ url_for('payroll.fee_slip', payout_ref=item.latest_payout.public_id) }}"
-                   class="btn btn-outline-primary btn-sm py-0 px-2" target="_blank"
-                   title="Lihat Fee Slip">
-                  <i class="bi bi-file-earmark-text"></i> Slip
-                </a>
-                {% endif %}
-
-                {# Link ke payout detail #}
-                {% if item.latest_payout_id %}
-                        <a href="{{ url_for('payroll.payout_detail', payout_ref=item.latest_payout.public_id) }}"
-                   class="btn btn-outline-secondary btn-sm py-0 px-2" title="Detail">
-                  <i class="bi bi-eye"></i>
-                </a>
-                {% endif %}
-              </div>
-            </td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="8" class="text-center text-muted py-4">
-              Tidak ada data tutor aktif.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="card-header bg-white">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="fw-semibold">Daftar Tutor — {{ MONTHS[month] }} {{ year }}</div>
+            <div class="d-flex flex-wrap align-items-center gap-2 small">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                    Dipilih: <span id="selectedTutorCount">0</span>
+                </span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                    Total saldo: Rp <span id="selectedBalanceTotal">0</span>
+                </span>
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                    Total payable: Rp <span id="selectedPayableTotal">0</span>
+                </span>
+            </div>
+        </div>
     </div>
-  </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="tutorTable">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3 text-center" style="width: 42px">
+                            <input
+                                type="checkbox"
+                                class="form-check-input"
+                                id="selectVisibleTutors"
+                                title="Pilih semua tutor yang sedang tampil"
+                            />
+                        </th>
+                        <th class="ps-3" style="width: 42px">No</th>
+                        <th>Nama Tutor</th>
+                        <th>Bank</th>
+                        <th>No. Rekening</th>
+                        <th class="text-end">Payable</th>
+                        <th class="text-end">Dibayar</th>
+                        <th class="text-end">Saldo</th>
+                        <th class="text-center" style="width: 160px">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in tutor_data %}
+                    {% set tutor = item.tutor %}
+                    {# balance > 0 : masih ada sisa yang belum dibayar #}
+                    {% set has_balance = item.balance > 0 %}
+                    {# balance == 0 dan sudah ada pembayaran : lunas tepat #}
+                    {% set is_paid = item.balance == 0 and item.paid > 0 %}
+                    {# balance < 0 : kelebihan bayar — presensi kurang lengkap #}
+                    {% set is_overpaid = item.balance < 0 %}
+                    <tr
+                        id="row-tutor-{{ tutor.id }}"
+                        data-account-number="{{ tutor.bank_account_number or '' }}"
+                        data-payable="{{ item.payable }}"
+                        data-balance="{{ item.balance }}"
+                        {% if is_overpaid %}class="table-warning"{% endif %}
+                    >
+                        <td class="ps-3 text-center">
+                            <input
+                                type="checkbox"
+                                class="form-check-input tutor-total-check"
+                                data-tutor-id="{{ tutor.id }}"
+                                data-payable="{{ item.payable }}"
+                                data-balance="{{ item.balance }}"
+                                aria-label="Pilih {{ tutor.name }} untuk hitung total"
+                            />
+                        </td>
+                        <td class="ps-3 text-muted">{{ loop.index }}</td>
+                        <td>
+                            <div class="fw-semibold">{{ tutor.name }}</div>
+                            <div class="text-muted small">
+                                {{ tutor.tutor_code }}
+                            </div>
+                        </td>
+                        <td class="small">{{ tutor.bank_name or '-' }}</td>
+                        <td class="small font-monospace">
+                            {{ tutor.bank_account_number or '-' }}
+                        </td>
+                        <td class="text-end small" data-payroll-col="payable">
+                            Rp {{ "{:,.0f}".format(item.payable) }}
+                            {% if item.has_presensi_gap %}
+                            <br><span class="text-warning fst-italic" style="font-size:.75rem"
+                                title="Payout CSV = Rp {{ '{:,.0f}'.format(item.paid) }}, tapi presensi hanya Rp {{ '{:,.0f}'.format(item.payable) }}. Ada sesi yang belum tercatat di Data Presensi — perlu dilengkapi.">
+                                <i class="bi bi-exclamation-triangle-fill"></i> presensi belum lengkap
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end small" data-payroll-col="paid">
+                            {% if item.paid > 0 %}
+                            <span class="text-success"
+                                >Rp {{ "{:,.0f}".format(item.paid) }}</span
+                            >
+                            {% else %}
+                            <span class="text-muted">Rp 0</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end small" data-payroll-col="balance">
+                            {% if is_overpaid %}
+                            <span class="badge bg-warning text-dark rounded-pill"
+                                title="Presensi belum lengkap: dibayar Rp {{ '{:,.0f}'.format(item.paid) }} tapi presensi hanya Rp {{ '{:,.0f}'.format(item.payable) }}. Selisih Rp {{ '{:,.0f}'.format(item.paid - item.payable) }} — lengkapi Data Presensi.">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                +Rp {{ "{:,.0f}".format(item.paid - item.payable) }} kelebihan
+                            </span>
+                            {% elif is_paid %}
+                            <span class="badge bg-success rounded-pill">LUNAS</span>
+                            {% elif has_balance %}
+                            <span class="badge bg-danger rounded-pill">
+                                Rp {{ "{:,.0f}".format(item.balance) }}
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary rounded-pill">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div
+                                class="d-flex gap-1 justify-content-center flex-wrap"
+                            >
+                                {# ── Sudah ada payout: tampilkan tombol Detail
+                                + Slip ── #} {% if item.latest_payout %} {% set
+                                p = item.latest_payout %} {% set p_done =
+                                p.status == 'completed' %}
+                                <a
+                                    href="{{ url_for('payroll.payout_detail', payout_ref=p.public_id) }}"
+                                    class="btn btn-sm {{ 'btn-success' if p_done else 'btn-warning text-dark' }} py-0 px-2"
+                                    title="{{ 'Lunas – Lihat Detail' if p_done else 'Pending – Lihat & Konfirmasi' }}"
+                                >
+                                    <i
+                                        class="bi {{ 'bi-check-circle-fill' if p_done else 'bi-clock' }} me-1"
+                                    ></i>
+                                    {{ 'Lunas' if p_done else 'Pending' }}
+                                </a>
+                                <a
+                                    href="{{ url_for('payroll.fee_slip', payout_ref=p.public_id) }}"
+                                    class="btn btn-outline-primary btn-sm py-0 px-2"
+                                    target="_blank"
+                                    title="Lihat Fee Slip"
+                                >
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </a>
+                                {# ── Belum ada payout: tombol Buat ── #} {%
+                                elif item.balance > 0 %}
+                                <form
+                                    method="POST"
+                                    action="{{ url_for('payroll.auto_create_payout') }}"
+                                    style="display: inline"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="{{ csrf_token() }}"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="tutor_id"
+                                        value="{{ tutor.id }}"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="month"
+                                        value="{{ month }}"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="year"
+                                        value="{{ year }}"
+                                    />
+                                    <button
+                                        type="submit"
+                                        class="btn btn-outline-danger btn-sm py-0 px-2"
+                                        title="Buat payout dan lihat detail"
+                                    >
+                                        <i class="bi bi-plus-circle me-1"></i
+                                        >Buat Payout
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-muted small">—</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            Tidak ada data tutor aktif.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 {# ── Modal Konfirmasi Bayar ──────────────────────────────────────────────── #}
-<div class="modal fade" id="quickPayModal" tabindex="-1" aria-labelledby="quickPayModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title" id="quickPayModalLabel">
-          <i class="bi bi-cash-coin me-1"></i> Konfirmasi Pembayaran
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <p class="mb-3">
-          Bayar gaji ke <strong id="modal-tutor-name"></strong> untuk periode
-          <strong id="modal-period"></strong>?
-        </p>
+<div
+    class="modal fade"
+    id="quickPayModal"
+    tabindex="-1"
+    aria-labelledby="quickPayModalLabel"
+    aria-hidden="true"
+>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="quickPayModalLabel">
+                    <i class="bi bi-cash-coin me-1"></i> Konfirmasi Pembayaran
+                </h5>
+                <button
+                    type="button"
+                    class="btn-close btn-close-white"
+                    data-bs-dismiss="modal"
+                ></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">
+                    Bayar gaji ke <strong id="modal-tutor-name"></strong> untuk
+                    periode <strong id="modal-period"></strong>?
+                </p>
 
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Nominal Pembayaran <span class="text-danger">*</span></label>
-          <div class="input-group">
-            <span class="input-group-text">Rp</span>
-            <input type="number" id="modal-amount" class="form-control" min="1" step="1"
-                   placeholder="0">
-          </div>
-          <div class="form-text">Saldo tutor: <span id="modal-balance-hint" class="fw-semibold text-danger"></span></div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold"
+                        >Nominal Pembayaran
+                        <span class="text-danger">*</span></label
+                    >
+                    <div class="input-group">
+                        <span class="input-group-text">Rp</span>
+                        <input
+                            type="number"
+                            id="modal-amount"
+                            class="form-control"
+                            min="1"
+                            step="1"
+                            placeholder="0"
+                        />
+                    </div>
+                    <div class="form-text">
+                        Saldo tutor:
+                        <span
+                            id="modal-balance-hint"
+                            class="fw-semibold text-danger"
+                        ></span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold"
+                        >Bulan Layanan <span class="text-danger">*</span></label
+                    >
+                    <input
+                        type="month"
+                        id="modal-service-month"
+                        class="form-control"
+                    />
+                    <div class="form-text">
+                        Bulan yang dicakup oleh pembayaran ini
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Catatan (opsional)</label>
+                    <textarea
+                        id="modal-notes"
+                        class="form-control"
+                        rows="2"
+                        placeholder="Nomor referensi, catatan transfer, dll."
+                    ></textarea>
+                </div>
+
+                <div id="modal-error" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                    id="modal-cancel-btn"
+                >
+                    Batal
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    id="modal-confirm-btn"
+                >
+                    <span id="modal-btn-text"
+                        ><i class="bi bi-check-lg me-1"></i> Bayar
+                        Sekarang</span
+                    >
+                    <span id="modal-btn-loading" class="d-none">
+                        <span
+                            class="spinner-border spinner-border-sm me-1"
+                        ></span>
+                        Memproses...
+                    </span>
+                </button>
+            </div>
         </div>
-
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Bulan Layanan <span class="text-danger">*</span></label>
-          <input type="month" id="modal-service-month" class="form-control">
-          <div class="form-text">Bulan yang dicakup oleh pembayaran ini</div>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Catatan (opsional)</label>
-          <textarea id="modal-notes" class="form-control" rows="2"
-                    placeholder="Nomor referensi, catatan transfer, dll."></textarea>
-        </div>
-
-        <div id="modal-error" class="alert alert-danger d-none"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="modal-cancel-btn">Batal</button>
-        <button type="button" class="btn btn-primary" id="modal-confirm-btn">
-          <span id="modal-btn-text"><i class="bi bi-check-lg me-1"></i> Bayar Sekarang</span>
-          <span id="modal-btn-loading" class="d-none">
-            <span class="spinner-border spinner-border-sm me-1"></span> Memproses...
-          </span>
-        </button>
-      </div>
     </div>
-  </div>
 </div>
 
 {# ── Toast Notifikasi ───────────────────────────────────────────────────── #}
-<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1100">
-  <div id="payToast" class="toast align-items-center text-white border-0" role="alert">
-    <div class="d-flex">
-      <div class="toast-body" id="payToastMsg"></div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+<div
+    class="toast-container position-fixed bottom-0 end-0 p-3"
+    style="z-index: 1100"
+>
+    <div
+        id="payToast"
+        class="toast align-items-center text-white border-0"
+        role="alert"
+    >
+        <div class="d-flex">
+            <div class="toast-body" id="payToastMsg"></div>
+            <button
+                type="button"
+                class="btn-close btn-close-white me-2 m-auto"
+                data-bs-dismiss="toast"
+            ></button>
+        </div>
     </div>
-  </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script>
-(function () {
-  "use strict";
+    (function () {
+        "use strict";
 
-  const MONTHS_ID = ['','Januari','Februari','Maret','April','Mei','Juni',
-                     'Juli','Agustus','September','Oktober','November','Desember'];
+        const MONTHS_ID = [
+            "",
+            "Januari",
+            "Februari",
+            "Maret",
+            "April",
+            "Mei",
+            "Juni",
+            "Juli",
+            "Agustus",
+            "September",
+            "Oktober",
+            "November",
+            "Desember",
+        ];
 
-  // ── State ────────────────────────────────────────────────────────────────
-  let activeTutorId   = null;
-  let activeTutorName = "";
-  let activeMonth     = null;
-  let activeYear      = null;
-  let activeBalance   = 0;
-  let activeCheckbox  = null;
+        // ── State ────────────────────────────────────────────────────────────────
+        let activeTutorId = null;
+        let activeTutorName = "";
+        let activeMonth = null;
+        let activeYear = null;
+        let activeBalance = 0;
+        let activeCheckbox = null;
 
-  // ── Elements ─────────────────────────────────────────────────────────────
-  const modalEl        = document.getElementById("quickPayModal");
-  const modal          = new bootstrap.Modal(modalEl);
-  const modalTitle     = document.getElementById("quickPayModalLabel");
-  const modalTutorName = document.getElementById("modal-tutor-name");
-  const modalPeriod    = document.getElementById("modal-period");
-  const modalAmount    = document.getElementById("modal-amount");
-  const modalSvcMonth  = document.getElementById("modal-service-month");
-  const modalNotes     = document.getElementById("modal-notes");
-  const modalError     = document.getElementById("modal-error");
-  const modalBtnText   = document.getElementById("modal-btn-text");
-  const modalBtnLoad   = document.getElementById("modal-btn-loading");
-  const modalConfirm   = document.getElementById("modal-confirm-btn");
-  const modalCancel    = document.getElementById("modal-cancel-btn");
-  const modalBalance   = document.getElementById("modal-balance-hint");
-  const toast          = new bootstrap.Toast(document.getElementById("payToast"), {delay: 4000});
-  const toastMsg       = document.getElementById("payToastMsg");
-  const toastEl        = document.getElementById("payToast");
+        // ── Elements ─────────────────────────────────────────────────────────────
+        const modalEl = document.getElementById("quickPayModal");
+        const modal = new bootstrap.Modal(modalEl);
+        const modalTitle = document.getElementById("quickPayModalLabel");
+        const modalTutorName = document.getElementById("modal-tutor-name");
+        const modalPeriod = document.getElementById("modal-period");
+        const modalAmount = document.getElementById("modal-amount");
+        const modalSvcMonth = document.getElementById("modal-service-month");
+        const modalNotes = document.getElementById("modal-notes");
+        const modalError = document.getElementById("modal-error");
+        const modalBtnText = document.getElementById("modal-btn-text");
+        const modalBtnLoad = document.getElementById("modal-btn-loading");
+        const modalConfirm = document.getElementById("modal-confirm-btn");
+        const modalCancel = document.getElementById("modal-cancel-btn");
+        const modalBalance = document.getElementById("modal-balance-hint");
+        const toast = new bootstrap.Toast(document.getElementById("payToast"), {
+            delay: 4000,
+        });
+        const toastMsg = document.getElementById("payToastMsg");
+        const toastEl = document.getElementById("payToast");
+        const accountFilter = document.getElementById("accountFilter");
+        const selectVisibleTutors = document.getElementById("selectVisibleTutors");
+        const selectedTutorCount = document.getElementById("selectedTutorCount");
+        const selectedBalanceTotal = document.getElementById("selectedBalanceTotal");
+        const selectedPayableTotal = document.getElementById("selectedPayableTotal");
+        const tutorRows = Array.from(
+            document.querySelectorAll("#tutorTable tbody tr[id^='row-tutor-']"),
+        );
+        const totalCheckboxes = Array.from(
+            document.querySelectorAll(".tutor-total-check"),
+        );
 
-  // ── Helper ───────────────────────────────────────────────────────────────
-  function showToast(msg, type) {
-    toastEl.classList.remove("bg-success","bg-danger","bg-warning","bg-primary");
-    toastEl.classList.add("bg-" + type);
-    toastMsg.textContent = msg;
-    toast.show();
-  }
+        // ── Helper ───────────────────────────────────────────────────────────────
+        function showToast(msg, type) {
+            toastEl.classList.remove(
+                "bg-success",
+                "bg-danger",
+                "bg-warning",
+                "bg-primary",
+            );
+            toastEl.classList.add("bg-" + type);
+            toastMsg.textContent = msg;
+            toast.show();
+        }
 
-  function setLoading(flag) {
-    modalBtnText.classList.toggle("d-none", flag);
-    modalBtnLoad.classList.toggle("d-none", !flag);
-    modalConfirm.disabled = flag;
-  }
+        function setLoading(flag) {
+            modalBtnText.classList.toggle("d-none", flag);
+            modalBtnLoad.classList.toggle("d-none", !flag);
+            modalConfirm.disabled = flag;
+        }
 
-  function showError(msg) {
-    modalError.textContent = msg;
-    modalError.classList.remove("d-none");
-  }
+        function showError(msg) {
+            modalError.textContent = msg;
+            modalError.classList.remove("d-none");
+        }
 
-  function clearError() {
-    modalError.classList.add("d-none");
-    modalError.textContent = "";
-  }
+        function clearError() {
+            modalError.classList.add("d-none");
+            modalError.textContent = "";
+        }
 
-  // ── Open Modal on Checkbox Toggle ────────────────────────────────────────
-  document.querySelectorAll(".pay-toggle").forEach(function (chk) {
-    chk.addEventListener("change", function () {
-      if (!this.checked) return;  // unchecking does nothing
+        function formatRupiahNumber(value) {
+            return Math.round(value || 0).toLocaleString("id-ID");
+        }
 
-      activeTutorId   = this.dataset.tutorId;
-      activeTutorName = this.dataset.tutorName;
-      activeBalance   = parseFloat(this.dataset.balance) || 0;
-      activeMonth     = parseInt(this.dataset.month);
-      activeYear      = parseInt(this.dataset.year);
-      activeCheckbox  = this;
+        function visibleRows() {
+            return tutorRows.filter(function (row) {
+                return row.style.display !== "none";
+            });
+        }
 
-      // Pre-fill modal
-      modalTutorName.textContent = activeTutorName;
-      modalPeriod.textContent    = MONTHS_ID[activeMonth] + " " + activeYear;
-      modalAmount.value          = Math.round(activeBalance);
-      modalBalance.textContent   = "Rp " + activeBalance.toLocaleString("id-ID");
-      // Set service month to selected period
-      const mm = String(activeMonth).padStart(2, "0");
-      modalSvcMonth.value = activeYear + "-" + mm;
-      modalNotes.value    = "";
-      clearError();
+        function updateSelectedTotals() {
+            let count = 0;
+            let balanceTotal = 0;
+            let payableTotal = 0;
 
-      modal.show();
-    });
-  });
+            totalCheckboxes.forEach(function (checkbox) {
+                if (!checkbox.checked) return;
+                const row = checkbox.closest("tr");
+                if (!row || row.style.display === "none") return;
+                count += 1;
+                balanceTotal += Math.max(0, parseFloat(checkbox.dataset.balance) || 0);
+                payableTotal += parseFloat(checkbox.dataset.payable) || 0;
+            });
 
-  // ── Reset checkbox if modal dismissed without confirming ─────────────────
-  modalEl.addEventListener("hidden.bs.modal", function () {
-    if (activeCheckbox && !activeCheckbox.dataset.paid) {
-      activeCheckbox.checked = false;
-    }
-    activeCheckbox = null;
-  });
+            if (selectedTutorCount) selectedTutorCount.textContent = count;
+            if (selectedBalanceTotal) {
+                selectedBalanceTotal.textContent = formatRupiahNumber(balanceTotal);
+            }
+            if (selectedPayableTotal) {
+                selectedPayableTotal.textContent = formatRupiahNumber(payableTotal);
+            }
 
-  modalCancel.addEventListener("click", function () {
-    if (activeCheckbox) activeCheckbox.checked = false;
-  });
+            if (selectVisibleTutors) {
+                const visibleChecks = visibleRows()
+                    .map(function (row) {
+                        return row.querySelector(".tutor-total-check");
+                    })
+                    .filter(Boolean);
+                const checkedVisible = visibleChecks.filter(function (checkbox) {
+                    return checkbox.checked;
+                });
+                selectVisibleTutors.checked =
+                    visibleChecks.length > 0 &&
+                    checkedVisible.length === visibleChecks.length;
+                selectVisibleTutors.indeterminate =
+                    checkedVisible.length > 0 &&
+                    checkedVisible.length < visibleChecks.length;
+            }
+        }
 
-  // ── Confirm → AJAX POST ──────────────────────────────────────────────────
-  modalConfirm.addEventListener("click", function () {
-    clearError();
+        function applyAccountFilter() {
+            const needle = String(accountFilter ? accountFilter.value : "")
+                .replace(/\D+/g, "")
+                .toLowerCase();
 
-    const amount = parseFloat(modalAmount.value);
-    if (!amount || amount <= 0) {
-      showError("Nominal harus lebih dari 0.");
-      return;
-    }
-    if (amount > activeBalance + 0.01) {
-      showError("Nominal melebihi saldo tutor (Rp " + activeBalance.toLocaleString("id-ID") + ").");
-      return;
-    }
+            tutorRows.forEach(function (row) {
+                const accountNumber = String(row.dataset.accountNumber || "")
+                    .replace(/\D+/g, "")
+                    .toLowerCase();
+                const matched = !needle || accountNumber.includes(needle);
+                row.style.display = matched ? "" : "none";
+            });
 
-    const svcParts  = modalSvcMonth.value.split("-");
-    const svcMonth  = parseInt(svcParts[1]);
-    const svcYear   = parseInt(svcParts[0]);
-    if (!svcMonth || !svcYear) {
-      showError("Bulan layanan tidak valid.");
-      return;
-    }
+            updateSelectedTotals();
+        }
 
-    setLoading(true);
+        totalCheckboxes.forEach(function (checkbox) {
+            checkbox.addEventListener("change", updateSelectedTotals);
+        });
 
-    fetch("{{ url_for('payroll.api_quick_pay') }}", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        tutor_id : parseInt(activeTutorId),
-        amount   : amount,
-        month    : svcMonth,
-        year     : svcYear,
-        notes    : modalNotes.value.trim(),
-      }),
-    })
-    .then(function (res) { return res.json(); })
-    .then(function (data) {
-      setLoading(false);
-      if (data.success) {
-        // Mark checkbox as done
-        if (activeCheckbox) activeCheckbox.dataset.paid = "1";
-        modal.hide();
-        showToast("Pembayaran berhasil dicatat! ID: " + data.payout_id, "success");
+        if (selectVisibleTutors) {
+            selectVisibleTutors.addEventListener("change", function () {
+                visibleRows().forEach(function (row) {
+                    const checkbox = row.querySelector(".tutor-total-check");
+                    if (checkbox) checkbox.checked = selectVisibleTutors.checked;
+                });
+                updateSelectedTotals();
+            });
+        }
 
-        // Update row UI after brief delay
-        setTimeout(function () {
-          refreshRow(activeTutorId, data.payout_id, amount);
-        }, 600);
-      } else {
-        showError(data.error || "Terjadi kesalahan.");
-        if (activeCheckbox) activeCheckbox.checked = false;
-      }
-    })
-    .catch(function (err) {
-      setLoading(false);
-      showError("Network error: " + err.message);
-      if (activeCheckbox) activeCheckbox.checked = false;
-    });
-  });
+        if (accountFilter) {
+            accountFilter.addEventListener("input", applyAccountFilter);
+        }
 
-  // ── Update Row UI after successful payment ───────────────────────────────
-  function refreshRow(tutorId, payoutId, paidAmount) {
-    const row = document.getElementById("row-tutor-" + tutorId);
-    if (!row) return;
+        updateSelectedTotals();
 
-    // Replace the action cell
-    const actionCell = row.querySelector("td:last-child");
-    if (actionCell) {
-      actionCell.innerHTML =
-        '<div class="d-flex gap-1 justify-content-center flex-wrap">' +
-          '<a href="/payroll/fee-slip/' + payoutId + '" ' +
-             'class="btn btn-outline-primary btn-sm py-0 px-2" target="_blank">' +
-            '<i class="bi bi-file-earmark-text"></i> Slip' +
-          '</a>' +
-          '<a href="/payroll/payout/' + payoutId + '" ' +
-             'class="btn btn-outline-secondary btn-sm py-0 px-2">' +
-            '<i class="bi bi-eye"></i>' +
-          '</a>' +
-        '</div>';
-    }
+        // ── Open Modal on Checkbox Toggle ────────────────────────────────────────
+        document.querySelectorAll(".pay-toggle").forEach(function (chk) {
+            chk.addEventListener("change", function () {
+                if (!this.checked) return; // unchecking does nothing
 
-    // Update balance badge to LUNAS
-    const balanceCell = row.querySelectorAll("td")[6];
-    if (balanceCell) {
-      balanceCell.innerHTML = '<span class="badge bg-success rounded-pill">LUNAS</span>';
-    }
+                activeTutorId = this.dataset.tutorId;
+                activeTutorName = this.dataset.tutorName;
+                activeBalance = parseFloat(this.dataset.balance) || 0;
+                activeMonth = parseInt(this.dataset.month);
+                activeYear = parseInt(this.dataset.year);
+                activeCheckbox = this;
 
-    // Update paid column
-    const paidCell = row.querySelectorAll("td")[5];
-    if (paidCell) {
-      paidCell.innerHTML = '<span class="text-success">Rp ' +
-        paidAmount.toLocaleString("id-ID") + '</span>';
-    }
-  }
+                // Pre-fill modal
+                modalTutorName.textContent = activeTutorName;
+                modalPeriod.textContent =
+                    MONTHS_ID[activeMonth] + " " + activeYear;
+                modalAmount.value = Math.round(activeBalance);
+                modalBalance.textContent =
+                    "Rp " + activeBalance.toLocaleString("id-ID");
+                // Set service month to selected period
+                const mm = String(activeMonth).padStart(2, "0");
+                modalSvcMonth.value = activeYear + "-" + mm;
+                modalNotes.value = "";
+                clearError();
 
-})();
+                modal.show();
+            });
+        });
+
+        // ── Reset checkbox if modal dismissed without confirming ─────────────────
+        modalEl.addEventListener("hidden.bs.modal", function () {
+            if (activeCheckbox && !activeCheckbox.dataset.paid) {
+                activeCheckbox.checked = false;
+            }
+            activeCheckbox = null;
+        });
+
+        modalCancel.addEventListener("click", function () {
+            if (activeCheckbox) activeCheckbox.checked = false;
+        });
+
+        // ── Confirm → AJAX POST ──────────────────────────────────────────────────
+        modalConfirm.addEventListener("click", function () {
+            clearError();
+
+            const amount = parseFloat(modalAmount.value);
+            if (!amount || amount <= 0) {
+                showError("Nominal harus lebih dari 0.");
+                return;
+            }
+            if (amount > activeBalance + 0.01) {
+                showError(
+                    "Nominal melebihi saldo tutor (Rp " +
+                        activeBalance.toLocaleString("id-ID") +
+                        ").",
+                );
+                return;
+            }
+
+            const svcParts = modalSvcMonth.value.split("-");
+            const svcMonth = parseInt(svcParts[1]);
+            const svcYear = parseInt(svcParts[0]);
+            if (!svcMonth || !svcYear) {
+                showError("Bulan layanan tidak valid.");
+                return;
+            }
+
+            setLoading(true);
+
+            fetch("{{ url_for('payroll.api_quick_pay') }}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    tutor_id: parseInt(activeTutorId),
+                    amount: amount,
+                    month: svcMonth,
+                    year: svcYear,
+                    notes: modalNotes.value.trim(),
+                }),
+            })
+                .then(function (res) {
+                    return res.json();
+                })
+                .then(function (data) {
+                    setLoading(false);
+                    if (data.success) {
+                        // Mark checkbox as done
+                        if (activeCheckbox) activeCheckbox.dataset.paid = "1";
+                        modal.hide();
+                        showToast(
+                            "Pembayaran berhasil dicatat! ID: " +
+                                data.payout_id,
+                            "success",
+                        );
+
+                        // Update row UI after brief delay
+                        setTimeout(function () {
+                            refreshRow(activeTutorId, data.payout_id, amount);
+                        }, 600);
+                    } else {
+                        showError(data.error || "Terjadi kesalahan.");
+                        if (activeCheckbox) activeCheckbox.checked = false;
+                    }
+                })
+                .catch(function (err) {
+                    setLoading(false);
+                    showError("Network error: " + err.message);
+                    if (activeCheckbox) activeCheckbox.checked = false;
+                });
+        });
+
+        // ── Update Row UI after successful payment ───────────────────────────────
+        function refreshRow(tutorId, payoutId, paidAmount) {
+            const row = document.getElementById("row-tutor-" + tutorId);
+            if (!row) return;
+
+            // Replace the action cell
+            const actionCell = row.querySelector("td:last-child");
+            if (actionCell) {
+                actionCell.innerHTML =
+                    '<div class="d-flex gap-1 justify-content-center flex-wrap">' +
+                    '<a href="/payroll/fee-slip/' +
+                    payoutId +
+                    '" ' +
+                    'class="btn btn-outline-primary btn-sm py-0 px-2" target="_blank">' +
+                    '<i class="bi bi-file-earmark-text"></i> Slip' +
+                    "</a>" +
+                    '<a href="/payroll/payout/' +
+                    payoutId +
+                    '" ' +
+                    'class="btn btn-outline-secondary btn-sm py-0 px-2">' +
+                    '<i class="bi bi-eye"></i>' +
+                    "</a>" +
+                    "</div>";
+            }
+
+            // Update balance badge to LUNAS
+            const balanceCell = row.querySelector('[data-payroll-col="balance"]');
+            if (balanceCell) {
+                balanceCell.innerHTML =
+                    '<span class="badge bg-success rounded-pill">LUNAS</span>';
+            }
+
+            // Update paid column
+            const paidCell = row.querySelector('[data-payroll-col="paid"]');
+            if (paidCell) {
+                paidCell.innerHTML =
+                    '<span class="text-success">Rp ' +
+                    paidAmount.toLocaleString("id-ID") +
+                    "</span>";
+            }
+
+            const summaryCheckbox = row.querySelector(".tutor-total-check");
+            if (summaryCheckbox) {
+                summaryCheckbox.dataset.balance = "0";
+                summaryCheckbox.checked = false;
+            }
+            row.dataset.balance = "0";
+            updateSelectedTotals();
+        }
+    })();
 </script>
 {% endblock %}

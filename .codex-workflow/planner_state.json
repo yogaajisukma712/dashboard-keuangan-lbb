@@ -1,29 +1,29 @@
 {
-  "goal": "Simpan pesan WhatsApp terakhir saat kirim slip gaji tutor",
+  "goal": "Perbaiki slip gaji PDF agar kop dan bukti transfer proporsional",
   "project_id": "billing-supersmart",
   "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-05T20:20:41Z",
+  "updated_at": "2026-05-05T20:34:55Z",
   "plan": [
     {
-      "step": "Inspect fee slip WhatsApp send flow",
+      "step": "Inspect PDF fee slip generator",
       "status": "completed"
     },
     {
-      "step": "Add payout WhatsApp last-message fields and migration",
+      "step": "Add logo header and aspect-ratio proof image sizing",
       "status": "completed"
     },
     {
-      "step": "Persist message after successful bot send and show on fee slip",
+      "step": "Run tests and rebuild web",
       "status": "completed"
     },
     {
-      "step": "Run tests, rebuild, smoke, push",
+      "step": "Run Hermes verification and push",
       "status": "completed",
-      "note": "Targeted test passed; web rebuilt; DB columns verified; smoke reached login page."
+      "note": "Targeted tests passed; web rebuilt; smoke reached login page."
     }
   ],
   "notes": [
-    "Saat pengiriman slip gaji via WhatsApp berhasil, payout menyimpan contact, pesan, waktu kirim, dan status terakhir."
+    "PDF fee slip memakai logo.png di kop kuning dan bukti transfer difit dengan aspect ratio asli."
   ]
 }

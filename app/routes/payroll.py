@@ -724,8 +724,15 @@ def fee_slip_pdf(payout_ref):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import cm
+    from reportlab.lib.utils import ImageReader
     from reportlab.platypus import Image as RLImage
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import (
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
 
     payout = _get_payout_by_ref_or_404(payout_ref)
     tutor = payout.tutor
@@ -758,16 +765,58 @@ def fee_slip_pdf(payout_ref):
     institution_name = current_app.config.get("INSTITUTION_NAME", "LBB Super Smart")
     institution_city = current_app.config.get("INSTITUTION_CITY", "Surabaya")
     institution_phone = current_app.config.get("INSTITUTION_PHONE", "0895-6359-07419")
-    ceo_name = current_app.config.get("INSTITUTION_CEO_NAME", "Yoga Aji Sukma, S.Mat., M.Stat.")
+    ceo_name = current_app.config.get(
+        "INSTITUTION_CEO_NAME", "Yoga Aji Sukma, S.Mat., M.Stat."
+    )
     ceo_title = current_app.config.get("INSTITUTION_CEO_TITLE", "CEO")
 
     styles = getSampleStyleSheet()
-    normal = ParagraphStyle("fee_normal", parent=styles["BodyText"], fontName="Helvetica", fontSize=9, leading=11)
-    small = ParagraphStyle("fee_small", parent=styles["BodyText"], fontName="Helvetica", fontSize=8, leading=10)
-    bold = ParagraphStyle("fee_bold", parent=styles["BodyText"], fontName="Helvetica-Bold", fontSize=9, leading=11)
-    title = ParagraphStyle("fee_title", parent=styles["Heading2"], fontName="Helvetica-Bold", fontSize=14, leading=16, alignment=1)
+    normal = ParagraphStyle(
+        "fee_normal",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=9,
+        leading=11,
+    )
+    small = ParagraphStyle(
+        "fee_small",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=8,
+        leading=10,
+    )
+    bold = ParagraphStyle(
+        "fee_bold",
+        parent=styles["BodyText"],
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=11,
+    )
+    title = ParagraphStyle(
+        "fee_title",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=14,
+        leading=16,
+        alignment=1,
+    )
     right_small = ParagraphStyle("fee_right_small", parent=small, alignment=2)
     center_small = ParagraphStyle("fee_center_small", parent=small, alignment=1)
+
+    def _fit_image_size(image_source, max_width, max_height):
+        reader = ImageReader(image_source)
+        raw_width, raw_height = reader.getSize()
+        if not raw_width or not raw_height:
+            return max_width, max_height
+        scale = min(max_width / raw_width, max_height / raw_height)
+        return raw_width * scale, raw_height * scale
+
+    def _branding_logo_path():
+        for base_path in (current_app.root_path, os.path.dirname(current_app.root_path)):
+            candidate = os.path.join(base_path, "logo.png")
+            if os.path.exists(candidate):
+                return candidate
+        return None
 
     buf = BytesIO()
     doc = SimpleDocTemplate(
@@ -784,13 +833,40 @@ def fee_slip_pdf(payout_ref):
         payout_ref=payout.public_id,
         _external=True,
     )
-    qr_cell = RLImage(build_qr_code_image_buffer(verify_url, box_size=4), width=2.2 * cm, height=2.2 * cm)
+    header_qr_cell = RLImage(
+        build_qr_code_image_buffer(verify_url, box_size=4),
+        width=2.2 * cm,
+        height=2.2 * cm,
+    )
+    header_qr = Table(
+        [[header_qr_cell], [Paragraph("Scan untuk<br/>verifikasi", center_small)]],
+        colWidths=[2.4 * cm],
+    )
+    header_qr.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+                ("BOX", (0, 0), (-1, -1), 0.4, gold),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]
+        )
+    )
+
+    logo_path = _branding_logo_path()
+    logo_cell = ""
+    if logo_path:
+        logo_width, logo_height = _fit_image_size(logo_path, 1.45 * cm, 1.45 * cm)
+        logo_cell = RLImage(logo_path, width=logo_width, height=logo_height)
 
     story = []
 
     header_table = Table(
         [
             [
+                logo_cell,
                 Paragraph(
                     "<b>LEMBAGA BIMBINGAN BELAJAR</b><br/>"
                     f"<font size='16'><b>{institution_name}</b></font><br/>"
@@ -799,10 +875,10 @@ def fee_slip_pdf(payout_ref):
                     f"Handphone: {institution_phone}",
                     normal,
                 ),
-                qr_cell,
+                header_qr,
             ]
         ],
-        colWidths=[14.2 * cm, 2.2 * cm],
+        colWidths=[1.6 * cm, 12.3 * cm, 2.7 * cm],
     )
     header_table.setStyle(
         TableStyle(
@@ -810,7 +886,8 @@ def fee_slip_pdf(payout_ref):
                 ("BACKGROUND", (0, 0), (-1, -1), yellow),
                 ("BOX", (0, 0), (-1, -1), 1.2, gold),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("ALIGN", (1, 0), (1, 0), "CENTER"),
+                ("ALIGN", (0, 0), (0, 0), "CENTER"),
+                ("ALIGN", (2, 0), (2, 0), "CENTER"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 8),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 8),
                 ("TOPPADDING", (0, 0), (-1, -1), 8),
@@ -937,13 +1014,32 @@ def fee_slip_pdf(payout_ref):
             "payroll_proofs",
             os.path.basename(payout.proof_image),
         )
-        story.append(RLImage(proof_path, width=7.5 * cm, height=4.8 * cm))
+        proof_width, proof_height = _fit_image_size(proof_path, 15.5 * cm, 10.2 * cm)
+        proof_image = RLImage(proof_path, width=proof_width, height=proof_height)
+        proof_table = Table([[proof_image]], colWidths=[16.8 * cm])
+        proof_table.setStyle(
+            TableStyle(
+                [
+                    ("BOX", (0, 0), (-1, -1), 0.8, gold),
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
+        )
+        story.append(proof_table)
         if payout.proof_notes:
             story.append(Spacer(1, 0.1 * cm))
             story.append(Paragraph(f"Catatan: {payout.proof_notes}", small))
     elif proof_ctx["proof_is_pdf"]:
         story.append(Spacer(1, 0.28 * cm))
-        story.append(Paragraph("Bukti transfer tersimpan sebagai file PDF di sistem.", small))
+        story.append(
+            Paragraph("Bukti transfer tersimpan sebagai file PDF di sistem.", small)
+        )
         if payout.proof_notes:
             story.append(Paragraph(f"Catatan: {payout.proof_notes}", small))
 

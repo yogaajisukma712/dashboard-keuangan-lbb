@@ -45,3 +45,20 @@ def test_fee_slip_has_whatsapp_delivery_form_and_bot_guard():
     assert "MessageMedia" in bot_client
     assert "{ caption: body }" in bot_client
     assert "sendDirectMessage" in bot_client
+
+
+def test_fee_slip_pdf_uses_logo_header_and_preserves_proof_aspect_ratio():
+    project_root = Path(__file__).resolve().parents[1]
+    route_text = (project_root / "app" / "routes" / "payroll.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "from reportlab.lib.utils import ImageReader" in route_text
+    assert "def _fit_image_size" in route_text
+    assert "def _branding_logo_path" in route_text
+    assert "logo.png" in route_text
+    assert "header_qr" in route_text
+    assert "Scan untuk<br/>verifikasi" in route_text
+    assert "proof_width, proof_height = _fit_image_size" in route_text
+    assert "RLImage(proof_path, width=proof_width, height=proof_height)" in route_text
+    assert "width=7.5 * cm, height=4.8 * cm" not in route_text

@@ -397,16 +397,19 @@
             {# Validasi manual WA; audit marker only, not used by billing/payroll #}
             <td class="text-center">
               {% if wa_review and wa_review.requires_review %}
-              <div class="d-flex flex-column align-items-center gap-1">
-                <span class="badge bg-{{ wac }}-subtle text-{{ wac }} border border-{{ wac }}-subtle">
-                  <i class="bi {{ wai }} me-1"></i>{{ wal }}
+              <div class="d-flex flex-column align-items-center gap-1 js-wa-review">
+                <span class="badge bg-{{ wac }}-subtle text-{{ wac }} border border-{{ wac }}-subtle js-wa-review-badge">
+                  <i class="bi {{ wai }} me-1 js-wa-review-icon"></i><span class="js-wa-review-label">{{ wal }}</span>
                 </span>
-                <div class="text-muted" style="font-size:.7rem">
-                  {{ wa_review.count }} evaluasi WA
+                <div class="text-muted js-wa-review-meta" style="font-size:.7rem">
+                  <span class="js-wa-review-count">{{ wa_review.count }} evaluasi WA</span>
+                  <span class="js-wa-review-time">
                   {% if wa_review.latest_reviewed_at %}
                     · {{ wa_review.latest_reviewed_at.strftime('%d %b %Y %H:%M') }}
                   {% endif %}
+                  </span>
                 </div>
+                <div class="text-danger small d-none js-wa-review-error" style="font-size:.7rem"></div>
                 {% if wa_review.group_names %}
                 <div class="text-muted text-truncate" style="font-size:.7rem; max-width: 160px" title="{{ wa_review.group_names | join(', ') }}">
                   {{ wa_review.group_names | join(', ') }}
@@ -414,6 +417,7 @@
                 {% endif %}
                 <div class="btn-group btn-group-sm" role="group" aria-label="Validasi manual WhatsApp">
                   <form method="POST"
+                        class="js-wa-review-form"
                         action="{{ url_for('attendance.review_whatsapp_attendance',
                                            session_ref=s.public_id,
                                            page=request.args.get('page', 1),
@@ -425,11 +429,12 @@
                                            sort=selected_sort or 'date_desc') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="review_status" value="valid">
-                    <button type="submit" class="btn btn-outline-success btn-sm py-0 px-2" title="Tandai sudah benar">
+                    <button type="submit" class="btn btn-outline-success btn-sm py-0 px-2" title="Tandai sudah benar" data-default-icon="bi-check-lg">
                       <i class="bi bi-check-lg"></i>
                     </button>
                   </form>
                   <form method="POST"
+                        class="js-wa-review-form"
                         action="{{ url_for('attendance.review_whatsapp_attendance',
                                            session_ref=s.public_id,
                                            page=request.args.get('page', 1),
@@ -441,11 +446,12 @@
                                            sort=selected_sort or 'date_desc') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="review_status" value="invalid">
-                    <button type="submit" class="btn btn-outline-warning btn-sm py-0 px-2" title="Tandai perlu koreksi">
+                    <button type="submit" class="btn btn-outline-warning btn-sm py-0 px-2" title="Tandai perlu koreksi" data-default-icon="bi-exclamation-lg">
                       <i class="bi bi-exclamation-lg"></i>
                     </button>
                   </form>
                   <form method="POST"
+                        class="js-wa-review-form"
                         action="{{ url_for('attendance.review_whatsapp_attendance',
                                            session_ref=s.public_id,
                                            page=request.args.get('page', 1),
@@ -457,7 +463,7 @@
                                            sort=selected_sort or 'date_desc') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="review_status" value="pending">
-                    <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-2" title="Reset validasi">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-2" title="Reset validasi" data-default-icon="bi-arrow-counterclockwise">
                       <i class="bi bi-arrow-counterclockwise"></i>
                     </button>
                   </form>
@@ -639,5 +645,98 @@ if (quickAttendanceSearchInput && attendanceRows.length && attendanceTableBody) 
     quickAttendanceSearchEmptyRow.classList.toggle("d-none", visibleCount > 0);
   });
 }
+
+function setWaReviewButtonsDisabled(reviewBox, disabled) {
+  reviewBox.querySelectorAll(".js-wa-review-form button[type='submit']").forEach(function (button) {
+    button.disabled = disabled;
+  });
+}
+
+function restoreWaReviewButton(button) {
+  const defaultIcon = button.dataset.defaultIcon || "bi-check-lg";
+  button.innerHTML = `<i class="bi ${defaultIcon}"></i>`;
+}
+
+function showWaReviewError(reviewBox, message) {
+  const errorBox = reviewBox.querySelector(".js-wa-review-error");
+  if (!errorBox) {
+    return;
+  }
+  errorBox.textContent = message || "Validasi gagal disimpan.";
+  errorBox.classList.remove("d-none");
+}
+
+function clearWaReviewError(reviewBox) {
+  const errorBox = reviewBox.querySelector(".js-wa-review-error");
+  if (!errorBox) {
+    return;
+  }
+  errorBox.textContent = "";
+  errorBox.classList.add("d-none");
+}
+
+function updateWaReviewUi(reviewBox, data) {
+  const badgeClass = data.badge_class || "secondary";
+  const badge = reviewBox.querySelector(".js-wa-review-badge");
+  const icon = reviewBox.querySelector(".js-wa-review-icon");
+  const label = reviewBox.querySelector(".js-wa-review-label");
+  const time = reviewBox.querySelector(".js-wa-review-time");
+
+  if (badge) {
+    badge.className = `badge bg-${badgeClass}-subtle text-${badgeClass} border border-${badgeClass}-subtle js-wa-review-badge`;
+  }
+  if (icon) {
+    icon.className = `bi ${data.icon_class || "bi-hourglass-split"} me-1 js-wa-review-icon`;
+  }
+  if (label) {
+    label.textContent = data.label || "Belum crosscheck";
+  }
+  if (time) {
+    time.textContent = data.reviewed_at ? ` · ${data.reviewed_at}` : "";
+  }
+}
+
+document.querySelectorAll(".js-wa-review-form").forEach(function (form) {
+  form.addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    const reviewBox = form.closest(".js-wa-review");
+    const button = form.querySelector("button[type='submit']");
+    if (!reviewBox || !button) {
+      form.submit();
+      return;
+    }
+
+    clearWaReviewError(reviewBox);
+    setWaReviewButtonsDisabled(reviewBox, true);
+    button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+    try {
+      const response = await fetch(form.action, {
+        method: "POST",
+        body: new FormData(form),
+        headers: {
+          "Accept": "application/json",
+          "X-Requested-With": "XMLHttpRequest"
+        },
+        credentials: "same-origin"
+      });
+      const data = await response.json().catch(function () {
+        return {};
+      });
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Validasi gagal disimpan.");
+      }
+
+      updateWaReviewUi(reviewBox, data);
+    } catch (error) {
+      showWaReviewError(reviewBox, error.message);
+    } finally {
+      restoreWaReviewButton(button);
+      setWaReviewButtonsDisabled(reviewBox, false);
+    }
+  });
+});
 </script>
 {% endblock %}

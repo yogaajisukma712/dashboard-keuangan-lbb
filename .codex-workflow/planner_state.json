@@ -1,29 +1,37 @@
 {
-  "goal": "Fix WhatsApp group scan Flask sync 500 on long evaluation payload",
+  "goal": "Validasi presensi les tanpa reload dengan spinner tombol",
   "project_id": "billing-supersmart",
   "phase": "verification_done",
   "current_role": "codex",
-  "updated_at": "2026-05-05T01:45:42Z",
+  "updated_at": "2026-05-05T16:01:03Z",
   "plan": [
     {
-      "step": "Read logs and identify root cause",
+      "step": "Inspect attendance review route and template",
       "status": "completed",
-      "note": "web logs showed value too long for varchar(255) during whatsapp_evaluations insert."
+      "note": "Route currently redirected after POST; template had three plain forms."
     },
     {
-      "step": "Patch parser and backend guard",
+      "step": "Add JSON response and AJAX spinner UI",
       "status": "completed",
-      "note": "Short-name descriptor guard in parser; truncate_text in ingest upsert_evaluation."
+      "note": "Endpoint now returns JSON for XMLHttpRequest; template updates badge/timestamp without reload."
     },
     {
-      "step": "Verify tests and runtime",
+      "step": "Add focused tests",
       "status": "completed",
-      "note": "npm parser tests and backend truncation test passed; web/login smoke OK; bot health OK."
+      "note": "Template and route source assertions added."
+    },
+    {
+      "step": "Run verification and rebuild web",
+      "status": "completed",
+      "note": "11 tests passed; py_compile OK; web rebuilt; browser smoke OK."
+    },
+    {
+      "step": "Commit and push attendance change",
+      "status": "in_progress"
     }
   ],
   "notes": [
-    "500 caused by psycopg2 StringDataRightTruncation on whatsapp_evaluations student_name after relaxed parser treated long evaluation sentence as a name.",
-    "Parser now ignores long sentence descriptors as names; Flask truncates all varchar payload fields before insert/update.",
-    "Runtime web and whatsapp_bot rebuilt; bot session must be initialized/restored after recreate."
+    "AJAX tidak membuat flash stale; fallback non-JS tetap redirect dengan flash.",
+    "Dirty payroll/data-manager tidak disentuh."
   ]
 }

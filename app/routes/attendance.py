@@ -425,6 +425,43 @@ def _set_whatsapp_attendance_manual_review(
     return len(linked_evaluations)
 
 
+def _wants_json_response() -> bool:
+    return (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or "application/json" in (request.headers.get("Accept") or "")
+    )
+
+
+def _whatsapp_review_response_payload(
+    review_status: str,
+    updated_count: int,
+    message: str,
+) -> dict:
+    status_meta = {
+        "valid": ("success", "bi-shield-check", "Sudah benar"),
+        "invalid": ("warning", "bi-exclamation-triangle", "Perlu koreksi"),
+        "pending": ("secondary", "bi-hourglass-split", "Belum crosscheck"),
+    }
+    badge_class, icon_class, label = status_meta.get(
+        review_status,
+        status_meta["pending"],
+    )
+    return {
+        "ok": True,
+        "status": review_status,
+        "updated_count": updated_count,
+        "message": message,
+        "badge_class": badge_class,
+        "icon_class": icon_class,
+        "label": label,
+        "reviewed_at": (
+            datetime.utcnow().strftime("%d %b %Y %H:%M")
+            if review_status != "pending" and updated_count
+            else ""
+        ),
+    }
+
+
 def _unlink_whatsapp_evaluations_before_attendance_delete(
     session: AttendanceSession,
 ) -> int:
@@ -600,6 +637,7 @@ def review_whatsapp_attendance(session_ref):
     session = _get_session_by_ref_or_404(session_ref)
     review_status = (request.form.get("review_status") or "").strip()
     review_notes = request.form.get("review_notes")
+    wants_json = _wants_json_response()
 
     try:
         updated_count = _set_whatsapp_attendance_manual_review(
@@ -611,24 +649,42 @@ def review_whatsapp_attendance(session_ref):
         db.session.commit()
     except ValueError as exc:
         db.session.rollback()
+        if wants_json:
+            return jsonify({"ok": False, "error": str(exc)}), 400
         flash(str(exc), "danger")
         return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
     except Exception as exc:
         db.session.rollback()
+        if wants_json:
+            return (
+                jsonify(
+                    {
+                        "ok": False,
+                        "error": f"Validasi manual WhatsApp gagal: {exc}",
+                    }
+                ),
+                500,
+            )
         flash(f"Validasi manual WhatsApp gagal: {exc}", "danger")
         return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
 
     if updated_count == 0:
-        flash(
-            "Tidak ada evaluasi WhatsApp yang perlu divalidasi untuk sesi ini.",
-            "warning",
-        )
+        message = "Tidak ada evaluasi WhatsApp yang perlu divalidasi untuk sesi ini."
+        flash_category = "warning"
     elif review_status == "valid":
-        flash("Presensi WhatsApp ditandai sudah benar secara manual.", "success")
+        message = "Presensi WhatsApp ditandai sudah benar secara manual."
+        flash_category = "success"
     elif review_status == "invalid":
-        flash("Presensi WhatsApp ditandai perlu koreksi manual.", "warning")
+        message = "Presensi WhatsApp ditandai perlu koreksi manual."
+        flash_category = "warning"
     else:
-        flash("Status validasi manual WhatsApp direset.", "info")
+        message = "Status validasi manual WhatsApp direset."
+        flash_category = "info"
+    if wants_json:
+        return jsonify(
+            _whatsapp_review_response_payload(review_status, updated_count, message)
+        )
+    flash(message, flash_category)
     return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
 
 

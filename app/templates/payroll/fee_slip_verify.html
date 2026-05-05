@@ -28,34 +28,34 @@
         Detail Fee Slip — Dokumen No: SLIP-{{ "%05d" | format(payout.id) }}
       </div>
       <div class="card-body">
-        <table class="table table-sm table-borderless mb-0">
+        <table class="table table-sm table-borderless mb-0 verify-detail-table">
           <tbody>
             <tr>
-              <th class="text-muted ps-0" style="width:40%">Nama Tutor</th>
-              <td>{{ tutor.name }}</td>
+              <th class="text-muted ps-0 verify-label">Nama Tutor</th>
+              <td class="verify-value">{{ tutor.name }}</td>
             </tr>
             <tr>
-              <th class="text-muted ps-0">ID Tutor</th>
-              <td class="font-monospace">{{ tutor.tutor_code }}</td>
+              <th class="text-muted ps-0 verify-label">ID Tutor</th>
+              <td class="font-monospace verify-value">{{ tutor.tutor_code }}</td>
             </tr>
             <tr>
-              <th class="text-muted ps-0">Email</th>
-              <td>{{ tutor.email or '-' }}</td>
+              <th class="text-muted ps-0 verify-label">Email</th>
+              <td class="verify-value verify-long-text">{{ tutor.email or '-' }}</td>
             </tr>
             <tr>
-              <th class="text-muted ps-0">Bank</th>
-              <td>{{ tutor.bank_name or '-' }}</td>
+              <th class="text-muted ps-0 verify-label">Bank</th>
+              <td class="verify-value">{{ tutor.bank_name or '-' }}</td>
             </tr>
             <tr>
-              <th class="text-muted ps-0">No. Rekening</th>
-              <td class="font-monospace">{{ tutor.bank_account_number or '-' }}</td>
+              <th class="text-muted ps-0 verify-label">No. Rekening</th>
+              <td class="font-monospace verify-value verify-long-text">{{ tutor.bank_account_number or '-' }}</td>
             </tr>
             <tr>
               <td colspan="2"><hr class="my-2"></td>
             </tr>
             <tr>
-              <th class="text-muted ps-0">Tanggal Payout</th>
-              <td>
+              <th class="text-muted ps-0 verify-label">Tanggal Payout</th>
+              <td class="verify-value">
                 {% if payout.payout_date %}
                   {{ payout.payout_date.day }}
                   {{ MONTHS_ID[payout.payout_date.month] }}
@@ -64,20 +64,20 @@
               </td>
             </tr>
             <tr>
-              <th class="text-muted ps-0">Jumlah Sesi</th>
-              <td><strong>{{ sessions | length }} sesi</strong></td>
+              <th class="text-muted ps-0 verify-label">Jumlah Sesi</th>
+              <td class="verify-value"><strong>{{ sessions | length }} sesi</strong></td>
             </tr>
             <tr>
-              <th class="text-muted ps-0">Total Pembayaran</th>
-              <td>
+              <th class="text-muted ps-0 verify-label">Total Pembayaran</th>
+              <td class="verify-value">
                 <span class="fw-bold text-success fs-5">
                   Rp {{ "{:,.0f}".format(total) }}
                 </span>
               </td>
             </tr>
             <tr>
-              <th class="text-muted ps-0">Status</th>
-              <td>
+              <th class="text-muted ps-0 verify-label">Status</th>
+              <td class="verify-value">
                 {% if payout.status == 'completed' %}
                   <span class="badge bg-success">COMPLETED</span>
                 {% elif payout.status == 'pending' %}
@@ -89,8 +89,8 @@
             </tr>
             {% if payout.reference_number %}
             <tr>
-              <th class="text-muted ps-0">No. Referensi</th>
-              <td class="font-monospace">{{ payout.reference_number }}</td>
+              <th class="text-muted ps-0 verify-label">No. Referensi</th>
+              <td class="font-monospace verify-value verify-long-text">{{ payout.reference_number }}</td>
             </tr>
             {% endif %}
           </tbody>
@@ -170,6 +170,34 @@
     font-weight: 900;
     line-height: 1;
     margin-top: -4px;
+  }
+  .verify-detail-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+  .verify-label {
+    width: 40%;
+    vertical-align: top;
+  }
+  .verify-value {
+    width: 60%;
+    min-width: 0;
+    vertical-align: top;
+    white-space: normal;
+  }
+  .verify-long-text {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-break: anywhere;
+  }
+  @media (max-width: 575.98px) {
+    .verify-label {
+      width: 34%;
+      padding-right: .35rem;
+    }
+    .verify-value {
+      width: 66%;
+    }
   }
 </style>
 {% endblock %}

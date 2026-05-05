@@ -340,6 +340,37 @@ async function listGroups() {
   );
 }
 
+function normalizeDirectContactId(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.includes('@')) return raw;
+  const digits = raw.replace(/\D/g, '');
+  return digits ? `${digits}@c.us` : '';
+}
+
+async function sendDirectMessage(to, message) {
+  const contactId = normalizeDirectContactId(to);
+  const body = String(message || '').trim();
+  if (!contactId) {
+    const error = new Error('Nomor WhatsApp tujuan wajib diisi.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!body) {
+    const error = new Error('Pesan WhatsApp wajib diisi.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const bot = await ensureReady();
+  const sent = await bot.sendMessage(contactId, body);
+  return {
+    to: contactId,
+    messageId: sent?.id?._serialized || null,
+    timestamp: sent?.timestamp || null,
+  };
+}
+
 async function buildSyncPayloadForGroups(groupIds, limit, { fullSync = false } = {}) {
   const groups = [];
   const contactMap = new Map();
@@ -562,6 +593,7 @@ module.exports = {
   getSessionState,
   getSessionManagementState,
   listGroups,
+  sendDirectMessage,
   syncGroupsAndMessages,
   backupSession,
   restoreSession,

@@ -4,12 +4,16 @@ Handles tutor payment and payroll management
 """
 
 import os
+import json
 from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO
+from urllib import error as urllib_error
+from urllib import request as urllib_request
+
 from flask import (
-    abort,
     Blueprint,
+    abort,
     current_app,
     flash,
     jsonify,
@@ -24,7 +28,13 @@ from werkzeug.utils import secure_filename
 
 from app import db
 from app.forms import TutorPayoutForm
-from app.models import AttendanceSession, Tutor, TutorPayout, TutorPayoutLine
+from app.models import (
+    AttendanceSession,
+    Tutor,
+    TutorPayout,
+    TutorPayoutLine,
+    WhatsAppTutorValidation,
+)
 from app.utils import (
     admin_required,
     build_qr_code_data_uri,
@@ -34,6 +44,146 @@ from app.utils import (
 )
 
 payroll_bp = Blueprint("payroll", __name__, url_prefix="/payroll")
+MONTH_NAMES_ID = [
+    "",
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+]
+
+
+def _format_rupiah(value) -> str:
+    return f"Rp {float(value or 0):,.0f}".replace(",", ".")
+
+
+def _format_period_label(payout: TutorPayout) -> str:
+    months = []
+    for line in payout.payout_lines:
+        if line.service_month:
+            months.append(line.service_month.replace(day=1))
+    unique_months = sorted(set(months))
+    if unique_months:
+        return ", ".join(
+            f"{MONTH_NAMES_ID[item.month]} {item.year}" for item in unique_months
+        )
+    if payout.payout_date:
+        return f"{MONTH_NAMES_ID[payout.payout_date.month]} {payout.payout_date.year}"
+    return "-"
+
+
+def _bot_request(method: str, path: str, payload: dict | None = None, timeout: int = 10):
+    body = None
+    headers = {}
+    if payload is not None:
+        body = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+
+    req = urllib_request.Request(
+        f"{current_app.config['WHATSAPP_BOT_INTERNAL_URL'].rstrip('/')}{path}",
+        data=body,
+        method=method.upper(),
+        headers=headers,
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=timeout) as response:
+            text = response.read().decode("utf-8")
+            return (json.loads(text) if text else {}), response.status
+    except urllib_error.HTTPError as exc:
+        text = exc.read().decode("utf-8")
+        try:
+            payload = json.loads(text) if text else {}
+        except json.JSONDecodeError:
+            payload = {"ok": False, "error": text or str(exc)}
+        return payload, exc.code
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 502
+
+
+def _get_whatsapp_session_status() -> dict:
+    payload, status_code = _bot_request("GET", "/session", timeout=5)
+    session = payload.get("session") if isinstance(payload, dict) else {}
+    return {
+        "ok": status_code == 200 and bool(payload.get("ok")),
+        "ready": bool(session.get("ready")) or session.get("status") == "ready",
+        "status": session.get("status") or "offline",
+        "session_id": session.get("sessionId") or session.get("clientId"),
+        "error": payload.get("error"),
+    }
+
+
+def _get_tutor_whatsapp_contact_options(tutor: Tutor) -> list[dict]:
+    options = []
+    seen = set()
+    validations = (
+        WhatsAppTutorValidation.query.filter_by(tutor_id=tutor.id)
+        .order_by(WhatsAppTutorValidation.validated_at.desc())
+        .all()
+    )
+    for validation in validations:
+        contact = validation.contact
+        contact_id = (
+            contact.whatsapp_contact_id
+            if contact
+            else f"{validation.validated_phone_number}@c.us"
+        )
+        if not contact_id or contact_id in seen:
+            continue
+        seen.add(contact_id)
+        label_name = (
+            validation.validated_contact_name
+            or (contact.display_name if contact else None)
+            or (contact.push_name if contact else None)
+            or tutor.name
+        )
+        phone = validation.validated_phone_number or (contact.phone_number if contact else "")
+        options.append(
+            {
+                "value": contact_id,
+                "label": f"{label_name} - {phone or contact_id}",
+                "source": "Validasi tutor",
+            }
+        )
+
+    if tutor.phone:
+        normalized_phone = "".join(ch for ch in tutor.phone if ch.isdigit())
+        if normalized_phone and normalized_phone not in seen:
+            options.append(
+                {
+                    "value": normalized_phone,
+                    "label": f"{tutor.name} - {tutor.phone}",
+                    "source": "Data master tutor",
+                }
+            )
+    return options
+
+
+def _build_fee_slip_whatsapp_message(
+    payout: TutorPayout,
+    tutor: Tutor,
+    total,
+    period_label: str,
+    verify_url: str,
+) -> str:
+    payout_date = payout.payout_date.strftime("%d/%m/%Y") if payout.payout_date else "-"
+    return (
+        f"Halo {tutor.name},\n\n"
+        "Terima kasih banyak atas dedikasi, kesabaran, dan kontribusi Kakak "
+        "dalam mendampingi siswa-siswi LBB Super Smart.\n\n"
+        f"Fee tutor untuk bulan {period_label} sebesar {_format_rupiah(total)} "
+        f"telah kami proses/bayarkan pada {payout_date}.\n\n"
+        f"Detail slip fee dapat dilihat di link berikut:\n{verify_url}\n\n"
+        "Semoga apresiasi ini menjadi penyemangat untuk terus memberikan "
+        "pembelajaran terbaik. Terima kasih atas kerja samanya."
+    )
 
 
 def _get_payout_by_ref_or_404(payout_ref):
@@ -460,6 +610,7 @@ def fee_slip(payout_ref):
     tutor = payout.tutor
     sessions = _get_sessions_for_payout(payout)
     total = sum(float(s.tutor_fee_amount or 0) for s in sessions)
+    period_label = _format_period_label(payout)
 
     verify_url = url_for(
         "payroll.fee_slip_verify",
@@ -468,6 +619,8 @@ def fee_slip(payout_ref):
     )
     proof_ctx = _build_proof_context(payout.proof_image)
     ceo_name = current_app.config.get("INSTITUTION_CEO_NAME", "")
+    whatsapp_session = _get_whatsapp_session_status()
+    tutor_whatsapp_contacts = _get_tutor_whatsapp_contact_options(tutor)
 
     return render_template(
         "payroll/fee_slip.html",
@@ -475,7 +628,14 @@ def fee_slip(payout_ref):
         tutor=tutor,
         sessions=sessions,
         total=total,
+        period_label=period_label,
         verify_url=verify_url,
+        whatsapp_session=whatsapp_session,
+        whatsapp_ready=whatsapp_session["ready"],
+        tutor_whatsapp_contacts=tutor_whatsapp_contacts,
+        default_whatsapp_message=_build_fee_slip_whatsapp_message(
+            payout, tutor, total, period_label, verify_url
+        ),
         institution_name=current_app.config.get("INSTITUTION_NAME", "LBB Super Smart"),
         institution_phone=current_app.config.get("INSTITUTION_PHONE", ""),
         institution_city=current_app.config.get("INSTITUTION_CITY", "Surabaya"),
@@ -499,6 +659,43 @@ def fee_slip(payout_ref):
         **proof_ctx,
         now=datetime.now(),
     )
+
+
+@payroll_bp.route("/fee-slip/<string:payout_ref>/send-whatsapp", methods=["POST"])
+@login_required
+def fee_slip_send_whatsapp(payout_ref):
+    """Kirim slip fee tutor via WhatsApp bot."""
+    payout = _get_payout_by_ref_or_404(payout_ref)
+    tutor = payout.tutor
+    contact_id = request.form.get("contact_id", "", type=str).strip()
+    message = request.form.get("message", "", type=str).strip()
+    allowed_contacts = {
+        item["value"] for item in _get_tutor_whatsapp_contact_options(tutor)
+    }
+
+    if not contact_id or contact_id not in allowed_contacts:
+        flash("Pilih nomor WhatsApp tutor dari kontak yang tersedia.", "warning")
+        return redirect(url_for("payroll.fee_slip", payout_ref=payout.public_id))
+    if not message:
+        flash("Pesan WhatsApp tidak boleh kosong.", "warning")
+        return redirect(url_for("payroll.fee_slip", payout_ref=payout.public_id))
+
+    session_status = _get_whatsapp_session_status()
+    if not session_status["ready"]:
+        flash("WhatsApp bot belum ready. Silakan login/scan QR terlebih dahulu.", "warning")
+        return redirect(url_for("whatsapp_bot.management"))
+
+    payload, status_code = _bot_request(
+        "POST",
+        "/messages/send",
+        {"to": contact_id, "message": message},
+        timeout=60,
+    )
+    if status_code == 200 and payload.get("ok"):
+        flash(f"Slip fee berhasil dikirim ke WhatsApp {tutor.name}.", "success")
+    else:
+        flash(f"Kirim WhatsApp gagal: {payload.get('error') or 'Bot error'}", "danger")
+    return redirect(url_for("payroll.fee_slip", payout_ref=payout.public_id))
 
 
 @payroll_bp.route("/fee-slip/<string:payout_ref>/pdf", methods=["GET"])

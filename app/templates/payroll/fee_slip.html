@@ -30,6 +30,76 @@
   </div>
 </div>
 
+<div class="no-print card border-0 shadow-sm mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+      <div>
+        <h6 class="fw-bold mb-1">
+          <i class="bi bi-whatsapp text-success me-1"></i>Pengiriman ke WhatsApp
+        </h6>
+        <div class="text-muted small">
+          Kirim slip fee tutor dengan pesan default apresiasi. Pesan bisa diedit sebelum dikirim.
+        </div>
+      </div>
+      <div class="text-end">
+        {% if whatsapp_ready %}
+        <span class="badge bg-success-subtle text-success border border-success-subtle">WA Ready</span>
+        {% else %}
+        <span class="badge bg-warning-subtle text-warning border border-warning-subtle">WA belum ready</span>
+        {% endif %}
+        <div class="text-muted small mt-1">
+          Status: {{ whatsapp_session.status or 'offline' }}
+          {% if whatsapp_session.session_id %}<br>ID: <code>{{ whatsapp_session.session_id }}</code>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if not whatsapp_ready %}
+    <div class="alert alert-warning small mb-0">
+      WhatsApp bot belum siap digunakan. Silakan buka halaman manajemen WA untuk login atau scan QR.
+      <a href="{{ url_for('whatsapp_bot.management') }}" class="alert-link">Buka WhatsApp Bot</a>
+    </div>
+    {% elif not tutor_whatsapp_contacts %}
+    <div class="alert alert-warning small mb-0">
+      Belum ada nomor WhatsApp tutor yang tersimpan/tervalidasi untuk {{ tutor.name }}.
+      Tambahkan atau validasi kontak tutor dari halaman WhatsApp Bot.
+      <a href="{{ url_for('whatsapp_bot.management') }}" class="alert-link">Buka WhatsApp Bot</a>
+    </div>
+    {% else %}
+    <form method="POST" action="{{ url_for('payroll.fee_slip_send_whatsapp', payout_ref=payout.public_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3">
+        <div class="col-lg-4">
+          <label class="form-label small fw-semibold">Nomor Tutor</label>
+          <select name="contact_id" class="form-select form-select-sm" required>
+            {% for contact in tutor_whatsapp_contacts %}
+            <option value="{{ contact.value }}">
+              {{ contact.label }} ({{ contact.source }})
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">
+            Diambil dari kontak tutor yang tersimpan/tervalidasi.
+          </div>
+        </div>
+        <div class="col-lg-8">
+          <label class="form-label small fw-semibold">Pesan WhatsApp</label>
+          <textarea name="message" class="form-control form-control-sm" rows="8" required>{{ default_whatsapp_message }}</textarea>
+          <div class="form-text">
+            Default selalu menyertakan bulan fee, nominal, tanggal bayar, dan link slip.
+          </div>
+        </div>
+      </div>
+      <div class="d-flex justify-content-end mt-3">
+        <button type="submit" class="btn btn-success btn-sm">
+          <i class="bi bi-send me-1"></i>Kirim ke WhatsApp
+        </button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
 {# ═══════════════════════════════════════════════════════════════════════════ #}
 {# ── FEE SLIP DOCUMENT ────────────────────────────────────────────────────── #}
 {# ═══════════════════════════════════════════════════════════════════════════ #}

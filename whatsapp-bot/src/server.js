@@ -6,6 +6,7 @@ const {
   getSessionState,
   getSessionManagementState,
   listGroups,
+  sendDirectMessage,
   backupSession,
   deleteBackup,
   logout,
@@ -129,6 +130,15 @@ app.get('/groups', async (_req, res) => {
     });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.post('/messages/send', async (req, res) => {
+  try {
+    const result = await sendDirectMessage(req.body?.to, req.body?.message);
+    res.json({ ok: true, result });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ ok: false, error: error.message });
   }
 });
 

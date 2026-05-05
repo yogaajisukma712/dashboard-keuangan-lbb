@@ -87,6 +87,16 @@
                     Filter cepat tanpa reload halaman.
                 </div>
             </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-semibold mb-1">
+                    Urut No. Rekening
+                </label>
+                <select id="accountSort" class="form-select form-select-sm">
+                    <option value="">Default</option>
+                    <option value="asc">Terkecil ke terbesar</option>
+                    <option value="desc">Terbesar ke terkecil</option>
+                </select>
+            </div>
         </form>
     </div>
 </div>
@@ -176,41 +186,13 @@ selectattr('balance','gt',0) | list | length %}
                                 title="Pilih semua tutor yang sedang tampil"
                             />
                         </th>
-                        <th class="ps-3" style="width: 42px">
-                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="index">
-                                No <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
-                            </button>
-                        </th>
-                        <th>
-                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="tutorName">
-                                Nama Tutor <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
-                            </button>
-                        </th>
-                        <th>
-                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="bankName">
-                                Bank <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
-                            </button>
-                        </th>
-                        <th>
-                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="accountNumber">
-                                No. Rekening <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
-                            </button>
-                        </th>
-                        <th class="text-end">
-                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="payable">
-                                Payable <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
-                            </button>
-                        </th>
-                        <th class="text-end">
-                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="paid">
-                                Dibayar <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
-                            </button>
-                        </th>
-                        <th class="text-end">
-                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="balance">
-                                Saldo <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
-                            </button>
-                        </th>
+                        <th class="ps-3" style="width: 42px">No</th>
+                        <th>Nama Tutor</th>
+                        <th>Bank</th>
+                        <th>No. Rekening</th>
+                        <th class="text-end">Payable</th>
+                        <th class="text-end">Dibayar</th>
+                        <th class="text-end">Saldo</th>
                         <th class="text-center" style="width: 160px">Aksi</th>
                     </tr>
                 </thead>
@@ -548,6 +530,7 @@ selectattr('balance','gt',0) | list | length %}
         const toastMsg = document.getElementById("payToastMsg");
         const toastEl = document.getElementById("payToast");
         const accountFilter = document.getElementById("accountFilter");
+        const accountSort = document.getElementById("accountSort");
         const selectVisibleTutors = document.getElementById("selectVisibleTutors");
         const selectedTutorCount = document.getElementById("selectedTutorCount");
         const selectedBalanceTotal = document.getElementById("selectedBalanceTotal");
@@ -559,11 +542,6 @@ selectattr('balance','gt',0) | list | length %}
         const totalCheckboxes = Array.from(
             document.querySelectorAll(".tutor-total-check"),
         );
-        const sortButtons = Array.from(document.querySelectorAll(".table-sort"));
-        const sortState = {
-            key: null,
-            direction: "asc",
-        };
 
         // ── Helper ───────────────────────────────────────────────────────────────
         function showToast(msg, type) {
@@ -596,20 +574,6 @@ selectattr('balance','gt',0) | list | length %}
 
         function formatRupiahNumber(value) {
             return Math.round(value || 0).toLocaleString("id-ID");
-        }
-
-        function normalizeSortText(value) {
-            return String(value || "")
-                .toLowerCase()
-                .replace(/\s+/g, " ")
-                .trim();
-        }
-
-        function getSortValue(row, key) {
-            if (["index", "payable", "paid", "balance"].includes(key)) {
-                return parseFloat(row.dataset[key] || "0") || 0;
-            }
-            return normalizeSortText(row.dataset[key] || "");
         }
 
         function updateVisibleRowNumbers() {
@@ -682,65 +646,34 @@ selectattr('balance','gt',0) | list | length %}
             updateSelectedTotals();
         }
 
-        function updateSortIndicators(activeButton) {
-            sortButtons.forEach(function (button) {
-                const icon = button.querySelector("i");
-                button.classList.toggle("fw-semibold", button === activeButton);
-                if (!icon) return;
-                icon.classList.remove(
-                    "bi-arrow-down-up",
-                    "bi-sort-alpha-down",
-                    "bi-sort-alpha-up",
-                    "bi-sort-numeric-down",
-                    "bi-sort-numeric-up",
-                );
-                if (button !== activeButton) {
-                    icon.classList.add("bi-arrow-down-up");
-                    return;
-                }
-                const numeric = ["index", "payable", "paid", "balance"].includes(
-                    sortState.key,
-                );
-                icon.classList.add(
-                    numeric
-                        ? sortState.direction === "asc"
-                            ? "bi-sort-numeric-down"
-                            : "bi-sort-numeric-up"
-                        : sortState.direction === "asc"
-                          ? "bi-sort-alpha-down"
-                          : "bi-sort-alpha-up",
-                );
-            });
-        }
-
-        function sortTutorRows(button) {
+        function sortByAccountNumber(direction) {
             if (!tableBody) return;
-            const key = button.dataset.sortKey;
-            if (!key) return;
+            const sortedRows = tutorRows.slice();
 
-            sortState.direction =
-                sortState.key === key && sortState.direction === "asc" ? "desc" : "asc";
-            sortState.key = key;
-
-            const multiplier = sortState.direction === "asc" ? 1 : -1;
-            const sortedRows = tutorRows.slice().sort(function (left, right) {
-                const leftValue = getSortValue(left, key);
-                const rightValue = getSortValue(right, key);
-                if (typeof leftValue === "number" && typeof rightValue === "number") {
-                    return (leftValue - rightValue) * multiplier;
-                }
-                return (
-                    String(leftValue).localeCompare(String(rightValue), "id", {
-                        numeric: true,
-                        sensitivity: "base",
-                    }) * multiplier
-                );
-            });
+            if (direction) {
+                const multiplier = direction === "desc" ? -1 : 1;
+                sortedRows.sort(function (left, right) {
+                    const leftValue = String(left.dataset.accountNumber || "");
+                    const rightValue = String(right.dataset.accountNumber || "");
+                    return (
+                        leftValue.localeCompare(rightValue, "id", {
+                            numeric: true,
+                            sensitivity: "base",
+                        }) * multiplier
+                    );
+                });
+            } else {
+                sortedRows.sort(function (left, right) {
+                    return (
+                        (parseFloat(left.dataset.rowIndex || "0") || 0) -
+                        (parseFloat(right.dataset.rowIndex || "0") || 0)
+                    );
+                });
+            }
 
             sortedRows.forEach(function (row) {
                 tableBody.appendChild(row);
             });
-            updateSortIndicators(button);
             updateVisibleRowNumbers();
             updateSelectedTotals();
         }
@@ -763,11 +696,11 @@ selectattr('balance','gt',0) | list | length %}
             accountFilter.addEventListener("input", applyAccountFilter);
         }
 
-        sortButtons.forEach(function (button) {
-            button.addEventListener("click", function () {
-                sortTutorRows(button);
+        if (accountSort) {
+            accountSort.addEventListener("change", function () {
+                sortByAccountNumber(this.value);
             });
-        });
+        }
 
         updateVisibleRowNumbers();
         updateSelectedTotals();

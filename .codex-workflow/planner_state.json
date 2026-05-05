@@ -1,20 +1,20 @@
 {
-  "goal": "Tambah sort berdasarkan header tabel di rekap gaji tutor",
+  "goal": "Kembalikan header tabel rekap gaji tutor dan pertahankan sort nomor rekening",
   "project_id": "billing-supersmart",
   "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-05T19:30:24Z",
+  "updated_at": "2026-05-05T19:56:30Z",
   "plan": [
     {
-      "step": "Inspect tutor summary sortable targets",
+      "step": "Revert visual sortable header buttons",
       "status": "completed"
     },
     {
-      "step": "Add sortable header buttons and row sort data",
+      "step": "Add account-number sort control",
       "status": "completed"
     },
     {
-      "step": "Add template tests and rebuild web",
+      "step": "Run tests and rebuild web",
       "status": "completed"
     },
     {
@@ -24,6 +24,6 @@
     }
   ],
   "notes": [
-    "Header rekap gaji tutor bisa diklik untuk sort client-side; filter rekening dan total checkbox tetap sinkron."
+    "Header tabel dikembalikan plain; sort rekening dipindahkan ke dropdown Urut No. Rekening."
   ]
 }

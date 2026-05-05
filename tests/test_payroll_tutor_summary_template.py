@@ -8,6 +8,7 @@ def test_tutor_summary_has_account_filter_and_selected_totals():
     ).read_text(encoding="utf-8")
 
     assert 'id="accountFilter"' in template_text
+    assert 'id="accountSort"' in template_text
     assert 'id="selectVisibleTutors"' in template_text
     assert "tutor-total-check" in template_text
     assert 'id="selectedBalanceTotal"' in template_text
@@ -17,25 +18,16 @@ def test_tutor_summary_has_account_filter_and_selected_totals():
     assert 'data-account-number="{{ tutor.bank_account_number or \'\' }}"' in template_text
 
 
-def test_tutor_summary_headers_are_sortable():
+def test_tutor_summary_keeps_plain_headers_and_sorts_by_account_number_control():
     project_root = Path(__file__).resolve().parents[1]
     template_text = (
         project_root / "app" / "templates" / "payroll" / "tutor_summary.html"
     ).read_text(encoding="utf-8")
 
-    for sort_key in [
-        "index",
-        "tutorName",
-        "bankName",
-        "accountNumber",
-        "payable",
-        "paid",
-        "balance",
-    ]:
-        assert f'data-sort-key="{sort_key}"' in template_text
-
-    assert "sortTutorRows" in template_text
-    assert "updateSortIndicators" in template_text
+    assert "table-sort" not in template_text
+    assert "data-sort-key" not in template_text
+    assert "<th>Nama Tutor</th>" in template_text
+    assert "<th>Bank</th>" in template_text
+    assert "<th>No. Rekening</th>" in template_text
+    assert "sortByAccountNumber" in template_text
     assert 'data-payroll-col="row-number"' in template_text
-    assert 'data-tutor-name="{{ tutor.name }}"' in template_text
-    assert 'data-paid="{{ item.paid }}"' in template_text

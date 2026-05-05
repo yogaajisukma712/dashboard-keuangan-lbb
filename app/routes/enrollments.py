@@ -3,7 +3,16 @@ Enrollments routes for Dashboard Keuangan LBB Super Smart
 Handles all enrollment-related operations
 """
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session as flask_session,
+    url_for,
+)
 from flask_login import login_required
 from sqlalchemy import or_
 
@@ -23,6 +32,8 @@ from app.services.whatsapp_ingest_service import WhatsAppIngestService
 from app.utils import decode_public_id, get_per_page
 
 enrollments_bp = Blueprint("enrollments", __name__, url_prefix="/enrollments")
+DEFAULT_ENROLLMENT_SORT = "last_attendance_desc"
+ENROLLMENT_LIST_STATE_KEY = "enrollment_list_state"
 ENROLLMENT_SORT_OPTIONS = {
     "updated_desc",
     "last_attendance_desc",
@@ -103,7 +114,7 @@ def _scan_missing_enrollment_whatsapp_groups() -> dict:
 def _build_enrollment_list_query(
     search_term: str = "",
     status: str = "",
-    sort_by: str = "updated_desc",
+    sort_by: str = DEFAULT_ENROLLMENT_SORT,
 ):
     query = (
         Enrollment.query.join(Student, Enrollment.student_id == Student.id)
@@ -163,17 +174,50 @@ def _build_enrollment_list_query(
     return query.order_by(Enrollment.updated_at.desc(), Enrollment.id.desc())
 
 
+def _store_enrollment_list_state(
+    page: int,
+    per_page: int,
+    search_term: str,
+    status: str,
+    sort_by: str,
+) -> dict:
+    state = {
+        "page": max(page or 1, 1),
+        "per_page": max(per_page or 1, 1),
+        "q": str(search_term or ""),
+        "status": str(status or ""),
+        "sort": sort_by if sort_by in ENROLLMENT_SORT_OPTIONS else DEFAULT_ENROLLMENT_SORT,
+    }
+    flask_session[ENROLLMENT_LIST_STATE_KEY] = state
+    return state
+
+
 @enrollments_bp.route("/", methods=["GET"])
 @login_required
 def list_enrollments():
     """List all enrollments"""
+    if request.args.get("reset") == "1":
+        flask_session.pop(ENROLLMENT_LIST_STATE_KEY, None)
+        return redirect(
+            url_for("enrollments.list_enrollments", sort=DEFAULT_ENROLLMENT_SORT)
+        )
+
+    if not request.args and flask_session.get(ENROLLMENT_LIST_STATE_KEY):
+        return redirect(
+            url_for(
+                "enrollments.list_enrollments",
+                **flask_session[ENROLLMENT_LIST_STATE_KEY],
+            )
+        )
+
     page = request.args.get("page", 1, type=int)
     per_page = get_per_page()
     search_term = request.args.get("q", "", type=str)
     status = request.args.get("status", "", type=str)
-    sort_by = request.args.get("sort", "updated_desc", type=str)
+    sort_by = request.args.get("sort", DEFAULT_ENROLLMENT_SORT, type=str)
     if sort_by not in ENROLLMENT_SORT_OPTIONS:
-        sort_by = "updated_desc"
+        sort_by = DEFAULT_ENROLLMENT_SORT
+    _store_enrollment_list_state(page, per_page, search_term, status, sort_by)
     enrollments = _build_enrollment_list_query(search_term, status, sort_by).paginate(
         page=page, per_page=per_page
     )
@@ -192,14 +236,14 @@ def scan_missing_whatsapp_groups():
     """Fill missing enrollment WhatsApp groups from validated student/tutor data."""
     search_term = request.form.get("q", "", type=str)
     status = request.form.get("status", "", type=str)
-    sort_by = request.form.get("sort", "updated_desc", type=str)
+    page = request.form.get("page", 1, type=int)
+    per_page = request.form.get("per_page", get_per_page(), type=int)
+    sort_by = request.form.get("sort", DEFAULT_ENROLLMENT_SORT, type=str)
     if sort_by not in ENROLLMENT_SORT_OPTIONS:
-        sort_by = "updated_desc"
-    redirect_kwargs = {
-        "q": search_term,
-        "status": status,
-        "sort": sort_by,
-    }
+        sort_by = DEFAULT_ENROLLMENT_SORT
+    redirect_kwargs = _store_enrollment_list_state(
+        page, per_page, search_term, status, sort_by
+    )
     try:
         summary = _scan_missing_enrollment_whatsapp_groups()
         db.session.commit()

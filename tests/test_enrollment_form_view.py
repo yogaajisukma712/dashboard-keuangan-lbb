@@ -69,7 +69,13 @@ def test_enrollment_form_template_uses_whole_number_steps_for_rate_fields():
     assert "Scan Group WA Kosong" in list_template_text
     assert 'name="sort"' in list_template_text
     assert "Presensi terakhir terbaru" in list_template_text
+    assert 'default_sort = \'last_attendance_desc\'' in list_template_text
+    assert 'name="per_page"' in list_template_text
+    assert "page=enrollments.page" in list_template_text
     assert "last_attendance_desc" in route_text
+    assert 'DEFAULT_ENROLLMENT_SORT = "last_attendance_desc"' in route_text
+    assert "ENROLLMENT_LIST_STATE_KEY" in route_text
+    assert "flask_session[ENROLLMENT_LIST_STATE_KEY]" in route_text
 
 
 def test_build_enrollment_list_query_sorts_by_last_attendance_date():

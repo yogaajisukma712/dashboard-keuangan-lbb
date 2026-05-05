@@ -1,16 +1,16 @@
 {
-  "goal": "Tambah checkbox total dan filter nomor rekening di rekap gaji tutor",
+  "goal": "Tambah sort berdasarkan header tabel di rekap gaji tutor",
   "project_id": "billing-supersmart",
   "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-05T19:22:04Z",
+  "updated_at": "2026-05-05T19:30:24Z",
   "plan": [
     {
-      "step": "Inspect tutor summary payroll template",
+      "step": "Inspect tutor summary sortable targets",
       "status": "completed"
     },
     {
-      "step": "Add row checkboxes selected totals and account filter",
+      "step": "Add sortable header buttons and row sort data",
       "status": "completed"
     },
     {
@@ -24,6 +24,6 @@
     }
   ],
   "notes": [
-    "Rekap gaji tutor memakai checkbox client-side untuk total saldo/payable dipilih dan filter cepat nomor rekening tanpa reload."
+    "Header rekap gaji tutor bisa diklik untuk sort client-side; filter rekening dan total checkbox tetap sinkron."
   ]
 }

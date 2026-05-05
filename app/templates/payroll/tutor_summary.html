@@ -176,13 +176,41 @@ selectattr('balance','gt',0) | list | length %}
                                 title="Pilih semua tutor yang sedang tampil"
                             />
                         </th>
-                        <th class="ps-3" style="width: 42px">No</th>
-                        <th>Nama Tutor</th>
-                        <th>Bank</th>
-                        <th>No. Rekening</th>
-                        <th class="text-end">Payable</th>
-                        <th class="text-end">Dibayar</th>
-                        <th class="text-end">Saldo</th>
+                        <th class="ps-3" style="width: 42px">
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="index">
+                                No <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="tutorName">
+                                Nama Tutor <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="bankName">
+                                Bank <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="accountNumber">
+                                No. Rekening <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
+                            </button>
+                        </th>
+                        <th class="text-end">
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="payable">
+                                Payable <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
+                            </button>
+                        </th>
+                        <th class="text-end">
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="paid">
+                                Dibayar <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
+                            </button>
+                        </th>
+                        <th class="text-end">
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark table-sort" data-sort-key="balance">
+                                Saldo <i class="bi bi-arrow-down-up ms-1 small text-muted"></i>
+                            </button>
+                        </th>
                         <th class="text-center" style="width: 160px">Aksi</th>
                     </tr>
                 </thead>
@@ -197,8 +225,12 @@ selectattr('balance','gt',0) | list | length %}
                     {% set is_overpaid = item.balance < 0 %}
                     <tr
                         id="row-tutor-{{ tutor.id }}"
+                        data-row-index="{{ loop.index }}"
+                        data-tutor-name="{{ tutor.name }}"
+                        data-bank-name="{{ tutor.bank_name or '' }}"
                         data-account-number="{{ tutor.bank_account_number or '' }}"
                         data-payable="{{ item.payable }}"
+                        data-paid="{{ item.paid }}"
                         data-balance="{{ item.balance }}"
                         {% if is_overpaid %}class="table-warning"{% endif %}
                     >
@@ -212,7 +244,7 @@ selectattr('balance','gt',0) | list | length %}
                                 aria-label="Pilih {{ tutor.name }} untuk hitung total"
                             />
                         </td>
-                        <td class="ps-3 text-muted">{{ loop.index }}</td>
+                        <td class="ps-3 text-muted" data-payroll-col="row-number">{{ loop.index }}</td>
                         <td>
                             <div class="fw-semibold">{{ tutor.name }}</div>
                             <div class="text-muted small">
@@ -520,12 +552,18 @@ selectattr('balance','gt',0) | list | length %}
         const selectedTutorCount = document.getElementById("selectedTutorCount");
         const selectedBalanceTotal = document.getElementById("selectedBalanceTotal");
         const selectedPayableTotal = document.getElementById("selectedPayableTotal");
+        const tableBody = document.querySelector("#tutorTable tbody");
         const tutorRows = Array.from(
             document.querySelectorAll("#tutorTable tbody tr[id^='row-tutor-']"),
         );
         const totalCheckboxes = Array.from(
             document.querySelectorAll(".tutor-total-check"),
         );
+        const sortButtons = Array.from(document.querySelectorAll(".table-sort"));
+        const sortState = {
+            key: null,
+            direction: "asc",
+        };
 
         // ── Helper ───────────────────────────────────────────────────────────────
         function showToast(msg, type) {
@@ -558,6 +596,27 @@ selectattr('balance','gt',0) | list | length %}
 
         function formatRupiahNumber(value) {
             return Math.round(value || 0).toLocaleString("id-ID");
+        }
+
+        function normalizeSortText(value) {
+            return String(value || "")
+                .toLowerCase()
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        function getSortValue(row, key) {
+            if (["index", "payable", "paid", "balance"].includes(key)) {
+                return parseFloat(row.dataset[key] || "0") || 0;
+            }
+            return normalizeSortText(row.dataset[key] || "");
+        }
+
+        function updateVisibleRowNumbers() {
+            visibleRows().forEach(function (row, index) {
+                const numberCell = row.querySelector('[data-payroll-col="row-number"]');
+                if (numberCell) numberCell.textContent = index + 1;
+            });
         }
 
         function visibleRows() {
@@ -619,6 +678,70 @@ selectattr('balance','gt',0) | list | length %}
                 row.style.display = matched ? "" : "none";
             });
 
+            updateVisibleRowNumbers();
+            updateSelectedTotals();
+        }
+
+        function updateSortIndicators(activeButton) {
+            sortButtons.forEach(function (button) {
+                const icon = button.querySelector("i");
+                button.classList.toggle("fw-semibold", button === activeButton);
+                if (!icon) return;
+                icon.classList.remove(
+                    "bi-arrow-down-up",
+                    "bi-sort-alpha-down",
+                    "bi-sort-alpha-up",
+                    "bi-sort-numeric-down",
+                    "bi-sort-numeric-up",
+                );
+                if (button !== activeButton) {
+                    icon.classList.add("bi-arrow-down-up");
+                    return;
+                }
+                const numeric = ["index", "payable", "paid", "balance"].includes(
+                    sortState.key,
+                );
+                icon.classList.add(
+                    numeric
+                        ? sortState.direction === "asc"
+                            ? "bi-sort-numeric-down"
+                            : "bi-sort-numeric-up"
+                        : sortState.direction === "asc"
+                          ? "bi-sort-alpha-down"
+                          : "bi-sort-alpha-up",
+                );
+            });
+        }
+
+        function sortTutorRows(button) {
+            if (!tableBody) return;
+            const key = button.dataset.sortKey;
+            if (!key) return;
+
+            sortState.direction =
+                sortState.key === key && sortState.direction === "asc" ? "desc" : "asc";
+            sortState.key = key;
+
+            const multiplier = sortState.direction === "asc" ? 1 : -1;
+            const sortedRows = tutorRows.slice().sort(function (left, right) {
+                const leftValue = getSortValue(left, key);
+                const rightValue = getSortValue(right, key);
+                if (typeof leftValue === "number" && typeof rightValue === "number") {
+                    return (leftValue - rightValue) * multiplier;
+                }
+                return (
+                    String(leftValue).localeCompare(String(rightValue), "id", {
+                        numeric: true,
+                        sensitivity: "base",
+                    }) * multiplier
+                );
+            });
+
+            sortedRows.forEach(function (row) {
+                tableBody.appendChild(row);
+            });
+            updateSortIndicators(button);
+            updateVisibleRowNumbers();
             updateSelectedTotals();
         }
 
@@ -640,6 +763,13 @@ selectattr('balance','gt',0) | list | length %}
             accountFilter.addEventListener("input", applyAccountFilter);
         }
 
+        sortButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                sortTutorRows(button);
+            });
+        });
+
+        updateVisibleRowNumbers();
         updateSelectedTotals();
 
         // ── Open Modal on Checkbox Toggle ────────────────────────────────────────
@@ -800,6 +930,7 @@ selectattr('balance','gt',0) | list | length %}
                 summaryCheckbox.checked = false;
             }
             row.dataset.balance = "0";
+            row.dataset.paid = String(paidAmount || 0);
             updateSelectedTotals();
         }
     })();

@@ -1,30 +1,29 @@
 {
-  "goal": "Fix WhatsApp attendance scan for stored ignored LID evaluation messages",
+  "goal": "Tambah paste clipboard gambar bukti transfer di detail payout",
   "project_id": "billing-supersmart",
   "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-05T17:32:15Z",
+  "updated_at": "2026-05-05T18:37:24Z",
   "plan": [
     {
-      "step": "Add TDD for ignored LID evaluation reprocess",
+      "step": "Inspect payout proof upload flow",
       "status": "completed"
     },
     {
-      "step": "Implement stored message reprocess before monthly attendance linking",
+      "step": "Add clipboard paste zone and JS file injection",
       "status": "completed"
     },
     {
-      "step": "Run targeted tests and live April/May scan verification",
+      "step": "Add TDD/static template coverage",
       "status": "completed"
     },
     {
-      "step": "Run Hermes verification and push",
+      "step": "Run tests, rebuild, smoke, push",
       "status": "completed",
-      "note": "Targeted pytest passed; smoke/deploy checks attempted via Hermes."
+      "note": "Targeted tests passed; web rebuilt; smoke reached login page on port 6001."
     }
   ],
   "notes": [
-    "Pesan evaluasi lama yang pernah ignored harus direproses saat scan bulan presensi.",
-    "Tanggal presensi tetap memakai sent_at pesan WhatsApp, bukan tanggal di isi pesan."
+    "Input proof_file tetap dipakai; clipboard image dibuat menjadi File browser sehingga backend upload lama tidak berubah."
   ]
 }

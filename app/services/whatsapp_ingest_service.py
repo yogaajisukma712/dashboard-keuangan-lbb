@@ -844,6 +844,88 @@ class WhatsAppIngestService:
         return None
 
     @staticmethod
+    def find_validated_tutor_by_message_identity(
+        evaluation: WhatsAppEvaluation,
+        author_phone_number: str | None,
+    ) -> WhatsAppTutorValidation | None:
+        validation = WhatsAppIngestService.find_validated_tutor_by_phone(
+            author_phone_number
+        )
+        if validation is not None:
+            return validation
+
+        message = evaluation.message
+        group = evaluation.group
+        if message is None or group is None:
+            return None
+
+        sender_names = {
+            normalize_person_name(message.author_name),
+        }
+        contact = message.author_contact
+        if contact is not None:
+            sender_names.update(
+                {
+                    normalize_person_name(contact.display_name),
+                    normalize_person_name(contact.push_name),
+                    normalize_person_name(contact.short_name),
+                }
+            )
+            participant = WhatsAppGroupParticipant.query.filter_by(
+                group_id=group.id,
+                contact_id=contact.id,
+            ).first()
+            if participant is not None:
+                sender_names.add(normalize_person_name(participant.display_name))
+        sender_names.discard("")
+        if not sender_names:
+            return None
+
+        target_whatsapp_group_id = str(group.whatsapp_group_id or "").strip()
+        matches: list[WhatsAppTutorValidation] = []
+        for item in WhatsAppTutorValidation.query.all():
+            group_memberships = list(item.group_memberships_json or [])
+            shares_group = any(
+                str(group_item.get("whatsapp_group_id") or group_item.get("group_id") or "").strip()
+                == target_whatsapp_group_id
+                or group_item.get("group_id") == group.id
+                for group_item in group_memberships
+            )
+            if not shares_group:
+                continue
+
+            candidate_names = {
+                normalize_person_name(item.validated_contact_name),
+                normalize_person_name(item.tutor.name if item.tutor else None),
+            }
+            if item.contact is not None:
+                candidate_names.update(
+                    {
+                        normalize_person_name(item.contact.display_name),
+                        normalize_person_name(item.contact.push_name),
+                        normalize_person_name(item.contact.short_name),
+                    }
+                )
+            for group_item in group_memberships:
+                candidate_names.add(normalize_person_name(group_item.get("display_name")))
+            candidate_names.discard("")
+
+            for sender_name in sender_names:
+                if any(
+                    sender_name == candidate_name
+                    or sender_name in candidate_name
+                    or candidate_name in sender_name
+                    for candidate_name in candidate_names
+                ):
+                    matches.append(item)
+                    break
+
+        unique_matches = {item.id: item for item in matches}
+        if len(unique_matches) == 1:
+            return next(iter(unique_matches.values()))
+        return None
+
+    @staticmethod
     def find_validated_student_by_group(
         group: WhatsAppGroup | None,
     ) -> WhatsAppStudentGroupValidation | None:
@@ -857,8 +939,9 @@ class WhatsAppIngestService:
         author_phone_number: str | None,
     ) -> dict:
         group = evaluation.group
-        tutor_validation = WhatsAppIngestService.find_validated_tutor_by_phone(
-            author_phone_number
+        tutor_validation = WhatsAppIngestService.find_validated_tutor_by_message_identity(
+            evaluation,
+            author_phone_number,
         )
         student_group_validation = WhatsAppIngestService.find_validated_student_by_group(
             group

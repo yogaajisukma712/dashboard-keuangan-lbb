@@ -1634,6 +1634,150 @@ def test_scan_attendance_updates_existing_link_when_group_enrollment_changes():
         assert evaluation.matched_student_id == new_student.id
 
 
+def test_lid_sender_contact_name_selects_validated_tutor_enrollment_in_shared_group():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        chemistry = Subject(name="Kimia")
+        math = Subject(name="Matematika")
+        student = Student(student_code="STD-209", name="Alysha", is_active=True)
+        anggi = Tutor(tutor_code="TTR-209A", name="Anggi Sapitri Irawan", is_active=True)
+        windi = Tutor(tutor_code="TTR-209B", name="Windi Lestari", is_active=True)
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-alysha-shared@g.us",
+            name="Alysha Shared Group",
+        )
+        anggi_contact = WhatsAppContact(
+            whatsapp_contact_id="628984089204@c.us",
+            phone_number="628984089204",
+            display_name="Anggi",
+            is_group=False,
+        )
+        windi_number_contact = WhatsAppContact(
+            whatsapp_contact_id="6281381599447@c.us",
+            phone_number="6281381599447",
+            display_name="Miss Windi_Tutor Math",
+            push_name="Windi Lestari",
+            is_group=False,
+        )
+        windi_lid_contact = WhatsAppContact(
+            whatsapp_contact_id="54426043695336@lid",
+            phone_number="54426043695336",
+            display_name="Miss Windi_Tutor Math",
+            is_group=False,
+        )
+        chemistry_enrollment = Enrollment(
+            student=student,
+            tutor=anggi,
+            subject=chemistry,
+            curriculum=curriculum,
+            level=level,
+            grade="10",
+            student_rate_per_meeting=50000,
+            tutor_rate_per_meeting=40000,
+            status="active",
+            whatsapp_group_id="group-alysha-shared@g.us",
+            whatsapp_group_name="Alysha Shared Group",
+            whatsapp_group_memberships_json=[
+                {
+                    "whatsapp_group_id": "group-alysha-shared@g.us",
+                    "group_name": "Alysha Shared Group",
+                }
+            ],
+        )
+        math_enrollment = Enrollment(
+            student=student,
+            tutor=windi,
+            subject=math,
+            curriculum=curriculum,
+            level=level,
+            grade="10",
+            student_rate_per_meeting=50000,
+            tutor_rate_per_meeting=40000,
+            status="active",
+            whatsapp_group_id="group-alysha-shared@g.us",
+            whatsapp_group_name="Alysha Shared Group",
+            whatsapp_group_memberships_json=[
+                {
+                    "whatsapp_group_id": "group-alysha-shared@g.us",
+                    "group_name": "Alysha Shared Group",
+                }
+            ],
+        )
+        db.session.add_all(
+            [
+                curriculum,
+                level,
+                chemistry,
+                math,
+                student,
+                anggi,
+                windi,
+                group,
+                anggi_contact,
+                windi_number_contact,
+                windi_lid_contact,
+                chemistry_enrollment,
+                math_enrollment,
+            ]
+        )
+        db.session.flush()
+        db.session.add_all(
+            [
+                WhatsAppStudentGroupValidation(group_id=group.id, student_id=student.id),
+                WhatsAppGroupParticipant(
+                    group_id=group.id,
+                    contact_id=windi_lid_contact.id,
+                    display_name="Miss Windi_Tutor Math",
+                ),
+                WhatsAppTutorValidation(
+                    contact_id=windi_number_contact.id,
+                    tutor_id=windi.id,
+                    validated_phone_number="6281381599447",
+                    validated_contact_name="Miss Windi_Tutor Math",
+                    group_memberships_json=[
+                        {
+                            "whatsapp_group_id": "group-alysha-shared@g.us",
+                            "group_name": "Alysha Shared Group",
+                            "display_name": "Miss Windi_Tutor Math",
+                        }
+                    ],
+                ),
+            ]
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-alysha-windi-lid",
+            group=group,
+            author_contact=windi_lid_contact,
+            author_phone_number="54426043695336",
+            author_name="Miss Windi_Tutor Math",
+            sent_at=datetime(2026, 4, 5, 13, 35, 21),
+            body="Laporan evaluasi matematika Alysha",
+        )
+        db.session.add(message)
+        db.session.flush()
+
+        evaluation, _created, attendance_linked = WhatsAppIngestService.upsert_evaluation(
+            message,
+            group,
+            {"summary_text": "Evaluasi valid."},
+            "54426043695336",
+        )
+        db.session.commit()
+
+        assert attendance_linked is True
+        assert evaluation.matched_tutor_id == windi.id
+        assert evaluation.matched_enrollment_id == math_enrollment.id
+        assert evaluation.matched_subject_id == math.id
+        session = AttendanceSession.query.first()
+        assert session.tutor_id == windi.id
+        assert session.enrollment_id == math_enrollment.id
+        assert session.subject_id == math.id
+
+
 def test_ingest_sync_payload_avoids_duplicate_messages_but_keeps_distinct_tutor_posts():
     app = _make_test_app()
 

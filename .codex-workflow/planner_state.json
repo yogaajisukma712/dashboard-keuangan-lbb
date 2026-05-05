@@ -1,16 +1,16 @@
 {
-  "goal": "Kembalikan header tabel rekap gaji tutor dan pertahankan sort nomor rekening",
+  "goal": "Ganti filter rekening menjadi filter nama tutor di rekap gaji tutor",
   "project_id": "billing-supersmart",
   "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-05T19:56:30Z",
+  "updated_at": "2026-05-05T20:08:15Z",
   "plan": [
     {
-      "step": "Revert visual sortable header buttons",
+      "step": "Replace account filter with tutor name filter",
       "status": "completed"
     },
     {
-      "step": "Add account-number sort control",
+      "step": "Keep account sort aligned beside name filter",
       "status": "completed"
     },
     {
@@ -24,6 +24,6 @@
     }
   ],
   "notes": [
-    "Header tabel dikembalikan plain; sort rekening dipindahkan ke dropdown Urut No. Rekening."
+    "Filter cepat sekarang berdasarkan nama tutor; dropdown Urut No. Rekening tetap sejajar di filter bar."
   ]
 }

@@ -74,13 +74,13 @@
             </div>
             <div class="col-12 col-md-4 ms-md-auto">
                 <label class="form-label small fw-semibold mb-1">
-                    Filter No. Rekening
+                    Filter Nama Tutor
                 </label>
                 <input
                     type="search"
-                    id="accountFilter"
+                    id="tutorNameFilter"
                     class="form-control form-control-sm"
-                    placeholder="Ketik nomor rekening..."
+                    placeholder="Ketik nama tutor..."
                     autocomplete="off"
                 />
                 <div class="form-text small">
@@ -529,7 +529,7 @@ selectattr('balance','gt',0) | list | length %}
         });
         const toastMsg = document.getElementById("payToastMsg");
         const toastEl = document.getElementById("payToast");
-        const accountFilter = document.getElementById("accountFilter");
+        const tutorNameFilter = document.getElementById("tutorNameFilter");
         const accountSort = document.getElementById("accountSort");
         const selectVisibleTutors = document.getElementById("selectVisibleTutors");
         const selectedTutorCount = document.getElementById("selectedTutorCount");
@@ -629,16 +629,14 @@ selectattr('balance','gt',0) | list | length %}
             }
         }
 
-        function applyAccountFilter() {
-            const needle = String(accountFilter ? accountFilter.value : "")
-                .replace(/\D+/g, "")
+        function applyTutorNameFilter() {
+            const needle = String(tutorNameFilter ? tutorNameFilter.value : "")
                 .toLowerCase();
 
             tutorRows.forEach(function (row) {
-                const accountNumber = String(row.dataset.accountNumber || "")
-                    .replace(/\D+/g, "")
+                const tutorName = String(row.dataset.tutorName || "")
                     .toLowerCase();
-                const matched = !needle || accountNumber.includes(needle);
+                const matched = !needle || tutorName.includes(needle);
                 row.style.display = matched ? "" : "none";
             });
 
@@ -692,8 +690,8 @@ selectattr('balance','gt',0) | list | length %}
             });
         }
 
-        if (accountFilter) {
-            accountFilter.addEventListener("input", applyAccountFilter);
+        if (tutorNameFilter) {
+            tutorNameFilter.addEventListener("input", applyTutorNameFilter);
         }
 
         if (accountSort) {

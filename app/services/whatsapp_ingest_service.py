@@ -469,6 +469,150 @@ def resolve_attendance_date(message_sent_at: datetime, _reported_lesson_date: da
     return message_sent_at.date()
 
 
+INDONESIAN_MONTHS = {
+    "januari": 1,
+    "februari": 2,
+    "maret": 3,
+    "april": 4,
+    "mei": 5,
+    "juni": 6,
+    "juli": 7,
+    "agustus": 8,
+    "september": 9,
+    "oktober": 10,
+    "november": 11,
+    "desember": 12,
+}
+
+ENGLISH_MONTHS = {
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "september": 9,
+    "october": 10,
+    "november": 11,
+    "december": 12,
+}
+
+
+def is_stored_evaluation_message(body: str | None) -> tuple[bool, dict]:
+    text = str(body or "").strip()
+    normalized = text.lower()
+    if not normalized:
+        return False, {"reason": "empty"}
+
+    strong_keyword = bool(
+        re.search(
+            r"\b(hasil\s+evaluasi|laporan\s+evaluasi|evaluation\s+report|evaluasi|evaluation)\b",
+            normalized,
+        )
+    )
+    report_keyword = bool(re.search(r"\b(laporan|report)\b", normalized))
+    markers = {
+        "has_keyword": strong_keyword or report_keyword,
+        "has_date": bool(re.search(r"(📅|tanggal\s*:|date\s*:)", normalized)),
+        "has_time": bool(re.search(r"(🕒|waktu\s*:|time\s*:)", normalized)),
+        "has_topic": bool(
+            re.search(r"(📚|topik\s*:|topic\s*:|focus\s+topic\s*:)", normalized)
+        ),
+        "has_evaluation_body": bool(re.search(r"(🔍|evaluasi\s*:|evaluation\s*:)", normalized)),
+        "has_lesson_context": bool(
+            re.search(
+                r"\b(sesi\s+les|pelajaran|kelas|class|learned|mempelajari|materi)\b",
+                normalized,
+            )
+        ),
+        "has_tutor_closing": bool(
+            re.search(r"(salam\s+hangat|terima\s+kasih|ms\.|miss|mr\.|mrs\.)", normalized)
+        ),
+    }
+    score = sum(1 for value in markers.values() if value)
+    should_store = strong_keyword or (report_keyword and score >= 4)
+    return should_store, {
+        "reason": "stored-evaluation-heuristic" if should_store else "not-evaluation",
+        "score": score,
+        "markers": markers,
+    }
+
+
+def extract_labeled_value(body: str | None, labels: list[str], max_length: int = 255) -> str | None:
+    for raw_line in str(body or "").splitlines():
+        line = raw_line.strip()
+        normalized = line.lower()
+        for label in labels:
+            if label not in normalized:
+                continue
+            _, _, value = line.partition(":")
+            if value.strip():
+                return truncate_text(value.strip(" -\t"), max_length)
+    return None
+
+
+def parse_loose_reported_date(body: str | None) -> date | None:
+    text = str(body or "")
+    match = re.search(
+        r"(?:tanggal|date)\s*:\s*(\d{1,2})\s+([A-Za-z]+)\s*,?\s*(\d{4})",
+        text,
+        re.IGNORECASE,
+    )
+    if not match:
+        match = re.search(
+            r"(?:tanggal|date)\s*:\s*([A-Za-z]+)\s*,?\s*(\d{1,2})(?:st|nd|rd|th)?\s+(\d{4})",
+            text,
+            re.IGNORECASE,
+        )
+        if not match:
+            return None
+        month_name, day_text, year_text = match.groups()
+    else:
+        day_text, month_name, year_text = match.groups()
+
+    month = {**INDONESIAN_MONTHS, **ENGLISH_MONTHS}.get(month_name.lower())
+    if month is None:
+        return None
+    try:
+        return date(int(year_text), month, int(day_text))
+    except ValueError:
+        return None
+
+
+def build_stored_evaluation_payload(message: WhatsAppMessage) -> dict | None:
+    should_store, classification = is_stored_evaluation_message(message.body)
+    if not should_store:
+        return None
+
+    body = str(message.body or "").strip()
+    summary = re.sub(r"\s+", " ", body)
+    tutor_name = None
+    closing_match = re.search(
+        r"(?:salam\s+hangat|warm\s+regards|regards)\s*,?\s*\n+\s*([^\n]+)",
+        body,
+        re.IGNORECASE,
+    )
+    if closing_match:
+        tutor_name = truncate_text(closing_match.group(1).strip(), 255)
+
+    return {
+        "student_name": None,
+        "tutor_name": tutor_name or truncate_text(message.author_name, 255),
+        "subject_name": None,
+        "focus_topic": extract_labeled_value(
+            body,
+            ["topik", "topic", "focus topic"],
+        ),
+        "summary_text": summary[:2000],
+        "source_language": None,
+        "reported_lesson_date": parse_loose_reported_date(body),
+        "reported_time_label": extract_labeled_value(body, ["waktu", "time"], 64),
+        "classification": classification,
+    }
+
+
 def build_contact_group_membership_snapshot(
     contact: WhatsAppContact, excluded_group_names: list[str] | None = None
 ) -> tuple[list[dict], list[str], list[str]]:
@@ -1233,6 +1377,54 @@ class WhatsAppIngestService:
         }
 
     @staticmethod
+    def reprocess_stored_evaluation_messages_for_month(month: int, year: int) -> dict:
+        period_start = datetime(year, month, 1)
+        if month == 12:
+            period_end = datetime(year + 1, 1, 1)
+        else:
+            period_end = datetime(year, month + 1, 1)
+
+        messages = (
+            WhatsAppMessage.query.filter(
+                WhatsAppMessage.group_id.isnot(None),
+                WhatsAppMessage.sent_at >= period_start,
+                WhatsAppMessage.sent_at < period_end,
+                ~WhatsAppMessage.evaluation.has(),
+            )
+            .order_by(WhatsAppMessage.sent_at.asc(), WhatsAppMessage.id.asc())
+            .all()
+        )
+
+        summary = {
+            "checked_messages": len(messages),
+            "reprocessed_messages": 0,
+            "linked_attendance": 0,
+        }
+        for message in messages:
+            payload = build_stored_evaluation_payload(message)
+            if payload is None:
+                continue
+
+            message.filter_status = "relevant"
+            message.relevance_reason = "stored-evaluation-heuristic"
+            message.parsed_payload = {
+                **(message.parsed_payload or {}),
+                "classification": payload.pop("classification"),
+            }
+            _evaluation, created, attendance_linked = WhatsAppIngestService.upsert_evaluation(
+                message,
+                message.group,
+                payload,
+                message.author_phone_number,
+            )
+            if created:
+                summary["reprocessed_messages"] += 1
+            if attendance_linked:
+                summary["linked_attendance"] += 1
+
+        return summary
+
+    @staticmethod
     def scan_attendance_for_month(month: int, year: int) -> dict:
         if month < 1 or month > 12:
             raise ValueError("Bulan scan presensi WhatsApp tidak valid.")
@@ -1241,6 +1433,12 @@ class WhatsAppIngestService:
 
         period_start = date(year, month, 1)
         period_end = date(year, month, monthrange(year, month)[1])
+        reprocess_summary = (
+            WhatsAppIngestService.reprocess_stored_evaluation_messages_for_month(
+                month,
+                year,
+            )
+        )
         evaluations = (
             WhatsAppEvaluation.query.filter(
                 WhatsAppEvaluation.attendance_date.between(period_start, period_end)
@@ -1261,6 +1459,8 @@ class WhatsAppIngestService:
             "ambiguous": 0,
             "unmatched": 0,
             "matched_without_link": 0,
+            "reprocessed_messages": reprocess_summary["reprocessed_messages"],
+            "reprocessed_checked_messages": reprocess_summary["checked_messages"],
         }
 
         for evaluation in evaluations:

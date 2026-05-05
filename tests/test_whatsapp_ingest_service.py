@@ -1847,6 +1847,136 @@ def test_lid_sender_contact_name_selects_validated_tutor_enrollment_in_shared_gr
         assert session.subject_id == math.id
 
 
+def test_scan_attendance_reprocesses_ignored_lid_evaluation_messages():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        subject = Subject(name="IPAS")
+        student = Student(student_code="STD-210", name="Nandha", is_active=True)
+        tutor = Tutor(
+            tutor_code="TTR-210",
+            name="Elisabeth Sabrina Purnama Sari Sipayung",
+            phone="6282265251426",
+            is_active=True,
+        )
+        group = WhatsAppGroup(
+            whatsapp_group_id="120363420950209841@g.us",
+            name="(3) Nandha_MTK_ENG_Bali",
+        )
+        number_contact = WhatsAppContact(
+            whatsapp_contact_id="6282265251426@c.us",
+            phone_number="6282265251426",
+            display_name="Miss Sabrina_Tutor Fisika Math",
+            push_name="Elisabeth Sabrina",
+            is_group=False,
+        )
+        lid_contact = WhatsAppContact(
+            whatsapp_contact_id="208980274077712@lid",
+            phone_number="208980274077712",
+            display_name="Miss Sabrina_Tutor Fisika Math",
+            push_name="Elisabeth Sabrina",
+            is_group=False,
+        )
+        enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="10",
+            student_rate_per_meeting=80000,
+            tutor_rate_per_meeting=50000,
+            status="active",
+            whatsapp_group_id="120363420950209841@g.us",
+            whatsapp_group_name="(3) Nandha_MTK_ENG_Bali",
+            whatsapp_group_memberships_json=[
+                {
+                    "whatsapp_group_id": "120363420950209841@g.us",
+                    "group_name": "(3) Nandha_MTK_ENG_Bali",
+                }
+            ],
+        )
+        db.session.add_all(
+            [
+                curriculum,
+                level,
+                subject,
+                student,
+                tutor,
+                group,
+                number_contact,
+                lid_contact,
+                enrollment,
+            ]
+        )
+        db.session.flush()
+        db.session.add_all(
+            [
+                WhatsAppStudentGroupValidation(group_id=group.id, student_id=student.id),
+                WhatsAppGroupParticipant(
+                    group_id=group.id,
+                    contact_id=lid_contact.id,
+                    display_name="Miss Sabrina_Tutor Fisika Math",
+                ),
+                WhatsAppTutorValidation(
+                    contact_id=number_contact.id,
+                    tutor_id=tutor.id,
+                    validated_phone_number="6282265251426",
+                    validated_contact_name="Miss Sabrina_Tutor Fisika Math",
+                    group_memberships_json=[
+                        {
+                            "whatsapp_group_id": "120363420950209841@g.us",
+                            "group_name": "(3) Nandha_MTK_ENG_Bali",
+                            "display_name": "Miss Sabrina_Tutor Fisika Math",
+                        }
+                    ],
+                ),
+            ]
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id=(
+                "false_120363420950209841@g.us_"
+                "AC3262C9315FDAF95D6D0FB078F2B806_208980274077712@lid"
+            ),
+            group=group,
+            author_contact=lid_contact,
+            author_phone_number="208980274077712",
+            author_name="Miss Sabrina_Tutor Fisika Math",
+            sent_at=datetime(2026, 5, 1, 2, 6, 43),
+            body=(
+                "🌟 Selamat malam Mom,\n"
+                "📄 Berikut adalah laporan evaluasi untuk pelajaran IPAS Nandha hari ini:\n\n"
+                "📅 Tanggal : 30 Mei 2026\n"
+                "🕒 Waktu : 9.00 - 10.00 WITA\n"
+                "📚 Topik : Perubahan wujud zat\n\n"
+                "🔍Evaluasi : Pertemuan ini membahas perubahan wujud zat.\n\n"
+                "Salam hangat,\n"
+                "Ms. Sabrina"
+            ),
+            filter_status="ignored",
+            relevance_reason="irrelevant",
+            parsed_payload={},
+        )
+        db.session.add(message)
+        db.session.commit()
+
+        summary = WhatsAppIngestService.scan_attendance_for_month(5, 2026)
+
+        evaluation = WhatsAppEvaluation.query.filter_by(message_id=message.id).one()
+        assert summary["reprocessed_messages"] == 1
+        assert summary["linked_attendance"] == 1
+        assert message.filter_status == "relevant"
+        assert evaluation.attendance_date == date(2026, 5, 1)
+        assert evaluation.reported_lesson_date == date(2026, 5, 30)
+        assert evaluation.matched_tutor_id == tutor.id
+        assert evaluation.matched_enrollment_id == enrollment.id
+        assert evaluation.attendance_session is not None
+        assert evaluation.attendance_session.tutor_id == tutor.id
+
+
 def test_ingest_sync_payload_avoids_duplicate_messages_but_keeps_distinct_tutor_posts():
     app = _make_test_app()
 

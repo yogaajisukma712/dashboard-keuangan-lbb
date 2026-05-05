@@ -34,6 +34,7 @@ from app.utils import decode_public_id, get_per_page
 enrollments_bp = Blueprint("enrollments", __name__, url_prefix="/enrollments")
 DEFAULT_ENROLLMENT_SORT = "last_attendance_desc"
 ENROLLMENT_LIST_STATE_KEY = "enrollment_list_state"
+ENROLLMENT_LIST_STATE_VERSION = 2
 ENROLLMENT_SORT_OPTIONS = {
     "updated_desc",
     "last_attendance_desc",
@@ -182,6 +183,7 @@ def _store_enrollment_list_state(
     sort_by: str,
 ) -> dict:
     state = {
+        "v": ENROLLMENT_LIST_STATE_VERSION,
         "page": max(page or 1, 1),
         "per_page": max(per_page or 1, 1),
         "q": str(search_term or ""),
@@ -190,6 +192,10 @@ def _store_enrollment_list_state(
     }
     flask_session[ENROLLMENT_LIST_STATE_KEY] = state
     return state
+
+
+def _public_enrollment_list_state(state: dict | None) -> dict:
+    return {key: value for key, value in (state or {}).items() if key != "v"}
 
 
 @enrollments_bp.route("/", methods=["GET"])
@@ -203,10 +209,15 @@ def list_enrollments():
         )
 
     if not request.args and flask_session.get(ENROLLMENT_LIST_STATE_KEY):
+        saved_state = dict(flask_session[ENROLLMENT_LIST_STATE_KEY])
+        if saved_state.get("v") != ENROLLMENT_LIST_STATE_VERSION:
+            saved_state["sort"] = DEFAULT_ENROLLMENT_SORT
+            saved_state["v"] = ENROLLMENT_LIST_STATE_VERSION
+            flask_session[ENROLLMENT_LIST_STATE_KEY] = saved_state
         return redirect(
             url_for(
                 "enrollments.list_enrollments",
-                **flask_session[ENROLLMENT_LIST_STATE_KEY],
+                **_public_enrollment_list_state(saved_state),
             )
         )
 
@@ -241,8 +252,10 @@ def scan_missing_whatsapp_groups():
     sort_by = request.form.get("sort", DEFAULT_ENROLLMENT_SORT, type=str)
     if sort_by not in ENROLLMENT_SORT_OPTIONS:
         sort_by = DEFAULT_ENROLLMENT_SORT
-    redirect_kwargs = _store_enrollment_list_state(
-        page, per_page, search_term, status, sort_by
+    redirect_kwargs = _public_enrollment_list_state(
+        _store_enrollment_list_state(
+            page, per_page, search_term, status, sort_by
+        )
     )
     try:
         summary = _scan_missing_enrollment_whatsapp_groups()

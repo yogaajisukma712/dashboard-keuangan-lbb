@@ -3,7 +3,7 @@
   "project_id": "billing-supersmart",
   "phase": "verification_done",
   "current_role": "codex",
-  "updated_at": "2026-05-05T16:01:03Z",
+  "updated_at": "2026-05-05T16:01:44Z",
   "plan": [
     {
       "step": "Inspect attendance review route and template",
@@ -27,7 +27,8 @@
     },
     {
       "step": "Commit and push attendance change",
-      "status": "in_progress"
+      "status": "completed",
+      "note": "Committed 3ed96aa and pushed to origin/main; then planner state completion will be pushed separately."
     }
   ],
   "notes": [

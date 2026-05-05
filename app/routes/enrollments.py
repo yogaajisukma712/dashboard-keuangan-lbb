@@ -69,6 +69,32 @@ def _apply_selected_whatsapp_group(enrollment: Enrollment, group_id: int | None)
     ]
 
 
+def _enrollment_has_whatsapp_group(enrollment: Enrollment) -> bool:
+    return bool(
+        str(enrollment.whatsapp_group_id or "").strip()
+        or (enrollment.whatsapp_group_memberships_json or [])
+    )
+
+
+def _scan_missing_enrollment_whatsapp_groups() -> dict:
+    summary = {
+        "processed": 0,
+        "matched": 0,
+        "unmatched": 0,
+    }
+    enrollments = Enrollment.query.filter_by(status="active").order_by(Enrollment.id.asc()).all()
+    for enrollment in enrollments:
+        if _enrollment_has_whatsapp_group(enrollment):
+            continue
+        summary["processed"] += 1
+        result = WhatsAppIngestService.sync_enrollment_whatsapp_group(enrollment)
+        if result["matched"]:
+            summary["matched"] += 1
+        else:
+            summary["unmatched"] += 1
+    return summary
+
+
 def _build_enrollment_list_query(search_term: str = "", status: str = ""):
     query = (
         Enrollment.query.join(Student, Enrollment.student_id == Student.id)
@@ -116,6 +142,39 @@ def list_enrollments():
         search_term=search_term,
         selected_status=status,
     )
+
+
+@enrollments_bp.route("/scan-missing-whatsapp-groups", methods=["POST"])
+@login_required
+def scan_missing_whatsapp_groups():
+    """Fill missing enrollment WhatsApp groups from validated student/tutor data."""
+    search_term = request.form.get("q", "", type=str)
+    status = request.form.get("status", "", type=str)
+    redirect_kwargs = {
+        "q": search_term,
+        "status": status,
+    }
+    try:
+        summary = _scan_missing_enrollment_whatsapp_groups()
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Scan Group WA enrollment gagal: {exc}", "danger")
+        return redirect(url_for("enrollments.list_enrollments", **redirect_kwargs))
+
+    if summary["processed"] == 0:
+        flash("Semua enrollment aktif sudah memiliki Group WA.", "info")
+    else:
+        flash(
+            (
+                "Scan Group WA enrollment selesai: "
+                f"{summary['processed']} enrollment kosong diproses, "
+                f"{summary['matched']} berhasil diisi, "
+                f"{summary['unmatched']} belum match."
+            ),
+            "success" if summary["matched"] else "warning",
+        )
+    return redirect(url_for("enrollments.list_enrollments", **redirect_kwargs))
 
 
 @enrollments_bp.route("/add", methods=["GET", "POST"])

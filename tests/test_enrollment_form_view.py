@@ -5,8 +5,22 @@ from flask import Flask
 
 from app import db
 from app import register_template_filters
-from app.models import Enrollment, WhatsAppGroup
-from app.routes.enrollments import _apply_selected_whatsapp_group, _normalize_rate_form_value
+from app.models import (
+    Curriculum,
+    Enrollment,
+    Level,
+    Student,
+    Subject,
+    Tutor,
+    WhatsAppContact,
+    WhatsAppGroup,
+    WhatsAppTutorValidation,
+)
+from app.routes.enrollments import (
+    _apply_selected_whatsapp_group,
+    _normalize_rate_form_value,
+    _scan_missing_enrollment_whatsapp_groups,
+)
 
 
 def _make_test_app():
@@ -34,6 +48,9 @@ def test_enrollment_form_template_uses_whole_number_steps_for_rate_fields():
     template_text = (
         project_root / "app" / "templates" / "enrollments" / "form.html"
     ).read_text(encoding="utf-8")
+    list_template_text = (
+        project_root / "app" / "templates" / "enrollments" / "list.html"
+    ).read_text(encoding="utf-8")
 
     assert "_normalize_rate_form_value(" in route_text
     assert 'form.student_rate_per_meeting(class_="form-control"' in template_text
@@ -42,6 +59,8 @@ def test_enrollment_form_template_uses_whole_number_steps_for_rate_fields():
     assert "form.whatsapp_group_db_id" in template_text
     assert "Pilih Group WA dari Bot" in template_text
     assert "WhatsAppGroup" in route_text
+    assert "scan_missing_whatsapp_groups" in route_text
+    assert "Scan Group WA Kosong" in list_template_text
 
 
 def test_apply_selected_whatsapp_group_updates_enrollment_snapshot():
@@ -77,6 +96,100 @@ def test_apply_selected_whatsapp_group_updates_enrollment_snapshot():
                 "group_name": "English Ratih",
             }
         ]
+
+
+def test_scan_missing_enrollment_whatsapp_groups_fills_only_empty_enrollments():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        subject = Subject(name="Matematika")
+        student = Student(
+            student_code="STD-900",
+            name="Ratih",
+            is_active=True,
+            whatsapp_group_memberships_json=[
+                {
+                    "group_id": 9,
+                    "whatsapp_group_id": "group-ratih@g.us",
+                    "group_name": "English Ratih",
+                }
+            ],
+        )
+        tutor = Tutor(tutor_code="TTR-900", name="Dinda", is_active=True)
+        contact = WhatsAppContact(
+            whatsapp_contact_id="6281234567890@c.us",
+            phone_number="6281234567890",
+            display_name="Dinda",
+            is_group=False,
+        )
+        empty_enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="10",
+            student_rate_per_meeting=50000,
+            tutor_rate_per_meeting=30000,
+            status="active",
+        )
+        existing_enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="11",
+            student_rate_per_meeting=50000,
+            tutor_rate_per_meeting=30000,
+            status="active",
+            whatsapp_group_id="existing@g.us",
+            whatsapp_group_name="Existing Group",
+            whatsapp_group_memberships_json=[
+                {
+                    "whatsapp_group_id": "existing@g.us",
+                    "group_name": "Existing Group",
+                }
+            ],
+        )
+        db.session.add_all(
+            [
+                curriculum,
+                level,
+                subject,
+                student,
+                tutor,
+                contact,
+                empty_enrollment,
+                existing_enrollment,
+            ]
+        )
+        db.session.flush()
+        db.session.add(
+            WhatsAppTutorValidation(
+                contact_id=contact.id,
+                tutor_id=tutor.id,
+                validated_phone_number="6281234567890",
+                group_memberships_json=[
+                    {
+                        "group_id": 9,
+                        "whatsapp_group_id": "group-ratih@g.us",
+                        "group_name": "English Ratih",
+                    }
+                ],
+            )
+        )
+        db.session.commit()
+
+        summary = _scan_missing_enrollment_whatsapp_groups()
+
+        assert summary == {"processed": 1, "matched": 1, "unmatched": 0}
+        assert empty_enrollment.whatsapp_group_id == "group-ratih@g.us"
+        assert empty_enrollment.whatsapp_group_name == "English Ratih"
+        assert existing_enrollment.whatsapp_group_id == "existing@g.us"
 
 
 def test_enrollment_detail_notes_filter_is_registered_and_escapes_html():

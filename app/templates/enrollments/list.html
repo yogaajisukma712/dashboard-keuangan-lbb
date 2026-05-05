@@ -15,9 +15,19 @@
     <h2 class="h4 mb-0"><i class="bi bi-journals me-2 text-primary"></i>Daftar Enrollment</h2>
     <p class="text-muted small mb-0">Kelola pendaftaran siswa ke tutor &amp; mata pelajaran</p>
   </div>
-  <a href="{{ url_for('enrollments.add_enrollment') }}" class="btn btn-primary btn-sm">
-    <i class="bi bi-plus-lg me-1"></i>Tambah Enrollment
-  </a>
+  <div class="d-flex gap-2 flex-wrap justify-content-end">
+    <form method="POST" action="{{ url_for('enrollments.scan_missing_whatsapp_groups') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="q" value="{{ search_term or '' }}">
+      <input type="hidden" name="status" value="{{ selected_status or '' }}">
+      <button type="submit" class="btn btn-outline-success btn-sm">
+        <i class="bi bi-whatsapp me-1"></i>Scan Group WA Kosong
+      </button>
+    </form>
+    <a href="{{ url_for('enrollments.add_enrollment') }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Tambah Enrollment
+    </a>
+  </div>
 </div>
 
 {# ── Filter / Search ──────────────────────────────────────────────────────── #}

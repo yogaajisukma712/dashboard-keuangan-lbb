@@ -903,17 +903,6 @@ class WhatsAppIngestService:
                 "note": "WhatsApp group has not been validated as a student group.",
             }
 
-        if tutor is None:
-            return {
-                "student": student,
-                "tutor": None,
-                "subject": None,
-                "enrollment": None,
-                "confidence": 45,
-                "status": "unmatched",
-                "note": "WhatsApp sender has not been validated as a tutor.",
-            }
-
         candidates = [
             enrollment
             for enrollment in Enrollment.query.filter_by(
@@ -938,43 +927,62 @@ class WhatsAppIngestService:
 
         filtered_candidates = list(candidates)
 
-        tutor_owned_candidates = [
-            enrollment
-            for enrollment in filtered_candidates
-            if enrollment.tutor_id == tutor.id
-        ]
-        if len(tutor_owned_candidates) == 1:
-            filtered_candidates = tutor_owned_candidates
+        if tutor is not None:
+            tutor_owned_candidates = [
+                enrollment
+                for enrollment in filtered_candidates
+                if enrollment.tutor_id == tutor.id
+            ]
+            if len(tutor_owned_candidates) == 1:
+                filtered_candidates = tutor_owned_candidates
 
         if len(filtered_candidates) == 1:
             selected = filtered_candidates[0]
+            selected_tutor = tutor or selected.tutor
+            note = (
+                "Enrollment matched from validated WhatsApp group student "
+                "and sender tutor identity."
+                if tutor is not None
+                else (
+                    "Enrollment matched from validated WhatsApp group student; "
+                    "sender tutor was not validated, so enrollment tutor was used."
+                )
+            )
             return {
                 "student": student,
-                "tutor": tutor,
+                "tutor": selected_tutor,
                 "subject": selected.subject,
                 "enrollment": selected,
-                "confidence": 99,
+                "confidence": 99 if tutor is not None else 80,
                 "status": "matched",
-                "note": (
-                    "Enrollment matched from validated WhatsApp group student "
-                    "and sender tutor identity."
-                ),
+                "note": note,
             }
 
         if len(filtered_candidates) > 1:
+            selected = filtered_candidates[0]
+            selected_tutor = tutor or selected.tutor
             return {
                 "student": student,
-                "tutor": tutor,
-                "subject": None,
-                "enrollment": None,
+                "tutor": selected_tutor,
+                "subject": selected.subject,
+                "enrollment": selected,
                 "confidence": 65,
-                "status": "ambiguous",
+                "status": "matched",
                 "note": (
-                    "Multiple active enrollments share this WhatsApp group for the sender tutor."
+                    "Multiple active enrollments share this WhatsApp group; "
+                    "first enrollment was inserted for manual review."
                 ),
             }
 
-        return fallback
+        return {
+            "student": student,
+            "tutor": tutor,
+            "subject": None,
+            "enrollment": None,
+            "confidence": 55 if tutor is not None else 45,
+            "status": "unmatched",
+            "note": "Could not resolve an active enrollment from validated WhatsApp group.",
+        }
 
     @staticmethod
     def find_existing_attendance_for_whatsapp_identity(

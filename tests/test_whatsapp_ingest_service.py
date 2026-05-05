@@ -1347,6 +1347,172 @@ def test_upsert_evaluation_uses_validated_group_and_sender_not_payload_identity(
         assert session.subject_id == subject.id
 
 
+def test_upsert_evaluation_links_from_validated_group_when_sender_tutor_unvalidated():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMP")
+        subject = Subject(name="Bahasa Inggris")
+        student = Student(student_code="STD-206", name="Ratih", is_active=True)
+        tutor = Tutor(
+            tutor_code="TTR-206",
+            name="Tutor Enrollment",
+            phone="081444444444",
+            is_active=True,
+        )
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-unvalidated-sender@g.us",
+            name="English Ratih",
+        )
+        enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="8",
+            student_rate_per_meeting=80000,
+            tutor_rate_per_meeting=45000,
+            status="active",
+            whatsapp_group_id="group-unvalidated-sender@g.us",
+            whatsapp_group_name="English Ratih",
+            whatsapp_group_memberships_json=[
+                {
+                    "whatsapp_group_id": "group-unvalidated-sender@g.us",
+                    "group_name": "English Ratih",
+                }
+            ],
+        )
+        db.session.add_all([curriculum, level, subject, student, tutor, group, enrollment])
+        db.session.flush()
+        db.session.add(
+            WhatsAppStudentGroupValidation(group_id=group.id, student_id=student.id)
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-unvalidated-sender",
+            group=group,
+            author_phone_number="999000111222",
+            author_name="Unknown Sender",
+            sent_at=datetime(2026, 5, 14, 17, 0, 0),
+            body="Laporan evaluasi valid",
+        )
+        db.session.add(message)
+        db.session.flush()
+
+        evaluation, _created, attendance_linked = WhatsAppIngestService.upsert_evaluation(
+            message,
+            group,
+            {"summary_text": "Evaluasi valid."},
+            "999000111222",
+        )
+        db.session.commit()
+
+        assert attendance_linked is True
+        assert evaluation.matched_student_id == student.id
+        assert evaluation.matched_tutor_id == tutor.id
+        assert evaluation.matched_enrollment_id == enrollment.id
+        assert "sender tutor was not validated" in evaluation.notes
+        assert AttendanceSession.query.count() == 1
+
+
+def test_upsert_evaluation_inserts_first_group_enrollment_for_manual_review_when_ambiguous():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMP")
+        english = Subject(name="Bahasa Inggris")
+        math = Subject(name="Matematika")
+        student = Student(student_code="STD-207", name="Atha", is_active=True)
+        tutor = Tutor(tutor_code="TTR-207", name="Tutor Atha", is_active=True)
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-ambiguous@g.us",
+            name="Atha English Math",
+        )
+        first_enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=english,
+            curriculum=curriculum,
+            level=level,
+            grade="8",
+            student_rate_per_meeting=80000,
+            tutor_rate_per_meeting=45000,
+            status="active",
+            whatsapp_group_id="group-ambiguous@g.us",
+            whatsapp_group_name="Atha English Math",
+            whatsapp_group_memberships_json=[
+                {
+                    "whatsapp_group_id": "group-ambiguous@g.us",
+                    "group_name": "Atha English Math",
+                }
+            ],
+        )
+        second_enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=math,
+            curriculum=curriculum,
+            level=level,
+            grade="8",
+            student_rate_per_meeting=80000,
+            tutor_rate_per_meeting=45000,
+            status="active",
+            whatsapp_group_id="group-ambiguous@g.us",
+            whatsapp_group_name="Atha English Math",
+            whatsapp_group_memberships_json=[
+                {
+                    "whatsapp_group_id": "group-ambiguous@g.us",
+                    "group_name": "Atha English Math",
+                }
+            ],
+        )
+        db.session.add_all(
+            [
+                curriculum,
+                level,
+                english,
+                math,
+                student,
+                tutor,
+                group,
+                first_enrollment,
+                second_enrollment,
+            ]
+        )
+        db.session.flush()
+        db.session.add(
+            WhatsAppStudentGroupValidation(group_id=group.id, student_id=student.id)
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-ambiguous-insert",
+            group=group,
+            author_phone_number="888000111222",
+            author_name="Unknown Sender",
+            sent_at=datetime(2026, 5, 15, 17, 0, 0),
+            body="Laporan evaluasi valid",
+        )
+        db.session.add(message)
+        db.session.flush()
+
+        evaluation, _created, attendance_linked = WhatsAppIngestService.upsert_evaluation(
+            message,
+            group,
+            {"summary_text": "Evaluasi valid."},
+            "888000111222",
+        )
+        db.session.commit()
+
+        assert attendance_linked is True
+        assert evaluation.match_status == "attendance-linked"
+        assert evaluation.matched_enrollment_id == first_enrollment.id
+        assert "first enrollment was inserted for manual review" in evaluation.notes
+        assert AttendanceSession.query.count() == 1
+
+
 def test_ingest_sync_payload_avoids_duplicate_messages_but_keeps_distinct_tutor_posts():
     app = _make_test_app()
 

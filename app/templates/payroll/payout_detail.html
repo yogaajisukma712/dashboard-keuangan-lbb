@@ -13,7 +13,9 @@ Breadcrumb ───────────────────────
 </nav>
 
 {# ── Page Header ─────────────────────────────────────────────────────────── #}
-<div class="d-flex justify-content-between align-items-start mb-4">
+<div
+    class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4"
+>
     <div>
         <h2 class="h4 mb-1">Detail Payout #{{ payout.id }}</h2>
         <p class="text-muted mb-0 small">
@@ -21,36 +23,153 @@ Breadcrumb ───────────────────────
             payout.created_at else '-' }}
         </p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
+        {# ── TOGGLE BAYAR / BELUM BAYAR ── #}
+        <button
+            type="button"
+            id="btnTogglePaid"
+            class="btn btn-sm {% if payout.status == 'completed' %}btn-success{% else %}btn-outline-warning text-dark{% endif %}"
+            data-payout-ref="{{ payout.public_id }}"
+            title="Klik untuk ganti status pembayaran"
+        >
+            {% if payout.status == 'completed' %}
+            <i class="bi bi-check-circle-fill me-1"></i>Sudah Dibayar (Klik
+            untuk Ubah ke Belum) {% else %}
+            <i class="bi bi-clock me-1"></i>Belum Dibayar (Klik untuk Konfirmasi
+            Bayar) {% endif %}
+        </button>
+        <span
+            id="togglePaidFeedback"
+            class="align-self-center small d-none"
+        ></span>
+
         <a
             href="{{ url_for('payroll.fee_slip', payout_ref=payout.public_id) }}"
             class="btn btn-outline-primary btn-sm"
             target="_blank"
         >
-            <i class="bi bi-file-earmark-text me-1"></i> Lihat Fee Slip
+            <i class="bi bi-file-earmark-text me-1"></i>Fee Slip
         </a>
         <a
             href="{{ url_for('payroll.fee_slip_pdf', payout_ref=payout.public_id) }}"
             class="btn btn-outline-success btn-sm"
         >
-            <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
+            <i class="bi bi-file-earmark-pdf me-1"></i>PDF
         </a>
         <form
             method="POST"
             action="{{ url_for('payroll.delete_payout', payout_ref=payout.public_id) }}"
-            onsubmit="
-                return confirm(
-                    'Yakin hapus payout ini? Tindakan tidak dapat dibatalkan.',
-                );
-            "
+            onsubmit="return confirm('Yakin hapus payout ini?');"
         >
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <button type="submit" class="btn btn-outline-danger btn-sm">
-                <i class="bi bi-trash me-1"></i> Hapus
+                <i class="bi bi-trash me-1"></i>Hapus
             </button>
         </form>
     </div>
 </div>
+
+{# ── Alert status kalau pending ── #} {% if payout.status == 'pending' %}
+<div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-4">
+    <i class="bi bi-clock-fill fs-5 flex-shrink-0 mt-1"></i>
+    <div>
+        <strong>Status: Belum Dibayar.</strong>
+        Payout ini belum dikonfirmasi sehingga
+        <strong>tidak mempengaruhi perhitungan dashboard</strong> (Estimasi Gaji
+        Tutor &amp; Estimasi Sisa Saldo). Klik
+        <em>"Klik untuk Konfirmasi Bayar"</em> di atas setelah transfer selesai.
+    </div>
+</div>
+{% elif payout.status == 'completed' %}
+<div class="alert alert-success d-flex align-items-center gap-2 py-2 mb-4">
+    <i class="bi bi-check-circle-fill"></i>
+    <span
+        ><strong>Status: Sudah Dibayar.</strong> Payout ini
+        <strong>terhitung di dashboard</strong> (Estimasi Gaji Tutor &amp;
+        Estimasi Sisa Saldo).</span
+    >
+</div>
+{% endif %}
+
+
+{# ── FORM REVISI (hanya untuk pending) ────────────────────────────────────────── #}
+{% if payout.status == 'pending' %}
+<div class="card border-0 shadow-sm mb-4" style="border-left:4px solid #f59e0b !important">
+  <div class="card-header bg-warning bg-opacity-10 py-2 d-flex align-items-center justify-content-between">
+    <span class="fw-semibold text-dark">
+      <i class="bi bi-pencil-square me-2 text-warning"></i>Revisi Payout
+    </span>
+    <span class="badge bg-warning text-dark">Hanya aktif saat Belum Dibayar</span>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('payroll.revise_payout', payout_ref=payout.public_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3">
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold small">
+            Nominal <span class="text-muted fw-normal">(Rp)</span>
+          </label>
+          <input type="number" name="amount" class="form-control"
+                 value="{{ payout.amount | int }}" min="0" step="1">
+          <div class="form-text">
+            Tagihan tutor:
+            {% set lines = payout.payout_lines.all() %}
+            {% if lines %}
+              {% set sm = lines[0].service_month %}
+              <strong id="revPayable">—</strong>
+              <script>
+              (function(){
+                fetch('/payroll/api/tutor/{{ payout.tutor.public_id }}/balance?month={{ sm.month }}&year={{ sm.year }}')
+                  .then(r=>r.json()).then(d=>{
+                    var el=document.getElementById('revPayable');
+                    if(el) el.textContent='Rp '+Math.round(d.payable||0).toLocaleString('id-ID');
+                  }).catch(()=>{});
+              })();
+              </script>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold small">Tanggal Pembayaran (Rencana)</label>
+          <input type="date" name="payout_date" class="form-control"
+                 value="{{ payout.payout_date.strftime('%Y-%m-%d') if payout.payout_date else '' }}">
+        </div>
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold small">Bank Tujuan</label>
+          <input type="text" name="bank_name" class="form-control"
+                 value="{{ payout.bank_name or '' }}" placeholder="BCA, Mandiri, BNI...">
+        </div>
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold small">Nomor Rekening</label>
+          <input type="text" name="account_number" class="form-control font-monospace"
+                 value="{{ payout.account_number or '' }}" placeholder="1234567890">
+        </div>
+
+        <div class="col-12">
+          <label class="form-label fw-semibold small">Catatan / Keterangan</label>
+          <textarea name="notes" class="form-control" rows="2"
+                    placeholder="No. referensi transfer, keterangan tambahan...">{{ payout.notes or '' }}</textarea>
+        </div>
+
+        <div class="col-12">
+          <button type="submit" class="btn btn-warning text-dark">
+            <i class="bi bi-save me-1"></i>Simpan Revisi
+          </button>
+          <span class="text-muted small ms-2">
+            <i class="bi bi-info-circle me-1"></i>
+            Setelah revisi, klik <em>Konfirmasi Dibayar</em> di atas untuk mengunci.
+          </span>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 <div class="row g-4">
     {# ── Kolom Kiri: Info Payout + Bukti ──────────────────────────────────────
@@ -227,12 +346,109 @@ Breadcrumb ───────────────────────
             </div>
         </div>
         {% endif %}
+        {# ── RINCIAN SESI PRESENSI ──────────────────────────────────────────── #}
+        {# excluded_ids & sessions_total dikirim dari route (payout_detail view) #}
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">
+                    <i class="bi bi-calendar-check me-2 text-success"></i>
+                    Rincian Sesi Presensi
+                    <span class="text-muted fw-normal small ms-1">
+                        ({{ payout_sessions | length }} sesi)
+                    </span>
+                </span>
+                <span id="sessionTotalBadge"
+                      class="badge {% if sessions_total != payout.amount | float %}bg-warning text-dark{% else %}bg-primary{% endif %} rounded-pill"
+                      style="font-size:0.8rem"
+                      title="Total fee dari sesi yang ditampilkan">
+                    Rp {{ "{:,.0f}".format(sessions_total) }}
+                </span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table
+                        class="table table-sm align-middle mb-0"
+                        id="sessionTable"
+                    >
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width: 36px"></th>
+                                <th>Tanggal</th>
+                                <th>Mata Pelajaran</th>
+                                <th>Siswa</th>
+                                <th class="text-end pe-3">Fee</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in payout_sessions %}
+                            {% set is_excluded = s.id in excluded_ids %}
+                            <tr
+                                id="sess-row-{{ s.id }}"
+                                class="{% if is_excluded %}table-secondary text-decoration-line-through text-muted{% endif %}"
+                            >
+                                <td class="ps-3">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-sess-toggle px-1 py-0"
+                                        data-session-id="{{ s.id }}"
+                                        data-payout-ref="{{ payout.public_id }}"
+                                        title="{% if is_excluded %}Masukkan kembali sesi ini{% else %}Keluarkan sesi ini dari payout{% endif %}"
+                                    >
+                                        <i
+                                            class="bi {% if is_excluded %}bi-plus-circle text-success{% else %}bi-dash-circle text-danger{% endif %}"
+                                        ></i>
+                                    </button>
+                                </td>
+                                <td class="small">
+                                    {{ s.session_date.strftime('%d %b %Y') if
+                                    s.session_date else '-' }}
+                                </td>
+                                <td class="small">
+                                    {{ s.subject.name if s.subject else '-' }}
+                                </td>
+                                <td class="small">
+                                    {{ s.enrollment.student.name if s.enrollment
+                                    and s.enrollment.student else '-' }}
+                                </td>
+                                <td
+                                    class="text-end pe-3 small fw-semibold"
+                                    id="sess-fee-{{ s.id }}"
+                                >
+                                    Rp {{ "{:,.0f}".format(s.tutor_fee_amount or
+                                    0) }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td
+                                    colspan="5"
+                                    class="text-center text-muted py-3 small"
+                                >
+                                    Tidak ada sesi presensi yang tercatat untuk
+                                    periode ini.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-3 py-2 text-muted small border-top">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Klik <i class="bi bi-dash-circle text-danger"></i> untuk
+                    mengeluarkan sesi dari payout (nominal dikurangi). Klik
+                    <i class="bi bi-plus-circle text-success"></i> untuk
+                    memasukkan kembali. Perubahan berlaku jika payout masih
+                    <strong>Belum Dibayar</strong>.
+                </div>
+            </div>
+        </div>
     </div>
     {# /col-lg-7 #} {# ── Kolom Kanan: Bukti Transfer
-    ─────────────────────────────────────────── #}
+    ─────────────────────────────────────────────────────────── #}
     <div class="col-lg-5">
         {# ── Upload Bukti Transfer
-        ────────────────────────────────────────────── #}
+        ───────────────────────────────────────────────────────── #}
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white fw-semibold border-bottom">
                 <i class="bi bi-image me-2 text-primary"></i>Bukti Transfer
@@ -421,6 +637,167 @@ Breadcrumb ───────────────────────
 {# /row #} {% endblock %} {% block scripts %}
 <!-- Tesseract.js untuk OCR browser-side -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+{# ── TOGGLE PAID / SESSION SCRIPT
+────────────────────────────────────────────── #}
+<script>
+    (function () {
+        "use strict";
+
+        function getCsrf() {
+            var m = document.querySelector('meta[name="csrf-token"]');
+            if (m) return m.getAttribute("content");
+            var c = document.cookie.match(/csrf_token=([^;]+)/);
+            return c ? decodeURIComponent(c[1]) : "";
+        }
+
+        function formatRp(val) {
+            return (
+                "Rp " + Math.round(parseFloat(val) || 0).toLocaleString("id-ID")
+            );
+        }
+
+        /* ── TOGGLE PAID ─────────────────────────────────────────────────────── */
+        var btnToggle = document.getElementById("btnTogglePaid");
+        var feedback = document.getElementById("togglePaidFeedback");
+
+        if (btnToggle) {
+            btnToggle.addEventListener("click", function () {
+                var ref = this.dataset.payoutRef;
+                btnToggle.disabled = true;
+                fetch("/payroll/payout/" + ref + "/toggle-paid", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCsrf(),
+                    },
+                })
+                    .then(function (r) {
+                        return r.json();
+                    })
+                    .then(function (d) {
+                        btnToggle.disabled = false;
+                        if (d.success) {
+                            var isPaid = d.status === "completed";
+                            /* Update button */
+                            btnToggle.className =
+                                "btn btn-sm " +
+                                (isPaid
+                                    ? "btn-success"
+                                    : "btn-outline-warning text-dark");
+                            btnToggle.innerHTML = isPaid
+                                ? '<i class="bi bi-check-circle-fill me-1"></i>Sudah Dibayar (Klik untuk Ubah ke Belum)'
+                                : '<i class="bi bi-clock me-1"></i>Belum Dibayar (Klik untuk Konfirmasi Bayar)';
+                            /* Update alert banner */
+                            var alertEl = document.querySelector(
+                                ".alert-warning, .alert-success",
+                            );
+                            if (alertEl) {
+                                if (isPaid) {
+                                    alertEl.className =
+                                        "alert alert-success d-flex align-items-center gap-2 py-2 mb-4";
+                                    alertEl.innerHTML =
+                                        '<i class="bi bi-check-circle-fill"></i>' +
+                                        "<span><strong>Status: Sudah Dibayar.</strong> Payout ini <strong>terhitung di dashboard</strong>.</span>";
+                                } else {
+                                    alertEl.className =
+                                        "alert alert-warning d-flex align-items-start gap-2 py-2 mb-4";
+                                    alertEl.innerHTML =
+                                        '<i class="bi bi-clock-fill fs-5 flex-shrink-0 mt-1"></i>' +
+                                        "<div><strong>Status: Belum Dibayar.</strong> Payout ini <strong>tidak mempengaruhi dashboard</strong>.</div>";
+                                }
+                            }
+                            /* Feedback */
+                            if (feedback) {
+                                feedback.textContent = isPaid
+                                    ? "✓ Status diubah ke Sudah Dibayar"
+                                    : "✓ Status diubah ke Belum Dibayar";
+                                feedback.className =
+                                    "align-self-center small " +
+                                    (isPaid ? "text-success" : "text-warning");
+                                feedback.classList.remove("d-none");
+                                setTimeout(function () {
+                                    feedback.classList.add("d-none");
+                                }, 4000);
+                            }
+                        } else {
+                            alert(
+                                "Gagal mengubah status: " +
+                                    (d.error || "error"),
+                            );
+                        }
+                    })
+                    .catch(function (e) {
+                        btnToggle.disabled = false;
+                        alert("Network error: " + e.message);
+                    });
+            });
+        }
+
+        /* ── TOGGLE SESSION ──────────────────────────────────────────────────── */
+        document.querySelectorAll(".btn-sess-toggle").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var sessId = this.dataset.sessionId;
+                var ref = this.dataset.payoutRef;
+                var row = document.getElementById("sess-row-" + sessId);
+                btn.disabled = true;
+
+                fetch(
+                    "/payroll/payout/" + ref + "/session/" + sessId + "/toggle",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": getCsrf(),
+                        },
+                    },
+                )
+                    .then(function (r) {
+                        return r.json();
+                    })
+                    .then(function (d) {
+                        btn.disabled = false;
+                        if (d.success) {
+                            var isExcluded = d.action === "excluded";
+                            /* Strikethrough row */
+                            if (row) {
+                                row.classList.toggle(
+                                    "table-secondary",
+                                    isExcluded,
+                                );
+                                row.classList.toggle(
+                                    "text-decoration-line-through",
+                                    isExcluded,
+                                );
+                                row.classList.toggle("text-muted", isExcluded);
+                            }
+                            /* Swap icon */
+                            var icon = btn.querySelector("i");
+                            if (icon) {
+                                icon.className = isExcluded
+                                    ? "bi bi-plus-circle text-success"
+                                    : "bi bi-dash-circle text-danger";
+                            }
+                            btn.title = isExcluded
+                                ? "Masukkan kembali sesi ini"
+                                : "Keluarkan sesi ini dari payout";
+                            /* Update total badge */
+                            var badge =
+                                document.getElementById("sessionTotalBadge");
+                            if (badge)
+                                badge.textContent = formatRp(d.new_total);
+                        } else {
+                            alert("Gagal: " + (d.error || "error"));
+                        }
+                    })
+                    .catch(function (e) {
+                        btn.disabled = false;
+                        alert("Network error: " + e.message);
+                    });
+            });
+        });
+    })();
+</script>
 
 <script>
     (function () {

@@ -1,29 +1,29 @@
 {
-  "goal": "Relax WhatsApp evaluation parser for tutor reports",
+  "goal": "Fix WhatsApp group scan Flask sync 500 on long evaluation payload",
   "project_id": "billing-supersmart",
   "phase": "verification_done",
   "current_role": "codex",
-  "updated_at": "2026-05-05T00:29:55Z",
+  "updated_at": "2026-05-05T01:45:42Z",
   "plan": [
     {
-      "step": "Broaden parser keywords and fallback body extraction",
+      "step": "Read logs and identify root cause",
       "status": "completed",
-      "note": "Added typo/generic report keywords and skipped date/time/topic label lines from fallback body."
+      "note": "web logs showed value too long for varchar(255) during whatsapp_evaluations insert."
     },
     {
-      "step": "Add TDD coverage",
+      "step": "Patch parser and backend guard",
       "status": "completed",
-      "note": "Added Hsil Evaluasi and Laporan tests; npm bot tests 18 passed."
+      "note": "Short-name descriptor guard in parser; truncate_text in ingest upsert_evaluation."
     },
     {
-      "step": "Rebuild runtime services",
+      "step": "Verify tests and runtime",
       "status": "completed",
-      "note": "whatsapp_bot recreated with new image; web recovered and smoke OK."
+      "note": "npm parser tests and backend truncation test passed; web/login smoke OK; bot health OK."
     }
   ],
   "notes": [
-    "Parser now accepts Hasil Evaluasi/Hsil Evaluasi/Laporan/Evaluation/Report style messages when date, time, and real evaluation body exist.",
-    "Topic label is no longer mandatory for report-like messages; focusTopic falls back to subject or Evaluasi.",
-    "Casual promise messages with date/time but no body still rejected."
+    "500 caused by psycopg2 StringDataRightTruncation on whatsapp_evaluations student_name after relaxed parser treated long evaluation sentence as a name.",
+    "Parser now ignores long sentence descriptors as names; Flask truncates all varchar payload fields before insert/update.",
+    "Runtime web and whatsapp_bot rebuilt; bot session must be initialized/restored after recreate."
   ]
 }

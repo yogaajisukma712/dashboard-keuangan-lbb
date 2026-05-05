@@ -67,6 +67,14 @@ function hasEvaluationKeyword(body) {
   );
 }
 
+function isLikelyShortNameDescriptor(value) {
+  const text = normalizeWhitespace(value);
+  if (!text || text.length > 80) return false;
+  if (/[.!?]/.test(text)) return false;
+  if (text.split(/\s+/).length > 8) return false;
+  return true;
+}
+
 function extractTutorName(body) {
   const greetingMatch = body.match(
     /(?:Salam hangat,|Warm regards,?|Regards,?|Best regards,?|Tutor,?|Teacher,?)\s*\n+([^\n]+)/i,
@@ -107,7 +115,10 @@ function findTitleMatch(body) {
   );
   if (genericIdTitle) {
     const descriptor = normalizeWhitespace(genericIdTitle[1]);
-    if (descriptor && !/^(tanggal|tgl|waktu|jam|pukul|topik|materi)\b/i.test(descriptor)) {
+    if (
+      isLikelyShortNameDescriptor(descriptor) &&
+      !/^(tanggal|tgl|waktu|jam|pukul|topik|materi)\b/i.test(descriptor)
+    ) {
       return { sourceLanguage: 'id', descriptor };
     }
   }
@@ -139,7 +150,10 @@ function findTitleMatch(body) {
   );
   if (genericEnTitle) {
     const descriptor = normalizeWhitespace(genericEnTitle[1]);
-    if (descriptor && !/^(date|time|topic|focus)\b/i.test(descriptor)) {
+    if (
+      isLikelyShortNameDescriptor(descriptor) &&
+      !/^(date|time|topic|focus)\b/i.test(descriptor)
+    ) {
       return { sourceLanguage: 'en', studentName: descriptor, subjectName: null };
     }
   }

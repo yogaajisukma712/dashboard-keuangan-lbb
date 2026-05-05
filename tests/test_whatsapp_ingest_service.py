@@ -1291,3 +1291,47 @@ def test_ingest_sync_payload_avoids_duplicate_messages_but_keeps_distinct_tutor_
             "wamid-duplicate-1",
             "wamid-duplicate-2",
         ]
+
+
+def test_upsert_evaluation_truncates_long_varchar_payload_fields():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        group = WhatsAppGroup(whatsapp_group_id="group-long@g.us", name="Long Payload")
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-long-eval",
+            group=group,
+            author_phone_number="081234567890",
+            author_name="Tutor",
+            sent_at=datetime(2026, 5, 4, 18, 30, 0),
+            body="Laporan panjang",
+        )
+        db.session.add_all([group, message])
+        db.session.flush()
+        payload = {
+            "student_name": "Pembelajaran hari ini " * 30,
+            "tutor_name": "Tutor " * 80,
+            "subject_name": "Subject " * 80,
+            "focus_topic": "Topic " * 80,
+            "summary_text": "Isi evaluasi valid dan panjang.",
+            "source_language": "id" * 40,
+            "reported_lesson_date": "2026-05-04",
+            "reported_time_label": "18:30 - 19:30 WITA " * 10,
+        }
+
+        evaluation, created, _attendance_linked = WhatsAppIngestService.upsert_evaluation(
+            message,
+            group,
+            payload,
+            "081234567890",
+        )
+        db.session.commit()
+
+        assert created is True
+        assert len(evaluation.student_name) == 255
+        assert len(evaluation.tutor_name) == 255
+        assert len(evaluation.subject_name) == 255
+        assert len(evaluation.focus_topic) == 255
+        assert len(evaluation.source_language) == 32
+        assert len(evaluation.reported_time_label) == 64

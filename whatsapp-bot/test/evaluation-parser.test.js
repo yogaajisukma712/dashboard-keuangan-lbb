@@ -160,6 +160,24 @@ Mr. Rendi`;
   assert.equal(result.markers.hasTopic, true);
 });
 
+test('parseEvaluationMessage does not treat long evaluation sentence as student name', () => {
+  const body = `Laporan
+Tanggal: 04 Mei 2026
+Waktu: 18:30 - 19:30 WITA
+
+Pembelajaran hari ini membahas soal soal kinematika khususnya GLB, GLBB, kecepatan sesaat dan percepatan sesaat. Saat mengerjakan soal, siswa sudah bisa menganalisa informasi utama dengan lebih runtut.
+
+Salam hangat,
+Ms. Rani`;
+
+  const parsed = parseEvaluationMessage(body);
+
+  assert.equal(parsed.studentName, null);
+  assert.equal(parsed.reportedLessonDate, '2026-05-04');
+  assert.equal(parsed.reportedTimeLabel, '18:30 - 19:30 WITA');
+  assert.match(parsed.summaryText, /kinematika/);
+});
+
 test('parseEvaluationMessage keeps Indonesian evaluation body and tutor signature on duplicated template', () => {
   const body = `📄 Berikut adalah laporan evaluasi untuk sesi les Bahasa Inggris Salsa hari ini:
 

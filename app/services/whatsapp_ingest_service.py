@@ -48,6 +48,15 @@ def normalize_group_name(value: str | None) -> str:
     return " ".join(str(value or "").strip().lower().split())
 
 
+def truncate_text(value, max_length: int):
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    return text[:max_length]
+
+
 def get_excluded_group_names(raw_value: str | None = None) -> list[str]:
     if raw_value is None:
         raw_value = ""
@@ -1757,14 +1766,16 @@ class WhatsAppIngestService:
         reported_lesson_date = WhatsAppIngestService.parse_date(
             payload.get("reported_lesson_date")
         )
-        evaluation.student_name = payload.get("student_name")
-        evaluation.tutor_name = payload.get("tutor_name")
-        evaluation.subject_name = payload.get("subject_name")
-        evaluation.focus_topic = payload.get("focus_topic")
+        evaluation.student_name = truncate_text(payload.get("student_name"), 255)
+        evaluation.tutor_name = truncate_text(payload.get("tutor_name"), 255)
+        evaluation.subject_name = truncate_text(payload.get("subject_name"), 255)
+        evaluation.focus_topic = truncate_text(payload.get("focus_topic"), 255)
         evaluation.summary_text = payload.get("summary_text")
-        evaluation.source_language = payload.get("source_language")
+        evaluation.source_language = truncate_text(payload.get("source_language"), 32)
         evaluation.reported_lesson_date = reported_lesson_date
-        evaluation.reported_time_label = payload.get("reported_time_label")
+        evaluation.reported_time_label = truncate_text(
+            payload.get("reported_time_label"), 64
+        )
         evaluation.attendance_date = resolve_attendance_date(
             message.sent_at, reported_lesson_date
         )

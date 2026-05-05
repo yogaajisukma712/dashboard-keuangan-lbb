@@ -1,39 +1,30 @@
 {
-  "goal": "Tambah bulk validasi manual presensi WhatsApp",
+  "goal": "Fix WhatsApp attendance scan for stored ignored LID evaluation messages",
   "project_id": "billing-supersmart",
-  "phase": "verification_done",
+  "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-05T16:46:30Z",
+  "updated_at": "2026-05-05T17:32:15Z",
   "plan": [
     {
-      "step": "Inspect attendance review route template",
-      "status": "completed",
-      "note": "Found single review route, helper, table, and existing AJAX UI."
+      "step": "Add TDD for ignored LID evaluation reprocess",
+      "status": "completed"
     },
     {
-      "step": "Add bulk review endpoint",
-      "status": "completed",
-      "note": "Added /attendance/bulk-whatsapp-review with public ref decode and preserved redirect filters."
+      "step": "Implement stored message reprocess before monthly attendance linking",
+      "status": "completed"
     },
     {
-      "step": "Add checkbox and bulk UI",
-      "status": "completed",
-      "note": "Added form, row checkboxes, select all, and three bulk actions."
+      "step": "Run targeted tests and live April/May scan verification",
+      "status": "completed"
     },
     {
-      "step": "Add tests and verify runtime",
+      "step": "Run Hermes verification and push",
       "status": "completed",
-      "note": "11 focused tests passed, py_compile OK, web rebuilt, browser smoke OK."
-    },
-    {
-      "step": "Commit push update planner",
-      "status": "completed",
-      "note": "Committed e10665f and pushed to origin/main; planner completion will be pushed separately."
+      "note": "Targeted pytest passed; smoke/deploy checks attempted via Hermes."
     }
   ],
   "notes": [
-    "Bulk review server-side POST dengan CSRF; JS hanya select-all dan validasi minimal.",
-    "Menggunakan _set_whatsapp_attendance_manual_review agar business rule audit-only tetap sama.",
-    "Dirty payroll/data-manager tidak disentuh."
+    "Pesan evaluasi lama yang pernah ignored harus direproses saat scan bulan presensi.",
+    "Tanggal presensi tetap memakai sent_at pesan WhatsApp, bukan tanggal di isi pesan."
   ]
 }

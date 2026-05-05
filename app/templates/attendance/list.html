@@ -167,7 +167,7 @@
         <button type="submit" class="btn btn-primary btn-sm flex-shrink-0">
           <i class="bi bi-funnel me-1"></i>Filter
         </button>
-        <a href="{{ url_for('attendance.list_attendance') }}"
+        <a href="{{ url_for('attendance.list_attendance', reset_filters=1) }}"
            class="btn btn-outline-secondary btn-sm flex-shrink-0">
           <i class="bi bi-x-lg me-1"></i>Reset
         </a>
@@ -582,7 +582,7 @@
       </p>
       <div class="d-flex gap-2 justify-content-center mt-3">
         {% if selected_enrollment_ref or selected_tutor_ref or selected_month or selected_year or selected_status %}
-        <a href="{{ url_for('attendance.list_attendance') }}" class="btn btn-outline-secondary btn-sm">
+        <a href="{{ url_for('attendance.list_attendance', reset_filters=1) }}" class="btn btn-outline-secondary btn-sm">
           <i class="bi bi-x-lg me-1"></i>Reset Filter
         </a>
         {% endif %}

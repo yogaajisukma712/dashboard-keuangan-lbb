@@ -808,6 +808,52 @@ def toggle_tutor_active(tutor_ref):
     return redirect(next_url)
 
 
+@master_bp.route("/tutors/bulk-status", methods=["POST"])
+@login_required
+@admin_required
+def bulk_update_tutor_status():
+    """Bulk activate or deactivate selected tutors."""
+    tutor_refs = request.form.getlist("tutor_refs")
+    bulk_action = (request.form.get("bulk_action") or "").strip()
+    next_url = request.form.get("next") or url_for("master.tutors_list")
+
+    if bulk_action not in {"activate", "deactivate"}:
+        flash("Aksi bulk tutor tidak valid.", "danger")
+        return redirect(next_url)
+    if not tutor_refs:
+        flash("Pilih minimal satu tutor terlebih dahulu.", "warning")
+        return redirect(next_url)
+
+    tutor_ids = []
+    for tutor_ref in tutor_refs:
+        try:
+            tutor_ids.append(decode_public_id(tutor_ref, "tutor"))
+        except ValueError:
+            continue
+
+    if not tutor_ids:
+        flash("Tidak ada tutor valid yang dipilih.", "danger")
+        return redirect(next_url)
+
+    target_active = bulk_action == "activate"
+    target_status = "active" if target_active else "inactive"
+    updated_count = (
+        Tutor.query.filter(Tutor.id.in_(tutor_ids))
+        .update(
+            {
+                Tutor.is_active: target_active,
+                Tutor.status: target_status,
+            },
+            synchronize_session=False,
+        )
+    )
+    db.session.commit()
+
+    action_label = "diaktifkan" if target_active else "dinonaktifkan"
+    flash(f"{updated_count} tutor berhasil {action_label}.", "success")
+    return redirect(next_url)
+
+
 @master_bp.route("/tutors/<string:tutor_ref>")
 @login_required
 def tutor_detail(tutor_ref):

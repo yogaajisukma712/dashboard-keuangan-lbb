@@ -6,7 +6,7 @@ Handles presensi tutor and sesi les
 from calendar import monthrange
 from datetime import date, datetime, timedelta
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
@@ -53,6 +53,7 @@ INDONESIAN_WEEKDAY_NAMES = [
 ]
 WHATSAPP_REVIEW_START_DATE = date(2026, 4, 1)
 WHATSAPP_REVIEW_STATUSES = {"pending", "valid", "invalid"}
+ATTENDANCE_LIST_STATE_SESSION_KEY = "attendance_list_state"
 ATTENDANCE_SORT_OPTIONS = {
     "date_desc",
     "date_asc",
@@ -301,18 +302,61 @@ def _apply_attendance_list_sort(query, sort_by: str | None):
 
 
 def _attendance_redirect_filters():
-    selected_sort = request.args.get("sort") or request.form.get("sort") or "date_desc"
+    stored_state = session.get(ATTENDANCE_LIST_STATE_SESSION_KEY) or {}
+    selected_sort = (
+        request.args.get("sort")
+        or request.form.get("sort")
+        or stored_state.get("sort")
+        or "date_desc"
+    )
     if selected_sort not in ATTENDANCE_SORT_OPTIONS:
         selected_sort = "date_desc"
     return {
-        "page": request.args.get("page", 1, type=int),
-        "enrollment_ref": request.args.get("enrollment_ref") or "",
-        "tutor_ref": request.args.get("tutor_ref") or "",
-        "month": request.args.get("month", type=int) or "",
-        "year": request.args.get("year", type=int) or "",
-        "status": request.args.get("status") or "",
+        "page": request.args.get("page", type=int) or stored_state.get("page") or 1,
+        "per_page": request.args.get("per_page") or stored_state.get("per_page") or "",
+        "enrollment_ref": request.args.get("enrollment_ref") or stored_state.get("enrollment_ref") or "",
+        "tutor_ref": request.args.get("tutor_ref") or stored_state.get("tutor_ref") or "",
+        "month": request.args.get("month", type=int) or stored_state.get("month") or "",
+        "year": request.args.get("year", type=int) or stored_state.get("year") or "",
+        "status": request.args.get("status") or stored_state.get("status") or "",
         "sort": selected_sort,
     }
+
+
+def _compact_attendance_query_state() -> dict[str, str]:
+    keys = (
+        "page",
+        "per_page",
+        "enrollment_ref",
+        "tutor_ref",
+        "month",
+        "year",
+        "status",
+        "sort",
+    )
+    state = {}
+    for key in keys:
+        value = (request.args.get(key) or "").strip()
+        if value:
+            state[key] = value
+    return state
+
+
+def _restore_attendance_list_state_if_needed():
+    if request.args.get("reset_filters") == "1":
+        session.pop(ATTENDANCE_LIST_STATE_SESSION_KEY, None)
+        return redirect(url_for("attendance.list_attendance"))
+    if not request.args:
+        stored_state = session.get(ATTENDANCE_LIST_STATE_SESSION_KEY) or {}
+        if stored_state:
+            return redirect(url_for("attendance.list_attendance", **stored_state))
+    return None
+
+
+def _remember_attendance_list_state():
+    state = _compact_attendance_query_state()
+    if state:
+        session[ATTENDANCE_LIST_STATE_SESSION_KEY] = state
 
 
 def _sync_linked_whatsapp_evaluations(session: AttendanceSession):
@@ -511,6 +555,10 @@ def _build_attendance_year_options() -> list[int]:
 @login_required
 def list_attendance():
     """List all attendance sessions"""
+    restored_response = _restore_attendance_list_state_if_needed()
+    if restored_response:
+        return restored_response
+
     page = request.args.get("page", 1, type=int)
     per_page = get_per_page()
 
@@ -527,6 +575,7 @@ def list_attendance():
     selected_sort = request.args.get("sort", "date_desc")
     if selected_sort not in ATTENDANCE_SORT_OPTIONS:
         selected_sort = "date_desc"
+    _remember_attendance_list_state()
 
     query = _build_attendance_list_query(
         enrollment_id=enrollment_id,

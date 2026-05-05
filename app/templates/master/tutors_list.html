@@ -79,6 +79,32 @@
   </div>
 </div>
 
+<form
+  id="tutorBulkStatusForm"
+  method="POST"
+  action="{{ url_for('master.bulk_update_tutor_status') }}"
+  class="card border-0 shadow-sm mb-4"
+>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="next" value="{{ request.full_path }}">
+  <div class="card-body py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <div class="fw-semibold small">
+        <i class="bi bi-ui-checks-grid me-1 text-primary"></i>Aksi Bulk Tutor
+      </div>
+      <div class="text-muted small">Pilih baris tutor di tabel, lalu aktifkan atau nonaktifkan sekaligus.</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <button type="submit" name="bulk_action" value="activate" class="btn btn-outline-success btn-sm">
+        <i class="bi bi-check-circle me-1"></i>Aktifkan Terpilih
+      </button>
+      <button type="submit" name="bulk_action" value="deactivate" class="btn btn-outline-warning btn-sm">
+        <i class="bi bi-pause-circle me-1"></i>Nonaktifkan Terpilih
+      </button>
+    </div>
+  </div>
+</form>
+
 {# Tabel Tutor #}
 <div class="card border-0 shadow-sm">
   <div class="card-body p-0">
@@ -87,6 +113,14 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
+            <th class="ps-4 text-center" style="width:42px">
+              <input
+                type="checkbox"
+                id="selectAllTutors"
+                class="form-check-input"
+                aria-label="Pilih semua tutor di halaman ini"
+              >
+            </th>
             <th class="ps-4" style="width:50px">No</th>
             <th>Kode</th>
             <th>Nama Tutor</th>
@@ -112,6 +146,16 @@
               (tutor.status or '')
             ) | lower }}"
           >
+            <td class="ps-4 text-center">
+              <input
+                type="checkbox"
+                name="tutor_refs"
+                value="{{ tutor.public_id }}"
+                form="tutorBulkStatusForm"
+                class="form-check-input tutor-bulk-checkbox"
+                aria-label="Pilih tutor {{ tutor.name }}"
+              >
+            </td>
             <td class="ps-4 text-muted small">{{ row_num }}</td>
             <td>
               <span class="badge bg-light text-dark border font-monospace">
@@ -333,6 +377,45 @@
 const quickTutorSearchInput = document.getElementById("quickTutorSearch");
 const tutorRows = Array.from(document.querySelectorAll(".tutor-row"));
 const tutorTableBody = document.getElementById("tutorTableBody");
+const selectAllTutors = document.getElementById("selectAllTutors");
+const tutorBulkCheckboxes = Array.from(document.querySelectorAll(".tutor-bulk-checkbox"));
+const tutorBulkStatusForm = document.getElementById("tutorBulkStatusForm");
+
+function updateTutorSelectAllState() {
+  if (!selectAllTutors || !tutorBulkCheckboxes.length) {
+    return;
+  }
+  const checkedCount = tutorBulkCheckboxes.filter(function (checkbox) {
+    return checkbox.checked;
+  }).length;
+  selectAllTutors.checked = checkedCount === tutorBulkCheckboxes.length;
+  selectAllTutors.indeterminate = checkedCount > 0 && checkedCount < tutorBulkCheckboxes.length;
+}
+
+if (selectAllTutors && tutorBulkCheckboxes.length) {
+  selectAllTutors.addEventListener("change", function () {
+    tutorBulkCheckboxes.forEach(function (checkbox) {
+      checkbox.checked = selectAllTutors.checked;
+    });
+    updateTutorSelectAllState();
+  });
+
+  tutorBulkCheckboxes.forEach(function (checkbox) {
+    checkbox.addEventListener("change", updateTutorSelectAllState);
+  });
+}
+
+if (tutorBulkStatusForm) {
+  tutorBulkStatusForm.addEventListener("submit", function (event) {
+    const selectedCount = tutorBulkCheckboxes.filter(function (checkbox) {
+      return checkbox.checked;
+    }).length;
+    if (!selectedCount) {
+      event.preventDefault();
+      alert("Pilih minimal satu tutor terlebih dahulu.");
+    }
+  });
+}
 
 if (quickTutorSearchInput && tutorRows.length && tutorTableBody) {
   let quickTutorSearchEmptyRow = document.getElementById("quickTutorSearchEmptyRow");
@@ -343,7 +426,7 @@ if (quickTutorSearchInput && tutorRows.length && tutorTableBody) {
       quickTutorSearchEmptyRow.id = "quickTutorSearchEmptyRow";
       quickTutorSearchEmptyRow.className = "d-none";
       quickTutorSearchEmptyRow.innerHTML = `
-        <td colspan="7" class="text-center text-muted py-4">
+        <td colspan="8" class="text-center text-muted py-4">
           Tidak ada tutor di halaman ini yang cocok dengan pencarian cepat.
         </td>
       `;

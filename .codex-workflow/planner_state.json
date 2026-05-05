@@ -1,39 +1,39 @@
 {
-  "goal": "Tambah toggle status tutor dan default filter tutor aktif",
+  "goal": "Persist filter presensi dan tambah bulk aktif/nonaktif tutor",
   "project_id": "billing-supersmart",
   "phase": "verification_done",
   "current_role": "codex",
-  "updated_at": "2026-05-05T16:10:40Z",
+  "updated_at": "2026-05-05T16:36:45Z",
   "plan": [
     {
-      "step": "Inspect tutor route template tests",
+      "step": "Inspect tutor bulk UI route",
       "status": "completed",
-      "note": "Found tutors_list route/template and student active toggle pattern."
+      "note": "Found tutor list filters, single toggle route, and tests."
     },
     {
-      "step": "Implement active filter and toggle",
+      "step": "Implement bulk tutor status action",
       "status": "completed",
-      "note": "Added active/inactive/all filter and POST toggle_tutor_active."
+      "note": "Added /master/tutors/bulk-status, row checkboxes, select-all, and bulk buttons."
     },
     {
-      "step": "Add focused tutor tests",
+      "step": "Finish attendance persistence verification",
       "status": "completed",
-      "note": "Static route/template tests added in tests/test_tutor_views.py."
+      "note": "Attendance state stored/restored via session, reset_filters clears it."
     },
     {
-      "step": "Run tests rebuild smoke",
+      "step": "Add focused tests",
       "status": "completed",
-      "note": "7 tests passed, py_compile OK, web rebuilt, browser smoke OK."
+      "note": "Updated tutor and attendance tests for bulk UI and persistence."
     },
     {
-      "step": "Commit push update planner",
-      "status": "completed",
-      "note": "Committed b74f2ce and pushed to origin/main; planner completion will be pushed separately."
+      "step": "Run rebuild smoke and push",
+      "status": "in_progress",
+      "note": "Tests and browser smoke passed; commit/push next."
     }
   ],
   "notes": [
-    "Daftar tutor default active_state=active.",
-    "Toggle tutor memakai admin_required seperti toggle siswa.",
+    "Bulk tutor server-side POST dengan CSRF; JS hanya select-all dan validasi minimal.",
+    "Attendance reset filter clear state session via reset_filters=1.",
     "Dirty payroll/data-manager tidak disentuh."
   ]
 }

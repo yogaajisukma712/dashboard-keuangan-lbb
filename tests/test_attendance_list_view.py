@@ -238,6 +238,7 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert "Siswa Z-A, tanggal terbaru" in template_text
     assert 'name="sort" value="{{ selected_sort or \'date_desc\' }}"' in template_text
     assert "sort=selected_sort or 'date_desc'" in template_text
+    assert "reset_filters=1" in template_text
     assert "attendance.delete_attendance" in template_text
 
 
@@ -261,14 +262,19 @@ def test_attendance_routes_support_public_ref_filters_in_source():
 
     assert '_decode_optional_query_ref("enrollment_ref", "enrollment")' in route_text
     assert '_decode_optional_query_ref("tutor_ref", "tutor")' in route_text
-    assert '"enrollment_ref": request.args.get("enrollment_ref") or ""' in route_text
-    assert '"tutor_ref": request.args.get("tutor_ref") or ""' in route_text
+    assert '"enrollment_ref": request.args.get("enrollment_ref") or stored_state.get("enrollment_ref") or ""' in route_text
+    assert '"tutor_ref": request.args.get("tutor_ref") or stored_state.get("tutor_ref") or ""' in route_text
     assert '@attendance_bp.route("/<string:session_ref>/whatsapp-review"' in route_text
     assert "_set_whatsapp_attendance_manual_review" in route_text
     assert "_wants_json_response()" in route_text
     assert "_whatsapp_review_response_payload" in route_text
     assert 'return jsonify({"ok": False, "error": str(exc)}), 400' in route_text
     assert "_unlink_whatsapp_evaluations_before_attendance_delete(session)" in route_text
+    assert 'ATTENDANCE_LIST_STATE_SESSION_KEY = "attendance_list_state"' in route_text
+    assert "def _restore_attendance_list_state_if_needed():" in route_text
+    assert 'request.args.get("reset_filters") == "1"' in route_text
+    assert "session[ATTENDANCE_LIST_STATE_SESSION_KEY] = state" in route_text
+    assert '"per_page": request.args.get("per_page") or stored_state.get("per_page") or ""' in route_text
 
 
 def test_whatsapp_manual_review_marks_linked_evaluations_without_attendance_change():

@@ -61,6 +61,9 @@ def test_enrollment_form_template_uses_whole_number_steps_for_rate_fields():
     assert "step=1" in template_text
     assert "form.whatsapp_group_db_id" in template_text
     assert "Pilih Group WA dari Bot" in template_text
+    assert 'id="whatsappGroupSearch"' in template_text
+    assert "filterWhatsappGroups" in template_text
+    assert "whatsappGroupSearchHint" in template_text
     assert "WhatsAppGroup" in route_text
     assert "scan_missing_whatsapp_groups" in route_text
     assert "Scan Group WA Kosong" in list_template_text

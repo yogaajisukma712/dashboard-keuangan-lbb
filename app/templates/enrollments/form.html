@@ -237,9 +237,19 @@
             <label for="{{ form.whatsapp_group_db_id.id }}" class="form-label fw-semibold small">
               Pilih Group WA dari Bot
             </label>
+            <div class="input-group input-group-sm mb-2">
+              <span class="input-group-text bg-white text-muted">
+                <i class="bi bi-search"></i>
+              </span>
+              <input type="search"
+                     class="form-control"
+                     id="whatsappGroupSearch"
+                     placeholder="Cari cepat nama atau ID group WA..."
+                     autocomplete="off">
+            </div>
             {{ form.whatsapp_group_db_id(class_="form-select",
                                          id=form.whatsapp_group_db_id.id) }}
-            <div class="form-text">
+            <div class="form-text" id="whatsappGroupSearchHint">
               Pilihan ini memakai daftar group yang sudah tersimpan dari WhatsApp Bot. Jika kosong, sistem tetap mencoba auto-match dari validasi siswa dan tutor.
             </div>
           </div>
@@ -292,6 +302,9 @@ const elTutorRate    = document.getElementById('{{ form.tutor_rate_per_meeting.i
 const elQuota        = document.getElementById('{{ form.meeting_quota_per_month.id }}');
 const pricingHint    = document.getElementById('pricingHint');
 const pricingHintTxt = document.getElementById('pricingHintText');
+const whatsappGroupSearch = document.getElementById('whatsappGroupSearch');
+const whatsappGroupSelect = document.getElementById('{{ form.whatsapp_group_db_id.id }}');
+const whatsappGroupSearchHint = document.getElementById('whatsappGroupSearchHint');
 const curriculumPublicIds = {{ curriculum_public_ids|default({}, true)|tojson }};
 const levelPublicIds = {{ level_public_ids|default({}, true)|tojson }};
 
@@ -319,6 +332,40 @@ function updatePreview() {
 }
 
 [elStudentRate, elTutorRate, elQuota].forEach(el => el.addEventListener('input', updatePreview));
+
+function normalizeSearchText(value) {
+  return (value || '').toString().trim().toLowerCase();
+}
+
+function updateWhatsappGroupSearchHint(visibleCount, totalCount) {
+  if (!whatsappGroupSearchHint) return;
+  if (!whatsappGroupSearch || !whatsappGroupSearch.value.trim()) {
+    whatsappGroupSearchHint.textContent =
+      'Pilihan ini memakai daftar group yang sudah tersimpan dari WhatsApp Bot. Jika kosong, sistem tetap mencoba auto-match dari validasi siswa dan tutor.';
+    return;
+  }
+  whatsappGroupSearchHint.textContent = `${visibleCount} dari ${totalCount} group cocok dengan pencarian.`;
+}
+
+function filterWhatsappGroups() {
+  if (!whatsappGroupSelect) return;
+  const keyword = normalizeSearchText(whatsappGroupSearch.value);
+  const options = Array.from(whatsappGroupSelect.options);
+  const searchableOptions = options.filter(option => option.value);
+  let visibleCount = 0;
+
+  searchableOptions.forEach(option => {
+    const matches = normalizeSearchText(option.textContent).includes(keyword);
+    option.hidden = Boolean(keyword) && !matches;
+    if (!option.hidden) visibleCount += 1;
+  });
+
+  updateWhatsappGroupSearchHint(visibleCount, searchableOptions.length);
+}
+
+if (whatsappGroupSearch && whatsappGroupSelect) {
+  whatsappGroupSearch.addEventListener('input', filterWhatsappGroups);
+}
 
 /* ── Fetch pricing from master API ──────────────────────────────────────── */
 async function fetchPricing() {
@@ -376,6 +423,7 @@ elLevel.addEventListener('change', fetchPricing);
 /* ── Init preview on page load (mode edit) ─────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   updatePreview();
+  filterWhatsappGroups();
 });
 </script>
 {% endblock %}

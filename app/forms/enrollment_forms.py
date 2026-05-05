@@ -8,7 +8,7 @@ from wtforms import IntegerField, StringField, SubmitField, TextAreaField
 from wtforms.fields import SelectField
 from wtforms.validators import DataRequired, Optional, ValidationError
 
-from app.models import Curriculum, Enrollment, Level, Student, Subject, Tutor
+from app.models import Curriculum, Enrollment, Level, Student, Subject, Tutor, WhatsAppGroup
 
 
 class EnrollmentForm(FlaskForm):
@@ -29,6 +29,9 @@ class EnrollmentForm(FlaskForm):
     tutor_rate_per_meeting = IntegerField(
         "Tarif Tutor/Pertemuan", validators=[DataRequired()]
     )
+    whatsapp_group_db_id = SelectField(
+        "Group WhatsApp", coerce=int, default=0, validators=[Optional()]
+    )
     notes = TextAreaField("Catatan", validators=[Optional()])
     submit = SubmitField("Simpan")
 
@@ -39,6 +42,10 @@ class EnrollmentForm(FlaskForm):
         self.tutor_id.choices = [(t.id, t.name) for t in Tutor.query.all()]
         self.curriculum_id.choices = [(c.id, c.name) for c in Curriculum.query.all()]
         self.level_id.choices = [(l.id, l.name) for l in Level.query.all()]
+        self.whatsapp_group_db_id.choices = [(0, "— Tidak pilih group WA —")] + [
+            (group.id, group.name)
+            for group in WhatsAppGroup.query.order_by(WhatsAppGroup.name.asc()).all()
+        ]
 
 
 class EnrollmentScheduleForm(FlaskForm):

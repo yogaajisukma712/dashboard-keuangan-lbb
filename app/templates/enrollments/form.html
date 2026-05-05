@@ -228,6 +228,22 @@
             </div>
           </div>
 
+          {# ── Group WhatsApp ─────────────────────────────────────────────── #}
+          <h6 class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2" style="font-size:.78rem;letter-spacing:.05em">
+            <i class="bi bi-whatsapp me-1"></i>Group WhatsApp
+          </h6>
+
+          <div class="mb-4">
+            <label for="{{ form.whatsapp_group_db_id.id }}" class="form-label fw-semibold small">
+              Pilih Group WA dari Bot
+            </label>
+            {{ form.whatsapp_group_db_id(class_="form-select",
+                                         id=form.whatsapp_group_db_id.id) }}
+            <div class="form-text">
+              Pilihan ini memakai daftar group yang sudah tersimpan dari WhatsApp Bot. Jika kosong, sistem tetap mencoba auto-match dari validasi siswa dan tutor.
+            </div>
+          </div>
+
           {# ── Catatan ──────────────────────────────────────────────────── #}
           <div class="mb-4">
             <label for="{{ form.notes.id }}" class="form-label fw-semibold small">Catatan</label>

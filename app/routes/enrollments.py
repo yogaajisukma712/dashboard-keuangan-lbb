@@ -9,7 +9,16 @@ from sqlalchemy import or_
 
 from app import db
 from app.forms import EnrollmentForm
-from app.models import AttendanceSession, Curriculum, Enrollment, Level, Student, Subject, Tutor
+from app.models import (
+    AttendanceSession,
+    Curriculum,
+    Enrollment,
+    Level,
+    Student,
+    Subject,
+    Tutor,
+    WhatsAppGroup,
+)
 from app.services.whatsapp_ingest_service import WhatsAppIngestService
 from app.utils import decode_public_id, get_per_page
 
@@ -39,6 +48,25 @@ def _build_pricing_public_id_maps():
         },
         "level_public_ids": {str(level.id): level.public_id for level in Level.query.all()},
     }
+
+
+def _apply_selected_whatsapp_group(enrollment: Enrollment, group_id: int | None):
+    group = db.session.get(WhatsAppGroup, group_id) if group_id else None
+    if group is None:
+        enrollment.whatsapp_group_id = None
+        enrollment.whatsapp_group_name = None
+        enrollment.whatsapp_group_memberships_json = []
+        return
+
+    enrollment.whatsapp_group_id = group.whatsapp_group_id
+    enrollment.whatsapp_group_name = group.name
+    enrollment.whatsapp_group_memberships_json = [
+        {
+            "group_id": group.id,
+            "whatsapp_group_id": group.whatsapp_group_id,
+            "group_name": group.name,
+        }
+    ]
 
 
 def _build_enrollment_list_query(search_term: str = "", status: str = ""):
@@ -110,7 +138,10 @@ def add_enrollment():
                 tutor_rate_per_meeting=form.tutor_rate_per_meeting.data,
                 status="active",
             )
-            WhatsAppIngestService.sync_enrollment_whatsapp_group(enrollment)
+            if form.whatsapp_group_db_id.data:
+                _apply_selected_whatsapp_group(enrollment, form.whatsapp_group_db_id.data)
+            else:
+                WhatsAppIngestService.sync_enrollment_whatsapp_group(enrollment)
             db.session.add(enrollment)
             db.session.commit()
             flash("Enrollment berhasil ditambahkan", "success")
@@ -163,7 +194,10 @@ def edit_enrollment(enrollment_ref):
             enrollment.meeting_quota_per_month = form.meeting_quota_per_month.data
             enrollment.student_rate_per_meeting = form.student_rate_per_meeting.data
             enrollment.tutor_rate_per_meeting = form.tutor_rate_per_meeting.data
-            WhatsAppIngestService.sync_enrollment_whatsapp_group(enrollment)
+            if form.whatsapp_group_db_id.data:
+                _apply_selected_whatsapp_group(enrollment, form.whatsapp_group_db_id.data)
+            else:
+                WhatsAppIngestService.sync_enrollment_whatsapp_group(enrollment)
             db.session.commit()
             flash("Enrollment berhasil diupdate", "success")
             return redirect(
@@ -188,6 +222,14 @@ def edit_enrollment(enrollment_ref):
         )
         form.tutor_rate_per_meeting.data = _normalize_rate_form_value(
             enrollment.tutor_rate_per_meeting
+        )
+        form.whatsapp_group_db_id.data = next(
+            (
+                group.id
+                for group in WhatsAppGroup.query.all()
+                if group.whatsapp_group_id == enrollment.whatsapp_group_id
+            ),
+            0,
         )
 
     return render_template(

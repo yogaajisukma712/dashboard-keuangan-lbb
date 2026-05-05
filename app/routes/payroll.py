@@ -602,48 +602,77 @@ def _get_sessions_for_payout(payout):
     return sessions
 
 
-@payroll_bp.route("/fee-slip/<string:payout_ref>", methods=["GET"])
-@login_required
-def fee_slip(payout_ref):
-    """Fee tutor slip — halaman HTML yang bisa di-print"""
-    payout = _get_payout_by_ref_or_404(payout_ref)
+def _proof_image_data_uri(proof_image):
+    """Embed uploaded proof image for browser-based PDF rendering."""
+    if not proof_image:
+        return None
+
+    filename = os.path.basename(proof_image)
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    mimetype = {
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "gif": "image/gif",
+        "webp": "image/webp",
+    }.get(ext)
+    if not mimetype:
+        return None
+
+    proof_path = os.path.join(
+        current_app.config["UPLOAD_FOLDER"],
+        "payroll_proofs",
+        filename,
+    )
+    if not os.path.exists(proof_path):
+        return None
+
+    with open(proof_path, "rb") as handle:
+        encoded = base64.b64encode(handle.read()).decode("ascii")
+    return f"data:{mimetype};base64,{encoded}"
+
+
+def _build_fee_slip_template_context(payout, *, embed_proof=False):
+    """Build one shared context for web, print, PDF, and WhatsApp slip output."""
     tutor = payout.tutor
     sessions = _get_sessions_for_payout(payout)
     total = sum(float(s.tutor_fee_amount or 0) for s in sessions)
     period_label = _format_period_label(payout)
-
     verify_url = url_for(
         "payroll.fee_slip_verify",
         payout_ref=payout.public_id,
         _external=True,
     )
     proof_ctx = _build_proof_context(payout.proof_image)
+    if embed_proof and proof_ctx.get("proof_image_url"):
+        proof_ctx["proof_image_url"] = _proof_image_data_uri(payout.proof_image)
+
     ceo_name = current_app.config.get("INSTITUTION_CEO_NAME", "")
     whatsapp_session = _get_whatsapp_session_status()
-    tutor_whatsapp_contacts = _get_tutor_whatsapp_contact_options(tutor)
 
-    return render_template(
-        "payroll/fee_slip.html",
-        payout=payout,
-        tutor=tutor,
-        sessions=sessions,
-        total=total,
-        period_label=period_label,
-        verify_url=verify_url,
-        whatsapp_session=whatsapp_session,
-        whatsapp_ready=whatsapp_session["ready"],
-        tutor_whatsapp_contacts=tutor_whatsapp_contacts,
-        default_whatsapp_message=_build_fee_slip_whatsapp_message(
+    return {
+        "payout": payout,
+        "tutor": tutor,
+        "sessions": sessions,
+        "total": total,
+        "period_label": period_label,
+        "verify_url": verify_url,
+        "whatsapp_session": whatsapp_session,
+        "whatsapp_ready": whatsapp_session["ready"],
+        "tutor_whatsapp_contacts": _get_tutor_whatsapp_contact_options(tutor),
+        "default_whatsapp_message": _build_fee_slip_whatsapp_message(
             payout, tutor, total, period_label
         ),
-        institution_name=current_app.config.get("INSTITUTION_NAME", "LBB Super Smart"),
-        institution_phone=current_app.config.get("INSTITUTION_PHONE", ""),
-        institution_city=current_app.config.get("INSTITUTION_CITY", "Surabaya"),
-        ceo_name=ceo_name,
-        ceo_title=current_app.config.get("INSTITUTION_CEO_TITLE", "CEO"),
-        branding_logo_mark_data_uri=get_branding_logo_mark_data_uri(),
-        verification_qr_data_uri=build_qr_code_data_uri(verify_url, box_size=5),
-        signature_qr_data_uri=build_qr_code_data_uri(
+        "institution_name": current_app.config.get(
+            "INSTITUTION_NAME", "LBB Super Smart"
+        ),
+        "institution_phone": current_app.config.get("INSTITUTION_PHONE", ""),
+        "institution_city": current_app.config.get("INSTITUTION_CITY", "Surabaya"),
+        "ceo_name": ceo_name,
+        "ceo_title": current_app.config.get("INSTITUTION_CEO_TITLE", "CEO"),
+        "branding_logo_mark_data_uri": get_branding_logo_mark_data_uri(),
+        "verification_qr_data_uri": build_qr_code_data_uri(verify_url, box_size=5),
+        "signature_qr_data_uri": build_qr_code_data_uri(
             "|".join(
                 [
                     "TUTOR-FEE-SLIP",
@@ -657,9 +686,41 @@ def fee_slip(payout_ref):
             box_size=4,
         ),
         **proof_ctx,
-        now=datetime.now(),
-    )
+        "now": datetime.now(),
+    }
 
+
+def _render_fee_slip_pdf_via_bot(payout):
+    """Render the same HTML slip with Chromium so PDF matches the web view."""
+    html = render_template(
+        "payroll/fee_slip.html",
+        **_build_fee_slip_template_context(payout, embed_proof=True),
+        pdf_mode=True,
+    )
+    payload, status_code = _bot_request(
+        "POST",
+        "/render/pdf",
+        {
+            "html": html,
+            "baseUrl": request.host_url,
+            "selector": ".fee-slip-document",
+        },
+        timeout=90,
+    )
+    if status_code != 200 or not payload.get("ok"):
+        raise RuntimeError(payload.get("error") or "Bot PDF renderer gagal")
+    return base64.b64decode(payload["pdf_base64"])
+
+
+@payroll_bp.route("/fee-slip/<string:payout_ref>", methods=["GET"])
+@login_required
+def fee_slip(payout_ref):
+    """Fee tutor slip — halaman HTML yang bisa di-print"""
+    payout = _get_payout_by_ref_or_404(payout_ref)
+    return render_template(
+        "payroll/fee_slip.html",
+        **_build_fee_slip_template_context(payout),
+    )
 
 @payroll_bp.route("/fee-slip/<string:payout_ref>/send-whatsapp", methods=["POST"])
 @login_required
@@ -719,7 +780,23 @@ def fee_slip_send_whatsapp(payout_ref):
 @payroll_bp.route("/fee-slip/<string:payout_ref>/pdf", methods=["GET"])
 @login_required
 def fee_slip_pdf(payout_ref):
-    """Download fee slip sebagai PDF yang stabil dan ringan."""
+    """Download fee slip sebagai PDF dari render HTML web agar konsisten."""
+    payout = _get_payout_by_ref_or_404(payout_ref)
+    tutor = payout.tutor
+    pdf_filename = secure_filename(f"fee_slip_{payout.id}_{tutor.tutor_code}.pdf")
+    try:
+        pdf_bytes = _render_fee_slip_pdf_via_bot(payout)
+        return send_file(
+            BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=pdf_filename,
+        )
+    except Exception as exc:
+        current_app.logger.warning("Chromium fee slip PDF renderer failed: %s", exc)
+
+    # Fallback lama tetap dipakai jika bot renderer belum hidup, agar download
+    # tidak langsung gagal saat WhatsApp bot sedang restart.
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -734,8 +811,6 @@ def fee_slip_pdf(payout_ref):
         TableStyle,
     )
 
-    payout = _get_payout_by_ref_or_404(payout_ref)
-    tutor = payout.tutor
     sessions = _get_sessions_for_payout(payout)
     total = sum(float(s.tutor_fee_amount or 0) for s in sessions)
 

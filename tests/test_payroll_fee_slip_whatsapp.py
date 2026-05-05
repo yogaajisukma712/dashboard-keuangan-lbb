@@ -62,3 +62,25 @@ def test_fee_slip_pdf_uses_logo_header_and_preserves_proof_aspect_ratio():
     assert "proof_width, proof_height = _fit_image_size" in route_text
     assert "RLImage(proof_path, width=proof_width, height=proof_height)" in route_text
     assert "width=7.5 * cm, height=4.8 * cm" not in route_text
+
+
+def test_fee_slip_pdf_prefers_browser_rendered_single_page_pdf():
+    project_root = Path(__file__).resolve().parents[1]
+    route_text = (project_root / "app" / "routes" / "payroll.py").read_text(
+        encoding="utf-8"
+    )
+    bot_server = (
+        project_root / "whatsapp-bot" / "src" / "server.js"
+    ).read_text(encoding="utf-8")
+
+    assert "def _build_fee_slip_template_context" in route_text
+    assert "def _render_fee_slip_pdf_via_bot" in route_text
+    assert '\"/render/pdf\"' in route_text
+    assert "embed_proof=True" in route_text
+    assert "pdf_base64" in route_text
+    assert "Chromium fee slip PDF renderer failed" in route_text
+    assert "app.post('/render/pdf'" in bot_server
+    assert "renderHtmlToSinglePagePdf" in bot_server
+    assert "page_mode: 'single-page-fit-content'" in bot_server
+    assert "width: pxToInches(dimensions.width)" in bot_server
+    assert "height: pxToInches(dimensions.height)" in bot_server

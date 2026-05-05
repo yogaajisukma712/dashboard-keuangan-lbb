@@ -18,6 +18,7 @@ from app.models import (
 )
 from app.routes.attendance import (
     WHATSAPP_REVIEW_START_DATE,
+    _apply_attendance_list_sort,
     _build_attendance_list_query,
     _build_whatsapp_review_map,
     _set_whatsapp_attendance_manual_review,
@@ -137,6 +138,24 @@ def test_build_attendance_list_query_filters_by_month_year_and_tutor():
         assert [item.id for item in tutor_results] == [seeded["may_session"].id]
 
 
+def test_attendance_list_sort_orders_by_student_name():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        _seed_attendance_sessions()
+
+        base_query = _build_attendance_list_query()
+        asc_results = _apply_attendance_list_sort(base_query, "student_asc").all()
+        desc_results = _apply_attendance_list_sort(
+            _build_attendance_list_query(),
+            "student_desc",
+        ).all()
+
+        assert [item.student.name for item in asc_results] == ["Nadine", "Ratih"]
+        assert [item.student.name for item in desc_results] == ["Ratih", "Nadine"]
+
+
 def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     project_root = Path(__file__).resolve().parents[1]
     template_text = (
@@ -165,6 +184,10 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert "Perlu koreksi" in template_text
     assert "Belum crosscheck" in template_text
     assert "attendance.review_whatsapp_attendance" in template_text
+    assert 'name="sort"' in template_text
+    assert 'value="student_asc"' in template_text
+    assert "Siswa A-Z" in template_text
+    assert "Siswa Z-A" in template_text
 
 
 def test_attendance_form_template_contains_manual_tutor_selector():

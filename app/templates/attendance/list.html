@@ -147,6 +147,19 @@
         </select>
       </div>
 
+      {# Urutan #}
+      <div class="col-sm-4 col-lg-2">
+        <label class="form-label small fw-semibold mb-1">
+          <i class="bi bi-sort-alpha-down me-1 text-primary"></i>Urutkan
+        </label>
+        <select name="sort" class="form-select form-select-sm">
+          <option value="date_desc" {% if selected_sort == 'date_desc' %}selected{% endif %}>Tanggal terbaru</option>
+          <option value="date_asc" {% if selected_sort == 'date_asc' %}selected{% endif %}>Tanggal terlama</option>
+          <option value="student_asc" {% if selected_sort == 'student_asc' %}selected{% endif %}>Siswa A-Z</option>
+          <option value="student_desc" {% if selected_sort == 'student_desc' %}selected{% endif %}>Siswa Z-A</option>
+        </select>
+      </div>
+
       {# Tombol #}
       <div class="col-sm-8 col-lg-3 d-flex gap-2 flex-wrap">
         <button type="submit" class="btn btn-primary btn-sm flex-shrink-0">

@@ -53,6 +53,12 @@ INDONESIAN_WEEKDAY_NAMES = [
 ]
 WHATSAPP_REVIEW_START_DATE = date(2026, 4, 1)
 WHATSAPP_REVIEW_STATUSES = {"pending", "valid", "invalid"}
+ATTENDANCE_SORT_OPTIONS = {
+    "date_desc",
+    "date_asc",
+    "student_asc",
+    "student_desc",
+}
 
 
 def _get_session_by_ref_or_404(session_ref):
@@ -235,6 +241,39 @@ def _build_attendance_list_query(
     if status:
         query = query.filter_by(status=status)
     return query
+
+
+def _apply_attendance_list_sort(query, sort_by: str | None):
+    if sort_by not in ATTENDANCE_SORT_OPTIONS:
+        sort_by = "date_desc"
+
+    if sort_by == "student_asc":
+        return (
+            query.join(Student, AttendanceSession.student_id == Student.id)
+            .order_by(
+                Student.name.asc(),
+                AttendanceSession.session_date.desc(),
+                AttendanceSession.id.desc(),
+            )
+        )
+    if sort_by == "student_desc":
+        return (
+            query.join(Student, AttendanceSession.student_id == Student.id)
+            .order_by(
+                Student.name.desc(),
+                AttendanceSession.session_date.desc(),
+                AttendanceSession.id.desc(),
+            )
+        )
+    if sort_by == "date_asc":
+        return query.order_by(
+            AttendanceSession.session_date.asc(),
+            AttendanceSession.id.asc(),
+        )
+    return query.order_by(
+        AttendanceSession.session_date.desc(),
+        AttendanceSession.id.desc(),
+    )
 
 
 def _attendance_redirect_filters():
@@ -420,6 +459,9 @@ def list_attendance():
     month = request.args.get("month", type=int)
     year = request.args.get("year", type=int)
     status = request.args.get("status")
+    selected_sort = request.args.get("sort", "date_desc")
+    if selected_sort not in ATTENDANCE_SORT_OPTIONS:
+        selected_sort = "date_desc"
 
     query = _build_attendance_list_query(
         enrollment_id=enrollment_id,
@@ -429,8 +471,9 @@ def list_attendance():
         status=status,
     )
 
-    sessions = query.order_by(AttendanceSession.session_date.desc()).paginate(
-        page=page, per_page=per_page
+    sessions = _apply_attendance_list_sort(query, selected_sort).paginate(
+        page=page,
+        per_page=per_page,
     )
     whatsapp_review_map = _build_whatsapp_review_map(sessions.items)
 
@@ -459,6 +502,7 @@ def list_attendance():
         selected_month=month,
         selected_year=year,
         selected_status=status,
+        selected_sort=selected_sort,
         default_scan_month=month or date.today().month,
         default_scan_year=year or date.today().year,
         whatsapp_review_map=whatsapp_review_map,

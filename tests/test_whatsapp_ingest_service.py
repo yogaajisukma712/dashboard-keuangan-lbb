@@ -16,6 +16,7 @@ from app.models import (
     WhatsAppGroup,
     WhatsAppGroupParticipant,
     WhatsAppMessage,
+    WhatsAppStudentGroupValidation,
     WhatsAppTutorValidation,
 )
 from app.services.whatsapp_ingest_service import (
@@ -896,6 +897,12 @@ def test_scan_attendance_for_month_uses_validated_tutor_and_group_context():
                 ],
             )
         )
+        db.session.add(
+            WhatsAppStudentGroupValidation(
+                group_id=group.id,
+                student_id=student.id,
+            )
+        )
 
         may_message = WhatsAppMessage(
             whatsapp_message_id="wamid-may-1",
@@ -1003,6 +1010,12 @@ def test_scan_attendance_for_month_is_idempotent_for_existing_links():
                         "group_name": "Math Nadine",
                     }
                 ],
+            )
+        )
+        db.session.add(
+            WhatsAppStudentGroupValidation(
+                group_id=group.id,
+                student_id=student.id,
             )
         )
         message = WhatsAppMessage(
@@ -1159,6 +1172,12 @@ def test_scan_attendance_for_month_uses_sender_tutor_and_group_identity():
                 ],
             )
         )
+        db.session.add(
+            WhatsAppStudentGroupValidation(
+                group_id=group.id,
+                student_id=student.id,
+            )
+        )
 
         first_message = WhatsAppMessage(
             whatsapp_message_id="wamid-sub-1",
@@ -1205,6 +1224,127 @@ def test_scan_attendance_for_month_uses_sender_tutor_and_group_identity():
         assert stored_session.tutor_id == substitute_tutor.id
         assert first_evaluation.matched_tutor_id == substitute_tutor.id
         assert first_evaluation.matched_enrollment_id == enrollment.id
+
+
+def test_upsert_evaluation_uses_validated_group_and_sender_not_payload_identity():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMP")
+        subject = Subject(name="Bahasa Inggris")
+        wrong_subject = Subject(name="Matematika")
+        validated_student = Student(
+            student_code="STD-204",
+            name="Ratih Validated",
+            is_active=True,
+        )
+        payload_student = Student(
+            student_code="STD-205",
+            name="Nama Dari Pesan",
+            is_active=True,
+        )
+        tutor = Tutor(
+            tutor_code="TTR-204",
+            name="Tutor Pengirim",
+            phone="081333333333",
+            is_active=True,
+        )
+        enrollment = Enrollment(
+            student=validated_student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="8",
+            student_rate_per_meeting=80000,
+            tutor_rate_per_meeting=45000,
+            status="active",
+            whatsapp_group_id="group-authoritative@g.us",
+            whatsapp_group_name="English Ratih",
+            whatsapp_group_memberships_json=[
+                {
+                    "whatsapp_group_id": "group-authoritative@g.us",
+                    "group_name": "English Ratih",
+                }
+            ],
+        )
+        contact = WhatsAppContact(
+            whatsapp_contact_id="6281333333333@c.us",
+            phone_number="081333333333",
+            display_name="Tutor Pengirim",
+            is_group=False,
+        )
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-authoritative@g.us",
+            name="English Ratih",
+        )
+        db.session.add_all(
+            [
+                curriculum,
+                level,
+                subject,
+                wrong_subject,
+                validated_student,
+                payload_student,
+                tutor,
+                contact,
+                group,
+                enrollment,
+            ]
+        )
+        db.session.flush()
+        db.session.add_all(
+            [
+                WhatsAppStudentGroupValidation(
+                    group_id=group.id,
+                    student_id=validated_student.id,
+                ),
+                WhatsAppTutorValidation(
+                    contact_id=contact.id,
+                    tutor_id=tutor.id,
+                    validated_phone_number="081333333333",
+                ),
+            ]
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-authoritative-identity",
+            group=group,
+            author_phone_number="081333333333",
+            author_name="Tutor Pengirim",
+            sent_at=datetime(2026, 5, 13, 18, 45, 0),
+            body="Laporan evaluasi valid",
+        )
+        db.session.add(message)
+        db.session.flush()
+
+        evaluation, created, attendance_linked = WhatsAppIngestService.upsert_evaluation(
+            message,
+            group,
+            {
+                "student_name": "Nama Dari Pesan",
+                "tutor_name": "Nama Tutor Dari Pesan",
+                "subject_name": "Matematika",
+                "reported_lesson_date": "2026-04-01",
+                "summary_text": "Evaluasi valid.",
+            },
+            "081333333333",
+        )
+        db.session.commit()
+
+        assert created is True
+        assert attendance_linked is True
+        assert evaluation.attendance_date == date(2026, 5, 13)
+        assert evaluation.matched_student_id == validated_student.id
+        assert evaluation.matched_tutor_id == tutor.id
+        assert evaluation.matched_subject_id == subject.id
+        assert evaluation.matched_enrollment_id == enrollment.id
+        assert AttendanceSession.query.count() == 1
+        session = AttendanceSession.query.first()
+        assert session.student_id == validated_student.id
+        assert session.tutor_id == tutor.id
+        assert session.subject_id == subject.id
 
 
 def test_ingest_sync_payload_avoids_duplicate_messages_but_keeps_distinct_tutor_posts():

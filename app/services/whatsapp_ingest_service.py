@@ -844,71 +844,99 @@ class WhatsAppIngestService:
         return None
 
     @staticmethod
+    def find_validated_student_by_group(
+        group: WhatsAppGroup | None,
+    ) -> WhatsAppStudentGroupValidation | None:
+        if group is None:
+            return None
+        return WhatsAppStudentGroupValidation.query.filter_by(group_id=group.id).first()
+
+    @staticmethod
     def match_entities_from_group_context(
         evaluation: WhatsAppEvaluation,
         author_phone_number: str | None,
     ) -> dict:
-        fallback = WhatsAppIngestService.match_entities(
-            evaluation.student_name,
-            evaluation.tutor_name,
-            evaluation.subject_name,
-            author_phone_number,
-        )
         group = evaluation.group
-        validation = WhatsAppIngestService.find_validated_tutor_by_phone(
+        tutor_validation = WhatsAppIngestService.find_validated_tutor_by_phone(
             author_phone_number
         )
+        student_group_validation = WhatsAppIngestService.find_validated_student_by_group(
+            group
+        )
 
-        if group is None or validation is None or validation.tutor is None:
-            return fallback
+        tutor = tutor_validation.tutor if tutor_validation else None
+        student = student_group_validation.student if student_group_validation else None
 
-        tutor = validation.tutor
+        if group is None:
+            return {
+                "student": None,
+                "tutor": tutor,
+                "subject": None,
+                "enrollment": None,
+                "confidence": 0,
+                "status": "unmatched",
+                "note": "WhatsApp message has no group context.",
+            }
+
+        if student is None and tutor is None:
+            return {
+                "student": None,
+                "tutor": None,
+                "subject": None,
+                "enrollment": None,
+                "confidence": 0,
+                "status": "unmatched",
+                "note": (
+                    "Could not resolve validated WhatsApp student group "
+                    "or sender tutor."
+                ),
+            }
+
+        if student is None:
+            return {
+                "student": None,
+                "tutor": tutor,
+                "subject": None,
+                "enrollment": None,
+                "confidence": 35 if tutor is not None else 0,
+                "status": "unmatched",
+                "note": "WhatsApp group has not been validated as a student group.",
+            }
+
+        if tutor is None:
+            return {
+                "student": student,
+                "tutor": None,
+                "subject": None,
+                "enrollment": None,
+                "confidence": 45,
+                "status": "unmatched",
+                "note": "WhatsApp sender has not been validated as a tutor.",
+            }
+
         candidates = [
             enrollment
-            for enrollment in Enrollment.query.filter_by(status="active").all()
+            for enrollment in Enrollment.query.filter_by(
+                student_id=student.id,
+                status="active",
+            ).all()
             if find_matching_enrollment_group(enrollment, group) is not None
         ]
         if not candidates:
             return {
-                "student": fallback["student"],
+                "student": student,
                 "tutor": tutor,
-                "subject": fallback["subject"],
+                "subject": None,
                 "enrollment": None,
-                "confidence": 40,
+                "confidence": 70,
                 "status": "unmatched",
                 "note": (
-                    "Tutor matched from validated WhatsApp number, "
+                    "Student and tutor matched from validated WhatsApp identity, "
                     "but no active enrollment shares this WhatsApp group."
                 ),
             }
 
         filtered_candidates = list(candidates)
-        matched_student = None
-        student_match = find_best_name_match(
-            evaluation.student_name,
-            [
-                {
-                    "id": enrollment.id,
-                    "name": enrollment.student.name if enrollment.student else None,
-                    "obj": enrollment,
-                }
-                for enrollment in filtered_candidates
-                if enrollment.student is not None
-            ],
-        )
-        if student_match is not None:
-            filtered_candidates = [student_match["obj"]]
-            matched_student = student_match["obj"].student
-
-        matched_subject = WhatsAppIngestService.find_subject(evaluation.subject_name)
-        if matched_subject is not None:
-            subject_filtered = [
-                enrollment
-                for enrollment in filtered_candidates
-                if enrollment.subject_id == matched_subject.id
-            ]
-            if subject_filtered:
-                filtered_candidates = subject_filtered
 
         tutor_owned_candidates = [
             enrollment
@@ -921,23 +949,23 @@ class WhatsAppIngestService:
         if len(filtered_candidates) == 1:
             selected = filtered_candidates[0]
             return {
-                "student": matched_student or selected.student or fallback["student"],
+                "student": student,
                 "tutor": tutor,
-                "subject": matched_subject or selected.subject or fallback["subject"],
+                "subject": selected.subject,
                 "enrollment": selected,
                 "confidence": 99,
                 "status": "matched",
                 "note": (
-                    "Enrollment matched from validated tutor WhatsApp number "
-                    "and WhatsApp group."
+                    "Enrollment matched from validated WhatsApp group student "
+                    "and sender tutor identity."
                 ),
             }
 
         if len(filtered_candidates) > 1:
             return {
-                "student": matched_student or fallback["student"],
+                "student": student,
                 "tutor": tutor,
-                "subject": matched_subject or fallback["subject"],
+                "subject": None,
                 "enrollment": None,
                 "confidence": 65,
                 "status": "ambiguous",

@@ -156,6 +156,46 @@ def test_attendance_list_sort_orders_by_student_name():
         assert [item.student.name for item in desc_results] == ["Ratih", "Nadine"]
 
 
+def test_attendance_list_sort_orders_by_student_name_and_date_together():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        seeded = _seed_attendance_sessions()
+        nadine_session = seeded["april_session"]
+        older_nadine_session = AttendanceSession(
+            enrollment_id=nadine_session.enrollment_id,
+            student_id=nadine_session.student_id,
+            tutor_id=nadine_session.tutor_id,
+            subject_id=nadine_session.subject_id,
+            session_date=date(2026, 4, 1),
+            status="attended",
+            student_present=True,
+            tutor_present=True,
+            tutor_fee_amount=80000,
+        )
+        db.session.add(older_nadine_session)
+        db.session.commit()
+
+        latest_first = _apply_attendance_list_sort(
+            _build_attendance_list_query(),
+            "student_asc_date_desc",
+        ).all()
+        oldest_first = _apply_attendance_list_sort(
+            _build_attendance_list_query(),
+            "student_asc_date_asc",
+        ).all()
+
+        assert [item.session_date for item in latest_first[:2]] == [
+            date(2026, 4, 10),
+            date(2026, 4, 1),
+        ]
+        assert [item.session_date for item in oldest_first[:2]] == [
+            date(2026, 4, 1),
+            date(2026, 4, 10),
+        ]
+
+
 def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     project_root = Path(__file__).resolve().parents[1]
     template_text = (
@@ -188,6 +228,10 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert 'value="student_asc"' in template_text
     assert "Siswa A-Z" in template_text
     assert "Siswa Z-A" in template_text
+    assert 'value="student_asc_date_asc"' in template_text
+    assert 'value="student_desc_date_asc"' in template_text
+    assert "Siswa A-Z, tanggal terlama" in template_text
+    assert "Siswa Z-A, tanggal terbaru" in template_text
     assert 'name="sort" value="{{ selected_sort or \'date_desc\' }}"' in template_text
     assert "sort=selected_sort or 'date_desc'" in template_text
     assert "attendance.delete_attendance" in template_text

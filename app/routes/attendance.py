@@ -58,6 +58,10 @@ ATTENDANCE_SORT_OPTIONS = {
     "date_asc",
     "student_asc",
     "student_desc",
+    "student_asc_date_desc",
+    "student_asc_date_asc",
+    "student_desc_date_desc",
+    "student_desc_date_asc",
 }
 
 
@@ -247,22 +251,42 @@ def _apply_attendance_list_sort(query, sort_by: str | None):
     if sort_by not in ATTENDANCE_SORT_OPTIONS:
         sort_by = "date_desc"
 
-    if sort_by == "student_asc":
+    if sort_by in {"student_asc", "student_asc_date_desc", "student_asc_date_asc"}:
+        date_order = (
+            AttendanceSession.session_date.asc()
+            if sort_by == "student_asc_date_asc"
+            else AttendanceSession.session_date.desc()
+        )
+        id_order = (
+            AttendanceSession.id.asc()
+            if sort_by == "student_asc_date_asc"
+            else AttendanceSession.id.desc()
+        )
         return (
             query.join(Student, AttendanceSession.student_id == Student.id)
             .order_by(
                 Student.name.asc(),
-                AttendanceSession.session_date.desc(),
-                AttendanceSession.id.desc(),
+                date_order,
+                id_order,
             )
         )
-    if sort_by == "student_desc":
+    if sort_by in {"student_desc", "student_desc_date_desc", "student_desc_date_asc"}:
+        date_order = (
+            AttendanceSession.session_date.asc()
+            if sort_by == "student_desc_date_asc"
+            else AttendanceSession.session_date.desc()
+        )
+        id_order = (
+            AttendanceSession.id.asc()
+            if sort_by == "student_desc_date_asc"
+            else AttendanceSession.id.desc()
+        )
         return (
             query.join(Student, AttendanceSession.student_id == Student.id)
             .order_by(
                 Student.name.desc(),
-                AttendanceSession.session_date.desc(),
-                AttendanceSession.id.desc(),
+                date_order,
+                id_order,
             )
         )
     if sort_by == "date_asc":

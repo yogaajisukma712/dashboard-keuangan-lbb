@@ -155,8 +155,10 @@
         <select name="sort" class="form-select form-select-sm">
           <option value="date_desc" {% if selected_sort == 'date_desc' %}selected{% endif %}>Tanggal terbaru</option>
           <option value="date_asc" {% if selected_sort == 'date_asc' %}selected{% endif %}>Tanggal terlama</option>
-          <option value="student_asc" {% if selected_sort == 'student_asc' %}selected{% endif %}>Siswa A-Z</option>
-          <option value="student_desc" {% if selected_sort == 'student_desc' %}selected{% endif %}>Siswa Z-A</option>
+          <option value="student_asc" {% if selected_sort == 'student_asc' %}selected{% endif %}>Siswa A-Z, tanggal terbaru</option>
+          <option value="student_asc_date_asc" {% if selected_sort == 'student_asc_date_asc' %}selected{% endif %}>Siswa A-Z, tanggal terlama</option>
+          <option value="student_desc" {% if selected_sort == 'student_desc' %}selected{% endif %}>Siswa Z-A, tanggal terbaru</option>
+          <option value="student_desc_date_asc" {% if selected_sort == 'student_desc_date_asc' %}selected{% endif %}>Siswa Z-A, tanggal terlama</option>
         </select>
       </div>
 

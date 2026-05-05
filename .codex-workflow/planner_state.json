@@ -1,29 +1,29 @@
 {
-  "goal": "Preserve duplicate tutor attendance CSV rows for back-to-back sessions",
+  "goal": "Relax WhatsApp evaluation parser for tutor reports",
   "project_id": "billing-supersmart",
   "phase": "verification_done",
   "current_role": "codex",
-  "updated_at": "2026-05-04T23:40:42Z",
+  "updated_at": "2026-05-05T00:29:55Z",
   "plan": [
     {
-      "step": "Analyze CSV and runtime DB mismatch",
+      "step": "Broaden parser keywords and fallback body extraction",
       "status": "completed",
-      "note": "alldata Data Presensi Tutor has 4 Rafi rows on 2026-03-01; DB had 2 before re-import."
+      "note": "Added typo/generic report keywords and skipped date/time/topic label lines from fallback body."
     },
     {
-      "step": "Fix bulk and legacy attendance import dedupe",
+      "step": "Add TDD coverage",
       "status": "completed",
-      "note": "Duplicate rows no longer collapse into one AttendanceSession."
+      "note": "Added Hsil Evaluasi and Laporan tests; npm bot tests 18 passed."
     },
     {
-      "step": "Verify and re-import runtime attendance",
+      "step": "Rebuild runtime services",
       "status": "completed",
-      "note": "Target duplicate tests passed; runtime import done; Rafi now 4 sessions."
+      "note": "whatsapp_bot recreated with new image; web recovered and smoke OK."
     }
   ],
   "notes": [
-    "Attendance CSV rows with same student/date/tutor/subject are valid when a student takes back-to-back sessions.",
-    "Import note keys now add occurrence suffix for duplicate attendance rows; old first-row key remains backward compatible.",
-    "Runtime alldata attendance re-import restored Rafi 2026-03-01 from 2 rows to 4 rows."
+    "Parser now accepts Hasil Evaluasi/Hsil Evaluasi/Laporan/Evaluation/Report style messages when date, time, and real evaluation body exist.",
+    "Topic label is no longer mandatory for report-like messages; focusTopic falls back to subject or Evaluasi.",
+    "Casual promise messages with date/time but no body still rejected."
   ]
 }

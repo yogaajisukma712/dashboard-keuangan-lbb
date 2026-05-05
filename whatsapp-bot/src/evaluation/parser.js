@@ -61,6 +61,12 @@ function cleanQuotedLabelValue(value) {
   return normalizeWhitespace(value).replace(/^[\"“”'`]+|[\"“”'`]+$/g, '');
 }
 
+function hasEvaluationKeyword(body) {
+  return /(?:hasil\s*evaluasi|hsil\s*evaluasi|laporan|evaluasi|evaluation|report|progress\s+report|lesson\s+summary|learning\s+summary)/i.test(
+    String(body || ''),
+  );
+}
+
 function extractTutorName(body) {
   const greetingMatch = body.match(
     /(?:Salam hangat,|Warm regards,?|Regards,?|Best regards,?|Tutor,?|Teacher,?)\s*\n+([^\n]+)/i,
@@ -90,10 +96,20 @@ function splitIndonesianLessonDescriptor(segment) {
 
 function findTitleMatch(body) {
   const idTitle = body.match(
-    /(?:laporan\s+(?:evaluasi|hasil belajar|pembelajaran)\s+(?:untuk\s+)?(?:sesi\s+)?les|evaluasi\s+(?:sesi\s+)?les|report\s+(?:sesi\s+)?les)\s+(.+?)(?:\s+hari ini|\s*$|:)/i,
+    /(?:laporan\s+(?:evaluasi|hasil belajar|pembelajaran)\s+(?:untuk\s+)?(?:sesi\s+)?les|hasil\s*evaluasi\s+(?:untuk\s+)?(?:sesi\s+)?les|hsil\s*evaluasi\s+(?:untuk\s+)?(?:sesi\s+)?les|evaluasi\s+(?:sesi\s+)?les|report\s+(?:sesi\s+)?les)\s+(.+?)(?:\s+hari ini|\s*$|:)/i,
   );
   if (idTitle) {
     return { sourceLanguage: 'id', descriptor: normalizeWhitespace(idTitle[1]) };
+  }
+
+  const genericIdTitle = body.match(
+    /(?:^|\n)\s*(?:[📄📝🔍✅⭐️✨\-•]*\s*)?(?:hasil\s*evaluasi|hsil\s*evaluasi|laporan|evaluasi)\s*(?:untuk|siswa|murid|ananda)?\s*:?\s*(.+?)(?:\n|$)/i,
+  );
+  if (genericIdTitle) {
+    const descriptor = normalizeWhitespace(genericIdTitle[1]);
+    if (descriptor && !/^(tanggal|tgl|waktu|jam|pukul|topik|materi)\b/i.test(descriptor)) {
+      return { sourceLanguage: 'id', descriptor };
+    }
   }
 
   const enTitle = body.match(
@@ -118,28 +134,46 @@ function findTitleMatch(body) {
     };
   }
 
+  const genericEnTitle = body.match(
+    /(?:^|\n)\s*(?:[📄📝🔍✅⭐️✨\-•]*\s*)?(?:evaluation|report|progress\s+report)\s*(?:for)?\s*:?\s*(.+?)(?:\n|$)/i,
+  );
+  if (genericEnTitle) {
+    const descriptor = normalizeWhitespace(genericEnTitle[1]);
+    if (descriptor && !/^(date|time|topic|focus)\b/i.test(descriptor)) {
+      return { sourceLanguage: 'en', studentName: descriptor, subjectName: null };
+    }
+  }
+
   return null;
 }
 
 function extractEvaluationBody(body) {
   const lines = String(body || '').replace(/\r/g, '').split('\n');
   const headerIndex = lines.findIndex((line) =>
-    /(?:🔍\s*)?(?:Evaluasi|Evaluation|Catatan\s+Evaluasi|Hasil\s+Belajar|Lesson\s+Summary|Learning\s+Summary|Progress\s+Report)\s*:/i.test(line),
+    /(?:🔍\s*)?(?:Evaluasi|Evaluation|Catatan\s+Evaluasi|Hasil\s*Evaluasi|Hsil\s*Evaluasi|Hasil\s+Belajar|Laporan|Report|Lesson\s+Summary|Learning\s+Summary|Progress\s+Report)\s*:/i.test(line),
   );
-  if (headerIndex === -1) return '';
+  const fallbackHeaderIndex = headerIndex === -1
+    ? lines.findIndex((line) =>
+        /(?:hasil\s*evaluasi|hsil\s*evaluasi|laporan|evaluation|report|lesson\s+summary|learning\s+summary)/i.test(line),
+      )
+    : headerIndex;
+  if (fallbackHeaderIndex === -1) return '';
 
   const chunks = [];
-  const headerLine = lines[headerIndex];
+  const headerLine = lines[fallbackHeaderIndex];
   const headerContent = normalizeWhitespace(
-    headerLine.replace(/.*?(?:Evaluasi|Evaluation|Catatan\s+Evaluasi|Hasil\s+Belajar|Lesson\s+Summary|Learning\s+Summary|Progress\s+Report)\s*:/i, ''),
+    headerLine.replace(/.*?(?:Evaluasi|Evaluation|Catatan\s+Evaluasi|Hasil\s*Evaluasi|Hsil\s*Evaluasi|Hasil\s+Belajar|Laporan|Report|Lesson\s+Summary|Learning\s+Summary|Progress\s+Report)\s*:?\s*/i, ''),
   );
   if (headerContent) {
     chunks.push(headerContent);
   }
 
-  for (let index = headerIndex + 1; index < lines.length; index += 1) {
+  for (let index = fallbackHeaderIndex + 1; index < lines.length; index += 1) {
     const line = normalizeWhitespace(lines[index]);
     if (!line) continue;
+    if (/^(?:📅|🕒|📚)?\s*(?:Tanggal|Tgl|Hari\/Tanggal|Date|Lesson Date|Class Date|Waktu|Jam|Pukul|Waktu Les|Time|Class Time|Lesson Time|Topik|Materi|Materi\/Topik|Mata Pelajaran|Pelajaran|Pembahasan|Focus Topic|Topic|Lesson Topic|Focus)\s*[:：-]/i.test(line)) {
+      continue;
+    }
     if (
       /^(?:📝\s*)?Additional Notes\s*:/i.test(line) ||
       /^(?:📝\s*)?(?:Catatan|Notes)\s*:/i.test(line) ||
@@ -167,7 +201,7 @@ function classifyEvaluationMessage(body) {
   const titleMatch = findTitleMatch(text);
   const dateMatch = matchFirstLabel(text, ['Tanggal', 'Tgl', 'Hari/Tanggal', 'Date', 'Lesson Date', 'Class Date']);
   const timeMatch = matchFirstLabel(text, ['Waktu', 'Jam', 'Pukul', 'Waktu Les', 'Time', 'Class Time', 'Lesson Time']);
-  const topicMatch = matchFirstLabel(text, ['Topik', 'Materi', 'Materi/Topik', 'Pembahasan', 'Focus Topic', 'Topic', 'Lesson Topic', 'Focus']);
+  const topicMatch = matchFirstLabel(text, ['Topik', 'Materi', 'Materi/Topik', 'Mata Pelajaran', 'Pelajaran', 'Pembahasan', 'Focus Topic', 'Topic', 'Lesson Topic', 'Focus']);
   const evaluationBody = extractEvaluationBody(text);
   const parsedDate = dateMatch
     ? parseIndonesianDate(dateMatch[1]) || parseEnglishDate(dateMatch[1])
@@ -187,19 +221,29 @@ function classifyEvaluationMessage(body) {
     hasParsedTime: Boolean(parsedTime && hasLikelyTimeRange(parsedTime)),
     hasTopic: Boolean(parsedTopic && parsedTopic.length >= 3),
     hasEvaluationBody: Boolean(evaluationBody && evaluationBody.length >= 40),
+    hasEvaluationKeyword: hasEvaluationKeyword(text),
     hasClosingIdentity,
     hasGuardianGreeting,
   };
 
-  const requiredMarkers = [
+  const strictMarkers = [
     markers.hasTitle,
     markers.hasParsedDate,
     markers.hasParsedTime,
     markers.hasTopic,
     markers.hasEvaluationBody,
   ];
+  const relaxedMarkers = [
+    markers.hasEvaluationKeyword,
+    markers.hasParsedDate,
+    markers.hasParsedTime,
+    markers.hasEvaluationBody,
+  ];
 
-  if (requiredMarkers.every(Boolean) && (markers.hasClosingIdentity || markers.hasGuardianGreeting)) {
+  if (strictMarkers.every(Boolean) && (markers.hasClosingIdentity || markers.hasGuardianGreeting)) {
+    return { shouldStore: true, reason: 'evaluation-report', markers };
+  }
+  if (relaxedMarkers.every(Boolean) && (markers.hasTitle || markers.hasTopic || markers.hasClosingIdentity || markers.hasGuardianGreeting)) {
     return { shouldStore: true, reason: 'evaluation-report', markers };
   }
   return { shouldStore: false, reason: 'irrelevant', markers };
@@ -240,13 +284,19 @@ function parseEvaluationMessage(body) {
   const timeMatch = matchFirstLabel(text, ['Waktu', 'Jam', 'Pukul', 'Waktu Les', 'Time', 'Class Time', 'Lesson Time']);
   if (timeMatch) reportedTimeLabel = normalizeWhitespace(timeMatch[1]);
 
-  const topicMatch = matchFirstLabel(text, ['Topik', 'Materi', 'Materi/Topik', 'Pembahasan', 'Focus Topic', 'Topic', 'Lesson Topic', 'Focus']);
+  const topicMatch = matchFirstLabel(text, ['Topik', 'Materi', 'Materi/Topik', 'Mata Pelajaran', 'Pelajaran', 'Pembahasan', 'Focus Topic', 'Topic', 'Lesson Topic', 'Focus']);
   if (topicMatch) {
     focusTopic = cleanQuotedLabelValue(topicMatch[1]);
   }
 
   const summaryText = extractEvaluationBody(text);
-  if (!studentName || !reportedLessonDate || !reportedTimeLabel || !focusTopic || !summaryText) {
+  if (!focusTopic && subjectName) {
+    focusTopic = subjectName;
+  }
+  if (!focusTopic && summaryText) {
+    focusTopic = 'Evaluasi';
+  }
+  if (!reportedLessonDate || !reportedTimeLabel || !summaryText) {
     return null;
   }
 

@@ -122,6 +122,44 @@ Ms. Lia`;
   assert.equal(parsed.focusTopic, 'Past Tense');
 });
 
+test('parseEvaluationMessage accepts typo hasil evaluasi report without topic label', () => {
+  const body = `Hsil Evaluasi Rafi
+
+Tanggal: 10 Mei 2026
+Waktu: 17.00-18.00 WIB
+
+Rafi mengerjakan latihan stoikiometri dan menyelesaikan pembahasan soal mol dengan lebih runtut. Ia perlu terus latihan konversi satuan agar semakin cepat.
+
+Salam hangat,
+Ms. Anggi`;
+
+  const parsed = parseEvaluationMessage(body);
+
+  assert.equal(parsed.studentName, 'Rafi');
+  assert.equal(parsed.reportedLessonDate, '2026-05-10');
+  assert.equal(parsed.reportedTimeLabel, '17.00-18.00 WIB');
+  assert.equal(parsed.focusTopic, 'Evaluasi');
+  assert.match(parsed.summaryText, /stoikiometri/);
+});
+
+test('classifyEvaluationMessage accepts laporan keyword with date time and body', () => {
+  const body = `Laporan
+Tanggal: 11 Mei 2026
+Jam: 18.00-19.00 WIB
+Pelajaran: Matematika
+
+Hari ini siswa membahas fungsi kuadrat, menentukan titik puncak, dan mengerjakan soal grafik. Pemahaman sudah lebih baik namun perlu latihan variasi soal.
+
+Tutor,
+Mr. Rendi`;
+
+  const result = classifyEvaluationMessage(body);
+
+  assert.equal(result.shouldStore, true);
+  assert.equal(result.markers.hasEvaluationKeyword, true);
+  assert.equal(result.markers.hasTopic, true);
+});
+
 test('parseEvaluationMessage keeps Indonesian evaluation body and tutor signature on duplicated template', () => {
   const body = `📄 Berikut adalah laporan evaluasi untuk sesi les Bahasa Inggris Salsa hari ini:
 
@@ -150,7 +188,7 @@ Ms. Dinda`;
   assert.doesNotMatch(parsed.summaryText, /Salam hangat/i);
 });
 
-test('classifyEvaluationMessage rejects incomplete evaluation template without topic block', () => {
+test('classifyEvaluationMessage accepts evaluation template without topic block', () => {
   const body = `Good Evening Mom/Dad ✨
 📄 Here is the evaluation report for Ratih’s English class:
 
@@ -162,7 +200,7 @@ Today, Ratih learned how to use “Do you” to ask about activities.`;
 
   const result = classifyEvaluationMessage(body);
 
-  assert.equal(result.shouldStore, false);
+  assert.equal(result.shouldStore, true);
   assert.equal(result.markers.hasTitle, true);
   assert.equal(result.markers.hasParsedDate, true);
   assert.equal(result.markers.hasParsedTime, true);

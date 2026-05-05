@@ -1,38 +1,38 @@
 {
-  "goal": "Validasi presensi les tanpa reload dengan spinner tombol",
+  "goal": "Tambah toggle status tutor dan default filter tutor aktif",
   "project_id": "billing-supersmart",
   "phase": "verification_done",
   "current_role": "codex",
-  "updated_at": "2026-05-05T16:01:44Z",
+  "updated_at": "2026-05-05T16:09:53Z",
   "plan": [
     {
-      "step": "Inspect attendance review route and template",
+      "step": "Inspect tutor route template tests",
       "status": "completed",
-      "note": "Route currently redirected after POST; template had three plain forms."
+      "note": "Found tutors_list route/template and student active toggle pattern."
     },
     {
-      "step": "Add JSON response and AJAX spinner UI",
+      "step": "Implement active filter and toggle",
       "status": "completed",
-      "note": "Endpoint now returns JSON for XMLHttpRequest; template updates badge/timestamp without reload."
+      "note": "Added active/inactive/all filter and POST toggle_tutor_active."
     },
     {
-      "step": "Add focused tests",
+      "step": "Add focused tutor tests",
       "status": "completed",
-      "note": "Template and route source assertions added."
+      "note": "Static route/template tests added in tests/test_tutor_views.py."
     },
     {
-      "step": "Run verification and rebuild web",
+      "step": "Run tests rebuild smoke",
       "status": "completed",
-      "note": "11 tests passed; py_compile OK; web rebuilt; browser smoke OK."
+      "note": "7 tests passed, py_compile OK, web rebuilt, browser smoke OK."
     },
     {
-      "step": "Commit and push attendance change",
-      "status": "completed",
-      "note": "Committed 3ed96aa and pushed to origin/main; then planner state completion will be pushed separately."
+      "step": "Commit push update planner",
+      "status": "in_progress"
     }
   ],
   "notes": [
-    "AJAX tidak membuat flash stale; fallback non-JS tetap redirect dengan flash.",
+    "Daftar tutor default active_state=active.",
+    "Toggle tutor memakai admin_required seperti toggle siswa.",
     "Dirty payroll/data-manager tidak disentuh."
   ]
 }

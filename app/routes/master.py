@@ -670,6 +670,7 @@ def tutors_list():
     page = request.args.get("page", 1, type=int)
     per_page = get_per_page()
     search = request.args.get("search", "", type=str)
+    active_state = request.args.get("active_state", "active", type=str).strip().lower()
 
     query = Tutor.query
 
@@ -682,9 +683,22 @@ def tutors_list():
             )
         )
 
+    if active_state == "active":
+        query = query.filter(Tutor.is_active.is_(True))
+    elif active_state == "inactive":
+        query = query.filter(Tutor.is_active.is_(False))
+    elif active_state != "all":
+        active_state = "active"
+        query = query.filter(Tutor.is_active.is_(True))
+
     tutors = query.paginate(page=page, per_page=per_page)
 
-    return render_template("master/tutors_list.html", tutors=tutors, search=search)
+    return render_template(
+        "master/tutors_list.html",
+        tutors=tutors,
+        search=search,
+        active_state=active_state,
+    )
 
 
 @master_bp.route("/tutors/add", methods=["GET", "POST"])
@@ -772,6 +786,26 @@ def delete_tutor(tutor_ref):
 
     flash(f"Tutor {name} berhasil dihapus", "success")
     return redirect(url_for("master.tutors_list"))
+
+
+@master_bp.route("/tutors/<string:tutor_ref>/toggle-active", methods=["POST"])
+@login_required
+@admin_required
+def toggle_tutor_active(tutor_ref):
+    """Toggle active status for a tutor."""
+    tutor = _get_tutor_by_ref_or_404(tutor_ref)
+    next_url = request.form.get("next") or url_for("master.tutors_list")
+
+    tutor.is_active = not bool(tutor.is_active)
+    if tutor.is_active:
+        tutor.status = "active"
+        flash(f"Tutor {tutor.name} diaktifkan kembali", "success")
+    else:
+        tutor.status = "inactive"
+        flash(f"Tutor {tutor.name} dinonaktifkan", "warning")
+
+    db.session.commit()
+    return redirect(next_url)
 
 
 @master_bp.route("/tutors/<string:tutor_ref>")

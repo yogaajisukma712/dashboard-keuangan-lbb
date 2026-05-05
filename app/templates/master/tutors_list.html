@@ -19,7 +19,7 @@
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body py-3">
     <form method="GET" action="{{ url_for('master.tutors_list') }}" class="row g-2 align-items-center">
-      <div class="col-md-8 col-lg-6">
+      <div class="col-md-6 col-lg-5">
         <div class="input-group">
           <span class="input-group-text bg-white border-end-0">
             <i class="bi bi-search text-muted"></i>
@@ -33,10 +33,17 @@
           />
         </div>
       </div>
+      <div class="col-md-3 col-lg-3">
+        <select name="active_state" class="form-select">
+          <option value="active" {% if active_state == 'active' %}selected{% endif %}>Tutor Aktif</option>
+          <option value="inactive" {% if active_state == 'inactive' %}selected{% endif %}>Tutor Nonaktif</option>
+          <option value="all" {% if active_state == 'all' %}selected{% endif %}>Semua Tutor</option>
+        </select>
+      </div>
       <div class="col-auto">
         <button type="submit" class="btn btn-primary px-4">Cari</button>
       </div>
-      {% if search %}
+      {% if search or active_state != 'active' %}
       <div class="col-auto">
         <a href="{{ url_for('master.tutors_list') }}" class="btn btn-outline-secondary">
           <i class="bi bi-x-circle me-1"></i>Reset
@@ -48,10 +55,11 @@
 </div>
 
 {# Hasil pencarian info #}
-{% if search %}
+{% if search or active_state != 'active' %}
 <div class="mb-3">
   <span class="text-muted small">
-    Hasil pencarian untuk <strong>"{{ search }}"</strong>:
+    {% if search %}Hasil pencarian untuk <strong>"{{ search }}"</strong>{% else %}Filter tutor{% endif %}:
+    {% if active_state == 'active' %}Tutor aktif{% elif active_state == 'inactive' %}Tutor nonaktif{% else %}Semua tutor{% endif %},
     {{ tutors.total }} tutor ditemukan
   </span>
 </div>
@@ -177,6 +185,21 @@
                 >
                   <i class="bi bi-pencil"></i>
                 </a>
+                <form
+                  method="POST"
+                  action="{{ url_for('master.toggle_tutor_active', tutor_ref=tutor.public_id) }}"
+                  class="d-inline"
+                >
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="next" value="{{ request.full_path }}">
+                  <button
+                    type="submit"
+                    class="btn {% if tutor.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}"
+                    title="{% if tutor.is_active %}Nonaktifkan tutor{% else %}Aktifkan tutor{% endif %}"
+                  >
+                    <i class="bi {% if tutor.is_active %}bi-toggle-on{% else %}bi-toggle-off{% endif %}"></i>
+                  </button>
+                </form>
                 <button
                   type="button"
                   class="btn btn-outline-danger"

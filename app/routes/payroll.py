@@ -3,6 +3,7 @@ Payroll routes for Dashboard Keuangan LBB Super Smart
 Handles tutor payment and payroll management
 """
 
+import base64
 import os
 import json
 from datetime import date, datetime
@@ -171,7 +172,6 @@ def _build_fee_slip_whatsapp_message(
     tutor: Tutor,
     total,
     period_label: str,
-    verify_url: str,
 ) -> str:
     payout_date = payout.payout_date.strftime("%d/%m/%Y") if payout.payout_date else "-"
     return (
@@ -180,7 +180,7 @@ def _build_fee_slip_whatsapp_message(
         "dalam mendampingi siswa-siswi LBB Super Smart.\n\n"
         f"Fee tutor untuk bulan {period_label} sebesar {_format_rupiah(total)} "
         f"telah kami proses/bayarkan pada {payout_date}.\n\n"
-        f"Detail slip fee dapat dilihat di link berikut:\n{verify_url}\n\n"
+        "Detail slip fee kami lampirkan dalam file PDF pada pesan ini.\n\n"
         "Semoga apresiasi ini menjadi penyemangat untuk terus memberikan "
         "pembelajaran terbaik. Terima kasih atas kerja samanya."
     )
@@ -634,7 +634,7 @@ def fee_slip(payout_ref):
         whatsapp_ready=whatsapp_session["ready"],
         tutor_whatsapp_contacts=tutor_whatsapp_contacts,
         default_whatsapp_message=_build_fee_slip_whatsapp_message(
-            payout, tutor, total, period_label, verify_url
+            payout, tutor, total, period_label
         ),
         institution_name=current_app.config.get("INSTITUTION_NAME", "LBB Super Smart"),
         institution_phone=current_app.config.get("INSTITUTION_PHONE", ""),
@@ -685,10 +685,23 @@ def fee_slip_send_whatsapp(payout_ref):
         flash("WhatsApp bot belum ready. Silakan login/scan QR terlebih dahulu.", "warning")
         return redirect(url_for("whatsapp_bot.management"))
 
+    pdf_response = fee_slip_pdf(payout.public_id)
+    pdf_response.direct_passthrough = False
+    pdf_bytes = pdf_response.get_data()
+    pdf_filename = secure_filename(f"fee_slip_{payout.id}_{tutor.tutor_code}.pdf")
+
     payload, status_code = _bot_request(
         "POST",
         "/messages/send",
-        {"to": contact_id, "message": message},
+        {
+            "to": contact_id,
+            "message": message,
+            "attachment": {
+                "filename": pdf_filename,
+                "mimetype": "application/pdf",
+                "data": base64.b64encode(pdf_bytes).decode("ascii"),
+            },
+        },
         timeout=60,
     )
     if status_code == 200 and payload.get("ok"):

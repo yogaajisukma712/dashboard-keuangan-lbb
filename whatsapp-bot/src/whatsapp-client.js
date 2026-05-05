@@ -1,5 +1,5 @@
 const QRCode = require('qrcode');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 
 const config = require('./config');
 const { classifyEvaluationMessage, parseEvaluationMessage } = require('./evaluation/parser');
@@ -348,7 +348,15 @@ function normalizeDirectContactId(value) {
   return digits ? `${digits}@c.us` : '';
 }
 
-async function sendDirectMessage(to, message) {
+function buildMessageMedia(attachment) {
+  if (!attachment || !attachment.data) return null;
+  const mimetype = String(attachment.mimetype || 'application/pdf');
+  const filename = String(attachment.filename || 'attachment.pdf');
+  const data = String(attachment.data || '');
+  return new MessageMedia(mimetype, data, filename);
+}
+
+async function sendDirectMessage(to, message, attachment = null) {
   const contactId = normalizeDirectContactId(to);
   const body = String(message || '').trim();
   if (!contactId) {
@@ -363,9 +371,14 @@ async function sendDirectMessage(to, message) {
   }
 
   const bot = await ensureReady();
-  const sent = await bot.sendMessage(contactId, body);
+  const media = buildMessageMedia(attachment);
+  const sent = media
+    ? await bot.sendMessage(contactId, media, { caption: body })
+    : await bot.sendMessage(contactId, body);
   return {
     to: contactId,
+    hasAttachment: Boolean(media),
+    filename: attachment?.filename || null,
     messageId: sent?.id?._serialized || null,
     timestamp: sent?.timestamp || null,
   };

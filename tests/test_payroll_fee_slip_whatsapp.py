@@ -19,9 +19,15 @@ def test_fee_slip_has_whatsapp_delivery_form_and_bot_guard():
     assert '"/fee-slip/<string:payout_ref>/send-whatsapp"' in route_text
     assert "_get_whatsapp_session_status()" in route_text
     assert "_build_fee_slip_whatsapp_message(" in route_text
+    assert "base64.b64encode(pdf_bytes)" in route_text
+    assert '"attachment": {' in route_text
     assert "WhatsAppTutorValidation" in route_text
     assert "Pengiriman ke WhatsApp" in template_text
     assert "default_whatsapp_message" in template_text
+    assert "PDF slip akan dilampirkan otomatis" in template_text
     assert "url_for('whatsapp_bot.management')" in template_text
     assert "app.post('/messages/send'" in bot_server
+    assert "req.body?.attachment" in bot_server
+    assert "MessageMedia" in bot_client
+    assert "{ caption: body }" in bot_client
     assert "sendDirectMessage" in bot_client

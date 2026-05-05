@@ -135,7 +135,7 @@ app.get('/groups', async (_req, res) => {
 
 app.post('/messages/send', async (req, res) => {
   try {
-    const result = await sendDirectMessage(req.body?.to, req.body?.message);
+    const result = await sendDirectMessage(req.body?.to, req.body?.message, req.body?.attachment);
     res.json({ ok: true, result });
   } catch (error) {
     res.status(error.statusCode || 500).json({ ok: false, error: error.message });

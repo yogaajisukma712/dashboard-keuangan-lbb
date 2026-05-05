@@ -54,6 +54,21 @@
       </div>
     </div>
 
+    {% if payout.whatsapp_last_message %}
+    <div class="alert alert-success small">
+      <div class="fw-semibold mb-1">
+        <i class="bi bi-chat-dots me-1"></i>Pesan WhatsApp terakhir tersimpan
+      </div>
+      <div class="text-muted mb-2">
+        Dikirim ke <code>{{ payout.whatsapp_last_contact_id or '-' }}</code>
+        {% if payout.whatsapp_last_sent_at %}
+        pada {{ payout.whatsapp_last_sent_at.strftime('%d %b %Y, %H:%M') }}
+        {% endif %}
+      </div>
+      <pre class="mb-0 small text-wrap bg-white border rounded p-2">{{ payout.whatsapp_last_message }}</pre>
+    </div>
+    {% endif %}
+
     {% if not whatsapp_ready %}
     <div class="alert alert-warning small mb-0">
       WhatsApp bot belum siap digunakan. Silakan buka halaman manajemen WA untuk login atau scan QR.

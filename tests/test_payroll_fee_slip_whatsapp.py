@@ -15,14 +15,28 @@ def test_fee_slip_has_whatsapp_delivery_form_and_bot_guard():
     bot_client = (
         project_root / "whatsapp-bot" / "src" / "whatsapp-client.js"
     ).read_text(encoding="utf-8")
+    model_text = (project_root / "app" / "models" / "payroll.py").read_text(
+        encoding="utf-8"
+    )
+    entrypoint_text = (project_root / "docker" / "entrypoint.sh").read_text(
+        encoding="utf-8"
+    )
 
     assert '"/fee-slip/<string:payout_ref>/send-whatsapp"' in route_text
     assert "_get_whatsapp_session_status()" in route_text
     assert "_build_fee_slip_whatsapp_message(" in route_text
     assert "base64.b64encode(pdf_bytes)" in route_text
     assert '"attachment": {' in route_text
+    assert "payout.whatsapp_last_message = message" in route_text
+    assert "payout.whatsapp_last_contact_id = contact_id" in route_text
+    assert "payout.whatsapp_last_sent_at = datetime.utcnow()" in route_text
     assert "WhatsAppTutorValidation" in route_text
+    assert "whatsapp_last_message = db.Column(db.Text)" in model_text
+    assert "whatsapp_last_contact_id = db.Column(db.String(255))" in model_text
+    assert "whatsapp_last_message TEXT" in entrypoint_text
     assert "Pengiriman ke WhatsApp" in template_text
+    assert "Pesan WhatsApp terakhir tersimpan" in template_text
+    assert "payout.whatsapp_last_message" in template_text
     assert "default_whatsapp_message" in template_text
     assert "PDF slip akan dilampirkan otomatis" in template_text
     assert "url_for('whatsapp_bot.management')" in template_text

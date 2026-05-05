@@ -34,6 +34,10 @@ class TutorPayout(db.Model):
     )  # pending, completed, cancelled
     proof_image = db.Column(db.String(500))  # path relatif ke UPLOAD_FOLDER
     proof_notes = db.Column(db.Text)  # catatan bukti transfer
+    whatsapp_last_contact_id = db.Column(db.String(255))
+    whatsapp_last_message = db.Column(db.Text)
+    whatsapp_last_sent_at = db.Column(db.DateTime)
+    whatsapp_last_status = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

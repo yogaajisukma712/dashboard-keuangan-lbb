@@ -1,29 +1,29 @@
 {
-  "goal": "Ganti filter rekening menjadi filter nama tutor di rekap gaji tutor",
+  "goal": "Simpan pesan WhatsApp terakhir saat kirim slip gaji tutor",
   "project_id": "billing-supersmart",
   "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-05T20:08:15Z",
+  "updated_at": "2026-05-05T20:20:41Z",
   "plan": [
     {
-      "step": "Replace account filter with tutor name filter",
+      "step": "Inspect fee slip WhatsApp send flow",
       "status": "completed"
     },
     {
-      "step": "Keep account sort aligned beside name filter",
+      "step": "Add payout WhatsApp last-message fields and migration",
       "status": "completed"
     },
     {
-      "step": "Run tests and rebuild web",
+      "step": "Persist message after successful bot send and show on fee slip",
       "status": "completed"
     },
     {
-      "step": "Run Hermes verification and push",
+      "step": "Run tests, rebuild, smoke, push",
       "status": "completed",
-      "note": "Targeted tests passed; web rebuilt; smoke reached login page for tutor summary route."
+      "note": "Targeted test passed; web rebuilt; DB columns verified; smoke reached login page."
     }
   ],
   "notes": [
-    "Filter cepat sekarang berdasarkan nama tutor; dropdown Urut No. Rekening tetap sejajar di filter bar."
+    "Saat pengiriman slip gaji via WhatsApp berhasil, payout menyimpan contact, pesan, waktu kirim, dan status terakhir."
   ]
 }

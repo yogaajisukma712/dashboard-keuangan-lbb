@@ -705,6 +705,11 @@ def fee_slip_send_whatsapp(payout_ref):
         timeout=60,
     )
     if status_code == 200 and payload.get("ok"):
+        payout.whatsapp_last_contact_id = contact_id
+        payout.whatsapp_last_message = message
+        payout.whatsapp_last_sent_at = datetime.utcnow()
+        payout.whatsapp_last_status = "sent"
+        db.session.commit()
         flash(f"Slip fee berhasil dikirim ke WhatsApp {tutor.name}.", "success")
     else:
         flash(f"Kirim WhatsApp gagal: {payload.get('error') or 'Bot error'}", "danger")

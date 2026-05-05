@@ -56,6 +56,10 @@ EXTRA_DDL = [
     # Payroll proof of transfer
     "ALTER TABLE tutor_payouts ADD COLUMN IF NOT EXISTS proof_image  VARCHAR(500)",
     "ALTER TABLE tutor_payouts ADD COLUMN IF NOT EXISTS proof_notes  TEXT",
+    "ALTER TABLE tutor_payouts ADD COLUMN IF NOT EXISTS whatsapp_last_contact_id VARCHAR(255)",
+    "ALTER TABLE tutor_payouts ADD COLUMN IF NOT EXISTS whatsapp_last_message TEXT",
+    "ALTER TABLE tutor_payouts ADD COLUMN IF NOT EXISTS whatsapp_last_sent_at TIMESTAMP",
+    "ALTER TABLE tutor_payouts ADD COLUMN IF NOT EXISTS whatsapp_last_status VARCHAR(50)",
     # Students — possibly added after initial deploy
     "ALTER TABLE students ADD COLUMN IF NOT EXISTS status    VARCHAR(20)  DEFAULT 'active'",
     "ALTER TABLE students ADD COLUMN IF NOT EXISTS is_active BOOLEAN      DEFAULT TRUE",

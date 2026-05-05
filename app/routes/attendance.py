@@ -737,6 +737,66 @@ def review_whatsapp_attendance(session_ref):
     return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
 
 
+@attendance_bp.route("/bulk-whatsapp-review", methods=["POST"])
+@login_required
+def bulk_review_whatsapp_attendance():
+    """Bulk mark selected WhatsApp-scanned attendance as manually crosschecked."""
+    session_refs = request.form.getlist("attendance_refs")
+    review_status = (request.form.get("review_status") or "").strip()
+    review_notes = request.form.get("review_notes")
+
+    if review_status not in WHATSAPP_REVIEW_STATUSES:
+        flash("Status validasi manual WhatsApp tidak valid.", "danger")
+        return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
+    if not session_refs:
+        flash("Pilih minimal satu presensi WhatsApp terlebih dahulu.", "warning")
+        return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
+
+    session_ids = []
+    for session_ref in session_refs:
+        try:
+            session_ids.append(decode_public_id(session_ref, "attendance_session"))
+        except ValueError:
+            continue
+
+    if not session_ids:
+        flash("Tidak ada presensi valid yang dipilih.", "danger")
+        return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
+
+    sessions_to_review = AttendanceSession.query.filter(
+        AttendanceSession.id.in_(session_ids)
+    ).all()
+    try:
+        updated_count = 0
+        for attendance_session in sessions_to_review:
+            updated_count += _set_whatsapp_attendance_manual_review(
+                attendance_session,
+                review_status,
+                reviewer_id=getattr(current_user, "id", None),
+                notes=review_notes,
+            )
+        db.session.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+        return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Validasi bulk WhatsApp gagal: {exc}", "danger")
+        return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
+
+    if updated_count == 0:
+        flash("Tidak ada evaluasi WhatsApp yang perlu divalidasi dari pilihan ini.", "warning")
+    else:
+        action_label = {
+            "valid": "ditandai sudah benar",
+            "invalid": "ditandai perlu koreksi",
+            "pending": "direset status validasinya",
+        }.get(review_status, "diperbarui")
+        flash(f"{updated_count} evaluasi WhatsApp berhasil {action_label}.", "success")
+    return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
+
+
 @attendance_bp.route("/calendar", methods=["GET"])
 @login_required
 def calendar_view():

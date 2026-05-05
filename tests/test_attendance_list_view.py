@@ -224,6 +224,15 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert "Perlu koreksi" in template_text
     assert "Belum crosscheck" in template_text
     assert "attendance.review_whatsapp_attendance" in template_text
+    assert 'id="attendanceBulkReviewForm"' in template_text
+    assert "attendance.bulk_review_whatsapp_attendance" in template_text
+    assert 'id="selectAllAttendanceReviews"' in template_text
+    assert 'class="form-check-input attendance-bulk-review-checkbox"' in template_text
+    assert 'name="review_status" value="valid"' in template_text
+    assert 'name="review_status" value="invalid"' in template_text
+    assert 'name="review_status" value="pending"' in template_text
+    assert "updateAttendanceSelectAllState" in template_text
+    assert "Pilih minimal satu presensi WhatsApp terlebih dahulu." in template_text
     assert 'class="js-wa-review-form"' in template_text
     assert "spinner-border spinner-border-sm" in template_text
     assert '"X-Requested-With": "XMLHttpRequest"' in template_text
@@ -265,6 +274,12 @@ def test_attendance_routes_support_public_ref_filters_in_source():
     assert '"enrollment_ref": request.args.get("enrollment_ref") or stored_state.get("enrollment_ref") or ""' in route_text
     assert '"tutor_ref": request.args.get("tutor_ref") or stored_state.get("tutor_ref") or ""' in route_text
     assert '@attendance_bp.route("/<string:session_ref>/whatsapp-review"' in route_text
+    assert '@attendance_bp.route("/bulk-whatsapp-review", methods=["POST"])' in route_text
+    assert "def bulk_review_whatsapp_attendance():" in route_text
+    assert 'request.form.getlist("attendance_refs")' in route_text
+    assert 'review_status not in WHATSAPP_REVIEW_STATUSES' in route_text
+    assert 'decode_public_id(session_ref, "attendance_session")' in route_text
+    assert "AttendanceSession.id.in_(session_ids)" in route_text
     assert "_set_whatsapp_attendance_manual_review" in route_text
     assert "_wants_json_response()" in route_text
     assert "_whatsapp_review_response_payload" in route_text

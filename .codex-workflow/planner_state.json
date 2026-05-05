@@ -1,39 +1,38 @@
 {
-  "goal": "Persist filter presensi dan tambah bulk aktif/nonaktif tutor",
+  "goal": "Tambah bulk validasi manual presensi WhatsApp",
   "project_id": "billing-supersmart",
   "phase": "verification_done",
   "current_role": "codex",
-  "updated_at": "2026-05-05T16:37:36Z",
+  "updated_at": "2026-05-05T16:45:37Z",
   "plan": [
     {
-      "step": "Inspect tutor bulk UI route",
+      "step": "Inspect attendance review route template",
       "status": "completed",
-      "note": "Found tutor list filters, single toggle route, and tests."
+      "note": "Found single review route, helper, table, and existing AJAX UI."
     },
     {
-      "step": "Implement bulk tutor status action",
+      "step": "Add bulk review endpoint",
       "status": "completed",
-      "note": "Added /master/tutors/bulk-status, row checkboxes, select-all, and bulk buttons."
+      "note": "Added /attendance/bulk-whatsapp-review with public ref decode and preserved redirect filters."
     },
     {
-      "step": "Finish attendance persistence verification",
+      "step": "Add checkbox and bulk UI",
       "status": "completed",
-      "note": "Attendance state stored/restored via session, reset_filters clears it."
+      "note": "Added form, row checkboxes, select all, and three bulk actions."
     },
     {
-      "step": "Add focused tests",
+      "step": "Add tests and verify runtime",
       "status": "completed",
-      "note": "Updated tutor and attendance tests for bulk UI and persistence."
+      "note": "11 focused tests passed, py_compile OK, web rebuilt, browser smoke OK."
     },
     {
-      "step": "Run rebuild smoke and push",
-      "status": "completed",
-      "note": "Committed 1a3c245 and pushed to origin/main; planner completion will be pushed separately."
+      "step": "Commit push update planner",
+      "status": "in_progress"
     }
   ],
   "notes": [
-    "Bulk tutor server-side POST dengan CSRF; JS hanya select-all dan validasi minimal.",
-    "Attendance reset filter clear state session via reset_filters=1.",
+    "Bulk review server-side POST dengan CSRF; JS hanya select-all dan validasi minimal.",
+    "Menggunakan _set_whatsapp_attendance_manual_review agar business rule audit-only tetap sama.",
     "Dirty payroll/data-manager tidak disentuh."
   ]
 }

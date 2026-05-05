@@ -188,6 +188,9 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert 'value="student_asc"' in template_text
     assert "Siswa A-Z" in template_text
     assert "Siswa Z-A" in template_text
+    assert 'name="sort" value="{{ selected_sort or \'date_desc\' }}"' in template_text
+    assert "sort=selected_sort or 'date_desc'" in template_text
+    assert "attendance.delete_attendance" in template_text
 
 
 def test_attendance_form_template_contains_manual_tutor_selector():

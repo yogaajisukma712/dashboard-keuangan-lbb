@@ -1513,6 +1513,127 @@ def test_upsert_evaluation_inserts_first_group_enrollment_for_manual_review_when
         assert AttendanceSession.query.count() == 1
 
 
+def test_scan_attendance_updates_existing_link_when_group_enrollment_changes():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMP")
+        english = Subject(name="Bahasa Inggris")
+        math = Subject(name="Matematika")
+        old_student = Student(student_code="STD-208A", name="Old Student", is_active=True)
+        new_student = Student(student_code="STD-208B", name="New Student", is_active=True)
+        tutor = Tutor(tutor_code="TTR-208", name="Tutor", is_active=True)
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-rescan-change@g.us",
+            name="Updated Group",
+        )
+        old_enrollment = Enrollment(
+            student=old_student,
+            tutor=tutor,
+            subject=english,
+            curriculum=curriculum,
+            level=level,
+            grade="8",
+            student_rate_per_meeting=80000,
+            tutor_rate_per_meeting=45000,
+            status="active",
+            whatsapp_group_id="group-old@g.us",
+            whatsapp_group_name="Old Group",
+            whatsapp_group_memberships_json=[
+                {"whatsapp_group_id": "group-old@g.us", "group_name": "Old Group"}
+            ],
+        )
+        new_enrollment = Enrollment(
+            student=new_student,
+            tutor=tutor,
+            subject=math,
+            curriculum=curriculum,
+            level=level,
+            grade="8",
+            student_rate_per_meeting=90000,
+            tutor_rate_per_meeting=50000,
+            status="active",
+            whatsapp_group_id="group-rescan-change@g.us",
+            whatsapp_group_name="Updated Group",
+            whatsapp_group_memberships_json=[
+                {
+                    "whatsapp_group_id": "group-rescan-change@g.us",
+                    "group_name": "Updated Group",
+                }
+            ],
+        )
+        db.session.add_all(
+            [
+                curriculum,
+                level,
+                english,
+                math,
+                old_student,
+                new_student,
+                tutor,
+                group,
+                old_enrollment,
+                new_enrollment,
+            ]
+        )
+        db.session.flush()
+        session = AttendanceSession(
+            enrollment_id=old_enrollment.id,
+            student_id=old_student.id,
+            tutor_id=tutor.id,
+            subject_id=english.id,
+            session_date=date(2026, 5, 16),
+            status="attended",
+            student_present=True,
+            tutor_present=True,
+            tutor_fee_amount=45000,
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-rescan-change",
+            group=group,
+            author_phone_number="777000111222",
+            author_name="Unknown Sender",
+            sent_at=datetime(2026, 5, 16, 17, 0, 0),
+            body="Laporan evaluasi valid",
+        )
+        evaluation = WhatsAppEvaluation(
+            message=message,
+            group=group,
+            attendance_date=date(2026, 5, 16),
+            attendance_session=session,
+            matched_enrollment_id=old_enrollment.id,
+            matched_student_id=old_student.id,
+            matched_tutor_id=tutor.id,
+            matched_subject_id=english.id,
+            match_status="attendance-linked",
+        )
+        db.session.add_all(
+            [
+                WhatsAppStudentGroupValidation(
+                    group_id=group.id,
+                    student_id=new_student.id,
+                ),
+                session,
+                message,
+                evaluation,
+            ]
+        )
+        db.session.commit()
+
+        summary = WhatsAppIngestService.scan_attendance_for_month(5, 2026)
+
+        assert summary["linked_attendance"] == 1
+        assert AttendanceSession.query.count() == 1
+        assert session.enrollment_id == new_enrollment.id
+        assert session.student_id == new_student.id
+        assert session.subject_id == math.id
+        assert session.tutor_fee_amount == new_enrollment.tutor_rate_per_meeting
+        assert evaluation.matched_enrollment_id == new_enrollment.id
+        assert evaluation.matched_student_id == new_student.id
+
+
 def test_ingest_sync_payload_avoids_duplicate_messages_but_keeps_distinct_tutor_posts():
     app = _make_test_app()
 

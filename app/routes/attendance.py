@@ -277,6 +277,9 @@ def _apply_attendance_list_sort(query, sort_by: str | None):
 
 
 def _attendance_redirect_filters():
+    selected_sort = request.args.get("sort") or request.form.get("sort") or "date_desc"
+    if selected_sort not in ATTENDANCE_SORT_OPTIONS:
+        selected_sort = "date_desc"
     return {
         "page": request.args.get("page", 1, type=int),
         "enrollment_ref": request.args.get("enrollment_ref") or "",
@@ -284,6 +287,7 @@ def _attendance_redirect_filters():
         "month": request.args.get("month", type=int) or "",
         "year": request.args.get("year", type=int) or "",
         "status": request.args.get("status") or "",
+        "sort": selected_sort,
     }
 
 
@@ -517,6 +521,9 @@ def scan_whatsapp_attendance():
     month = request.form.get("month", type=int)
     year = request.form.get("year", type=int)
     status = request.form.get("status")
+    selected_sort = request.form.get("sort") or "date_desc"
+    if selected_sort not in ATTENDANCE_SORT_OPTIONS:
+        selected_sort = "date_desc"
     enrollment_ref = (request.form.get("enrollment_ref") or "").strip()
     tutor_ref = (request.form.get("tutor_ref") or "").strip()
 
@@ -526,6 +533,7 @@ def scan_whatsapp_attendance():
         "enrollment_ref": enrollment_ref,
         "tutor_ref": tutor_ref,
         "status": status or "",
+        "sort": selected_sort,
     }
 
     if not month or not year:
@@ -747,7 +755,7 @@ def delete_attendance(session_ref):
         db.session.rollback()
         flash(f"Error: {str(e)}", "danger")
 
-    return redirect(url_for("attendance.list_attendance"))
+    return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
 
 
 @attendance_bp.route("/monthly-summary", methods=["GET"])

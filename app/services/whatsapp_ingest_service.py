@@ -1907,6 +1907,18 @@ class WhatsAppIngestService:
             actual_tutor,
         )
         if existing is not None:
+            existing.enrollment_id = enrollment.id
+            existing.student_id = enrollment.student_id
+            existing.tutor_id = actual_tutor_id
+            existing.session_date = datetime.combine(
+                evaluation.attendance_date, datetime.min.time()
+            )
+            existing.status = "attended"
+            existing.student_present = True
+            existing.tutor_present = True
+            existing.subject_id = enrollment.subject_id
+            existing.tutor_fee_amount = enrollment.tutor_rate_per_meeting
+            existing.updated_at = datetime.utcnow()
             return existing
 
         author_phone_number = normalize_phone_number(

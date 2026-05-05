@@ -205,6 +205,7 @@
         <input type="hidden" name="enrollment_ref" value="{{ selected_enrollment_ref or '' }}">
         <input type="hidden" name="tutor_ref" value="{{ selected_tutor_ref or '' }}">
         <input type="hidden" name="status" value="{{ selected_status or '' }}">
+        <input type="hidden" name="sort" value="{{ selected_sort or 'date_desc' }}">
         <div class="col-6 col-md-auto">
           <label class="form-label small fw-semibold mb-1">Bulan Scan</label>
           <select name="month" class="form-select form-select-sm" required>
@@ -418,7 +419,8 @@
                                            tutor_ref=selected_tutor_ref or '',
                                            month=selected_month or '',
                                            year=selected_year or '',
-                                           status=selected_status or '') }}">
+                                           status=selected_status or '',
+                                           sort=selected_sort or 'date_desc') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="review_status" value="valid">
                     <button type="submit" class="btn btn-outline-success btn-sm py-0 px-2" title="Tandai sudah benar">
@@ -433,7 +435,8 @@
                                            tutor_ref=selected_tutor_ref or '',
                                            month=selected_month or '',
                                            year=selected_year or '',
-                                           status=selected_status or '') }}">
+                                           status=selected_status or '',
+                                           sort=selected_sort or 'date_desc') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="review_status" value="invalid">
                     <button type="submit" class="btn btn-outline-warning btn-sm py-0 px-2" title="Tandai perlu koreksi">
@@ -448,7 +451,8 @@
                                            tutor_ref=selected_tutor_ref or '',
                                            month=selected_month or '',
                                            year=selected_year or '',
-                                           status=selected_status or '') }}">
+                                           status=selected_status or '',
+                                           sort=selected_sort or 'date_desc') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="review_status" value="pending">
                     <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-2" title="Reset validasi">
@@ -471,15 +475,24 @@
                                     session_ref=s.public_id,
                                     page=request.args.get('page', 1),
                                     enrollment_ref=selected_enrollment_ref or '',
-                                    tutor_ref=selected_tutor_ref or '',
-                                    month=selected_month or '',
-                                    year=selected_year or '',
-                                    status=selected_status or '') }}"
+                                     tutor_ref=selected_tutor_ref or '',
+                                     month=selected_month or '',
+                                     year=selected_year or '',
+                                     status=selected_status or '',
+                                     sort=selected_sort or 'date_desc') }}"
                    class="btn btn-outline-secondary btn-sm py-0 px-2" title="Edit">
                   <i class="bi bi-pencil"></i>
                 </a>
                 <form method="POST"
-                      action="{{ url_for('attendance.delete_attendance', session_ref=s.public_id) }}"
+                      action="{{ url_for('attendance.delete_attendance',
+                                         session_ref=s.public_id,
+                                         page=request.args.get('page', 1),
+                                         enrollment_ref=selected_enrollment_ref or '',
+                                         tutor_ref=selected_tutor_ref or '',
+                                         month=selected_month or '',
+                                         year=selected_year or '',
+                                         status=selected_status or '',
+                                         sort=selected_sort or 'date_desc') }}"
                       onsubmit="return confirm('Hapus sesi presensi tanggal {{ s.session_date.strftime('%d %b %Y') }}?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Hapus">

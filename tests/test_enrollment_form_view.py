@@ -1,4 +1,5 @@
 from decimal import Decimal
+from datetime import date
 from pathlib import Path
 
 from flask import Flask
@@ -6,6 +7,7 @@ from flask import Flask
 from app import db
 from app import register_template_filters
 from app.models import (
+    AttendanceSession,
     Curriculum,
     Enrollment,
     Level,
@@ -18,6 +20,7 @@ from app.models import (
 )
 from app.routes.enrollments import (
     _apply_selected_whatsapp_group,
+    _build_enrollment_list_query,
     _normalize_rate_form_value,
     _scan_missing_enrollment_whatsapp_groups,
 )
@@ -61,6 +64,106 @@ def test_enrollment_form_template_uses_whole_number_steps_for_rate_fields():
     assert "WhatsAppGroup" in route_text
     assert "scan_missing_whatsapp_groups" in route_text
     assert "Scan Group WA Kosong" in list_template_text
+    assert 'name="sort"' in list_template_text
+    assert "Presensi terakhir terbaru" in list_template_text
+    assert "last_attendance_desc" in route_text
+
+
+def test_build_enrollment_list_query_sorts_by_last_attendance_date():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        subject = Subject(name="Matematika")
+        student = Student(student_code="STD-901", name="Ratih", is_active=True)
+        tutor = Tutor(tutor_code="TTR-901", name="Dinda", is_active=True)
+        older_enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="10",
+            student_rate_per_meeting=50000,
+            tutor_rate_per_meeting=30000,
+            status="active",
+        )
+        newer_enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="11",
+            student_rate_per_meeting=50000,
+            tutor_rate_per_meeting=30000,
+            status="active",
+        )
+        no_attendance_enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="12",
+            student_rate_per_meeting=50000,
+            tutor_rate_per_meeting=30000,
+            status="active",
+        )
+        db.session.add_all(
+            [
+                curriculum,
+                level,
+                subject,
+                student,
+                tutor,
+                older_enrollment,
+                newer_enrollment,
+                no_attendance_enrollment,
+            ]
+        )
+        db.session.flush()
+        db.session.add_all(
+            [
+                AttendanceSession(
+                    enrollment_id=older_enrollment.id,
+                    student_id=student.id,
+                    tutor_id=tutor.id,
+                    subject_id=subject.id,
+                    session_date=date(2026, 4, 1),
+                    status="attended",
+                ),
+                AttendanceSession(
+                    enrollment_id=newer_enrollment.id,
+                    student_id=student.id,
+                    tutor_id=tutor.id,
+                    subject_id=subject.id,
+                    session_date=date(2026, 5, 1),
+                    status="attended",
+                ),
+            ]
+        )
+        db.session.commit()
+
+        desc_results = _build_enrollment_list_query(
+            sort_by="last_attendance_desc"
+        ).all()
+        asc_results = _build_enrollment_list_query(
+            sort_by="last_attendance_asc"
+        ).all()
+
+        assert [item.id for item in desc_results] == [
+            newer_enrollment.id,
+            older_enrollment.id,
+            no_attendance_enrollment.id,
+        ]
+        assert [item.id for item in asc_results] == [
+            older_enrollment.id,
+            newer_enrollment.id,
+            no_attendance_enrollment.id,
+        ]
 
 
 def test_apply_selected_whatsapp_group_updates_enrollment_snapshot():

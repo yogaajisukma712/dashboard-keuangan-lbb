@@ -20,6 +20,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="q" value="{{ search_term or '' }}">
       <input type="hidden" name="status" value="{{ selected_status or '' }}">
+      <input type="hidden" name="sort" value="{{ selected_sort or 'updated_desc' }}">
       <button type="submit" class="btn btn-outline-success btn-sm">
         <i class="bi bi-whatsapp me-1"></i>Scan Group WA Kosong
       </button>
@@ -51,6 +52,20 @@
             {{ lbl }}
           </option>
           {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-3">
+        <label class="form-label small fw-semibold mb-1">Urutkan</label>
+        <select name="sort" class="form-select form-select-sm">
+          <option value="updated_desc" {% if selected_sort == 'updated_desc' %}selected{% endif %}>
+            Terakhir diupdate
+          </option>
+          <option value="last_attendance_desc" {% if selected_sort == 'last_attendance_desc' %}selected{% endif %}>
+            Presensi terakhir terbaru
+          </option>
+          <option value="last_attendance_asc" {% if selected_sort == 'last_attendance_asc' %}selected{% endif %}>
+            Presensi terakhir terlama
+          </option>
         </select>
       </div>
       <div class="col-auto d-flex gap-2">

@@ -23,6 +23,11 @@ from app.services.whatsapp_ingest_service import WhatsAppIngestService
 from app.utils import decode_public_id, get_per_page
 
 enrollments_bp = Blueprint("enrollments", __name__, url_prefix="/enrollments")
+ENROLLMENT_SORT_OPTIONS = {
+    "updated_desc",
+    "last_attendance_desc",
+    "last_attendance_asc",
+}
 
 
 def _normalize_rate_form_value(value):
@@ -95,7 +100,11 @@ def _scan_missing_enrollment_whatsapp_groups() -> dict:
     return summary
 
 
-def _build_enrollment_list_query(search_term: str = "", status: str = ""):
+def _build_enrollment_list_query(
+    search_term: str = "",
+    status: str = "",
+    sort_by: str = "updated_desc",
+):
     query = (
         Enrollment.query.join(Student, Enrollment.student_id == Student.id)
         .join(Tutor, Enrollment.tutor_id == Tutor.id)
@@ -122,6 +131,35 @@ def _build_enrollment_list_query(search_term: str = "", status: str = ""):
             )
         )
 
+    if sort_by in {"last_attendance_desc", "last_attendance_asc"}:
+        last_attendance = (
+            db.session.query(
+                AttendanceSession.enrollment_id.label("enrollment_id"),
+                db.func.max(AttendanceSession.session_date).label("last_attendance_date"),
+            )
+            .group_by(AttendanceSession.enrollment_id)
+            .subquery()
+        )
+        query = query.outerjoin(
+            last_attendance,
+            Enrollment.id == last_attendance.c.enrollment_id,
+        )
+        if sort_by == "last_attendance_asc":
+            return query.order_by(
+                db.func.coalesce(
+                    last_attendance.c.last_attendance_date,
+                    "9999-12-31",
+                ).asc(),
+                Enrollment.id.asc(),
+            )
+        return query.order_by(
+            db.func.coalesce(
+                last_attendance.c.last_attendance_date,
+                "1900-01-01",
+            ).desc(),
+            Enrollment.id.desc(),
+        )
+
     return query.order_by(Enrollment.updated_at.desc(), Enrollment.id.desc())
 
 
@@ -133,7 +171,10 @@ def list_enrollments():
     per_page = get_per_page()
     search_term = request.args.get("q", "", type=str)
     status = request.args.get("status", "", type=str)
-    enrollments = _build_enrollment_list_query(search_term, status).paginate(
+    sort_by = request.args.get("sort", "updated_desc", type=str)
+    if sort_by not in ENROLLMENT_SORT_OPTIONS:
+        sort_by = "updated_desc"
+    enrollments = _build_enrollment_list_query(search_term, status, sort_by).paginate(
         page=page, per_page=per_page
     )
     return render_template(
@@ -141,6 +182,7 @@ def list_enrollments():
         enrollments=enrollments,
         search_term=search_term,
         selected_status=status,
+        selected_sort=sort_by,
     )
 
 
@@ -150,9 +192,13 @@ def scan_missing_whatsapp_groups():
     """Fill missing enrollment WhatsApp groups from validated student/tutor data."""
     search_term = request.form.get("q", "", type=str)
     status = request.form.get("status", "", type=str)
+    sort_by = request.form.get("sort", "updated_desc", type=str)
+    if sort_by not in ENROLLMENT_SORT_OPTIONS:
+        sort_by = "updated_desc"
     redirect_kwargs = {
         "q": search_term,
         "status": status,
+        "sort": sort_by,
     }
     try:
         summary = _scan_missing_enrollment_whatsapp_groups()

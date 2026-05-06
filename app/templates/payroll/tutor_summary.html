@@ -164,6 +164,17 @@ selectattr('balance','gt',0) | list | length %}
                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
                     Dipilih: <span id="selectedTutorCount">0</span>
                 </span>
+                <button
+                    type="button"
+                    class="btn btn-success btn-sm"
+                    id="bulkWhatsAppButton"
+                    data-bs-toggle="modal"
+                    data-bs-target="#bulkWhatsAppModal"
+                    disabled
+                >
+                    <i class="bi bi-whatsapp me-1"></i>
+                    Kirim Slip WA (<span id="bulkWhatsAppCount">0</span>)
+                </button>
                 <span class="badge bg-success-subtle text-success border border-success-subtle">
                     Total saldo: Rp <span id="selectedBalanceTotal">0</span>
                 </span>
@@ -223,6 +234,8 @@ selectattr('balance','gt',0) | list | length %}
                                 data-tutor-id="{{ tutor.id }}"
                                 data-payable="{{ item.payable }}"
                                 data-balance="{{ item.balance }}"
+                                data-payout-ref="{{ item.latest_payout.public_id if item.latest_payout else '' }}"
+                                data-tutor-name="{{ tutor.name }}"
                                 aria-label="Pilih {{ tutor.name }} untuk hitung total"
                             />
                         </td>
@@ -350,6 +363,75 @@ selectattr('balance','gt',0) | list | length %}
                 </tbody>
             </table>
         </div>
+    </div>
+</div>
+
+{# ── Modal Bulk WhatsApp Slip Gaji ──────────────────────────────────────── #}
+<div
+    class="modal fade"
+    id="bulkWhatsAppModal"
+    tabindex="-1"
+    aria-labelledby="bulkWhatsAppModalLabel"
+    aria-hidden="true"
+>
+    <div class="modal-dialog modal-dialog-centered">
+        <form
+            class="modal-content"
+            id="bulkWhatsAppForm"
+            method="POST"
+            action="{{ url_for('payroll.tutor_summary_send_whatsapp_bulk') }}"
+        >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <input type="hidden" name="month" value="{{ month }}" />
+            <input type="hidden" name="year" value="{{ year }}" />
+            <input type="hidden" name="show_all" value="{{ 1 if show_all else 0 }}" />
+            <div id="bulkWhatsAppRefs"></div>
+
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="bulkWhatsAppModalLabel">
+                    <i class="bi bi-whatsapp me-1"></i> Kirim Slip Gaji Bulk
+                </h5>
+                <button
+                    type="button"
+                    class="btn-close btn-close-white"
+                    data-bs-dismiss="modal"
+                ></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3">
+                    Slip PDF akan dikirim ke nomor WhatsApp tutor tervalidasi.
+                    Terpilih: <strong><span id="bulkModalCount">0</span> slip</strong>.
+                </p>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">
+                        Caption Pesan WhatsApp <span class="text-danger">*</span>
+                    </label>
+                    <textarea
+                        name="message"
+                        id="bulkWhatsAppMessage"
+                        class="form-control"
+                        rows="7"
+                        required
+                    >Halo Kak, terima kasih banyak atas dedikasi dan kontribusinya untuk LBB Super Smart.
+
+Berikut kami lampirkan slip fee tutor periode {{ MONTHS[month] }} {{ year }} dalam file PDF.
+
+Mohon dicek kembali. Terima kasih.</textarea>
+                    <div class="form-text">
+                        Pesan ini menjadi caption pada setiap slip PDF yang dikirim.
+                    </div>
+                </div>
+                <div id="bulkWhatsAppWarning" class="alert alert-warning d-none small mb-0"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Batal
+                </button>
+                <button type="submit" class="btn btn-success" id="bulkWhatsAppSubmit">
+                    <i class="bi bi-send me-1"></i> Kirim Sekarang
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -535,6 +617,13 @@ selectattr('balance','gt',0) | list | length %}
         const selectedTutorCount = document.getElementById("selectedTutorCount");
         const selectedBalanceTotal = document.getElementById("selectedBalanceTotal");
         const selectedPayableTotal = document.getElementById("selectedPayableTotal");
+        const bulkWhatsAppButton = document.getElementById("bulkWhatsAppButton");
+        const bulkWhatsAppCount = document.getElementById("bulkWhatsAppCount");
+        const bulkWhatsAppRefs = document.getElementById("bulkWhatsAppRefs");
+        const bulkWhatsAppModal = document.getElementById("bulkWhatsAppModal");
+        const bulkModalCount = document.getElementById("bulkModalCount");
+        const bulkWhatsAppWarning = document.getElementById("bulkWhatsAppWarning");
+        const bulkWhatsAppForm = document.getElementById("bulkWhatsAppForm");
         const tableBody = document.querySelector("#tutorTable tbody");
         const tutorRows = Array.from(
             document.querySelectorAll("#tutorTable tbody tr[id^='row-tutor-']"),
@@ -593,6 +682,7 @@ selectattr('balance','gt',0) | list | length %}
             let count = 0;
             let balanceTotal = 0;
             let payableTotal = 0;
+            let sendableCount = 0;
 
             totalCheckboxes.forEach(function (checkbox) {
                 if (!checkbox.checked) return;
@@ -601,9 +691,12 @@ selectattr('balance','gt',0) | list | length %}
                 count += 1;
                 balanceTotal += Math.max(0, parseFloat(checkbox.dataset.balance) || 0);
                 payableTotal += parseFloat(checkbox.dataset.payable) || 0;
+                if (checkbox.dataset.payoutRef) sendableCount += 1;
             });
 
             if (selectedTutorCount) selectedTutorCount.textContent = count;
+            if (bulkWhatsAppCount) bulkWhatsAppCount.textContent = sendableCount;
+            if (bulkWhatsAppButton) bulkWhatsAppButton.disabled = sendableCount === 0;
             if (selectedBalanceTotal) {
                 selectedBalanceTotal.textContent = formatRupiahNumber(balanceTotal);
             }
@@ -627,6 +720,54 @@ selectattr('balance','gt',0) | list | length %}
                     checkedVisible.length > 0 &&
                     checkedVisible.length < visibleChecks.length;
             }
+        }
+
+        function selectedSendableChecks() {
+            return totalCheckboxes.filter(function (checkbox) {
+                const row = checkbox.closest("tr");
+                return (
+                    checkbox.checked &&
+                    checkbox.dataset.payoutRef &&
+                    row &&
+                    row.style.display !== "none"
+                );
+            });
+        }
+
+        function prepareBulkWhatsAppForm() {
+            const selected = selectedSendableChecks();
+            if (bulkWhatsAppRefs) {
+                bulkWhatsAppRefs.innerHTML = "";
+                selected.forEach(function (checkbox) {
+                    const input = document.createElement("input");
+                    input.type = "hidden";
+                    input.name = "payout_ref";
+                    input.value = checkbox.dataset.payoutRef;
+                    bulkWhatsAppRefs.appendChild(input);
+                });
+            }
+            if (bulkModalCount) bulkModalCount.textContent = selected.length;
+            const checkedWithoutSlip = totalCheckboxes.filter(function (checkbox) {
+                const row = checkbox.closest("tr");
+                return (
+                    checkbox.checked &&
+                    !checkbox.dataset.payoutRef &&
+                    row &&
+                    row.style.display !== "none"
+                );
+            });
+            if (bulkWhatsAppWarning) {
+                if (checkedWithoutSlip.length) {
+                    bulkWhatsAppWarning.textContent =
+                        checkedWithoutSlip.length +
+                        " tutor terpilih belum punya payout/slip, jadi tidak ikut dikirim.";
+                    bulkWhatsAppWarning.classList.remove("d-none");
+                } else {
+                    bulkWhatsAppWarning.classList.add("d-none");
+                    bulkWhatsAppWarning.textContent = "";
+                }
+            }
+            return selected.length;
         }
 
         function applyTutorNameFilter() {
@@ -697,6 +838,33 @@ selectattr('balance','gt',0) | list | length %}
         if (accountSort) {
             accountSort.addEventListener("change", function () {
                 sortByAccountNumber(this.value);
+            });
+        }
+
+        if (bulkWhatsAppModal) {
+            bulkWhatsAppModal.addEventListener("show.bs.modal", function (event) {
+                const selectedCount = prepareBulkWhatsAppForm();
+                if (!selectedCount) {
+                    event.preventDefault();
+                    showToast("Pilih slip gaji yang sudah punya payout.", "warning");
+                }
+            });
+        }
+
+        if (bulkWhatsAppForm) {
+            bulkWhatsAppForm.addEventListener("submit", function (event) {
+                const selectedCount = prepareBulkWhatsAppForm();
+                if (!selectedCount) {
+                    event.preventDefault();
+                    showToast("Tidak ada slip gaji yang bisa dikirim.", "warning");
+                    return;
+                }
+                const submit = document.getElementById("bulkWhatsAppSubmit");
+                if (submit) {
+                    submit.disabled = true;
+                    submit.innerHTML =
+                        '<span class="spinner-border spinner-border-sm me-1"></span>Mengirim...';
+                }
             });
         }
 

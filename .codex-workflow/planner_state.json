@@ -1,30 +1,29 @@
 {
-  "goal": "Make payroll fee slip PDF exactly one page fitted to rendered slip object",
+  "goal": "Bulk send tutor fee slips from payroll summary via WhatsApp",
   "project_id": "billing-supersmart",
   "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-06T05:01:11Z",
+  "updated_at": "2026-05-06T06:11:19Z",
   "plan": [
     {
-      "step": "Inspect current browser PDF renderer",
+      "step": "Inspect payroll summary and single slip WhatsApp flow",
       "status": "completed"
     },
     {
-      "step": "Switch PDF renderer to element screenshot pipeline",
+      "step": "Add bulk send backend and modal UI",
       "status": "completed"
     },
     {
-      "step": "Verify tall slip renders as one page",
+      "step": "Run tests and smoke checks",
       "status": "completed",
-      "note": "Smoke tall 2600px slip returned pages=1."
+      "note": "Targeted tests passed; tutor summary render smoke passed; UI login smoke passed; deploy check release_ready=true."
     },
     {
       "step": "Commit and push",
-      "status": "completed",
-      "note": "Committed and pushed 3e632f2 to origin/main."
+      "status": "pending"
     }
   ],
   "notes": [
-    "Previous Chromium print PDF could still paginate; renderer now screenshots .fee-slip-document and wraps the PNG in an exact-size single-page PDF."
+    "Tutor summary checkboxes now select fee slips for bulk WhatsApp send. Caption is provided in a modal and attached to each PDF message."
   ]
 }

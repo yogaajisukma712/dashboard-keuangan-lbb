@@ -186,6 +186,41 @@ def _build_fee_slip_whatsapp_message(
     )
 
 
+def _send_fee_slip_whatsapp_attachment(
+    payout: TutorPayout,
+    contact_id: str,
+    message: str,
+) -> tuple[bool, str]:
+    """Send fee slip PDF to one WhatsApp contact and update payout audit fields."""
+    tutor = payout.tutor
+    pdf_response = fee_slip_pdf(payout.public_id)
+    pdf_response.direct_passthrough = False
+    pdf_bytes = pdf_response.get_data()
+    pdf_filename = secure_filename(f"fee_slip_{payout.id}_{tutor.tutor_code}.pdf")
+
+    payload, status_code = _bot_request(
+        "POST",
+        "/messages/send",
+        {
+            "to": contact_id,
+            "message": message,
+            "attachment": {
+                "filename": pdf_filename,
+                "mimetype": "application/pdf",
+                "data": base64.b64encode(pdf_bytes).decode("ascii"),
+            },
+        },
+        timeout=60,
+    )
+    if status_code == 200 and payload.get("ok"):
+        payout.whatsapp_last_contact_id = contact_id
+        payout.whatsapp_last_message = message
+        payout.whatsapp_last_sent_at = datetime.utcnow()
+        payout.whatsapp_last_status = "sent"
+        return True, ""
+    return False, payload.get("error") or "Bot error"
+
+
 def _get_payout_by_ref_or_404(payout_ref):
     """Resolve opaque payout ref to model instance."""
     try:
@@ -746,35 +781,79 @@ def fee_slip_send_whatsapp(payout_ref):
         flash("WhatsApp bot belum ready. Silakan login/scan QR terlebih dahulu.", "warning")
         return redirect(url_for("whatsapp_bot.management"))
 
-    pdf_response = fee_slip_pdf(payout.public_id)
-    pdf_response.direct_passthrough = False
-    pdf_bytes = pdf_response.get_data()
-    pdf_filename = secure_filename(f"fee_slip_{payout.id}_{tutor.tutor_code}.pdf")
-
-    payload, status_code = _bot_request(
-        "POST",
-        "/messages/send",
-        {
-            "to": contact_id,
-            "message": message,
-            "attachment": {
-                "filename": pdf_filename,
-                "mimetype": "application/pdf",
-                "data": base64.b64encode(pdf_bytes).decode("ascii"),
-            },
-        },
-        timeout=60,
-    )
-    if status_code == 200 and payload.get("ok"):
-        payout.whatsapp_last_contact_id = contact_id
-        payout.whatsapp_last_message = message
-        payout.whatsapp_last_sent_at = datetime.utcnow()
-        payout.whatsapp_last_status = "sent"
+    sent, error = _send_fee_slip_whatsapp_attachment(payout, contact_id, message)
+    if sent:
         db.session.commit()
         flash(f"Slip fee berhasil dikirim ke WhatsApp {tutor.name}.", "success")
     else:
-        flash(f"Kirim WhatsApp gagal: {payload.get('error') or 'Bot error'}", "danger")
+        flash(f"Kirim WhatsApp gagal: {error}", "danger")
     return redirect(url_for("payroll.fee_slip", payout_ref=payout.public_id))
+
+
+@payroll_bp.route("/tutor-summary/send-whatsapp-bulk", methods=["POST"])
+@login_required
+def tutor_summary_send_whatsapp_bulk():
+    """Kirim slip gaji PDF ke banyak tutor dari halaman rekap payroll."""
+    month = request.form.get("month", default=datetime.now().month, type=int)
+    year = request.form.get("year", default=datetime.now().year, type=int)
+    show_all = request.form.get("show_all", "0") == "1"
+    message = request.form.get("message", "", type=str).strip()
+    payout_refs = request.form.getlist("payout_ref")
+
+    redirect_url = url_for(
+        "payroll.tutor_summary",
+        month=month,
+        year=year,
+        show_all=1 if show_all else 0,
+    )
+    if not payout_refs:
+        flash("Pilih minimal satu slip gaji yang sudah punya payout.", "warning")
+        return redirect(redirect_url)
+    if not message:
+        flash("Pesan WhatsApp bulk tidak boleh kosong.", "warning")
+        return redirect(redirect_url)
+
+    session_status = _get_whatsapp_session_status()
+    if not session_status["ready"]:
+        flash("WhatsApp bot belum ready. Silakan login/scan QR terlebih dahulu.", "warning")
+        return redirect(url_for("whatsapp_bot.management"))
+
+    unique_refs = list(dict.fromkeys(ref for ref in payout_refs if ref))
+    sent_count = 0
+    skipped = []
+    failed = []
+
+    for payout_ref in unique_refs:
+        try:
+            payout = _get_payout_by_ref_or_404(payout_ref)
+        except Exception:
+            failed.append(f"Slip {payout_ref}: tidak valid")
+            continue
+
+        contacts = _get_tutor_whatsapp_contact_options(payout.tutor)
+        if not contacts:
+            skipped.append(f"{payout.tutor.name}: nomor WA tutor belum divalidasi")
+            continue
+
+        contact_id = contacts[0]["value"]
+        sent, error = _send_fee_slip_whatsapp_attachment(payout, contact_id, message)
+        if sent:
+            sent_count += 1
+        else:
+            failed.append(f"{payout.tutor.name}: {error}")
+
+    if sent_count:
+        db.session.commit()
+
+    if sent_count:
+        flash(f"{sent_count} slip gaji berhasil dikirim via WhatsApp.", "success")
+    if skipped:
+        flash("Dilewati: " + "; ".join(skipped[:5]), "warning")
+    if failed:
+        flash("Gagal kirim: " + "; ".join(failed[:5]), "danger")
+    if not sent_count and not skipped and not failed:
+        flash("Tidak ada slip yang diproses.", "warning")
+    return redirect(redirect_url)
 
 
 @payroll_bp.route("/fee-slip/<string:payout_ref>/pdf", methods=["GET"])

@@ -1,9 +1,9 @@
 {
   "goal": "Add attendance CSV export",
   "project_id": "billing-supersmart",
-  "phase": "verification",
+  "phase": "completed",
   "current_role": "codex",
-  "updated_at": "2026-05-06T09:02:12Z",
+  "updated_at": "2026-05-06T09:03:07Z",
   "plan": [
     {
       "step": "Investigate target group and phone/LID evidence",
@@ -26,6 +26,6 @@
     }
   ],
   "notes": [
-    "CSV columns: No,Tanggal,Hari,Tutor,Siswa,Kurikulum,Jenjang,Mapel,Nominal. Export respects active list filters and sort, without pagination."
+    "Committed and pushed d5531c2 to origin/main. Tests: docker compose exec -T web python -m pytest tests/test_attendance_list_view.py -q --tb=short passed."
   ]
 }

@@ -1019,6 +1019,120 @@ def test_scan_attendance_for_month_uses_validated_tutor_and_group_context():
         assert AttendanceSession.query.count() == 1
 
 
+def test_lid_author_matches_validated_tutor_phone_alias_by_group_and_name():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="Merdeka")
+        level = Level(name="SMA")
+        subject = Subject(name="Bahasa Inggris")
+        student = Student(student_code="STD-LID-1", name="Fajry", is_active=True)
+        tutor = Tutor(
+            tutor_code="TTR-LID-1",
+            name="Dinda",
+            phone="085210955603",
+            is_active=True,
+        )
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-fajry@g.us",
+            name="Fajry English",
+        )
+        phone_contact = WhatsAppContact(
+            whatsapp_contact_id="6285210955603@c.us",
+            phone_number="6285210955603",
+            display_name="Miss Dinda_ Tutor English",
+            push_name="Dinda",
+            is_group=False,
+        )
+        lid_contact = WhatsAppContact(
+            whatsapp_contact_id="268169235169510@lid",
+            phone_number="268169235169510",
+            display_name="Miss Dinda_ Tutor English",
+            push_name="Dinda",
+            is_group=False,
+        )
+        enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="10",
+            student_rate_per_meeting=70000,
+            tutor_rate_per_meeting=40000,
+            status="active",
+            whatsapp_group_id="group-fajry@g.us",
+            whatsapp_group_name="Fajry English",
+        )
+        db.session.add_all(
+            [
+                curriculum,
+                level,
+                subject,
+                student,
+                tutor,
+                group,
+                phone_contact,
+                lid_contact,
+                enrollment,
+            ]
+        )
+        db.session.flush()
+        db.session.add(
+            WhatsAppGroupParticipant(
+                group_id=group.id,
+                contact_id=phone_contact.id,
+                display_name="Miss Dinda_ Tutor English",
+            )
+        )
+        db.session.add(
+            WhatsAppTutorValidation(
+                contact_id=phone_contact.id,
+                tutor_id=tutor.id,
+                validated_phone_number="6285210955603",
+                validated_contact_name="Miss Dinda_ Tutor English",
+                group_memberships_json=[
+                    {
+                        "group_id": group.id,
+                        "whatsapp_group_id": "group-fajry@g.us",
+                        "group_name": "Fajry English",
+                        "display_name": "Miss Dinda_ Tutor English",
+                    }
+                ],
+            )
+        )
+        db.session.add(
+            WhatsAppStudentGroupValidation(group_id=group.id, student_id=student.id)
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-lid-dinda",
+            group=group,
+            author_contact=lid_contact,
+            author_phone_number="268169235169510",
+            author_name="Miss Dinda_ Tutor English",
+            sent_at=datetime(2026, 4, 27, 19, 0, 0),
+            body="📄 Berikut laporan evaluasi sesi les Bahasa Inggris Fajry hari ini.",
+        )
+        evaluation = WhatsAppEvaluation(
+            message=message,
+            group=group,
+            attendance_date=date(2026, 4, 27),
+            subject_name="Bahasa Inggris",
+        )
+        db.session.add_all([message, evaluation])
+        db.session.commit()
+
+        result = WhatsAppIngestService.refresh_evaluation_attendance_link(evaluation)
+
+        assert result["attendance_linked"] is True
+        assert evaluation.matched_tutor_id == tutor.id
+        assert evaluation.matched_student_id == student.id
+        assert evaluation.matched_enrollment_id == enrollment.id
+        assert evaluation.match_status == "attendance-linked"
+        assert AttendanceSession.query.count() == 1
+
+
 def test_scan_attendance_for_month_is_idempotent_for_existing_links():
     app = _make_test_app()
 

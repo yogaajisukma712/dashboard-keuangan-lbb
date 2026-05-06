@@ -1,30 +1,30 @@
 {
-  "goal": "Fix bulk WhatsApp fee slip send causing web worker timeout",
+  "goal": "Resolve WhatsApp LID sender aliases to validated tutor phone identities",
   "project_id": "billing-supersmart",
   "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-06T07:00:08Z",
+  "updated_at": "2026-05-06T08:21:57Z",
   "plan": [
     {
-      "step": "Inspect runtime logs and container health",
+      "step": "Investigate target group and phone/LID evidence",
       "status": "completed",
-      "note": "Container running; web log showed WORKER TIMEOUT."
+      "note": "Exact phone had 0 messages; LID 268169235169510 had 34 evaluation-like messages for Miss Dinda."
     },
     {
-      "step": "Move bulk send processing to background worker thread",
+      "step": "Add LID alias tutor resolver and regression test",
       "status": "completed"
     },
     {
-      "step": "Run tests, rebuild web, and check logs",
-      "status": "completed"
+      "step": "Rebuild web and rescan April 2026",
+      "status": "completed",
+      "note": "Four target group LID evaluations linked to attendance sessions."
     },
     {
       "step": "Commit and push",
-      "status": "completed",
-      "note": "Committed and pushed d15269e to origin/main."
+      "status": "pending"
     }
   ],
   "notes": [
-    "Bulk send was synchronous; Gunicorn killed web worker after timeout during PDF render/send loop. Route now starts background thread and redirects immediately."
+    "WhatsApp may store group sender as @lid while tutor validation uses @c.us phone contact. LID now matches validated tutor only when sender/contact name and group membership agree."
   ]
 }

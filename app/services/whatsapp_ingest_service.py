@@ -1063,6 +1063,93 @@ class WhatsAppIngestService:
         return None
 
     @staticmethod
+    def find_validated_tutor_by_lid_alias(
+        message: WhatsAppMessage | None,
+        group: WhatsAppGroup | None,
+    ) -> WhatsAppTutorValidation | None:
+        """Resolve WhatsApp LID senders to validated tutor phone contacts.
+
+        WhatsApp Web may store a group sender as a LID author while the tutor was
+        validated from the regular c.us phone contact. We only bridge the two
+        identities when both name and group membership agree, so a raw LID number
+        never matches a phone number by digits alone.
+        """
+        if message is None or group is None:
+            return None
+
+        contact = message.author_contact
+        author_identity = str(
+            (contact.whatsapp_contact_id if contact else None)
+            or message.author_phone_number
+            or ""
+        )
+        if "@lid" not in author_identity and not author_identity.endswith("lid"):
+            return None
+
+        sender_names = {
+            normalize_person_name(message.author_name),
+        }
+        if contact is not None:
+            sender_names.update(
+                {
+                    normalize_person_name(contact.display_name),
+                    normalize_person_name(contact.push_name),
+                    normalize_person_name(contact.short_name),
+                }
+            )
+        sender_names.discard("")
+        if not sender_names:
+            return None
+
+        target_whatsapp_group_id = str(group.whatsapp_group_id or "").strip()
+        matches: list[WhatsAppTutorValidation] = []
+        for validation in WhatsAppTutorValidation.query.all():
+            group_memberships = list(validation.group_memberships_json or [])
+            shares_group = any(
+                str(
+                    group_item.get("whatsapp_group_id")
+                    or group_item.get("group_id")
+                    or ""
+                ).strip()
+                == target_whatsapp_group_id
+                or group_item.get("group_id") == group.id
+                for group_item in group_memberships
+            )
+            if not shares_group:
+                continue
+
+            candidate_names = {
+                normalize_person_name(validation.validated_contact_name),
+                normalize_person_name(validation.tutor.name if validation.tutor else None),
+            }
+            if validation.contact is not None:
+                candidate_names.update(
+                    {
+                        normalize_person_name(validation.contact.display_name),
+                        normalize_person_name(validation.contact.push_name),
+                        normalize_person_name(validation.contact.short_name),
+                    }
+                )
+            for group_item in group_memberships:
+                candidate_names.add(normalize_person_name(group_item.get("display_name")))
+            candidate_names.discard("")
+
+            for sender_name in sender_names:
+                if any(
+                    sender_name == candidate_name
+                    or sender_name in candidate_name
+                    or candidate_name in sender_name
+                    for candidate_name in candidate_names
+                ):
+                    matches.append(validation)
+                    break
+
+        unique_matches = {item.id: item for item in matches}
+        if len(unique_matches) == 1:
+            return next(iter(unique_matches.values()))
+        return None
+
+    @staticmethod
     def find_validated_tutor_by_message_identity(
         evaluation: WhatsAppEvaluation,
         author_phone_number: str | None,
@@ -1077,6 +1164,13 @@ class WhatsAppIngestService:
         group = evaluation.group
         if message is None or group is None:
             return None
+
+        validation = WhatsAppIngestService.find_validated_tutor_by_lid_alias(
+            message,
+            group,
+        )
+        if validation is not None:
+            return validation
 
         sender_names = {
             normalize_person_name(message.author_name),

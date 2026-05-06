@@ -1,9 +1,9 @@
 {
-  "goal": "Fix Miss Dinda Fajry WhatsApp LID attendance matching",
+  "goal": "Add attendance CSV export",
   "project_id": "billing-supersmart",
-  "phase": "completed",
+  "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-06T08:49:11Z",
+  "updated_at": "2026-05-06T09:02:12Z",
   "plan": [
     {
       "step": "Investigate target group and phone/LID evidence",
@@ -26,6 +26,6 @@
     }
   ],
   "notes": [
-    "Committed and pushed f3afd90 to origin/main. Tests: 36 WhatsApp ingest tests passed."
+    "CSV columns: No,Tanggal,Hari,Tutor,Siswa,Kurikulum,Jenjang,Mapel,Nominal. Export respects active list filters and sort, without pagination."
   ]
 }

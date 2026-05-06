@@ -3,10 +3,12 @@ Attendance routes for Dashboard Keuangan LBB Super Smart
 Handles presensi tutor and sesi les
 """
 
+import csv
+import io
 from calendar import monthrange
 from datetime import date, datetime, timedelta
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
@@ -42,6 +44,15 @@ INDONESIAN_MONTH_NAMES = [
     "November",
     "Desember",
 ]
+INDONESIAN_DAY_NAMES = {
+    "Monday": "Senin",
+    "Tuesday": "Selasa",
+    "Wednesday": "Rabu",
+    "Thursday": "Kamis",
+    "Friday": "Jumat",
+    "Saturday": "Sabtu",
+    "Sunday": "Minggu",
+}
 INDONESIAN_WEEKDAY_NAMES = [
     "Senin",
     "Selasa",
@@ -299,6 +310,33 @@ def _apply_attendance_list_sort(query, sort_by: str | None):
         AttendanceSession.session_date.desc(),
         AttendanceSession.id.desc(),
     )
+
+
+def _attendance_csv_row(session_item: AttendanceSession, row_number: int) -> list:
+    enrollment = session_item.enrollment
+    student = session_item.student or (enrollment.student if enrollment else None)
+    tutor = session_item.tutor or (enrollment.tutor if enrollment else None)
+    subject = session_item.subject or (enrollment.subject if enrollment else None)
+    curriculum = enrollment.curriculum if enrollment else None
+    level = enrollment.level if enrollment else None
+    session_date = session_item.session_date
+    day_name = INDONESIAN_DAY_NAMES.get(
+        session_date.strftime("%A"),
+        session_date.strftime("%A"),
+    )
+    nominal = int(session_item.tutor_fee_amount or 0)
+
+    return [
+        row_number,
+        session_date.strftime("%d/%m/%Y"),
+        day_name,
+        tutor.name if tutor else "",
+        student.name if student else "",
+        curriculum.name if curriculum else "",
+        level.name if level else "",
+        subject.name if subject else "",
+        nominal,
+    ]
 
 
 def _attendance_redirect_filters():
@@ -621,6 +659,55 @@ def list_attendance():
         default_scan_year=year or date.today().year,
         whatsapp_review_map=whatsapp_review_map,
         whatsapp_review_start_date=WHATSAPP_REVIEW_START_DATE,
+    )
+
+
+@attendance_bp.route("/export-csv", methods=["GET"])
+@login_required
+def export_attendance_csv():
+    """Export filtered attendance sessions as CSV."""
+    enrollment_id = _decode_optional_query_ref("enrollment_ref", "enrollment")
+    tutor_id = _decode_optional_query_ref("tutor_ref", "tutor")
+    if enrollment_id is None:
+        enrollment_id = request.args.get("enrollment_id", type=int)
+    if tutor_id is None:
+        tutor_id = request.args.get("tutor_id", type=int)
+    month = request.args.get("month", type=int)
+    year = request.args.get("year", type=int)
+    status = request.args.get("status")
+    selected_sort = request.args.get("sort", "date_desc")
+    if selected_sort not in ATTENDANCE_SORT_OPTIONS:
+        selected_sort = "date_desc"
+
+    query = _build_attendance_list_query(
+        enrollment_id=enrollment_id,
+        tutor_id=tutor_id,
+        month=month,
+        year=year,
+        status=status,
+    )
+    rows = _apply_attendance_list_sort(query, selected_sort).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        ["No", "Tanggal", "Hari", "Tutor", "Siswa", "Kurikulum", "Jenjang", "Mapel", "Nominal"]
+    )
+    for index, session_item in enumerate(rows, start=1):
+        writer.writerow(_attendance_csv_row(session_item, index))
+
+    filename_parts = ["presensi"]
+    if month:
+        filename_parts.append(f"{month:02d}")
+    if year:
+        filename_parts.append(str(year))
+    filename = "-".join(filename_parts) + ".csv"
+    csv_body = "\ufeff" + output.getvalue()
+
+    return Response(
+        csv_body,
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 

@@ -19,6 +19,7 @@ from app.models import (
 from app.routes.attendance import (
     WHATSAPP_REVIEW_START_DATE,
     _apply_attendance_list_sort,
+    _attendance_csv_row,
     _build_attendance_list_query,
     _build_whatsapp_review_map,
     _set_whatsapp_attendance_manual_review,
@@ -196,6 +197,28 @@ def test_attendance_list_sort_orders_by_student_name_and_date_together():
         ]
 
 
+def test_attendance_csv_row_uses_requested_columns_and_indonesian_day():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        seeded = _seed_attendance_sessions()
+
+        row = _attendance_csv_row(seeded["april_session"], 1)
+
+        assert row == [
+            1,
+            "10/04/2026",
+            "Jumat",
+            "Dinda",
+            "Nadine",
+            "K13",
+            "SMA",
+            "Matematika",
+            80000,
+        ]
+
+
 def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     project_root = Path(__file__).resolve().parents[1]
     template_text = (
@@ -249,6 +272,8 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert "sort=selected_sort or 'date_desc'" in template_text
     assert "reset_filters=1" in template_text
     assert "attendance.delete_attendance" in template_text
+    assert "attendance.export_attendance_csv" in template_text
+    assert "Export CSV" in template_text
 
 
 def test_attendance_form_template_contains_manual_tutor_selector():

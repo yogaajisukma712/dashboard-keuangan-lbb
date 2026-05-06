@@ -1102,7 +1102,34 @@ class WhatsAppIngestService:
             return None
 
         target_whatsapp_group_id = str(group.whatsapp_group_id or "").strip()
-        matches: list[WhatsAppTutorValidation] = []
+        exact_matches: list[WhatsAppTutorValidation] = []
+        loose_matches: list[WhatsAppTutorValidation] = []
+
+        def is_meaningful_partial_name(value: str) -> bool:
+            generic_tokens = {
+                "miss",
+                "ms",
+                "mrs",
+                "mr",
+                "sir",
+                "mam",
+                "maam",
+                "tutor",
+                "teacher",
+            }
+            parts = [part for part in value.split() if part not in generic_tokens]
+            return len(value) >= 6 and len(parts) >= 2
+
+        def names_match(sender_name: str, candidate_name: str) -> tuple[bool, bool]:
+            if sender_name == candidate_name:
+                return True, True
+            if not (
+                is_meaningful_partial_name(sender_name)
+                and is_meaningful_partial_name(candidate_name)
+            ):
+                return False, False
+            return sender_name in candidate_name or candidate_name in sender_name, False
+
         for validation in WhatsAppTutorValidation.query.all():
             group_memberships = list(validation.group_memberships_json or [])
             shares_group = any(
@@ -1135,18 +1162,26 @@ class WhatsAppIngestService:
             candidate_names.discard("")
 
             for sender_name in sender_names:
-                if any(
-                    sender_name == candidate_name
-                    or sender_name in candidate_name
-                    or candidate_name in sender_name
-                    for candidate_name in candidate_names
-                ):
-                    matches.append(validation)
+                matched = False
+                for candidate_name in candidate_names:
+                    is_match, is_exact = names_match(sender_name, candidate_name)
+                    if not is_match:
+                        continue
+                    if is_exact:
+                        exact_matches.append(validation)
+                    else:
+                        loose_matches.append(validation)
+                    matched = True
+                    break
+                if matched:
                     break
 
-        unique_matches = {item.id: item for item in matches}
-        if len(unique_matches) == 1:
-            return next(iter(unique_matches.values()))
+        unique_exact_matches = {item.id: item for item in exact_matches}
+        if len(unique_exact_matches) == 1:
+            return next(iter(unique_exact_matches.values()))
+        unique_loose_matches = {item.id: item for item in loose_matches}
+        if not unique_exact_matches and len(unique_loose_matches) == 1:
+            return next(iter(unique_loose_matches.values()))
         return None
 
     @staticmethod

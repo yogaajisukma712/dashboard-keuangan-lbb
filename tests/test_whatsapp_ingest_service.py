@@ -1034,6 +1034,12 @@ def test_lid_author_matches_validated_tutor_phone_alias_by_group_and_name():
             phone="085210955603",
             is_active=True,
         )
+        other_tutor = Tutor(
+            tutor_code="TTR-LID-2",
+            name="Windi Lestari",
+            phone="081381599447",
+            is_active=True,
+        )
         group = WhatsAppGroup(
             whatsapp_group_id="group-fajry@g.us",
             name="Fajry English",
@@ -1050,6 +1056,13 @@ def test_lid_author_matches_validated_tutor_phone_alias_by_group_and_name():
             phone_number="268169235169510",
             display_name="Miss Dinda_ Tutor English",
             push_name="Dinda",
+            is_group=False,
+        )
+        other_phone_contact = WhatsAppContact(
+            whatsapp_contact_id="6281381599447@c.us",
+            phone_number="6281381599447",
+            display_name="Miss Windi Tutor Math",
+            push_name="Windi Lestari",
             is_group=False,
         )
         enrollment = Enrollment(
@@ -1072,9 +1085,11 @@ def test_lid_author_matches_validated_tutor_phone_alias_by_group_and_name():
                 subject,
                 student,
                 tutor,
+                other_tutor,
                 group,
                 phone_contact,
                 lid_contact,
+                other_phone_contact,
                 enrollment,
             ]
         )
@@ -1103,6 +1118,22 @@ def test_lid_author_matches_validated_tutor_phone_alias_by_group_and_name():
             )
         )
         db.session.add(
+            WhatsAppTutorValidation(
+                contact_id=other_phone_contact.id,
+                tutor_id=other_tutor.id,
+                validated_phone_number="6281381599447",
+                validated_contact_name="Miss Windi Tutor Math",
+                group_memberships_json=[
+                    {
+                        "group_id": group.id,
+                        "whatsapp_group_id": "group-fajry@g.us",
+                        "group_name": "Fajry English",
+                        "display_name": "Miss",
+                    }
+                ],
+            )
+        )
+        db.session.add(
             WhatsAppStudentGroupValidation(group_id=group.id, student_id=student.id)
         )
         message = WhatsAppMessage(
@@ -1123,8 +1154,13 @@ def test_lid_author_matches_validated_tutor_phone_alias_by_group_and_name():
         db.session.add_all([message, evaluation])
         db.session.commit()
 
+        validation = WhatsAppIngestService.find_validated_tutor_by_message_identity(
+            evaluation, message.author_phone_number
+        )
         result = WhatsAppIngestService.refresh_evaluation_attendance_link(evaluation)
 
+        assert validation is not None
+        assert validation.tutor_id == tutor.id
         assert result["attendance_linked"] is True
         assert evaluation.matched_tutor_id == tutor.id
         assert evaluation.matched_student_id == student.id

@@ -1,9 +1,9 @@
 {
-  "goal": "Resolve WhatsApp LID sender aliases to validated tutor phone identities",
+  "goal": "Fix Miss Dinda Fajry WhatsApp LID attendance matching",
   "project_id": "billing-supersmart",
   "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-06T08:23:20Z",
+  "updated_at": "2026-05-06T08:48:17Z",
   "plan": [
     {
       "step": "Investigate target group and phone/LID evidence",
@@ -26,6 +26,6 @@
     }
   ],
   "notes": [
-    "WhatsApp may store group sender as @lid while tutor validation uses @c.us phone contact. LID now matches validated tutor only when sender/contact name and group membership agree."
+    "LID alias must not match generic honorific-only names such as miss; exact full sender/contact names take priority."
   ]
 }

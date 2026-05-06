@@ -1,30 +1,29 @@
 {
-  "goal": "Bulk send tutor fee slips from payroll summary via WhatsApp",
+  "goal": "Fix bulk WhatsApp fee slip send causing web worker timeout",
   "project_id": "billing-supersmart",
   "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-06T06:12:37Z",
+  "updated_at": "2026-05-06T06:57:28Z",
   "plan": [
     {
-      "step": "Inspect payroll summary and single slip WhatsApp flow",
-      "status": "completed"
-    },
-    {
-      "step": "Add bulk send backend and modal UI",
-      "status": "completed"
-    },
-    {
-      "step": "Run tests and smoke checks",
+      "step": "Inspect runtime logs and container health",
       "status": "completed",
-      "note": "Targeted tests passed; tutor summary render smoke passed; UI login smoke passed; deploy check release_ready=true."
+      "note": "Container running; web log showed WORKER TIMEOUT."
+    },
+    {
+      "step": "Move bulk send processing to background worker thread",
+      "status": "completed"
+    },
+    {
+      "step": "Run tests, rebuild web, and check logs",
+      "status": "completed"
     },
     {
       "step": "Commit and push",
-      "status": "completed",
-      "note": "Committed and pushed 6979796 to origin/main."
+      "status": "pending"
     }
   ],
   "notes": [
-    "Tutor summary checkboxes now select fee slips for bulk WhatsApp send. Caption is provided in a modal and attached to each PDF message."
+    "Bulk send was synchronous; Gunicorn killed web worker after timeout during PDF render/send loop. Route now starts background thread and redirects immediately."
   ]
 }

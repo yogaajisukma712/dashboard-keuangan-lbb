@@ -9,6 +9,7 @@ import json
 from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO
+from threading import Thread
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
@@ -17,6 +18,7 @@ from flask import (
     abort,
     current_app,
     flash,
+    has_request_context,
     jsonify,
     redirect,
     render_template,
@@ -190,12 +192,16 @@ def _send_fee_slip_whatsapp_attachment(
     payout: TutorPayout,
     contact_id: str,
     message: str,
+    base_url: str | None = None,
 ) -> tuple[bool, str]:
     """Send fee slip PDF to one WhatsApp contact and update payout audit fields."""
     tutor = payout.tutor
-    pdf_response = fee_slip_pdf(payout.public_id)
-    pdf_response.direct_passthrough = False
-    pdf_bytes = pdf_response.get_data()
+    if has_request_context():
+        pdf_response = fee_slip_pdf(payout.public_id)
+        pdf_response.direct_passthrough = False
+        pdf_bytes = pdf_response.get_data()
+    else:
+        pdf_bytes = _render_fee_slip_pdf_via_bot(payout, base_url=base_url)
     pdf_filename = secure_filename(f"fee_slip_{payout.id}_{tutor.tutor_code}.pdf")
 
     payload, status_code = _bot_request(
@@ -219,6 +225,71 @@ def _send_fee_slip_whatsapp_attachment(
         payout.whatsapp_last_status = "sent"
         return True, ""
     return False, payload.get("error") or "Bot error"
+
+
+def _send_fee_slips_whatsapp_bulk_background(
+    app,
+    payout_refs: list[str],
+    message: str,
+    base_url: str,
+) -> None:
+    """Run bulk WhatsApp send outside the web request to avoid Gunicorn timeout."""
+    with app.app_context():
+        sent_count = 0
+        failed = []
+        skipped = []
+        try:
+            with app.test_request_context(base_url=base_url):
+                for payout_ref in payout_refs:
+                    try:
+                        payout_id = decode_public_id(payout_ref, "tutor_payout")
+                        payout = TutorPayout.query.get(payout_id)
+                    except Exception as exc:
+                        failed.append(f"Slip {payout_ref}: {exc}")
+                        continue
+                    if not payout:
+                        failed.append(f"Slip {payout_ref}: tidak ditemukan")
+                        continue
+
+                    contacts = _get_tutor_whatsapp_contact_options(payout.tutor)
+                    if not contacts:
+                        skipped.append(
+                            f"{payout.tutor.name}: nomor WA tutor belum divalidasi"
+                        )
+                        continue
+
+                    contact_id = contacts[0]["value"]
+                    sent, error = _send_fee_slip_whatsapp_attachment(
+                        payout,
+                        contact_id,
+                        message,
+                        base_url=base_url,
+                    )
+                    if sent:
+                        sent_count += 1
+                        db.session.commit()
+                    else:
+                        db.session.rollback()
+                        failed.append(f"{payout.tutor.name}: {error}")
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception("Bulk WhatsApp fee slip job crashed")
+        finally:
+            current_app.logger.info(
+                "Bulk WhatsApp fee slip job finished: sent=%s skipped=%s failed=%s",
+                sent_count,
+                len(skipped),
+                len(failed),
+            )
+            if skipped:
+                current_app.logger.warning(
+                    "Bulk WhatsApp fee slip skipped: %s", "; ".join(skipped[:20])
+                )
+            if failed:
+                current_app.logger.warning(
+                    "Bulk WhatsApp fee slip failed: %s", "; ".join(failed[:20])
+                )
+            db.session.remove()
 
 
 def _get_payout_by_ref_or_404(payout_ref):
@@ -725,8 +796,13 @@ def _build_fee_slip_template_context(payout, *, embed_proof=False):
     }
 
 
-def _render_fee_slip_pdf_via_bot(payout):
+def _render_fee_slip_pdf_via_bot(payout, base_url: str | None = None):
     """Render the same HTML slip with Chromium so PDF matches the web view."""
+    resolved_base_url = base_url
+    if not resolved_base_url and has_request_context():
+        resolved_base_url = request.host_url
+    if not resolved_base_url:
+        resolved_base_url = current_app.config.get("APP_BASE_URL", "")
     html = render_template(
         "payroll/fee_slip.html",
         **_build_fee_slip_template_context(payout, embed_proof=True),
@@ -737,7 +813,7 @@ def _render_fee_slip_pdf_via_bot(payout):
         "/render/pdf",
         {
             "html": html,
-            "baseUrl": request.host_url,
+            "baseUrl": resolved_base_url,
             "selector": ".fee-slip-document",
         },
         timeout=90,
@@ -819,40 +895,20 @@ def tutor_summary_send_whatsapp_bulk():
         return redirect(url_for("whatsapp_bot.management"))
 
     unique_refs = list(dict.fromkeys(ref for ref in payout_refs if ref))
-    sent_count = 0
-    skipped = []
-    failed = []
+    app = current_app._get_current_object()
+    base_url = current_app.config.get("APP_BASE_URL") or request.host_url
+    worker = Thread(
+        target=_send_fee_slips_whatsapp_bulk_background,
+        args=(app, unique_refs, message, base_url),
+        daemon=True,
+    )
+    worker.start()
 
-    for payout_ref in unique_refs:
-        try:
-            payout = _get_payout_by_ref_or_404(payout_ref)
-        except Exception:
-            failed.append(f"Slip {payout_ref}: tidak valid")
-            continue
-
-        contacts = _get_tutor_whatsapp_contact_options(payout.tutor)
-        if not contacts:
-            skipped.append(f"{payout.tutor.name}: nomor WA tutor belum divalidasi")
-            continue
-
-        contact_id = contacts[0]["value"]
-        sent, error = _send_fee_slip_whatsapp_attachment(payout, contact_id, message)
-        if sent:
-            sent_count += 1
-        else:
-            failed.append(f"{payout.tutor.name}: {error}")
-
-    if sent_count:
-        db.session.commit()
-
-    if sent_count:
-        flash(f"{sent_count} slip gaji berhasil dikirim via WhatsApp.", "success")
-    if skipped:
-        flash("Dilewati: " + "; ".join(skipped[:5]), "warning")
-    if failed:
-        flash("Gagal kirim: " + "; ".join(failed[:5]), "danger")
-    if not sent_count and not skipped and not failed:
-        flash("Tidak ada slip yang diproses.", "warning")
+    flash(
+        f"Proses kirim {len(unique_refs)} slip gaji berjalan di background. "
+        "Halaman tidak perlu ditunggu agar server tidak timeout.",
+        "info",
+    )
     return redirect(redirect_url)
 
 

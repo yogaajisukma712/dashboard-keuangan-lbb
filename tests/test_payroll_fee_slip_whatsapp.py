@@ -100,8 +100,13 @@ def test_tutor_summary_supports_bulk_whatsapp_fee_slip_send():
 
     assert '"/tutor-summary/send-whatsapp-bulk"' in route_text
     assert "def tutor_summary_send_whatsapp_bulk" in route_text
+    assert "Thread(" in route_text
+    assert "_send_fee_slips_whatsapp_bulk_background" in route_text
     assert "_send_fee_slip_whatsapp_attachment" in route_text
     assert "request.form.getlist(\"payout_ref\")" in route_text
+    assert "worker.start()" in route_text
+    assert "berjalan di background" in route_text
+    assert "has_request_context" in route_text
     assert "_get_tutor_whatsapp_contact_options(payout.tutor)" in route_text
     assert "payout.whatsapp_last_message = message" in route_text
     assert "bulkWhatsAppModal" in template_text

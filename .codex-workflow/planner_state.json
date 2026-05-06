@@ -1,32 +1,29 @@
 {
-  "goal": "Render payroll fee slip PDF from web HTML with single dynamic page height",
+  "goal": "Make payroll fee slip PDF exactly one page fitted to rendered slip object",
   "project_id": "billing-supersmart",
-  "phase": "implementation",
+  "phase": "verification",
   "current_role": "codex",
-  "updated_at": "2026-05-05T21:12:56Z",
+  "updated_at": "2026-05-06T05:00:22Z",
   "plan": [
     {
-      "step": "Repair Hermes MCP invocation",
-      "status": "completed",
-      "note": "Use Content-Length MCP framing."
-    },
-    {
-      "step": "Implement browser-rendered payroll PDF",
+      "step": "Inspect current browser PDF renderer",
       "status": "completed"
     },
     {
-      "step": "Run targeted tests and smoke checks",
-      "status": "completed",
-      "note": "Targeted tests passed; bot PDF renderer smoke passed; UI smoke passed on /auth/login port 6001; deploy check release_ready=true."
+      "step": "Switch PDF renderer to element screenshot pipeline",
+      "status": "completed"
     },
     {
-      "step": "Commit and push to GitHub",
+      "step": "Verify tall slip renders as one page",
       "status": "completed",
-      "note": "Committed and pushed 8c086f4 to origin/main."
+      "note": "Smoke tall 2600px slip returned pages=1."
+    },
+    {
+      "step": "Commit and push",
+      "status": "pending"
     }
   ],
   "notes": [
-    "ReportLab manual layout diverged from web; use WhatsApp bot Chromium/Puppeteer renderer for consistent PDF.",
-    "PDF paper height follows rendered .fee-slip-document height to avoid page split/cut content."
+    "Previous Chromium print PDF could still paginate; renderer now screenshots .fee-slip-document and wraps the PNG in an exact-size single-page PDF."
   ]
 }

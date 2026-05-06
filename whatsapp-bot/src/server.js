@@ -25,6 +25,22 @@ function pxToInches(value) {
   return `${Math.max(value, 1) / 96}in`;
 }
 
+function pngDimensions(buffer) {
+  const isPng =
+    buffer.length >= 24 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47;
+  if (!isPng) {
+    throw new Error('Rendered slip screenshot is not a PNG');
+  }
+  return {
+    width: buffer.readUInt32BE(16),
+    height: buffer.readUInt32BE(20),
+  };
+}
+
 async function renderHtmlToSinglePagePdf(html, options = {}) {
   const browser = await puppeteer.launch({
     executablePath: config.chromiumPath,
@@ -40,10 +56,9 @@ async function renderHtmlToSinglePagePdf(html, options = {}) {
       waitUntil: ['load', 'networkidle0'],
       timeout: 45000,
     });
-    await page.emulateMediaType('print');
+    await page.emulateMediaType('screen');
     await page.addStyleTag({
       content: `
-        @page { margin: 0; }
         html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
         .fee-slip-wrapper { padding: 0 !important; margin: 0 !important; }
         .fee-slip-document { margin: 0 auto !important; box-shadow: none !important; }
@@ -52,19 +67,39 @@ async function renderHtmlToSinglePagePdf(html, options = {}) {
     await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
 
     const selector = options.selector || '.fee-slip-document';
-    const dimensions = await page.evaluate((targetSelector) => {
-      const target = document.querySelector(targetSelector) || document.body;
-      const rect = target.getBoundingClientRect();
-      const styles = window.getComputedStyle(target);
-      const marginX = parseFloat(styles.marginLeft || '0') + parseFloat(styles.marginRight || '0');
-      const marginY = parseFloat(styles.marginTop || '0') + parseFloat(styles.marginBottom || '0');
-      return {
-        width: Math.ceil(Math.max(rect.width + marginX + 24, document.documentElement.scrollWidth)),
-        height: Math.ceil(Math.max(rect.height + marginY + 24, document.documentElement.scrollHeight)),
-      };
-    }, selector);
+    const target = await page.$(selector);
+    if (!target) {
+      throw new Error(`PDF target element not found: ${selector}`);
+    }
+    const screenshot = await target.screenshot({
+      type: 'png',
+      omitBackground: false,
+      captureBeyondViewport: true,
+    });
+    const dimensions = pngDimensions(screenshot);
 
-    return await page.pdf({
+    const pdfPage = await browser.newPage();
+    await pdfPage.setViewport({
+      width: dimensions.width,
+      height: dimensions.height,
+      deviceScaleFactor: 1,
+    });
+    await pdfPage.setContent(
+      `<!doctype html>
+      <html>
+        <head>
+          <style>
+            @page { margin: 0; size: ${dimensions.width}px ${dimensions.height}px; }
+            html, body { margin: 0; padding: 0; width: ${dimensions.width}px; height: ${dimensions.height}px; overflow: hidden; background: #fff; }
+            img { display: block; width: ${dimensions.width}px; height: ${dimensions.height}px; }
+          </style>
+        </head>
+        <body><img src="data:image/png;base64,${screenshot.toString('base64')}" alt="Fee Slip"></body>
+      </html>`,
+      { waitUntil: 'load' },
+    );
+
+    return await pdfPage.pdf({
       printBackground: true,
       preferCSSPageSize: false,
       width: pxToInches(dimensions.width),
@@ -212,7 +247,7 @@ app.post('/render/pdf', async (req, res) => {
     res.json({
       ok: true,
       pdf_base64: Buffer.from(pdf).toString('base64'),
-      page_mode: 'single-page-fit-content',
+      page_mode: 'single-page-element-screenshot',
     });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });

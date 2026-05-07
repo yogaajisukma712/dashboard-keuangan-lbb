@@ -123,22 +123,21 @@ def _error_response(
 
 def calc_quota(enr_id: int, service_month_date: date) -> dict:
     """
-    Hitung quota berbayar vs terpakai untuk sebuah enrollment pada bulan tertentu.
+    Hitung total quota berbayar vs total terpakai untuk sebuah enrollment.
+
+    `service_month_date` tetap diterima untuk kompatibilitas pemanggil invoice,
+    tetapi saldo sesi sengaja kumulatif lintas bulan agar invoice bisa memakai
+    sisa sesi total siswa, bukan reset per bulan.
 
     Returns:
         dict dengan keys: paid, used, remaining
     """
-    month = service_month_date.month
-    year = service_month_date.year
-
     paid = (
         db.session.query(
             db.func.coalesce(db.func.sum(StudentPaymentLine.meeting_count), 0)
         )
         .filter(
             StudentPaymentLine.enrollment_id == enr_id,
-            db.extract("month", StudentPaymentLine.service_month) == month,
-            db.extract("year", StudentPaymentLine.service_month) == year,
         )
         .scalar()
     )
@@ -147,8 +146,6 @@ def calc_quota(enr_id: int, service_month_date: date) -> dict:
         db.session.query(db.func.count(AttendanceSession.id))
         .filter(
             AttendanceSession.enrollment_id == enr_id,
-            db.extract("month", AttendanceSession.session_date) == month,
-            db.extract("year", AttendanceSession.session_date) == year,
             AttendanceSession.status == "attended",
         )
         .scalar()
@@ -195,6 +192,9 @@ def _build_quota_summary(quota_details):
     """Summarize quota detail rows for one student."""
     return {
         "total_enrollments": len(quota_details),
+        "total_paid_sessions": sum(item["paid"] for item in quota_details),
+        "total_used_sessions": sum(item["used"] for item in quota_details),
+        "total_remaining_sessions": sum(item["remaining"] for item in quota_details),
         "problem_subject_count": sum(1 for item in quota_details if item["remaining"] <= 0),
         "zero_subject_count": sum(1 for item in quota_details if item["remaining"] == 0),
         "minus_subject_count": sum(1 for item in quota_details if item["remaining"] < 0),

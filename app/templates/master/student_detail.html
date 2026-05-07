@@ -234,7 +234,9 @@
           <h6 class="mb-0 fw-semibold">
             <i class="bi bi-speedometer2 text-primary me-2"></i>Dashboard Quota & Invoice
           </h6>
-          <div class="text-muted small mt-1">Periode layanan: {{ service_month_label }}</div>
+          <div class="text-muted small mt-1">
+            Sesi dihitung kumulatif semua bulan. Acuan invoice baru: {{ service_month_label }}
+          </div>
         </div>
         <form method="GET" class="row g-2 align-items-end">
           <div class="col-auto">
@@ -267,20 +269,20 @@
           </div>
           <div class="col-sm-6 col-xl-3">
             <div class="border rounded-3 p-3 h-100 bg-warning-subtle">
-              <div class="text-muted small">Mapel Bermasalah</div>
-              <div class="fw-bold fs-4">{{ quota_summary.problem_subject_count }}</div>
-            </div>
-          </div>
-          <div class="col-sm-6 col-xl-3">
-            <div class="border rounded-3 p-3 h-100 bg-danger-subtle">
-              <div class="text-muted small">Quota Minus</div>
-              <div class="fw-bold fs-4">{{ quota_summary.minus_subject_count }}</div>
+              <div class="text-muted small">Total Sesi Dibeli</div>
+              <div class="fw-bold fs-4">{{ quota_summary.total_paid_sessions }}</div>
             </div>
           </div>
           <div class="col-sm-6 col-xl-3">
             <div class="border rounded-3 p-3 h-100 bg-info-subtle">
-              <div class="text-muted small">Sesi Terhutang</div>
-              <div class="fw-bold fs-4">{{ quota_summary.total_debt_sessions }}</div>
+              <div class="text-muted small">Total Terpakai</div>
+              <div class="fw-bold fs-4">{{ quota_summary.total_used_sessions }}</div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-xl-3">
+            <div class="border rounded-3 p-3 h-100 {% if quota_summary.total_remaining_sessions < 0 %}bg-danger-subtle{% elif quota_summary.total_remaining_sessions == 0 %}bg-warning-subtle{% else %}bg-success-subtle{% endif %}">
+              <div class="text-muted small">Total Sisa Sesi</div>
+              <div class="fw-bold fs-4">{{ quota_summary.total_remaining_sessions }}</div>
             </div>
           </div>
         </div>
@@ -292,9 +294,9 @@
               <tr>
                 <th>Mapel</th>
                 <th>Tutor</th>
-                <th class="text-center">Dibayar</th>
-                <th class="text-center">Terpakai</th>
-                <th class="text-center">Sisa</th>
+                <th class="text-center">Total Dibeli</th>
+                <th class="text-center">Total Terpakai</th>
+                <th class="text-center">Sisa Total</th>
                 <th class="text-center">Status</th>
               </tr>
             </thead>

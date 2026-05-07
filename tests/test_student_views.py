@@ -49,3 +49,9 @@ def test_student_detail_route_and_template_support_active_toggle_and_short_title
     assert "toggle_student_active" in template_text
     assert "Deaktifkan" in template_text
     assert "Aktifkan" in template_text
+    assert "Sesi dihitung kumulatif semua bulan" in template_text
+    assert "Total Sesi Dibeli" in template_text
+    assert "Total Terpakai" in template_text
+    assert "Total Sisa Sesi" in template_text
+    assert "Total Dibeli" in template_text
+    assert "Sisa Total" in template_text

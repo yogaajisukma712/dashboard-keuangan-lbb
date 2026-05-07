@@ -1,9 +1,9 @@
 {
   "goal": "Use total session balance on student detail and invoice quota",
   "project_id": "billing-supersmart",
-  "phase": "verification",
+  "phase": "completed",
   "current_role": "codex",
-  "updated_at": "2026-05-07T01:10:23Z",
+  "updated_at": "2026-05-07T01:11:03Z",
   "plan": [
     {
       "step": "Investigate target group and phone/LID evidence",
@@ -26,6 +26,6 @@
     }
   ],
   "notes": [
-    "calc_quota now totals all StudentPaymentLine.meeting_count and all attended AttendanceSession rows per enrollment. service_month remains invoice metadata only."
+    "Committed and pushed 76a188d to origin/main. Tests: docker compose exec -T web python -m pytest tests/test_quota_total_sessions.py tests/test_student_views.py -q --tb=short passed."
   ]
 }

@@ -169,7 +169,7 @@ def test_edit_payment_subject_refreshes_total_bought_sessions_source():
         ipa = Subject(name="IPA")
         science = Subject(name="Science")
         student = Student(name="Dinda", grade="10")
-        tutor = Tutor(name="Bu Rani")
+        tutor = Tutor(tutor_code="T-RANI", name="Bu Rani")
         db.session.add_all([curriculum, level, ipa, science, student, tutor])
         db.session.flush()
 

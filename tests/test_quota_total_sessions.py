@@ -14,6 +14,7 @@ from app.models import (
     Subject,
     Tutor,
 )
+from app.routes.payments import _sync_payment_lines_from_form
 from app.routes.quota_invoice import _build_quota_summary, calc_quota
 
 
@@ -156,3 +157,83 @@ def test_quota_summary_exposes_total_session_metrics():
     assert summary["total_used_sessions"] == 7
     assert summary["total_remaining_sessions"] == 1
     assert summary["total_debt_sessions"] == 2
+
+
+def test_edit_payment_subject_refreshes_total_bought_sessions_source():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="Nasional")
+        level = Level(name="SMA")
+        ipa = Subject(name="IPA")
+        science = Subject(name="Science")
+        student = Student(name="Dinda", grade="10")
+        tutor = Tutor(name="Bu Rani")
+        db.session.add_all([curriculum, level, ipa, science, student, tutor])
+        db.session.flush()
+
+        ipa_enrollment = Enrollment(
+            student_id=student.id,
+            tutor_id=tutor.id,
+            subject_id=ipa.id,
+            curriculum_id=curriculum.id,
+            level_id=level.id,
+            student_rate_per_meeting=50000,
+            tutor_rate_per_meeting=30000,
+            status="active",
+            is_active=True,
+        )
+        science_enrollment = Enrollment(
+            student_id=student.id,
+            tutor_id=tutor.id,
+            subject_id=science.id,
+            curriculum_id=curriculum.id,
+            level_id=level.id,
+            student_rate_per_meeting=60000,
+            tutor_rate_per_meeting=35000,
+            status="active",
+            is_active=True,
+        )
+        payment = StudentPayment(
+            student_id=student.id,
+            receipt_number="INV-EDIT-MAPEL",
+            payment_method="cash",
+            total_amount=100000,
+            payment_date=datetime(2026, 5, 1),
+            is_verified=True,
+        )
+        db.session.add_all([ipa_enrollment, science_enrollment, payment])
+        db.session.flush()
+        db.session.add(
+            StudentPaymentLine(
+                student_payment_id=payment.id,
+                enrollment_id=ipa_enrollment.id,
+                service_month=date(2026, 5, 1),
+                meeting_count=2,
+                student_rate_per_meeting=50000,
+                tutor_rate_per_meeting=30000,
+                nominal_amount=100000,
+                tutor_payable_amount=60000,
+                margin_amount=40000,
+            )
+        )
+        db.session.commit()
+
+        assert calc_quota(ipa_enrollment.id, date(2026, 5, 1))["paid"] == 2
+        assert calc_quota(science_enrollment.id, date(2026, 5, 1))["paid"] == 0
+
+        with app.test_request_context(
+            "/payments/edit",
+            method="POST",
+            data={
+                "enrollment_id[]": [str(science_enrollment.id)],
+                "meeting_count[]": ["3"],
+            },
+        ):
+            _sync_payment_lines_from_form(payment)
+            db.session.commit()
+
+        assert calc_quota(ipa_enrollment.id, date(2026, 5, 1))["paid"] == 0
+        assert calc_quota(science_enrollment.id, date(2026, 5, 1))["paid"] == 3
+        assert float(payment.total_amount) == 180000

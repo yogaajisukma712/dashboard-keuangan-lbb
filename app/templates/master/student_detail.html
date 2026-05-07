@@ -17,6 +17,14 @@
     <a href="{{ url_for('quota_invoice.quota_alerts', month=service_month.month, year=service_month.year) }}" class="btn btn-outline-warning btn-sm">
       <i class="bi bi-exclamation-triangle me-1"></i>Alert Quota
     </a>
+    <form method="POST" action="{{ url_for('quota_invoice.refresh_student_quota', student_ref=student.public_id) }}" class="d-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="month" value="{{ service_month.month }}">
+      <input type="hidden" name="year" value="{{ service_month.year }}">
+      <button type="submit" class="btn btn-outline-info btn-sm">
+        <i class="bi bi-arrow-clockwise me-1"></i>Refresh Sesi
+      </button>
+    </form>
     {% if quota_details %}
     <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#studentInvoiceModal">
       <i class="bi bi-receipt-cutoff me-1"></i>Buat Invoice

@@ -585,6 +585,31 @@ def student_quota_detail(student_ref):
     )
 
 
+@quota_invoice_bp.route("/student/<string:student_ref>/refresh", methods=["POST"])
+@login_required
+def refresh_student_quota(student_ref):
+    """Refresh detail siswa agar quota dibaca ulang dari pembayaran dan presensi."""
+    student = _get_student_by_ref_or_404(student_ref)
+    today = date.today()
+    month = request.form.get("month", today.month, type=int)
+    year = request.form.get("year", today.year, type=int)
+
+    db.session.expire_all()
+    flash(
+        "Perhitungan sesi diperbarui dari riwayat pembayaran dan presensi terbaru.",
+        "success",
+    )
+    return redirect(
+        url_for(
+            "master.student_detail",
+            student_ref=student.public_id,
+            month=month,
+            year=year,
+            refreshed=1,
+        )
+    )
+
+
 @quota_invoice_bp.route("/invoice/create", methods=["POST"])
 @login_required
 def create_invoice():

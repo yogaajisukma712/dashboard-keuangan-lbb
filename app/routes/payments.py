@@ -43,6 +43,60 @@ def _get_payment_by_ref_or_404(payment_ref):
     return StudentPayment.query.get_or_404(payment_id)
 
 
+def _sync_payment_lines_from_form(payment):
+    """Replace payment lines from submitted enrollment/session rows."""
+    enrollment_ids = request.form.getlist("enrollment_id[]")
+    meeting_counts = request.form.getlist("meeting_count[]")
+
+    for line in payment.payment_lines.all():
+        db.session.delete(line)
+    db.session.flush()
+
+    total_amount = 0
+    for enrollment_id_raw, meeting_count_raw in zip(enrollment_ids, meeting_counts):
+        if not enrollment_id_raw or not meeting_count_raw:
+            continue
+
+        try:
+            enrollment_id = int(enrollment_id_raw)
+            meeting_count = int(meeting_count_raw)
+        except (TypeError, ValueError):
+            raise ValueError("Baris pembayaran berisi data sesi yang tidak valid")
+
+        if meeting_count <= 0:
+            continue
+
+        enrollment = Enrollment.query.filter_by(
+            id=enrollment_id,
+            student_id=payment.student_id,
+        ).first()
+        if not enrollment:
+            raise ValueError("Enrollment pembayaran tidak valid untuk siswa ini")
+
+        student_rate = float(enrollment.student_rate_per_meeting or 0)
+        tutor_rate = float(enrollment.tutor_rate_per_meeting or 0)
+        nominal_amount = meeting_count * student_rate
+        tutor_payable_amount = meeting_count * tutor_rate
+        margin_amount = nominal_amount - tutor_payable_amount
+
+        db.session.add(
+            StudentPaymentLine(
+                student_payment_id=payment.id,
+                enrollment_id=enrollment.id,
+                service_month=payment.payment_date.date(),
+                meeting_count=meeting_count,
+                student_rate_per_meeting=student_rate,
+                tutor_rate_per_meeting=tutor_rate,
+                nominal_amount=nominal_amount,
+                tutor_payable_amount=tutor_payable_amount,
+                margin_amount=margin_amount,
+            )
+        )
+        total_amount += nominal_amount
+
+    payment.total_amount = total_amount
+
+
 @payments_bp.route("/", methods=["GET"])
 @login_required
 def list_payments():
@@ -200,8 +254,8 @@ def edit_payment(payment_ref):
             )
             payment.receipt_number = request.form.get("receipt_number")
             payment.payment_method = request.form.get("payment_method")
-            payment.total_amount = float(request.form.get("total_amount", 0))
             payment.notes = request.form.get("notes")
+            _sync_payment_lines_from_form(payment)
 
             db.session.commit()
             flash("Pembayaran berhasil diupdate", "success")

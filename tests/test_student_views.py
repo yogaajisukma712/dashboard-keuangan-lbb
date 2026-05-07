@@ -55,3 +55,5 @@ def test_student_detail_route_and_template_support_active_toggle_and_short_title
     assert "Total Sisa Sesi" in template_text
     assert "Total Dibeli" in template_text
     assert "Sisa Total" in template_text
+    assert "refresh_student_quota" in template_text
+    assert "Refresh Sesi" in template_text

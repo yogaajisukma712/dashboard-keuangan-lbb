@@ -33,9 +33,11 @@ from app.models import (
     AttendanceSession,
     Curriculum,
     Enrollment,
+    EnrollmentSchedule,
     Level,
     PricingRule,
     Student,
+    StudentPayment,
     Subject,
     SubjectTutorAssignment,
     Tutor,
@@ -165,6 +167,156 @@ def _build_tutor_teaching_schedule(tutor_id: int):
             {"weekday": bucket["weekday"], "day_name": bucket["day_name"], "items": items}
         )
     return teaching_schedule
+
+
+def _short_person_name(name: str | None) -> str:
+    parts = (name or "-").split()
+    return " ".join(parts[:2]) if parts else "-"
+
+
+def _build_tutor_weekly_schedule_grid(tutor_id: int | None):
+    weekday_names = [
+        "Senin",
+        "Selasa",
+        "Rabu",
+        "Kamis",
+        "Jumat",
+        "Sabtu",
+        "Minggu",
+    ]
+    hour_slots = list(range(8, 22))
+    cells = {
+        (hour, weekday): {"hour": hour, "weekday": weekday, "items": []}
+        for hour in hour_slots
+        for weekday in range(7)
+    }
+    if not tutor_id:
+        return {
+            "weekday_names": weekday_names,
+            "hour_slots": hour_slots,
+            "rows": [
+                {"hour": hour, "cells": [cells[(hour, weekday)] for weekday in range(7)]}
+                for hour in hour_slots
+            ],
+            "lesson_count": 0,
+            "latest_session_date": None,
+        }
+
+    latest_session_date = (
+        db.session.query(db.func.max(AttendanceSession.session_date))
+        .filter(AttendanceSession.tutor_id == tutor_id)
+        .scalar()
+    )
+    latest_by_enrollment = dict(
+        db.session.query(
+            AttendanceSession.enrollment_id,
+            db.func.max(AttendanceSession.session_date),
+        )
+        .filter(AttendanceSession.tutor_id == tutor_id)
+        .group_by(AttendanceSession.enrollment_id)
+        .all()
+    )
+
+    schedules = (
+        EnrollmentSchedule.query.join(Enrollment)
+        .filter(
+            Enrollment.tutor_id == tutor_id,
+            Enrollment.status == "active",
+            Enrollment.is_active.is_(True),
+            EnrollmentSchedule.is_active.is_(True),
+        )
+        .order_by(
+            EnrollmentSchedule.day_of_week.asc(),
+            EnrollmentSchedule.start_time.asc(),
+            Enrollment.id.asc(),
+        )
+        .all()
+    )
+
+    items = []
+    for schedule in schedules:
+        enrollment = schedule.enrollment
+        if not enrollment or not enrollment.student or not enrollment.subject:
+            continue
+        hour = schedule.start_time.hour if schedule.start_time else None
+        if hour not in hour_slots:
+            continue
+        last_seen = latest_by_enrollment.get(enrollment.id)
+        items.append(
+            {
+                "weekday": schedule.day_of_week,
+                "hour": hour,
+                "student_name": enrollment.student.name,
+                "student_short_name": _short_person_name(enrollment.student.name),
+                "subject_name": enrollment.subject.name,
+                "enrollment_ref": enrollment.public_id,
+                "latest_session_date": last_seen,
+                "is_latest": bool(last_seen and last_seen == latest_session_date),
+                "source": "enrollment",
+            }
+        )
+
+    if not items:
+        attendance_rows = (
+            AttendanceSession.query.join(AttendanceSession.enrollment)
+            .filter(AttendanceSession.tutor_id == tutor_id)
+            .order_by(
+                AttendanceSession.session_date.desc(),
+                AttendanceSession.id.desc(),
+            )
+            .all()
+        )
+        used_slots = {weekday: 17 for weekday in range(7)}
+        seen_enrollments = set()
+        for session in attendance_rows:
+            enrollment = session.enrollment
+            if not enrollment or not enrollment.student or not enrollment.subject:
+                continue
+            if enrollment.id in seen_enrollments:
+                continue
+            seen_enrollments.add(enrollment.id)
+            weekday = session.session_date.weekday()
+            hour = used_slots.get(weekday, 17)
+            if hour not in hour_slots:
+                continue
+            used_slots[weekday] = hour + 1
+            items.append(
+                {
+                    "weekday": weekday,
+                    "hour": hour,
+                    "student_name": enrollment.student.name,
+                    "student_short_name": _short_person_name(enrollment.student.name),
+                    "subject_name": enrollment.subject.name,
+                    "enrollment_ref": enrollment.public_id,
+                    "latest_session_date": session.session_date,
+                    "is_latest": bool(session.session_date == latest_session_date),
+                    "source": "attendance",
+                }
+            )
+
+    for item in items:
+        cells[(item["hour"], item["weekday"])]["items"].append(item)
+
+    for cell in cells.values():
+        cell["has_latest"] = any(item["is_latest"] for item in cell["items"])
+        cell["availability"] = "filled" if cell["items"] else "unavailable" if cell["hour"] < 16 else "available"
+        cell["items"].sort(
+            key=lambda item: (
+                item["student_short_name"].lower(),
+                item["subject_name"].lower(),
+            )
+        )
+
+    return {
+        "weekday_names": weekday_names,
+        "hour_slots": hour_slots,
+        "rows": [
+            {"hour": hour, "cells": [cells[(hour, weekday)] for weekday in range(7)]}
+            for hour in hour_slots
+        ],
+        "lesson_count": len(items),
+        "latest_session_date": latest_session_date,
+    }
 
 
 def _build_tutor_subject_summary(tutor_id: int):
@@ -408,9 +560,33 @@ def students_list():
     page = request.args.get("page", 1, type=int)
     per_page = get_per_page()
     search = request.args.get("search", "", type=str)
-    active_state = request.args.get("active_state", "", type=str).strip().lower()
+    active_state = request.args.get("active_state", "active", type=str).strip().lower()
+    sort_by = request.args.get("sort", "name_asc", type=str).strip().lower()
 
-    query = Student.query
+    last_attendance_subquery = (
+        db.session.query(
+            AttendanceSession.student_id.label("student_id"),
+            db.func.max(AttendanceSession.session_date).label("last_attendance_date"),
+        )
+        .group_by(AttendanceSession.student_id)
+        .subquery()
+    )
+    last_payment_subquery = (
+        db.session.query(
+            StudentPayment.student_id.label("student_id"),
+            db.func.max(StudentPayment.payment_date).label("last_payment_date"),
+        )
+        .group_by(StudentPayment.student_id)
+        .subquery()
+    )
+
+    query = (
+        Student.query.outerjoin(
+            last_attendance_subquery,
+            Student.id == last_attendance_subquery.c.student_id,
+        )
+        .outerjoin(last_payment_subquery, Student.id == last_payment_subquery.c.student_id)
+    )
 
     if search:
         query = query.filter(
@@ -421,23 +597,86 @@ def students_list():
             )
         )
 
-    if active_state == "active":
-        query = query.filter(Student.is_active.is_(True))
-    elif active_state == "inactive":
+    if active_state == "inactive":
         query = query.filter(Student.is_active.is_(False))
+    elif active_state == "all":
+        pass
+    else:
+        active_state = "active"
+        query = query.filter(Student.is_active.is_(True))
+
+    sort_options = {
+        "name_asc",
+        "name_desc",
+        "last_attendance_desc",
+        "last_attendance_asc",
+        "last_payment_desc",
+        "last_payment_asc",
+    }
+    if sort_by not in sort_options:
+        sort_by = "name_asc"
+
+    if sort_by == "name_desc":
+        query = query.order_by(Student.name.desc(), Student.id.desc())
+    elif sort_by == "last_attendance_desc":
+        query = query.order_by(
+            last_attendance_subquery.c.last_attendance_date.is_(None),
+            last_attendance_subquery.c.last_attendance_date.desc(),
+            Student.name.asc(),
+        )
+    elif sort_by == "last_attendance_asc":
+        query = query.order_by(
+            last_attendance_subquery.c.last_attendance_date.is_(None),
+            last_attendance_subquery.c.last_attendance_date.asc(),
+            Student.name.asc(),
+        )
+    elif sort_by == "last_payment_desc":
+        query = query.order_by(
+            last_payment_subquery.c.last_payment_date.is_(None),
+            last_payment_subquery.c.last_payment_date.desc(),
+            Student.name.asc(),
+        )
+    elif sort_by == "last_payment_asc":
+        query = query.order_by(
+            last_payment_subquery.c.last_payment_date.is_(None),
+            last_payment_subquery.c.last_payment_date.asc(),
+            Student.name.asc(),
+        )
+    else:
+        query = query.order_by(Student.name.asc(), Student.id.asc())
 
     students = query.paginate(page=page, per_page=per_page)
+    student_ids = [student.id for student in students.items]
+    last_attendance_map = dict(
+        db.session.query(
+            AttendanceSession.student_id,
+            db.func.max(AttendanceSession.session_date),
+        )
+        .filter(AttendanceSession.student_id.in_(student_ids))
+        .group_by(AttendanceSession.student_id)
+        .all()
+    )
+    last_payment_map = dict(
+        db.session.query(StudentPayment.student_id, db.func.max(StudentPayment.payment_date))
+        .filter(StudentPayment.student_id.in_(student_ids))
+        .group_by(StudentPayment.student_id)
+        .all()
+    )
     today = date.today()
     service_month = _first_of_month(today.year, today.month)
-    quota_alert_map = _get_student_quota_alert_map(
-        [student.id for student in students.items], service_month
-    )
+    active_student_ids = [
+        student.id for student in students.items if bool(student.is_active)
+    ]
+    quota_alert_map = _get_student_quota_alert_map(active_student_ids, service_month)
 
     return render_template(
         "master/students_list.html",
         students=students,
         search=search,
         active_state=active_state,
+        sort_by=sort_by,
+        last_attendance_map=last_attendance_map,
+        last_payment_map=last_payment_map,
         quota_alert_map=quota_alert_map,
         quota_alert_month=service_month,
     )
@@ -613,12 +852,59 @@ def toggle_student_active(student_ref):
     return redirect(next_url)
 
 
+@master_bp.route("/students/bulk-status", methods=["POST"])
+@login_required
+@admin_required
+def bulk_update_student_status():
+    """Bulk activate or deactivate selected students."""
+    student_refs = request.form.getlist("student_refs")
+    bulk_action = (request.form.get("bulk_action") or "").strip()
+    next_url = request.form.get("next") or url_for("master.students_list")
+
+    if bulk_action not in {"activate", "deactivate"}:
+        flash("Aksi bulk siswa tidak valid.", "danger")
+        return redirect(next_url)
+    if not student_refs:
+        flash("Pilih minimal satu siswa terlebih dahulu.", "warning")
+        return redirect(next_url)
+
+    student_ids = []
+    for student_ref in student_refs:
+        try:
+            student_ids.append(decode_public_id(student_ref, "student"))
+        except ValueError:
+            continue
+
+    if not student_ids:
+        flash("Tidak ada siswa valid yang dipilih.", "danger")
+        return redirect(next_url)
+
+    target_active = bulk_action == "activate"
+    target_status = "active" if target_active else "inactive"
+    updated_count = (
+        Student.query.filter(Student.id.in_(student_ids))
+        .update(
+            {
+                Student.is_active: target_active,
+                Student.status: target_status,
+            },
+            synchronize_session=False,
+        )
+    )
+    db.session.commit()
+
+    action_label = "diaktifkan" if target_active else "dinonaktifkan"
+    flash(f"{updated_count} siswa berhasil {action_label}.", "success")
+    return redirect(next_url)
+
+
 @master_bp.route("/students/<string:student_ref>")
 @login_required
 def student_detail(student_ref):
     """View student detail"""
     from app.routes.quota_invoice import (
         BILLING_TYPE_LABELS,
+        build_postpaid_month_options,
         _build_quota_summary,
         _first_of_month,
         _get_student_invoice_history,
@@ -655,6 +941,7 @@ def student_detail(student_ref):
         quota_alert_summary=quota_alert_summary,
         service_month=service_month,
         service_month_label=_month_label(service_month),
+        postpaid_month_options=build_postpaid_month_options(service_month),
         student_invoices=student_invoices,
         BILLING_TYPE_LABELS=BILLING_TYPE_LABELS,
     )
@@ -854,6 +1141,30 @@ def bulk_update_tutor_status():
     return redirect(next_url)
 
 
+@master_bp.route("/tutors/schedule", methods=["GET"])
+@login_required
+def tutor_schedule_view():
+    """Show one tutor weekly schedule as an hour-by-day grid."""
+    tutors = Tutor.query.filter_by(is_active=True).order_by(Tutor.name.asc()).all()
+    tutor_ref = (request.args.get("tutor_ref") or "").strip()
+    selected_tutor = None
+    if tutor_ref:
+        selected_tutor = _get_tutor_by_ref_or_404(tutor_ref)
+    elif tutors:
+        selected_tutor = tutors[0]
+
+    schedule_grid = _build_tutor_weekly_schedule_grid(
+        selected_tutor.id if selected_tutor else None
+    )
+    return render_template(
+        "master/tutor_schedule.html",
+        tutors=tutors,
+        selected_tutor=selected_tutor,
+        selected_tutor_ref=selected_tutor.public_id if selected_tutor else "",
+        schedule_grid=schedule_grid,
+    )
+
+
 @master_bp.route("/tutors/<string:tutor_ref>")
 @login_required
 def tutor_detail(tutor_ref):
@@ -863,6 +1174,7 @@ def tutor_detail(tutor_ref):
     recent_payouts = tutor.payouts.order_by(TutorPayout.id.desc()).limit(3).all()
     last_payout = recent_payouts[0] if recent_payouts else None
     teaching_schedule = _build_tutor_teaching_schedule(tutor.id)
+    schedule_grid = _build_tutor_weekly_schedule_grid(tutor.id)
     taught_subjects = _build_tutor_subject_summary(tutor.id)
     whatsapp_tutor_validation = WhatsAppTutorValidation.query.filter_by(
         tutor_id=tutor.id
@@ -884,6 +1196,7 @@ def tutor_detail(tutor_ref):
         recent_payouts=recent_payouts,
         last_payout=last_payout,
         teaching_schedule=teaching_schedule,
+        schedule_grid=schedule_grid,
         taught_subjects=taught_subjects,
         whatsapp_tutor_validation=whatsapp_tutor_validation,
         validated_group_memberships=validated_group_memberships,

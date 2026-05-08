@@ -6,7 +6,8 @@ export SQL terurut FK, dan restore dari file .sql.
 
 import io
 import json
-from datetime import datetime
+import uuid
+from datetime import date, datetime, time
 from decimal import Decimal
 
 from flask import (
@@ -237,10 +238,18 @@ def _serialize_value(v):
         return None
     if isinstance(v, bool):
         return v
-    if isinstance(v, datetime):
+    if isinstance(v, datetime):  # datetime dulu (subclass of date)
         return v.isoformat()
+    if isinstance(v, date):
+        return v.isoformat()
+    if isinstance(v, time):
+        return v.isoformat()  # HH:MM:SS
     if isinstance(v, Decimal):
         return float(v)
+    if isinstance(v, uuid.UUID):
+        return str(v)
+    if isinstance(v, (bytes, bytearray)):
+        return v.hex()
     if isinstance(v, (dict, list)):
         return v
     return v
@@ -258,9 +267,19 @@ def _value_to_sql(v) -> str:
         return repr(v)
     if isinstance(v, Decimal):
         return str(v)
-    if isinstance(v, datetime):
+    if isinstance(v, datetime):  # datetime dulu (subclass of date)
         escaped = v.isoformat().replace("'", "''")
         return f"'{escaped}'"
+    if isinstance(v, date):
+        escaped = v.isoformat().replace("'", "''")
+        return f"'{escaped}'"
+    if isinstance(v, time):
+        escaped = v.isoformat().replace("'", "''")
+        return f"'{escaped}'"
+    if isinstance(v, uuid.UUID):
+        return f"'{v}'"
+    if isinstance(v, (bytes, bytearray)):
+        return f"'\\x{v.hex()}'"
     if isinstance(v, (dict, list)):
         dumped = json.dumps(v, ensure_ascii=False, default=str)
         escaped = dumped.replace("'", "''")

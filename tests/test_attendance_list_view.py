@@ -228,18 +228,42 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert 'name="year"' in template_text
     assert 'id="scanWhatsappAttendanceForm"' in template_text
     assert "attendance.scan_whatsapp_attendance" in template_text
+    assert "attendance.set_attendance_period_lock" in template_text
+    assert 'id="attendancePeriodLockForm"' in template_text
+    assert 'id="attendancePeriodLockModal"' in template_text
+    assert 'name="period"' in template_text
+    assert "attendance_period_lock_options" in template_text
+    assert "Kunci Pilihan" in template_text
+    assert "Buka Pilihan" in template_text
+    assert "Kunci Bulan" in template_text
+    assert "Buka Kunci" in template_text
+    assert "attendance_period_lock" in template_text
+    assert "row_locked" in template_text
+    assert "locked_period_keys" in template_text
     assert "default_scan_year" in template_text
-    assert "tutor pengganti mengajar" in template_text
+    assert 'id="attendanceTutorSearch"' in template_text
+    assert 'id="attendanceTutorChips"' in template_text
+    assert 'name="date_from"' in template_text
+    assert 'name="date_to"' in template_text
+    assert 'name="status"' not in template_text
     assert 'id="quickAttendanceSearch"' in template_text
     assert 'id="attendanceTableBody"' in template_text
+    assert 'id="attendanceAjaxRegion"' in template_text
+    assert 'id="attendanceSummaryChips"' in template_text
+    assert "async function requestAttendanceFilterUpdate" in template_text
+    assert 'window.history.pushState({}, "", url.toString())' in template_text
+    assert "initAttendanceDynamicTable();" in template_text
+    assert 'url.searchParams.set("per_page", select.value)' in template_text
+    assert 'url.searchParams.delete("page")' in template_text
+    assert "attendanceFilterForm.submit()" not in template_text
     assert 'class="attendance-row"' in template_text
     assert 'data-attendance-search="' in template_text
     assert 'quickAttendanceSearchEmptyRow' in template_text
     assert 'Tidak ada sesi di halaman ini yang cocok dengan pencarian cepat.' in template_text
     assert 'quickAttendanceSearchInput.addEventListener("input"' in template_text
-    assert 'name="enrollment_ref"' in template_text
+    assert 'name="student_ref"' in template_text
     assert 'name="tutor_ref"' in template_text
-    assert "enr.public_id" in template_text
+    assert "student.public_id" in template_text
     assert "t.public_id" in template_text
     assert "whatsapp_review_map" in template_text
     assert "Validasi Manual WA" in template_text
@@ -251,6 +275,14 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert "attendance.bulk_review_whatsapp_attendance" in template_text
     assert 'id="selectAllAttendanceReviews"' in template_text
     assert 'class="form-check-input attendance-bulk-review-checkbox"' in template_text
+    assert "Pilih baris presensi untuk melihat jumlah pilihan dan total fee tutor." in template_text
+    assert "{% if not (wa_review and wa_review.requires_review) %}disabled{% endif %}" not in template_text
+    assert 'id="attendanceSelectedCount"' in template_text
+    assert 'id="attendanceSelectedFeeTotal"' in template_text
+    assert 'data-tutor-fee-amount="{{ s.tutor_fee_amount | float }}"' in template_text
+    assert "selectableAttendanceBulkCheckboxes(true)" in template_text
+    assert "event.shiftKey" in template_text
+    assert "attendanceFeeFormatter.format(selectedFee)" in template_text
     assert 'name="review_status" value="valid"' in template_text
     assert 'name="review_status" value="invalid"' in template_text
     assert 'name="review_status" value="pending"' in template_text
@@ -297,9 +329,19 @@ def test_attendance_routes_support_public_ref_filters_in_source():
     assert '_decode_optional_query_ref("enrollment_ref", "enrollment")' in route_text
     assert '_decode_optional_query_ref("tutor_ref", "tutor")' in route_text
     assert '"enrollment_ref": request.args.get("enrollment_ref") or stored_state.get("enrollment_ref") or ""' in route_text
-    assert '"tutor_ref": request.args.get("tutor_ref") or stored_state.get("tutor_ref") or ""' in route_text
+    assert 'request.args.getlist("tutor_ref")' in route_text
+    assert '"date_from": request.args.get("date_from") or stored_state.get("date_from") or ""' in route_text
+    assert '"date_to": request.args.get("date_to") or stored_state.get("date_to") or ""' in route_text
     assert '@attendance_bp.route("/<string:session_ref>/whatsapp-review"' in route_text
     assert '@attendance_bp.route("/bulk-whatsapp-review", methods=["POST"])' in route_text
+    assert '@attendance_bp.route("/period-lock", methods=["POST"])' in route_text
+    assert "AttendancePeriodLock.query.filter_by(month=month, year=year).first()" in route_text
+    assert "def _build_attendance_period_lock_options" in route_text
+    assert 'period_values = request.form.getlist("period")' in route_text
+    assert "for month, year in periods:" in route_text
+    assert "def _ensure_attendance_date_unlocked" in route_text
+    assert "_ensure_attendance_date_unlocked(form.session_date.data)" in route_text
+    assert "_get_attendance_lock_for_date(session.session_date)" in route_text
     assert "def bulk_review_whatsapp_attendance():" in route_text
     assert 'request.form.getlist("attendance_refs")' in route_text
     assert 'review_status not in WHATSAPP_REVIEW_STATUSES' in route_text
@@ -315,6 +357,9 @@ def test_attendance_routes_support_public_ref_filters_in_source():
     assert 'request.args.get("reset_filters") == "1"' in route_text
     assert "session[ATTENDANCE_LIST_STATE_SESSION_KEY] = state" in route_text
     assert '"per_page": request.args.get("per_page") or stored_state.get("per_page") or ""' in route_text
+    assert "def _get_attendance_per_page(stored_state: dict | None = None) -> int:" in route_text
+    assert 'raw_value = request.args.get("per_page") or stored_state.get("per_page")' in route_text
+    assert 'if "per_page" not in state and stored_state.get("per_page")' in route_text
 
 
 def test_whatsapp_manual_review_marks_linked_evaluations_without_attendance_change():

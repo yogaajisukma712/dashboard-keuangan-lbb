@@ -202,6 +202,7 @@ super() }}{% endblock %} {% block content %}
                 <tr>
                     <th>#</th>
                     <th>Mapel</th>
+                    <th>Bulan</th>
                     <th>Tutor</th>
                     <th class="text-center">Quota Sebelum</th>
                     <th class="text-center">Sesi Ditagihkan</th>
@@ -223,6 +224,10 @@ super() }}{% endblock %} {% block content %}
                             }}
                         </div>
                         {% endif %}
+                    </td>
+                    <td>
+                        {{ MONTHS_ID[line.service_month.month] }} {{
+                        line.service_month.year }}
                     </td>
                     <td>{{ line.tutor_name or '—' }}</td>
                     <td class="text-center">
@@ -274,7 +279,7 @@ super() }}{% endblock %} {% block content %}
             </tbody>
             <tfoot class="table-light">
                 <tr>
-                    <td colspan="4" class="text-end fw-semibold">Total</td>
+                    <td colspan="5" class="text-end fw-semibold">Total</td>
                     <td class="text-center fw-semibold">
                         {{ total_meetings }}
                     </td>

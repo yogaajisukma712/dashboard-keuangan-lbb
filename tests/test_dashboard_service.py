@@ -120,8 +120,8 @@ def test_grand_tutor_payable_uses_previous_unpaid_balance():
         )
 
         try:
-            assert DashboardService.get_grand_tutor_payable(2, 2025) == 420.0
-            assert DashboardService.get_grand_tutor_payable(3, 2025) == 300.0
+            assert DashboardService.get_grand_tutor_payable(2, 2025) == 220.0
+            assert DashboardService.get_grand_tutor_payable(3, 2025) == 150.0
             assert DashboardService.get_grand_tutor_payable(4, 2025) == 150.0
         finally:
             setattr(DashboardService, "get_tutor_salary_accrual", original_salary)
@@ -159,7 +159,7 @@ def test_dashboard_snapshot_closing_represents_estimated_remaining_balance():
             assert DashboardService.get_estimated_remaining_balance(1, 2025) == 1000.0
             assert DashboardService.get_cash_balance(1, 2025) == 1200.0
             assert DashboardService.get_opening_balance(1, 2025) == 950.0
-            assert DashboardService.get_grand_tutor_payable(1, 2025) == 500.0
+            assert DashboardService.get_grand_tutor_payable(1, 2025) == 300.0
         finally:
             setattr(DashboardService, "get_monthly_cash_flow", original_flow)
             setattr(DashboardService, "get_tutor_salary_accrual", original_salary)

@@ -83,12 +83,17 @@
 
         {# No. Kwitansi #}
         <div class="col-md-3">
-          <label for="receipt_number" class="form-label fw-semibold">
-            No. Kwitansi <span class="text-danger">*</span>
+          <label for="receipt_number_preview" class="form-label fw-semibold">
+            No. Kwitansi
           </label>
-          <input type="text" name="receipt_number" id="receipt_number" class="form-control"
-                 required maxlength="50" placeholder="mis. KWT-2025-001"
-                 value="{{ payment.receipt_number if payment else '' }}">
+          <input type="text"
+                 id="receipt_number_preview"
+                 class="form-control"
+                 value="{{ payment.receipt_number if payment else (next_receipt_number or 'Otomatis saat disimpan') }}"
+                 readonly>
+          {% if not payment %}
+          <div class="form-text">Dibuat otomatis oleh sistem saat pembayaran disimpan.</div>
+          {% endif %}
         </div>
 
         {# Metode Pembayaran #}

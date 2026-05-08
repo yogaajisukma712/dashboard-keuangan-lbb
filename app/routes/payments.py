@@ -4,10 +4,12 @@ Handles student payments, payment lists, and payment history
 """
 
 from flask import abort
-from datetime import datetime
+from datetime import datetime, time
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
+from sqlalchemy import extract
+from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.forms import StudentPaymentForm, StudentPaymentLineForm
@@ -41,6 +43,30 @@ def _get_payment_by_ref_or_404(payment_ref):
     except ValueError:
         abort(404)
     return StudentPayment.query.get_or_404(payment_id)
+
+
+def _generate_receipt_number(payment_date):
+    """Generate unique payment receipt number for the given payment date."""
+    date_key = payment_date.strftime("%Y%m%d")
+    prefix = f"KWT-{date_key}-"
+    latest = (
+        StudentPayment.query.filter(StudentPayment.receipt_number.like(f"{prefix}%"))
+        .order_by(StudentPayment.receipt_number.desc())
+        .first()
+    )
+    next_sequence = 1
+    if latest and latest.receipt_number:
+        try:
+            next_sequence = int(latest.receipt_number.rsplit("-", 1)[-1]) + 1
+        except (TypeError, ValueError):
+            next_sequence = 1
+
+    while True:
+        receipt_number = f"{prefix}{next_sequence:03d}"
+        exists = StudentPayment.query.filter_by(receipt_number=receipt_number).first()
+        if not exists:
+            return receipt_number
+        next_sequence += 1
 
 
 def _sync_payment_lines_from_form(payment):
@@ -120,12 +146,28 @@ def list_payments():
                     "payments.list_payments",
                     page=page,
                     student_ref=legacy_student.public_id,
+                    month=request.args.get("month", ""),
+                    year=request.args.get("year", ""),
                     date_from=request.args.get("date_from", ""),
                     date_to=request.args.get("date_to", ""),
                 )
             )
-    date_from = request.args.get("date_from")
-    date_to = request.args.get("date_to")
+    selected_month = request.args.get("month", type=int)
+    selected_year = request.args.get("year", type=int)
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+    date_from_bound = None
+    date_to_bound = None
+    if date_from:
+        try:
+            date_from_bound = datetime.combine(datetime.fromisoformat(date_from).date(), time.min)
+        except ValueError:
+            date_from = ""
+    if date_to:
+        try:
+            date_to_bound = datetime.combine(datetime.fromisoformat(date_to).date(), time.max)
+        except ValueError:
+            date_to = ""
 
     query = StudentPayment.query.order_by(StudentPayment.payment_date.desc())
 
@@ -133,15 +175,17 @@ def list_payments():
     if student_id:
         query = query.filter_by(student_id=student_id)
 
-    if date_from:
-        query = query.filter(
-            StudentPayment.payment_date >= datetime.fromisoformat(date_from)
-        )
+    if selected_month and 1 <= selected_month <= 12:
+        query = query.filter(extract("month", StudentPayment.payment_date) == selected_month)
 
-    if date_to:
-        query = query.filter(
-            StudentPayment.payment_date <= datetime.fromisoformat(date_to)
-        )
+    if selected_year:
+        query = query.filter(extract("year", StudentPayment.payment_date) == selected_year)
+
+    if date_from_bound:
+        query = query.filter(StudentPayment.payment_date >= date_from_bound)
+
+    if date_to_bound:
+        query = query.filter(StudentPayment.payment_date <= date_to_bound)
 
     paginated = query.paginate(page=page, per_page=per_page)
 
@@ -151,6 +195,11 @@ def list_payments():
         paginated=paginated,
         students=Student.query.filter_by(is_active=True).all(),
         current_student_ref=student_ref,
+        selected_month=selected_month,
+        selected_year=selected_year,
+        selected_date_from=date_from,
+        selected_date_to=date_to,
+        year_options=list(range(datetime.now().year - 3, datetime.now().year + 2)),
     )
 
 
@@ -167,58 +216,62 @@ def add_payment():
             elif request.form.get("student_id", type=int):
                 student_id = request.form.get("student_id", type=int)
             payment_date = datetime.fromisoformat(request.form.get("payment_date"))
-            receipt_number = request.form.get("receipt_number")
             payment_method = request.form.get("payment_method")
             total_amount = float(request.form.get("total_amount", 0))
             notes = request.form.get("notes")
 
-            # Create payment header
-            payment = StudentPayment(
-                student_id=student_id,
-                payment_date=payment_date,
-                receipt_number=receipt_number,
-                payment_method=payment_method,
-                total_amount=total_amount,
-                notes=notes,
-            )
-
-            db.session.add(payment)
-            db.session.flush()
-
-            # Process payment lines from request
             enrollment_ids = request.form.getlist("enrollment_id[]")
             meeting_counts = request.form.getlist("meeting_count[]")
 
-            for enrollment_id, meeting_count in zip(enrollment_ids, meeting_counts):
-                if enrollment_id and meeting_count:
-                    enrollment = Enrollment.query.get(enrollment_id)
-                    if enrollment:
-                        line = StudentPaymentLine(
-                            student_payment_id=payment.id,
-                            enrollment_id=enrollment_id,
-                            service_month=payment_date.date(),
-                            meeting_count=int(meeting_count),
-                            student_rate_per_meeting=float(
-                                enrollment.student_rate_per_meeting
-                            ),
-                            tutor_rate_per_meeting=float(
-                                enrollment.tutor_rate_per_meeting
-                            ),
-                            nominal_amount=int(meeting_count)
-                            * float(enrollment.student_rate_per_meeting),
-                            tutor_payable_amount=int(meeting_count)
-                            * float(enrollment.tutor_rate_per_meeting),
-                            margin_amount=int(meeting_count)
-                            * (
-                                float(enrollment.student_rate_per_meeting)
-                                - float(enrollment.tutor_rate_per_meeting)
-                            ),
-                        )
-                        db.session.add(line)
+            for _attempt in range(3):
+                try:
+                    payment = StudentPayment(
+                        student_id=student_id,
+                        payment_date=payment_date,
+                        receipt_number=_generate_receipt_number(payment_date),
+                        payment_method=payment_method,
+                        total_amount=total_amount,
+                        notes=notes,
+                    )
+                    db.session.add(payment)
+                    db.session.flush()
 
-            db.session.commit()
-            flash("Pembayaran siswa berhasil ditambahkan", "success")
-            return redirect(url_for("payments.list_payments"))
+                    for enrollment_id, meeting_count in zip(enrollment_ids, meeting_counts):
+                        if enrollment_id and meeting_count:
+                            enrollment = Enrollment.query.get(enrollment_id)
+                            if enrollment:
+                                line = StudentPaymentLine(
+                                    student_payment_id=payment.id,
+                                    enrollment_id=enrollment_id,
+                                    service_month=payment_date.date(),
+                                    meeting_count=int(meeting_count),
+                                    student_rate_per_meeting=float(
+                                        enrollment.student_rate_per_meeting
+                                    ),
+                                    tutor_rate_per_meeting=float(
+                                        enrollment.tutor_rate_per_meeting
+                                    ),
+                                    nominal_amount=int(meeting_count)
+                                    * float(enrollment.student_rate_per_meeting),
+                                    tutor_payable_amount=int(meeting_count)
+                                    * float(enrollment.tutor_rate_per_meeting),
+                                    margin_amount=int(meeting_count)
+                                    * (
+                                        float(enrollment.student_rate_per_meeting)
+                                        - float(enrollment.tutor_rate_per_meeting)
+                                    ),
+                                )
+                                db.session.add(line)
+
+                    db.session.commit()
+                    flash(
+                        f"Pembayaran siswa berhasil ditambahkan dengan No. Kwitansi {payment.receipt_number}",
+                        "success",
+                    )
+                    return redirect(url_for("payments.list_payments"))
+                except IntegrityError:
+                    db.session.rollback()
+            raise RuntimeError("Nomor kwitansi otomatis gagal dibuat unik. Coba simpan ulang.")
 
         except Exception as e:
             db.session.rollback()
@@ -228,7 +281,10 @@ def add_payment():
     enrollments = Enrollment.query.filter_by(status="active").all()
 
     return render_template(
-        "payments/form.html", students=students, enrollments=enrollments
+        "payments/form.html",
+        students=students,
+        enrollments=enrollments,
+        next_receipt_number=_generate_receipt_number(datetime.utcnow()),
     )
 
 
@@ -252,7 +308,6 @@ def edit_payment(payment_ref):
             payment.payment_date = datetime.fromisoformat(
                 request.form.get("payment_date")
             )
-            payment.receipt_number = request.form.get("receipt_number")
             payment.payment_method = request.form.get("payment_method")
             payment.notes = request.form.get("notes")
             _sync_payment_lines_from_form(payment)
@@ -292,6 +347,32 @@ def delete_payment(payment_ref):
         flash(f"Error: {str(e)}", "danger")
 
     return redirect(url_for("payments.list_payments"))
+
+
+@payments_bp.route("/<string:payment_ref>/verify", methods=["POST"])
+@login_required
+def verify_payment(payment_ref):
+    """Mark or unmark a student payment as verified."""
+    payment = _get_payment_by_ref_or_404(payment_ref)
+    target = (request.form.get("is_verified") or "").strip().lower()
+    next_url = request.form.get("next") or url_for("payments.list_payments")
+
+    if target not in {"0", "1", "true", "false"}:
+        flash("Status verifikasi pembayaran tidak valid.", "danger")
+        return redirect(next_url)
+
+    payment.is_verified = target in {"1", "true"}
+    try:
+        db.session.commit()
+        if payment.is_verified:
+            flash(f"Pembayaran {payment.receipt_number} sudah diverifikasi.", "success")
+        else:
+            flash(f"Verifikasi pembayaran {payment.receipt_number} dibatalkan.", "warning")
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Verifikasi pembayaran gagal: {exc}", "danger")
+
+    return redirect(next_url)
 
 
 @payments_bp.route("/student/<string:student_ref>/history", methods=["GET"])

@@ -22,9 +22,9 @@ class PayrollService:
     """Service class for payroll operations"""
 
     @staticmethod
-    def get_tutor_payable_from_attendance(tutor_id, month, year):
+    def get_tutor_attendance_raw(tutor_id, month, year):
         """
-        Get total payable to tutor from attendance sessions
+        Get raw attendance total (sum of tutor_fee_amount for attended sessions).
         Sumber: AttendanceSession.tutor_fee_amount
         """
         total = (
@@ -39,6 +39,16 @@ class PayrollService:
             or 0
         )
         return float(total)
+
+    @staticmethod
+    def get_tutor_payable_from_attendance(tutor_id, month, year):
+        """
+        Get payable from attendance sessions.
+
+        Data presensi adalah cerminan payroll — payable selalu dihitung dari
+        total sesi yang tercatat di attendance_sessions.
+        """
+        return PayrollService.get_tutor_attendance_raw(tutor_id, month, year)
 
     @staticmethod
     def get_tutor_paid_amount(tutor_id, month, year):

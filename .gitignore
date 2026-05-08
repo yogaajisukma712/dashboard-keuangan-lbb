@@ -33,6 +33,8 @@ uploads/
 *.sqlite
 *.sqlite3
 *.db
+backups/
+audit_outputs/
 
 # ── Testing & coverage ───────────────────────────────────────────────────────
 .pytest_cache/

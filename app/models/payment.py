@@ -62,6 +62,22 @@ class StudentPayment(db.Model):
         """Get total margin from all payment lines"""
         return sum(line.margin_amount or 0 for line in self.payment_lines)
 
+    @property
+    def paid_subject_names(self):
+        """Unique subject names paid by this payment."""
+        names = []
+        seen = set()
+        for line in self.payment_lines.all():
+            subject = (
+                line.enrollment.subject
+                if line.enrollment and line.enrollment.subject
+                else None
+            )
+            if subject and subject.name not in seen:
+                seen.add(subject.name)
+                names.append(subject.name)
+        return names
+
 
 class StudentPaymentLine(db.Model):
     """Student Payment line detail model"""

@@ -1,0 +1,107 @@
+<div class="table-responsive tutor-schedule-table-wrap">
+  <table class="table table-bordered align-middle tutor-schedule-table mb-0">
+    <thead>
+      <tr>
+        <th class="text-center tutor-schedule-time-head">Jam</th>
+        {% for weekday_name in schedule_grid.weekday_names %}
+        <th class="text-center">{{ weekday_name }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in schedule_grid.rows %}
+      <tr>
+        <th class="text-center tutor-schedule-time-cell">
+          {{ "%02d.00"|format(row.hour) }}
+        </th>
+        {% for cell in row.cells %}
+        <td class="tutor-schedule-cell tutor-schedule-cell-{{ cell.availability }} {% if cell.has_latest %}tutor-schedule-cell-latest{% endif %}">
+          {% if cell['items'] %}
+            <div class="d-flex flex-column gap-1">
+              {% for item in cell['items'] %}
+              <a
+                href="{{ url_for('enrollments.enrollment_detail', enrollment_ref=item.enrollment_ref) }}"
+                class="tutor-schedule-item text-decoration-none"
+                title="{{ item.student_name }} - {{ item.subject_name }}{% if item.latest_session_date %} | Terakhir {{ item.latest_session_date.strftime('%d/%m/%Y') }}{% endif %}"
+              >
+                <span class="fw-semibold">{{ item.student_short_name }}</span>
+                <span class="text-muted">{{ item.subject_name }}</span>
+              </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <span class="visually-hidden">
+              {% if cell.availability == 'available' %}Tutor bisa{% else %}Tutor tidak bisa{% endif %}
+            </span>
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .tutor-schedule-table {
+    min-width: 980px;
+    table-layout: fixed;
+    font-size: 0.78rem;
+    border-color: #94a3b8;
+  }
+  .tutor-schedule-table th {
+    background: #f8fafc;
+    color: #334155;
+    font-weight: 700;
+    border-color: #94a3b8;
+  }
+  .tutor-schedule-time-head,
+  .tutor-schedule-time-cell {
+    width: 72px;
+  }
+  .tutor-schedule-cell {
+    height: 58px;
+    padding: 0.35rem;
+    vertical-align: top;
+    border-color: #94a3b8;
+  }
+  .tutor-schedule-cell-filled {
+    --bs-table-bg: #ffffff;
+    background: #ffffff;
+  }
+  .tutor-schedule-cell-available {
+    --bs-table-bg: #86efac;
+    background: #86efac;
+  }
+  .tutor-schedule-cell-unavailable {
+    --bs-table-bg: #fca5a5;
+    background: #fca5a5;
+  }
+  .tutor-schedule-cell-latest {
+    box-shadow: inset 0 0 0 2px #22c55e;
+  }
+  .tutor-schedule-item {
+    display: block;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.86);
+    color: #0f172a;
+    line-height: 1.15;
+    padding: 0.22rem 0.35rem;
+  }
+  .tutor-schedule-item span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  @media (max-width: 991.98px) {
+    .tutor-schedule-table {
+      min-width: 860px;
+      font-size: 0.72rem;
+    }
+    .tutor-schedule-cell {
+      height: 52px;
+    }
+  }
+</style>

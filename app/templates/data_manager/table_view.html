@@ -239,11 +239,17 @@ length > 4) ) %} {% set _ = display_cols.append(col) %} {% endif %} {% endif %}
                 </thead>
                 <tbody>
                     {% for row in rows %} {% set row_num = (current_page - 1) *
-                    25 + loop.index %}
+                    25 + loop.index %} {# JSON data disimpan di script tag
+                    (bukan attribute) agar kutip tidak konflik #}
+                    <script
+                        type="application/json"
+                        id="dm-row-{{ row.get('id', loop.index) }}"
+                    >
+                        {{ row | tojson }}
+                    </script>
                     <tr
                         id="row-{{ row.get('id', loop.index) }}"
                         data-row-id="{{ row.get('id', '') }}"
-                        data-row="{{ row | tojson | e }}"
                     >
                         <td class="ps-3 dm-row-num">{{ row_num }}</td>
 
@@ -311,7 +317,7 @@ length > 4) ) %} {% set _ = display_cols.append(col) %} {% endif %} {% endif %}
                                     class="btn btn-outline-primary btn-edit"
                                     title="Edit"
                                     data-row-id="{{ row.get('id', '') }}"
-                                    data-row="{{ row | tojson | e }}"
+                                    data-row-key="dm-row-{{ row.get('id', loop.index) }}"
                                     data-bs-toggle="modal"
                                     data-bs-target="#editModal"
                                 >
@@ -876,9 +882,14 @@ JavaScript #}
       if (!IS_READONLY) {
         document.querySelectorAll(".btn-edit").forEach(function (btn) {
           btn.addEventListener("click", function () {
-            var rowId   = this.getAttribute("data-row-id");
-            var rowData = {};
-            try { rowData = JSON.parse(this.getAttribute("data-row") || "{}"); } catch(e) {}
+            var rowId    = this.getAttribute("data-row-id");
+            var rowKey   = this.getAttribute("data-row-key");
+            var rowData  = {};
+            /* Baca JSON dari <script type="application/json"> bukan dari attribute */
+            var scriptEl = rowKey ? document.getElementById(rowKey) : null;
+            if (scriptEl) {
+              try { rowData = JSON.parse(scriptEl.textContent || "{}"); } catch(e) { console.warn("DM parse row:", e); }
+            }
 
             document.getElementById("editRowId").value = rowId;
             document.getElementById("editModalRowId").textContent = rowId ? "#" + rowId : "";

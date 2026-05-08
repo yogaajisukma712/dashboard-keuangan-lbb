@@ -3,6 +3,7 @@
 ['','Januari','Februari','Maret','April','Mei','Juni',
 'Juli','Agustus','September','Oktober','November','Desember'] %}
 
+<div id="payrollTutorSummaryPage" data-lbb-filter-results data-lbb-filter-form-id="payrollTutorFilterForm">
 <div
     class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3"
 >
@@ -45,9 +46,20 @@
 
 {# ── Filter Bulan / Tahun ────────────────────────────────────────────────── #}
 <div class="card mb-4 border-0 shadow-sm">
-    <div class="card-body py-2">
-        <form method="GET" class="row g-2 align-items-end">
-            <div class="col-auto">
+    <div class="card-body py-3">
+        <form
+            id="payrollTutorFilterForm"
+            method="GET"
+            action="{{ url_for('payroll.tutor_summary') }}"
+            class="row g-3 align-items-end"
+            data-lbb-filter-form
+            data-lbb-filter-targets="payrollTutorSummaryPage"
+            data-lbb-filter-autosubmit="change"
+        >
+            {% if show_all %}
+            <input type="hidden" name="show_all" value="1" />
+            {% endif %}
+            <div class="col-6 col-md-2 col-xl-1">
                 <label class="form-label small fw-semibold mb-1">Bulan</label>
                 <select
                     name="month"
@@ -59,7 +71,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-auto">
+            <div class="col-6 col-md-2 col-xl-1">
                 <label class="form-label small fw-semibold mb-1">Tahun</label>
                 <select name="year" class="form-select form-select-sm">
                     {% for y in range(2023, 2030) %}
@@ -67,12 +79,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-primary btn-sm">
-                    <i class="bi bi-funnel"></i> Filter
-                </button>
-            </div>
-            <div class="col-12 col-md-4 ms-md-auto">
+            <div class="col-12 col-md-5 col-xl">
                 <label class="form-label small fw-semibold mb-1">
                     Filter Nama Tutor
                 </label>
@@ -83,11 +90,8 @@
                     placeholder="Ketik nama tutor..."
                     autocomplete="off"
                 />
-                <div class="form-text small">
-                    Filter cepat tanpa reload halaman.
-                </div>
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-3 col-xl-3">
                 <label class="form-label small fw-semibold mb-1">
                     Urut No. Rekening
                 </label>
@@ -96,6 +100,11 @@
                     <option value="asc">Terkecil ke terbesar</option>
                     <option value="desc">Terbesar ke terkecil</option>
                 </select>
+            </div>
+            <div class="col-12 col-md-auto">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="bi bi-funnel"></i> Terapkan
+                </button>
             </div>
         </form>
     </div>
@@ -366,6 +375,8 @@ selectattr('balance','gt',0) | list | length %}
     </div>
 </div>
 
+</div>
+
 {# ── Modal Bulk WhatsApp Slip Gaji ──────────────────────────────────────── #}
 <div
     class="modal fade"
@@ -611,26 +622,17 @@ Mohon dicek kembali. Terima kasih.</textarea>
         });
         const toastMsg = document.getElementById("payToastMsg");
         const toastEl = document.getElementById("payToast");
-        const tutorNameFilter = document.getElementById("tutorNameFilter");
-        const accountSort = document.getElementById("accountSort");
-        const selectVisibleTutors = document.getElementById("selectVisibleTutors");
-        const selectedTutorCount = document.getElementById("selectedTutorCount");
-        const selectedBalanceTotal = document.getElementById("selectedBalanceTotal");
-        const selectedPayableTotal = document.getElementById("selectedPayableTotal");
-        const bulkWhatsAppButton = document.getElementById("bulkWhatsAppButton");
-        const bulkWhatsAppCount = document.getElementById("bulkWhatsAppCount");
         const bulkWhatsAppRefs = document.getElementById("bulkWhatsAppRefs");
         const bulkWhatsAppModal = document.getElementById("bulkWhatsAppModal");
         const bulkModalCount = document.getElementById("bulkModalCount");
         const bulkWhatsAppWarning = document.getElementById("bulkWhatsAppWarning");
         const bulkWhatsAppForm = document.getElementById("bulkWhatsAppForm");
-        const tableBody = document.querySelector("#tutorTable tbody");
-        const tutorRows = Array.from(
-            document.querySelectorAll("#tutorTable tbody tr[id^='row-tutor-']"),
-        );
-        const totalCheckboxes = Array.from(
-            document.querySelectorAll(".tutor-total-check"),
-        );
+        const payrollRoot = () => document.getElementById("payrollTutorSummaryPage");
+        const payrollEl = (id) => document.getElementById(id);
+        const tableBody = () => document.querySelector("#tutorTable tbody");
+        const tutorRows = () =>
+            Array.from(document.querySelectorAll("#tutorTable tbody tr[id^='row-tutor-']"));
+        const totalCheckboxes = () => Array.from(document.querySelectorAll(".tutor-total-check"));
 
         // ── Helper ───────────────────────────────────────────────────────────────
         function showToast(msg, type) {
@@ -673,7 +675,7 @@ Mohon dicek kembali. Terima kasih.</textarea>
         }
 
         function visibleRows() {
-            return tutorRows.filter(function (row) {
+            return tutorRows().filter(function (row) {
                 return row.style.display !== "none";
             });
         }
@@ -684,7 +686,7 @@ Mohon dicek kembali. Terima kasih.</textarea>
             let payableTotal = 0;
             let sendableCount = 0;
 
-            totalCheckboxes.forEach(function (checkbox) {
+            totalCheckboxes().forEach(function (checkbox) {
                 if (!checkbox.checked) return;
                 const row = checkbox.closest("tr");
                 if (!row || row.style.display === "none") return;
@@ -694,9 +696,14 @@ Mohon dicek kembali. Terima kasih.</textarea>
                 if (checkbox.dataset.payoutRef) sendableCount += 1;
             });
 
+            const selectedTutorCount = payrollEl("selectedTutorCount");
+            const selectedBalanceTotal = payrollEl("selectedBalanceTotal");
+            const selectedPayableTotal = payrollEl("selectedPayableTotal");
+            const currentBulkWhatsAppButton = payrollEl("bulkWhatsAppButton");
+            const bulkWhatsAppCount = payrollEl("bulkWhatsAppCount");
             if (selectedTutorCount) selectedTutorCount.textContent = count;
             if (bulkWhatsAppCount) bulkWhatsAppCount.textContent = sendableCount;
-            if (bulkWhatsAppButton) bulkWhatsAppButton.disabled = sendableCount === 0;
+            if (currentBulkWhatsAppButton) currentBulkWhatsAppButton.disabled = sendableCount === 0;
             if (selectedBalanceTotal) {
                 selectedBalanceTotal.textContent = formatRupiahNumber(balanceTotal);
             }
@@ -704,6 +711,7 @@ Mohon dicek kembali. Terima kasih.</textarea>
                 selectedPayableTotal.textContent = formatRupiahNumber(payableTotal);
             }
 
+            const selectVisibleTutors = payrollEl("selectVisibleTutors");
             if (selectVisibleTutors) {
                 const visibleChecks = visibleRows()
                     .map(function (row) {
@@ -723,7 +731,7 @@ Mohon dicek kembali. Terima kasih.</textarea>
         }
 
         function selectedSendableChecks() {
-            return totalCheckboxes.filter(function (checkbox) {
+            return totalCheckboxes().filter(function (checkbox) {
                 const row = checkbox.closest("tr");
                 return (
                     checkbox.checked &&
@@ -747,7 +755,7 @@ Mohon dicek kembali. Terima kasih.</textarea>
                 });
             }
             if (bulkModalCount) bulkModalCount.textContent = selected.length;
-            const checkedWithoutSlip = totalCheckboxes.filter(function (checkbox) {
+            const checkedWithoutSlip = totalCheckboxes().filter(function (checkbox) {
                 const row = checkbox.closest("tr");
                 return (
                     checkbox.checked &&
@@ -771,10 +779,11 @@ Mohon dicek kembali. Terima kasih.</textarea>
         }
 
         function applyTutorNameFilter() {
+            const tutorNameFilter = payrollEl("tutorNameFilter");
             const needle = String(tutorNameFilter ? tutorNameFilter.value : "")
                 .toLowerCase();
 
-            tutorRows.forEach(function (row) {
+            tutorRows().forEach(function (row) {
                 const tutorName = String(row.dataset.tutorName || "")
                     .toLowerCase();
                 const matched = !needle || tutorName.includes(needle);
@@ -786,8 +795,9 @@ Mohon dicek kembali. Terima kasih.</textarea>
         }
 
         function sortByAccountNumber(direction) {
-            if (!tableBody) return;
-            const sortedRows = tutorRows.slice();
+            const currentTableBody = tableBody();
+            if (!currentTableBody) return;
+            const sortedRows = tutorRows().slice();
 
             if (direction) {
                 const multiplier = direction === "desc" ? -1 : 1;
@@ -811,35 +821,51 @@ Mohon dicek kembali. Terima kasih.</textarea>
             }
 
             sortedRows.forEach(function (row) {
-                tableBody.appendChild(row);
+                currentTableBody.appendChild(row);
             });
             updateVisibleRowNumbers();
             updateSelectedTotals();
         }
 
-        totalCheckboxes.forEach(function (checkbox) {
-            checkbox.addEventListener("change", updateSelectedTotals);
-        });
+        function bindPayrollTutorSummaryControls() {
+            totalCheckboxes().forEach(function (checkbox) {
+                if (checkbox.dataset.payrollSummaryBound === "1") return;
+                checkbox.dataset.payrollSummaryBound = "1";
+                checkbox.addEventListener("change", updateSelectedTotals);
+            });
+            const selectVisibleTutors = payrollEl("selectVisibleTutors");
+            const tutorNameFilter = payrollEl("tutorNameFilter");
+            const accountSort = payrollEl("accountSort");
 
-        if (selectVisibleTutors) {
-            selectVisibleTutors.addEventListener("change", function () {
-                visibleRows().forEach(function (row) {
-                    const checkbox = row.querySelector(".tutor-total-check");
-                    if (checkbox) checkbox.checked = selectVisibleTutors.checked;
+            if (selectVisibleTutors && selectVisibleTutors.dataset.payrollSummaryBound !== "1") {
+                selectVisibleTutors.dataset.payrollSummaryBound = "1";
+                selectVisibleTutors.addEventListener("change", function () {
+                    visibleRows().forEach(function (row) {
+                        const checkbox = row.querySelector(".tutor-total-check");
+                        if (checkbox) checkbox.checked = selectVisibleTutors.checked;
+                    });
+                    updateSelectedTotals();
                 });
-                updateSelectedTotals();
-            });
+            }
+
+            if (tutorNameFilter && tutorNameFilter.dataset.payrollSummaryBound !== "1") {
+                tutorNameFilter.dataset.payrollSummaryBound = "1";
+                tutorNameFilter.addEventListener("input", applyTutorNameFilter);
+            }
+
+            if (accountSort && accountSort.dataset.payrollSummaryBound !== "1") {
+                accountSort.dataset.payrollSummaryBound = "1";
+                accountSort.addEventListener("change", function () {
+                    sortByAccountNumber(this.value);
+                });
+            }
+
+            updateVisibleRowNumbers();
+            updateSelectedTotals();
         }
 
-        if (tutorNameFilter) {
-            tutorNameFilter.addEventListener("input", applyTutorNameFilter);
-        }
-
-        if (accountSort) {
-            accountSort.addEventListener("change", function () {
-                sortByAccountNumber(this.value);
-            });
-        }
+        bindPayrollTutorSummaryControls();
+        document.addEventListener("lbb:filter-updated", bindPayrollTutorSummaryControls);
 
         if (bulkWhatsAppModal) {
             bulkWhatsAppModal.addEventListener("show.bs.modal", function (event) {
@@ -872,32 +898,32 @@ Mohon dicek kembali. Terima kasih.</textarea>
         updateSelectedTotals();
 
         // ── Open Modal on Checkbox Toggle ────────────────────────────────────────
-        document.querySelectorAll(".pay-toggle").forEach(function (chk) {
-            chk.addEventListener("change", function () {
-                if (!this.checked) return; // unchecking does nothing
+        document.addEventListener("change", function (event) {
+            const checkbox = event.target.closest(".pay-toggle");
+            if (!checkbox) return;
+            if (!checkbox.checked) return; // unchecking does nothing
 
-                activeTutorId = this.dataset.tutorId;
-                activeTutorName = this.dataset.tutorName;
-                activeBalance = parseFloat(this.dataset.balance) || 0;
-                activeMonth = parseInt(this.dataset.month);
-                activeYear = parseInt(this.dataset.year);
-                activeCheckbox = this;
+            activeTutorId = checkbox.dataset.tutorId;
+            activeTutorName = checkbox.dataset.tutorName;
+            activeBalance = parseFloat(checkbox.dataset.balance) || 0;
+            activeMonth = parseInt(checkbox.dataset.month);
+            activeYear = parseInt(checkbox.dataset.year);
+            activeCheckbox = checkbox;
 
-                // Pre-fill modal
-                modalTutorName.textContent = activeTutorName;
-                modalPeriod.textContent =
-                    MONTHS_ID[activeMonth] + " " + activeYear;
-                modalAmount.value = Math.round(activeBalance);
-                modalBalance.textContent =
-                    "Rp " + activeBalance.toLocaleString("id-ID");
-                // Set service month to selected period
-                const mm = String(activeMonth).padStart(2, "0");
-                modalSvcMonth.value = activeYear + "-" + mm;
-                modalNotes.value = "";
-                clearError();
+            // Pre-fill modal
+            modalTutorName.textContent = activeTutorName;
+            modalPeriod.textContent =
+                MONTHS_ID[activeMonth] + " " + activeYear;
+            modalAmount.value = Math.round(activeBalance);
+            modalBalance.textContent =
+                "Rp " + activeBalance.toLocaleString("id-ID");
+            // Set service month to selected period
+            const mm = String(activeMonth).padStart(2, "0");
+            modalSvcMonth.value = activeYear + "-" + mm;
+            modalNotes.value = "";
+            clearError();
 
-                modal.show();
-            });
+            modal.show();
         });
 
         // ── Reset checkbox if modal dismissed without confirming ─────────────────

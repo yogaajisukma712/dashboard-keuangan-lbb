@@ -4,6 +4,7 @@ from flask import Flask
 
 from app import db
 from app.models import (
+    AttendancePeriodLock,
     AttendanceSession,
     Curriculum,
     Enrollment,
@@ -20,6 +21,7 @@ from app.models import (
     WhatsAppTutorValidation,
 )
 from app.services.whatsapp_ingest_service import (
+    as_date,
     build_student_contact_suggestions,
     build_student_group_suggestions,
     build_tutor_contact_suggestions,
@@ -66,6 +68,12 @@ def test_resolve_attendance_date_prefers_group_message_date():
     )
 
     assert attendance_date == date(2026, 4, 10)
+
+
+def test_as_date_accepts_date_and_datetime_values():
+    assert as_date(date(2026, 4, 16)) == date(2026, 4, 16)
+    assert as_date(datetime(2026, 4, 16, 9, 30)) == date(2026, 4, 16)
+    assert as_date(None) is None
 
 
 def test_find_best_name_match_works_with_case_and_spacing_noise():
@@ -1017,6 +1025,22 @@ def test_scan_attendance_for_month_uses_validated_tutor_and_group_context():
         assert may_evaluation.match_status == "attendance-linked"
         assert april_evaluation.attendance_session is None
         assert AttendanceSession.query.count() == 1
+
+
+def test_scan_attendance_for_month_skips_locked_period():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        db.session.add(AttendancePeriodLock(month=5, year=2026))
+        db.session.commit()
+
+        summary = WhatsAppIngestService.scan_attendance_for_month(5, 2026)
+
+        assert summary["locked"] is True
+        assert summary["processed_evaluations"] == 0
+        assert summary["linked_attendance"] == 0
+        assert AttendanceSession.query.count() == 0
 
 
 def test_lid_author_matches_validated_tutor_phone_alias_by_group_and_name():

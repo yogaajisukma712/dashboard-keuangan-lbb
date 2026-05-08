@@ -16,9 +16,16 @@
 </div>
 
 {# Search bar #}
-<div class="card border-0 shadow-sm mb-4">
+<div id="studentsFilterCard" class="card border-0 shadow-sm mb-4">
   <div class="card-body py-3">
-    <form method="GET" action="{{ url_for('master.students_list') }}" class="row g-2 align-items-center">
+    <form
+      id="studentsFilterForm"
+      method="GET"
+      action="{{ url_for('master.students_list') }}"
+      class="row g-2 align-items-center"
+      data-lbb-filter-form
+      data-lbb-filter-targets="studentsFilterCard studentsSearchInfo studentsQuickFilterCard studentsFilterResults"
+    >
       <div class="col-md-6 col-lg-5">
         <div class="input-group">
           <span class="input-group-text bg-white border-end-0">
@@ -35,17 +42,31 @@
       </div>
       <div class="col-md-3 col-lg-3">
         <select name="active_state" class="form-select">
-          <option value="">Semua Status</option>
           <option value="active" {% if active_state == 'active' %}selected{% endif %}>Siswa Aktif</option>
           <option value="inactive" {% if active_state == 'inactive' %}selected{% endif %}>Siswa Nonaktif</option>
+          <option value="all" {% if active_state == 'all' %}selected{% endif %}>Semua Siswa</option>
+        </select>
+      </div>
+      <div class="col-md-3 col-lg-2">
+        <select name="sort" class="form-select">
+          <option value="name_asc" {% if sort_by == 'name_asc' %}selected{% endif %}>Nama A-Z</option>
+          <option value="name_desc" {% if sort_by == 'name_desc' %}selected{% endif %}>Nama Z-A</option>
+          <option value="last_attendance_desc" {% if sort_by == 'last_attendance_desc' %}selected{% endif %}>Presensi Terbaru</option>
+          <option value="last_attendance_asc" {% if sort_by == 'last_attendance_asc' %}selected{% endif %}>Presensi Terlama</option>
+          <option value="last_payment_desc" {% if sort_by == 'last_payment_desc' %}selected{% endif %}>Bayar Terbaru</option>
+          <option value="last_payment_asc" {% if sort_by == 'last_payment_asc' %}selected{% endif %}>Bayar Terlama</option>
         </select>
       </div>
       <div class="col-auto">
         <button type="submit" class="btn btn-primary px-4">Cari</button>
       </div>
-      {% if search or active_state %}
+      {% if search or active_state != 'active' or sort_by != 'name_asc' %}
       <div class="col-auto">
-        <a href="{{ url_for('master.students_list') }}" class="btn btn-outline-secondary">
+        <a
+          href="{{ url_for('master.students_list') }}"
+          class="btn btn-outline-secondary"
+          data-lbb-filter-reset="studentsFilterForm"
+        >
           <i class="bi bi-x-circle me-1"></i>Reset
         </a>
       </div>
@@ -55,16 +76,18 @@
 </div>
 
 {# Hasil pencarian info #}
-{% if search %}
-<div class="mb-3">
-  <span class="text-muted small">
-    Hasil pencarian untuk <strong>"{{ search }}"</strong>:
-    {{ students.total }} siswa ditemukan
-  </span>
+<div id="studentsSearchInfo">
+  {% if search %}
+  <div class="mb-3">
+    <span class="text-muted small">
+      Hasil pencarian untuk <strong>"{{ search }}"</strong>:
+      {{ students.total }} siswa ditemukan
+    </span>
+  </div>
+  {% endif %}
 </div>
-{% endif %}
 
-<div class="card border-0 shadow-sm mb-4">
+<div id="studentsQuickFilterCard" class="card border-0 shadow-sm mb-4">
   <div class="card-body py-3">
     <div class="row g-2 align-items-center">
       <div class="col-md-7 col-lg-6">
@@ -80,6 +103,9 @@
             id="quickStudentSearch"
             class="form-control border-start-0 ps-0"
             placeholder="Saring siswa yang sedang tampil di halaman ini..."
+            data-lbb-quick-filter=".student-row"
+            data-lbb-quick-filter-attr="student-search"
+            data-lbb-quick-empty-row="quickStudentSearchEmptyRow"
           />
         </div>
       </div>
@@ -92,32 +118,85 @@
   </div>
 </div>
 
+<form
+  id="studentBulkStatusForm"
+  method="POST"
+  action="{{ url_for('master.bulk_update_student_status') }}"
+  class="card border-0 shadow-sm mb-4"
+>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="next" value="{{ request.full_path }}">
+  <div class="card-body py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <div class="fw-semibold small">
+        <i class="bi bi-ui-checks-grid me-1 text-primary"></i>Aksi Bulk Siswa
+      </div>
+      <div class="text-muted small">Pilih baris siswa di tabel, lalu aktifkan atau nonaktifkan sekaligus.</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <button type="submit" name="bulk_action" value="activate" class="btn btn-outline-success btn-sm">
+        <i class="bi bi-check-circle me-1"></i>Aktifkan Terpilih
+      </button>
+      <button type="submit" name="bulk_action" value="deactivate" class="btn btn-outline-warning btn-sm">
+        <i class="bi bi-pause-circle me-1"></i>Nonaktifkan Terpilih
+      </button>
+    </div>
+  </div>
+</form>
+
 {# Tabel Siswa #}
-<div class="card border-0 shadow-sm">
+<div
+  id="studentsFilterResults"
+  class="card border-0 shadow-sm"
+  data-lbb-filter-results
+  data-lbb-filter-form-id="studentsFilterForm"
+>
   <div class="card-body p-0">
     {% if students.items %}
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
+            <th class="ps-4 text-center" style="width:42px">
+              <input
+                type="checkbox"
+                id="selectAllStudents"
+                class="form-check-input"
+                aria-label="Pilih semua siswa di halaman ini"
+              >
+            </th>
             <th class="ps-4" style="width:50px">No</th>
             <th>Kode</th>
             <th>Nama Siswa</th>
             <th>Kurikulum</th>
             <th>Jenjang</th>
             <th>Kelas</th>
+            <th>Presensi Terakhir</th>
+            <th>Bayar Terakhir</th>
             <th class="text-center">Status</th>
-            <th class="text-center pe-4" style="width:150px">Aksi</th>
+            <th class="text-center pe-4" style="width:190px">Aksi</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="studentTableBody">
           {% for student in students.items %}
           {% set row_num = (students.page - 1) * students.per_page + loop.index %}
+          {% set last_attendance = last_attendance_map.get(student.id) if last_attendance_map is defined else None %}
+          {% set last_payment = last_payment_map.get(student.id) if last_payment_map is defined else None %}
           <tr
             class="student-row"
             data-student-search="{{ (student.student_code ~ ' ' ~ student.name ~ ' ' ~ (student.email or '') ~ ' ' ~ (student.phone or '') ~ ' ' ~ (student.level.name if student.level else '') ~ ' ' ~ (student.curriculum.name if student.curriculum else '') ~ ' ' ~ (student.grade or '')) | lower }}"
             data-student-status="{{ 'active' if (student.status == 'active' or student.is_active) else 'inactive' }}"
           >
+            <td class="ps-4 text-center">
+              <input
+                type="checkbox"
+                name="student_refs"
+                value="{{ student.public_id }}"
+                form="studentBulkStatusForm"
+                class="form-check-input student-bulk-checkbox"
+                aria-label="Pilih siswa {{ student.name }}"
+              >
+            </td>
             <td class="ps-4 text-muted small">{{ row_num }}</td>
             <td>
               <span class="badge bg-light text-dark border font-monospace">
@@ -155,6 +234,20 @@
                 <span class="text-muted small">—</span>
               {% endif %}
             </td>
+            <td>
+              {% if last_attendance %}
+                <span class="small">{{ last_attendance.strftime('%d/%m/%Y') }}</span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if last_payment %}
+                <span class="small">{{ last_payment.strftime('%d/%m/%Y') }}</span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
             <td class="text-center">
               {% if student.status == 'active' or student.is_active %}
                 <span class="badge bg-success-subtle text-success-emphasis px-2 py-1">
@@ -185,10 +278,10 @@
               {% endif %}
             </td>
             <td class="text-center pe-4">
-              <div class="btn-group btn-group-sm" role="group">
+              <div class="d-inline-flex align-items-center justify-content-center gap-1">
                 <a
                   href="{{ url_for('master.student_detail', student_ref=student.public_id) }}"
-                  class="btn btn-outline-info"
+                  class="btn btn-sm btn-outline-info"
                   title="Detail"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -197,14 +290,27 @@
                 </a>
                 <a
                   href="{{ url_for('master.edit_student', student_ref=student.public_id) }}"
-                  class="btn btn-outline-primary"
+                  class="btn btn-sm btn-outline-primary"
                   title="Edit"
                 >
                   <i class="bi bi-pencil"></i>
                 </a>
+                <form method="POST" action="{{ url_for('master.toggle_student_active', student_ref=student.public_id) }}" class="d-inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="next" value="{{ request.full_path }}">
+                  {% if student.status == 'active' or student.is_active %}
+                    <button type="submit" class="btn btn-sm btn-outline-warning" title="Nonaktifkan">
+                      <i class="bi bi-person-dash"></i>
+                    </button>
+                  {% else %}
+                    <button type="submit" class="btn btn-sm btn-outline-success" title="Aktifkan">
+                      <i class="bi bi-person-check"></i>
+                    </button>
+                  {% endif %}
+                </form>
                 <button
                   type="button"
-                  class="btn btn-outline-danger"
+                  class="btn btn-sm btn-outline-danger"
                   title="Hapus"
                   data-bs-toggle="modal"
                   data-bs-target="#deleteModal{{ student.id }}"
@@ -252,6 +358,11 @@
             </td>
           </tr>
           {% endfor %}
+          <tr id="quickStudentSearchEmptyRow" class="d-none">
+            <td colspan="11" class="text-center text-muted py-4">
+              Tidak ada siswa pada halaman ini yang cocok dengan pencarian cepat.
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -336,23 +447,51 @@
     const quickSearchInput = document.getElementById('quickStudentSearch');
     const studentRows = Array.from(document.querySelectorAll('.student-row'));
     const emptyState = document.getElementById('studentsEmptyState');
+    const selectAllStudents = document.getElementById('selectAllStudents');
+    const studentBulkCheckboxes = Array.from(document.querySelectorAll('.student-bulk-checkbox'));
+    const studentBulkStatusForm = document.getElementById('studentBulkStatusForm');
+
+    function updateStudentSelectAllState() {
+      if (!selectAllStudents || !studentBulkCheckboxes.length) {
+        return;
+      }
+      const checkedCount = studentBulkCheckboxes.filter(function (checkbox) {
+        return checkbox.checked;
+      }).length;
+      selectAllStudents.checked = checkedCount === studentBulkCheckboxes.length;
+      selectAllStudents.indeterminate = checkedCount > 0 && checkedCount < studentBulkCheckboxes.length;
+    }
+
+    if (selectAllStudents && studentBulkCheckboxes.length) {
+      selectAllStudents.addEventListener('change', function () {
+        studentBulkCheckboxes.forEach(function (checkbox) {
+          checkbox.checked = selectAllStudents.checked;
+        });
+        updateStudentSelectAllState();
+      });
+
+      studentBulkCheckboxes.forEach(function (checkbox) {
+        checkbox.addEventListener('change', updateStudentSelectAllState);
+      });
+    }
+
+    if (studentBulkStatusForm) {
+      studentBulkStatusForm.addEventListener('submit', function (event) {
+        const selectedCount = studentBulkCheckboxes.filter(function (checkbox) {
+          return checkbox.checked;
+        }).length;
+        if (!selectedCount) {
+          event.preventDefault();
+          alert('Pilih minimal satu siswa terlebih dahulu.');
+        }
+      });
+    }
 
     if (!quickSearchInput || !studentRows.length) {
       return;
     }
 
-    const emptyQuickRow = document.createElement('tr');
-    emptyQuickRow.id = 'quickStudentSearchEmptyRow';
-    emptyQuickRow.className = 'd-none';
-    emptyQuickRow.innerHTML = `
-      <td colspan="8" class="text-center text-muted py-4">
-        Tidak ada siswa di halaman ini yang cocok dengan pencarian cepat.
-      </td>
-    `;
-    const tbody = studentRows[0].closest('tbody');
-    if (tbody) {
-      tbody.appendChild(emptyQuickRow);
-    }
+    const emptyQuickRow = document.getElementById('quickStudentSearchEmptyRow');
 
     function applyQuickSearch() {
       const keyword = String(quickSearchInput.value || '').trim().toLowerCase();

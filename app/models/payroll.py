@@ -30,7 +30,7 @@ class TutorPayout(db.Model):
     reference_number = db.Column(db.String(100))  # No. bukti transfer
     notes = db.Column(db.Text)
     status = db.Column(
-        db.String(20), default="completed"
+        db.String(20), default="pending"
     )  # pending, completed, cancelled
     proof_image = db.Column(db.String(500))  # path relatif ke UPLOAD_FOLDER
     proof_notes = db.Column(db.Text)  # catatan bukti transfer
@@ -38,6 +38,8 @@ class TutorPayout(db.Model):
     whatsapp_last_message = db.Column(db.Text)
     whatsapp_last_sent_at = db.Column(db.DateTime)
     whatsapp_last_status = db.Column(db.String(50))
+    # Session IDs that are excluded from this payout (stored as JSON list of ints)
+    excluded_session_ids = db.Column(db.JSON, default=list)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -49,6 +51,13 @@ class TutorPayout(db.Model):
         backref="payout",
         lazy="dynamic",
         cascade="all, delete-orphan",
+    )
+    transfer_proofs = db.relationship(
+        "TutorPayoutProof",
+        backref="payout",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+        order_by="TutorPayoutProof.uploaded_at.desc()",
     )
 
     def __repr__(self):
@@ -90,4 +99,41 @@ class TutorPayoutLine(db.Model):
         """Get human-readable service period"""
         if self.service_month:
             return self.service_month.strftime("%B %Y")
+
+
+class TutorPayoutProof(db.Model):
+    """Uploaded transfer proof files for one tutor payout."""
+
+    __tablename__ = "tutor_payout_proofs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tutor_payout_id = db.Column(
+        db.Integer, db.ForeignKey("tutor_payouts.id"), nullable=False, index=True
+    )
+    file_path = db.Column(db.String(500), nullable=False)
+    notes = db.Column(db.Text)
+    original_filename = db.Column(db.String(255))
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    @property
+    def filename(self):
+        import os
+
+        return os.path.basename(self.file_path or "")
+
+    @property
+    def extension(self):
+        filename = self.filename
+        return filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    @property
+    def is_image(self):
+        return self.extension in {"png", "jpg", "jpeg", "gif", "webp"}
+
+    @property
+    def is_pdf(self):
+        return self.extension == "pdf"
+
+    def __repr__(self):
+        return f"<TutorPayoutProof {self.id} - {self.file_path}>"
         return "N/A"

@@ -21,13 +21,13 @@
   </div>
   <div class="d-flex flex-wrap gap-2">
     <a
-      href="{{ url_for('attendance.calendar_view', month=calendar_data.previous_month, year=calendar_data.previous_year, tutor_ref=selected_tutor_ref or '') }}"
+      href="{{ url_for('attendance.calendar_view', month=calendar_data.previous_month, year=calendar_data.previous_year, tutor_ref=selected_tutor_ref or '', student_ref=selected_student_ref or '') }}"
       class="btn btn-outline-secondary btn-sm"
     >
       <i class="bi bi-chevron-left me-1"></i>Bulan Sebelumnya
     </a>
     <a
-      href="{{ url_for('attendance.calendar_view', month=calendar_data.next_month, year=calendar_data.next_year, tutor_ref=selected_tutor_ref or '') }}"
+      href="{{ url_for('attendance.calendar_view', month=calendar_data.next_month, year=calendar_data.next_year, tutor_ref=selected_tutor_ref or '', student_ref=selected_student_ref or '') }}"
       class="btn btn-outline-secondary btn-sm"
     >
       Bulan Berikutnya<i class="bi bi-chevron-right ms-1"></i>
@@ -60,7 +60,7 @@
           value="{{ calendar_data.year }}"
         />
       </div>
-      <div class="col-md-5 col-lg-4">
+      <div class="col-md-5 col-lg-3">
         <label for="tutor_ref" class="form-label fw-semibold small">Filter Tutor</label>
         <select id="tutor_ref" name="tutor_ref" class="form-select">
           <option value="">Semua Tutor</option>
@@ -71,7 +71,18 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-lg-3 d-flex gap-2">
+      <div class="col-md-5 col-lg-3">
+        <label for="student_ref" class="form-label fw-semibold small">Filter Siswa</label>
+        <select id="student_ref" name="student_ref" class="form-select">
+          <option value="">Semua Siswa</option>
+          {% for student in students %}
+          <option value="{{ student.public_id }}" {% if selected_student_ref == student.public_id %}selected{% endif %}>
+            {{ student.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-lg-2 d-flex gap-2">
         <button type="submit" class="btn btn-primary w-100">
           <i class="bi bi-funnel-fill me-1"></i>Tampilkan
         </button>
@@ -124,7 +135,7 @@
       <div>
         <h3 class="h5 mb-1">{{ calendar_data.title }}</h3>
         <p class="text-muted small mb-0">
-          Menampilkan tutor, siswa, mapel, dan status dari Presensi Sesi Les.
+          Menampilkan siswa dari Presensi Sesi Les. Detail lengkap tersedia saat chip dipilih.
         </p>
       </div>
       <div class="small text-muted">
@@ -148,39 +159,32 @@
             {% for day in week %}
             <td class="calendar-day-cell {% if not day.in_month %}calendar-day-outside{% endif %} {% if day.is_today %}calendar-day-today{% endif %}">
               <div class="calendar-day-number">{{ day.date.day }}</div>
-              <div class="d-flex flex-column gap-2">
+              <div class="calendar-chip-list">
                 {% for item in day['items'] %}
-                <div class="calendar-lesson-card">
-                  <div class="d-flex align-items-start justify-content-between gap-2 mb-1">
-                    <div class="fw-semibold text-primary small">{{ item.schedule_label }}</div>
-                    {% if item.attendance_status == 'attended' %}
-                    <span class="badge bg-success-subtle text-success-emphasis">Hadir</span>
-                    {% elif item.attendance_status == 'cancelled' %}
-                    <span class="badge bg-danger-subtle text-danger-emphasis">Batal</span>
-                    {% elif item.attendance_status == 'rescheduled' %}
-                    <span class="badge bg-warning-subtle text-warning-emphasis">Reschedule</span>
-                    {% elif item.attendance_status == 'scheduled' %}
-                    <span class="badge bg-info-subtle text-info-emphasis">Terjadwal</span>
-                    {% else %}
-                    <span class="badge bg-secondary-subtle text-secondary-emphasis">Rencana</span>
-                    {% endif %}
+                {% set popover_html %}
+                  <div class='calendar-popover-detail'>
+                    <div><strong>Jam</strong>: {{ item.schedule_label }}</div>
+                    <div><strong>Tutor</strong>: {{ item.tutor_name }}</div>
+                    <div><strong>Mapel</strong>: {{ item.subject_name }}</div>
+                    <div><strong>Siswa</strong>: {{ item.student_name }}</div>
+                    <div><strong>Kelas</strong>: {{ item.grade }}</div>
+                    {% if item.location %}<div><strong>Lokasi</strong>: {{ item.location }}</div>{% endif %}
+                    {% if item.whatsapp_group_name %}<div><strong>Grup WA</strong>: {{ item.whatsapp_group_name }}</div>{% endif %}
+                    <div class='mt-2'><a href='{{ url_for('enrollments.enrollment_detail', enrollment_ref=item.enrollment_ref) }}'>Detail enrollment</a></div>
                   </div>
-                  <div class="small fw-semibold">{{ item.tutor_name }}</div>
-                  <div class="small text-muted">{{ item.subject_name }} • {{ item.student_name }}</div>
-                  <div class="small text-muted">Kelas {{ item.grade }}</div>
-                  {% if item.location %}
-                  <div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>{{ item.location }}</div>
-                  {% endif %}
-                  {% if item.whatsapp_group_name %}
-                  <div class="small text-muted"><i class="bi bi-whatsapp me-1"></i>{{ item.whatsapp_group_name }}</div>
-                  {% endif %}
-                  <a
-                    href="{{ url_for('enrollments.enrollment_detail', enrollment_ref=item.enrollment_ref) }}"
-                    class="small text-decoration-none mt-1 d-inline-flex align-items-center gap-1"
-                  >
-                    Detail enrollment <i class="bi bi-arrow-right-short"></i>
-                  </a>
-                </div>
+                {% endset %}
+                <button
+                  type="button"
+                  class="calendar-lesson-chip calendar-lesson-chip-{{ item.attendance_status }}"
+                  data-bs-toggle="popover"
+                  data-bs-html="true"
+                  data-bs-trigger="focus"
+                  data-bs-placement="auto"
+                  data-bs-title="{{ item.student_name }} - {{ item.subject_name }}"
+                  data-bs-content="{{ popover_html | trim | e }}"
+                >
+                  <span>{{ item.student_short_name }}</span>
+                </button>
                 {% endfor %}
                 {% if not day['items'] and day.in_month %}
                 <div class="calendar-empty-note">Tidak ada jadwal</div>
@@ -207,9 +211,9 @@
   }
   .calendar-day-cell {
     vertical-align: top;
-    min-height: 180px;
+    min-height: 120px;
     width: 14.285%;
-    padding: 0.75rem;
+    padding: 0.55rem;
     border: 1px solid #edf2f7;
     background: #fff;
   }
@@ -223,13 +227,54 @@
     font-weight: 700;
     font-size: 0.95rem;
     color: #0f172a;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.45rem;
   }
-  .calendar-lesson-card {
-    background: #f8fbff;
-    border: 1px solid #dbe7ff;
-    border-radius: 14px;
-    padding: 0.7rem 0.75rem;
+  .calendar-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.3rem;
+  }
+  .calendar-lesson-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.1;
+    padding: 0.2rem 0.48rem;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .calendar-lesson-chip span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .calendar-lesson-chip-attended {
+    border-color: #86efac;
+    background: #f0fdf4;
+  }
+  .calendar-lesson-chip-cancelled {
+    border-color: #fecaca;
+    background: #fef2f2;
+  }
+  .calendar-lesson-chip-rescheduled {
+    border-color: #fde68a;
+    background: #fffbeb;
+  }
+  .calendar-lesson-chip-scheduled {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+  }
+  .calendar-popover-detail {
+    min-width: 220px;
+    font-size: 0.82rem;
   }
   .calendar-empty-note {
     color: #94a3b8;
@@ -238,9 +283,18 @@
   }
   @media (max-width: 991.98px) {
     .calendar-day-cell {
-      min-height: 150px;
-      padding: 0.6rem;
+      min-height: 96px;
+      padding: 0.45rem;
     }
   }
 </style>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (trigger) {
+      new bootstrap.Popover(trigger, {
+        container: "body",
+      });
+    });
+  });
+</script>
 {% endblock %}

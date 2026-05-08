@@ -14,11 +14,11 @@ from .master import (
 )
 from .pricing import PricingRule
 from .enrollment import Enrollment, EnrollmentSchedule
-from .attendance import AttendanceSession
+from .attendance import AttendancePeriodLock, AttendanceSession
 from .payment import StudentPayment, StudentPaymentLine
 from .income import OtherIncome
 from .expense import Expense
-from .payroll import TutorPayout, TutorPayoutLine
+from .payroll import TutorPayout, TutorPayoutLine, TutorPayoutProof
 from .closing import MonthlyClosing
 from .whatsapp import (
     WhatsAppContact,
@@ -36,11 +36,11 @@ __all__ = [
     'SubjectTutorAssignment',
     'PricingRule',
     'Enrollment', 'EnrollmentSchedule',
-    'AttendanceSession',
+    'AttendanceSession', 'AttendancePeriodLock',
     'StudentPayment', 'StudentPaymentLine',
     'OtherIncome',
     'Expense',
-    'TutorPayout', 'TutorPayoutLine',
+    'TutorPayout', 'TutorPayoutLine', 'TutorPayoutProof',
     'MonthlyClosing',
     'WhatsAppGroup',
     'WhatsAppContact',

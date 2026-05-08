@@ -1,542 +1,664 @@
-{% extends "base.html" %}
-
-{% block title %}Tambah Pembayaran Tutor — LBB Super Smart{% endblock %}
-
-{% block content %}
-
-{# ── Breadcrumb ──────────────────────────────────────────────────────────── #}
+{% extends "base.html" %} {% block title %}Tambah Pembayaran Tutor — LBB Super
+Smart{% endblock %} {% block content %} {# ── Breadcrumb
+──────────────────────────────────────────────────────────── #}
 <nav aria-label="breadcrumb" class="mb-3">
-  <ol class="breadcrumb small">
-    <li class="breadcrumb-item">
-      <a href="{{ url_for('payroll.tutor_summary') }}">Payroll</a>
-    </li>
-    <li class="breadcrumb-item active">Tambah Pembayaran</li>
-  </ol>
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item">
+            <a href="{{ url_for('payroll.tutor_summary') }}">Payroll</a>
+        </li>
+        <li class="breadcrumb-item active">Tambah Pembayaran</li>
+    </ol>
 </nav>
 
 {# ── Page Header ─────────────────────────────────────────────────────────── #}
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="h4 mb-0">
-      <i class="bi bi-cash-stack me-2 text-primary"></i>Tambah Pembayaran Tutor
-    </h2>
-    <p class="text-muted small mb-0">
-      Catat pembayaran honorarium / fee tutor untuk periode layanan tertentu
-    </p>
-  </div>
-  <a href="{{ url_for('payroll.tutor_summary') }}" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-arrow-left me-1"></i>Kembali
-  </a>
+    <div>
+        <h2 class="h4 mb-0">
+            <i class="bi bi-cash-stack me-2 text-primary"></i>Tambah Pembayaran
+            Tutor
+        </h2>
+        <p class="text-muted small mb-0">
+            Catat pembayaran honorarium / fee tutor untuk periode layanan
+            tertentu
+        </p>
+    </div>
+    <a
+        href="{{ url_for('payroll.tutor_summary') }}"
+        class="btn btn-outline-secondary btn-sm"
+    >
+        <i class="bi bi-arrow-left me-1"></i>Kembali
+    </a>
 </div>
 
 <div class="row g-4">
+    {# ═══════════════════════════════════════════════════════════════════════
+    KOLOM KIRI — Form Pembayaran
+    ═══════════════════════════════════════════════════════════════════════ #}
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <form method="POST" id="payoutForm" novalidate>
+                    {{ form.hidden_tag() }} {# ── Tutor & Periode
+                    ──────────────────────────────────────────── #}
+                    <h6
+                        class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2"
+                        style="font-size: 0.78rem; letter-spacing: 0.05em"
+                    >
+                        <i class="bi bi-person-badge me-1"></i>Tutor &amp;
+                        Periode
+                    </h6>
 
-  {# ═══════════════════════════════════════════════════════════════════════
-     KOLOM KIRI — Form Pembayaran
-  ═══════════════════════════════════════════════════════════════════════ #}
-  <div class="col-lg-7">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body p-4">
-        <form method="POST" id="payoutForm" novalidate>
-          {{ form.hidden_tag() }}
+                    <div class="row g-3 mb-4">
+                        {# Tutor #}
+                        <div class="col-12">
+                            <label
+                                for="{{ form.tutor_id.id }}"
+                                class="form-label fw-semibold small"
+                            >
+                                Tutor <span class="text-danger">*</span>
+                            </label>
+                            {{ form.tutor_id(class_="form-select",
+                            id=form.tutor_id.id, required=true) }} {% if
+                            form.tutor_id.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for e in form.tutor_id.errors %}{{ e }}{%
+                                endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
 
-          {# ── Tutor & Periode ──────────────────────────────────────────── #}
-          <h6 class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2"
-              style="font-size:.78rem;letter-spacing:.05em">
-            <i class="bi bi-person-badge me-1"></i>Tutor &amp; Periode
-          </h6>
+                        {# Bulan Layanan #}
+                        <div class="col-sm-6">
+                            <label
+                                for="{{ form.service_month.id }}"
+                                class="form-label fw-semibold small"
+                            >
+                                Bulan Layanan <span class="text-danger">*</span>
+                            </label>
+                            {{ form.service_month(class_="form-control",
+                            id=form.service_month.id, type="month",
+                            required=true) }}
+                            <div class="form-text text-muted">
+                                Bulan di mana sesi les diberikan.
+                            </div>
+                            {% if form.service_month.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for e in form.service_month.errors %}{{ e
+                                }}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
 
-          <div class="row g-3 mb-4">
+                        {# Tanggal Pembayaran #}
+                        <div class="col-sm-6">
+                            <label
+                                for="{{ form.payout_date.id }}"
+                                class="form-label fw-semibold small"
+                            >
+                                Tanggal Pembayaran
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.payout_date(class_="form-control",
+                            id=form.payout_date.id, required=true) }} {% if
+                            form.payout_date.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for e in form.payout_date.errors %}{{ e }}{%
+                                endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
 
-            {# Tutor #}
-            <div class="col-12">
-              <label for="{{ form.tutor_id.id }}" class="form-label fw-semibold small">
-                Tutor <span class="text-danger">*</span>
-              </label>
-              {{ form.tutor_id(class_="form-select",
-                               id=form.tutor_id.id,
-                               required=true) }}
-              {% if form.tutor_id.errors %}
-              <div class="invalid-feedback d-block">
-                {% for e in form.tutor_id.errors %}{{ e }}{% endfor %}
-              </div>
-              {% endif %}
+                    {# ── Nominal
+                    ──────────────────────────────────────────────────── #}
+                    <h6
+                        class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2"
+                        style="font-size: 0.78rem; letter-spacing: 0.05em"
+                    >
+                        <i class="bi bi-cash-coin me-1"></i>Nominal Pembayaran
+                    </h6>
+
+                    <div class="mb-4">
+                        <label
+                            for="{{ form.amount.id }}"
+                            class="form-label fw-semibold small"
+                        >
+                            Nominal <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text text-muted small"
+                                >Rp</span
+                            >
+                            {{ form.amount(class_="form-control
+                            form-control-lg", id=form.amount.id, min="1",
+                            step="500", placeholder="0", required=true) }}
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary"
+                                id="btnFillBalance"
+                                title="Isi dengan saldo tersisa tutor"
+                                disabled
+                            >
+                                <i class="bi bi-arrow-down-circle me-1"></i>Isi
+                                Saldo
+                            </button>
+                        </div>
+
+                        {# Balance info #}
+                        <div id="balanceInfo" class="mt-2 d-none">
+                            <div class="row g-2 small">
+                                <div class="col-4">
+                                    <div
+                                        class="p-2 rounded bg-light border text-center"
+                                    >
+                                        <div
+                                            class="text-muted mb-1"
+                                            style="font-size: 0.72rem"
+                                        >
+                                            Tagihan
+                                        </div>
+                                        <div
+                                            class="fw-bold text-primary"
+                                            id="balPayable"
+                                        >
+                                            Rp —
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div
+                                        class="p-2 rounded bg-light border text-center"
+                                    >
+                                        <div
+                                            class="text-muted mb-1"
+                                            style="font-size: 0.72rem"
+                                        >
+                                            Sudah Dibayar
+                                        </div>
+                                        <div
+                                            class="fw-bold text-secondary"
+                                            id="balPaid"
+                                        >
+                                            Rp —
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div
+                                        class="p-2 rounded bg-success bg-opacity-10 border border-success-subtle text-center"
+                                    >
+                                        <div
+                                            class="text-muted mb-1"
+                                            style="font-size: 0.72rem"
+                                        >
+                                            Sisa Saldo
+                                        </div>
+                                        <div
+                                            class="fw-bold text-success"
+                                            id="balRemaining"
+                                        >
+                                            Rp —
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div
+                                id="balanceWarning"
+                                class="alert alert-warning border-0 small mt-2 d-none py-2"
+                            >
+                                <i
+                                    class="bi bi-exclamation-triangle-fill me-1"
+                                ></i>
+                                <span id="balanceWarningText"></span>
+                            </div>
+                        </div>
+
+                        {% if form.amount.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for e in form.amount.errors %}{{ e }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {# ── Metode Pembayaran & Rekening
+                    ─────────────────────────────── #}
+                    <h6
+                        class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2"
+                        style="font-size: 0.78rem; letter-spacing: 0.05em"
+                    >
+                        <i class="bi bi-bank me-1"></i>Metode &amp; Rekening
+                    </h6>
+
+                    <div class="row g-3 mb-4">
+                        {# Metode Pembayaran #}
+                        <div class="col-sm-6">
+                            <label
+                                for="{{ form.payment_method.id }}"
+                                class="form-label fw-semibold small"
+                            >
+                                Metode Pembayaran
+                            </label>
+                            {{ form.payment_method(class_="form-select",
+                            id=form.payment_method.id) }} {% if
+                            form.payment_method.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for e in form.payment_method.errors %}{{ e
+                                }}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {# Nama Bank #}
+                        <div class="col-sm-6" id="bankNameGroup">
+                            <label
+                                for="{{ form.bank_name.id }}"
+                                class="form-label fw-semibold small"
+                            >
+                                Nama Bank
+                            </label>
+                            {{ form.bank_name(class_="form-control",
+                            id=form.bank_name.id, placeholder="cth. BCA,
+                            Mandiri, BNI…") }} {% if form.bank_name.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for e in form.bank_name.errors %}{{ e }}{%
+                                endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {# Nomor Rekening #}
+                        <div class="col-sm-6" id="accountNumberGroup">
+                            <label
+                                for="{{ form.account_number.id }}"
+                                class="form-label fw-semibold small"
+                            >
+                                Nomor Rekening
+                            </label>
+                            {{ form.account_number(class_="form-control",
+                            id=form.account_number.id, placeholder="cth.
+                            1234567890") }} {% if form.account_number.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for e in form.account_number.errors %}{{ e
+                                }}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {# Nomor Referensi #}
+                        <div class="col-sm-6">
+                            <label
+                                for="{{ form.reference_number.id }}"
+                                class="form-label fw-semibold small"
+                            >
+                                Nomor Referensi
+                            </label>
+                            {{ form.reference_number(class_="form-control",
+                            id=form.reference_number.id, placeholder="No.
+                            transaksi / bukti transfer…") }} {% if
+                            form.reference_number.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for e in form.reference_number.errors %}{{ e
+                                }}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {# ── Catatan
+                    ──────────────────────────────────────────────────── #}
+                    <div class="mb-4">
+                        <label
+                            for="{{ form.notes.id }}"
+                            class="form-label fw-semibold small"
+                        >
+                            Keterangan
+                        </label>
+                        {{ form.notes(class_="form-control", id=form.notes.id,
+                        rows=3, placeholder="Catatan tambahan mengenai
+                        pembayaran ini (opsional)…") }} {% if form.notes.errors
+                        %}
+                        <div class="invalid-feedback d-block">
+                            {% for e in form.notes.errors %}{{ e }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {# ── Tombol Aksi
+                    ─────────────────────────────────────────────── #}
+                    <div
+                        class="d-flex gap-2 justify-content-end border-top pt-3"
+                    >
+                        <a
+                            href="{{ url_for('payroll.tutor_summary') }}"
+                            class="btn btn-outline-secondary"
+                        >
+                            <i class="bi bi-x-lg me-1"></i>Batal
+                        </a>
+                        {{ form.submit(class_="btn btn-primary px-4",
+                        id="btnSubmit") }}
+                    </div>
+                </form>
             </div>
-
-            {# Bulan Layanan #}
-            <div class="col-sm-6">
-              <label for="{{ form.service_month.id }}" class="form-label fw-semibold small">
-                Bulan Layanan <span class="text-danger">*</span>
-              </label>
-              {{ form.service_month(class_="form-control",
-                                    id=form.service_month.id,
-                                    type="month",
-                                    required=true) }}
-              <div class="form-text text-muted">
-                Bulan di mana sesi les diberikan.
-              </div>
-              {% if form.service_month.errors %}
-              <div class="invalid-feedback d-block">
-                {% for e in form.service_month.errors %}{{ e }}{% endfor %}
-              </div>
-              {% endif %}
-            </div>
-
-            {# Tanggal Pembayaran #}
-            <div class="col-sm-6">
-              <label for="{{ form.payout_date.id }}" class="form-label fw-semibold small">
-                Tanggal Pembayaran <span class="text-danger">*</span>
-              </label>
-              {{ form.payout_date(class_="form-control",
-                                   id=form.payout_date.id,
-                                   required=true) }}
-              {% if form.payout_date.errors %}
-              <div class="invalid-feedback d-block">
-                {% for e in form.payout_date.errors %}{{ e }}{% endfor %}
-              </div>
-              {% endif %}
-            </div>
-
-          </div>
-
-          {# ── Nominal ──────────────────────────────────────────────────── #}
-          <h6 class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2"
-              style="font-size:.78rem;letter-spacing:.05em">
-            <i class="bi bi-cash-coin me-1"></i>Nominal Pembayaran
-          </h6>
-
-          <div class="mb-4">
-            <label for="{{ form.amount.id }}" class="form-label fw-semibold small">
-              Nominal <span class="text-danger">*</span>
-            </label>
-            <div class="input-group">
-              <span class="input-group-text text-muted small">Rp</span>
-              {{ form.amount(class_="form-control form-control-lg",
-                              id=form.amount.id,
-                              min="1",
-                              step="500",
-                              placeholder="0",
-                              required=true) }}
-              <button type="button"
-                      class="btn btn-outline-secondary"
-                      id="btnFillBalance"
-                      title="Isi dengan saldo tersisa tutor"
-                      disabled>
-                <i class="bi bi-arrow-down-circle me-1"></i>Isi Saldo
-              </button>
-            </div>
-
-            {# Balance info #}
-            <div id="balanceInfo" class="mt-2 d-none">
-              <div class="row g-2 small">
-                <div class="col-4">
-                  <div class="p-2 rounded bg-light border text-center">
-                    <div class="text-muted mb-1" style="font-size:.72rem">Tagihan</div>
-                    <div class="fw-bold text-primary" id="balPayable">Rp —</div>
-                  </div>
-                </div>
-                <div class="col-4">
-                  <div class="p-2 rounded bg-light border text-center">
-                    <div class="text-muted mb-1" style="font-size:.72rem">Sudah Dibayar</div>
-                    <div class="fw-bold text-secondary" id="balPaid">Rp —</div>
-                  </div>
-                </div>
-                <div class="col-4">
-                  <div class="p-2 rounded bg-success bg-opacity-10 border border-success-subtle text-center">
-                    <div class="text-muted mb-1" style="font-size:.72rem">Sisa Saldo</div>
-                    <div class="fw-bold text-success" id="balRemaining">Rp —</div>
-                  </div>
-                </div>
-              </div>
-              <div id="balanceWarning" class="alert alert-warning border-0 small mt-2 d-none py-2">
-                <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                <span id="balanceWarningText"></span>
-              </div>
-            </div>
-
-            {% if form.amount.errors %}
-            <div class="invalid-feedback d-block">
-              {% for e in form.amount.errors %}{{ e }}{% endfor %}
-            </div>
-            {% endif %}
-          </div>
-
-          {# ── Metode Pembayaran & Rekening ─────────────────────────────── #}
-          <h6 class="fw-bold text-uppercase text-muted mb-3 border-bottom pb-2"
-              style="font-size:.78rem;letter-spacing:.05em">
-            <i class="bi bi-bank me-1"></i>Metode &amp; Rekening
-          </h6>
-
-          <div class="row g-3 mb-4">
-
-            {# Metode Pembayaran #}
-            <div class="col-sm-6">
-              <label for="{{ form.payment_method.id }}" class="form-label fw-semibold small">
-                Metode Pembayaran
-              </label>
-              {{ form.payment_method(class_="form-select",
-                                      id=form.payment_method.id) }}
-              {% if form.payment_method.errors %}
-              <div class="invalid-feedback d-block">
-                {% for e in form.payment_method.errors %}{{ e }}{% endfor %}
-              </div>
-              {% endif %}
-            </div>
-
-            {# Nama Bank #}
-            <div class="col-sm-6" id="bankNameGroup">
-              <label for="{{ form.bank_name.id }}" class="form-label fw-semibold small">
-                Nama Bank
-              </label>
-              {{ form.bank_name(class_="form-control",
-                                 id=form.bank_name.id,
-                                 placeholder="cth. BCA, Mandiri, BNI…") }}
-              {% if form.bank_name.errors %}
-              <div class="invalid-feedback d-block">
-                {% for e in form.bank_name.errors %}{{ e }}{% endfor %}
-              </div>
-              {% endif %}
-            </div>
-
-            {# Nomor Rekening #}
-            <div class="col-sm-6" id="accountNumberGroup">
-              <label for="{{ form.account_number.id }}" class="form-label fw-semibold small">
-                Nomor Rekening
-              </label>
-              {{ form.account_number(class_="form-control",
-                                      id=form.account_number.id,
-                                      placeholder="cth. 1234567890") }}
-              {% if form.account_number.errors %}
-              <div class="invalid-feedback d-block">
-                {% for e in form.account_number.errors %}{{ e }}{% endfor %}
-              </div>
-              {% endif %}
-            </div>
-
-            {# Nomor Referensi #}
-            <div class="col-sm-6">
-              <label for="{{ form.reference_number.id }}" class="form-label fw-semibold small">
-                Nomor Referensi
-              </label>
-              {{ form.reference_number(class_="form-control",
-                                        id=form.reference_number.id,
-                                        placeholder="No. transaksi / bukti transfer…") }}
-              {% if form.reference_number.errors %}
-              <div class="invalid-feedback d-block">
-                {% for e in form.reference_number.errors %}{{ e }}{% endfor %}
-              </div>
-              {% endif %}
-            </div>
-
-          </div>
-
-          {# ── Catatan ──────────────────────────────────────────────────── #}
-          <div class="mb-4">
-            <label for="{{ form.notes.id }}" class="form-label fw-semibold small">
-              Keterangan
-            </label>
-            {{ form.notes(class_="form-control",
-                          id=form.notes.id,
-                          rows=3,
-                          placeholder="Catatan tambahan mengenai pembayaran ini (opsional)…") }}
-            {% if form.notes.errors %}
-            <div class="invalid-feedback d-block">
-              {% for e in form.notes.errors %}{{ e }}{% endfor %}
-            </div>
-            {% endif %}
-          </div>
-
-          {# ── Tombol Aksi ─────────────────────────────────────────────── #}
-          <div class="d-flex gap-2 justify-content-end border-top pt-3">
-            <a href="{{ url_for('payroll.tutor_summary') }}"
-               class="btn btn-outline-secondary">
-              <i class="bi bi-x-lg me-1"></i>Batal
-            </a>
-            {{ form.submit(class_="btn btn-primary px-4", id="btnSubmit") }}
-          </div>
-
-        </form>
-      </div>
-    </div>
-  </div>
-
-  {# ═══════════════════════════════════════════════════════════════════════
-     KOLOM KANAN — Panduan
-  ═══════════════════════════════════════════════════════════════════════ #}
-  <div class="col-lg-5">
-
-    {# ── Info Card ──────────────────────────────────────────────────────── #}
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-header bg-transparent py-2">
-        <h6 class="fw-bold mb-0 small text-uppercase text-muted" style="letter-spacing:.06em">
-          <i class="bi bi-lightbulb me-1 text-warning"></i>Panduan Pengisian
-        </h6>
-      </div>
-      <div class="card-body small text-muted">
-        <ol class="ps-3 mb-0">
-          <li class="mb-2">
-            Pilih <strong>Tutor</strong> yang akan menerima pembayaran.
-          </li>
-          <li class="mb-2">
-            Pilih <strong>Bulan Layanan</strong> — sistem akan menampilkan
-            saldo tagihan tutor untuk bulan tersebut.
-          </li>
-          <li class="mb-2">
-            Gunakan tombol <span class="badge bg-secondary fw-normal">Isi Saldo</span>
-            untuk mengisi nominal secara otomatis sesuai sisa saldo tutor.
-          </li>
-          <li class="mb-2">
-            Isi <strong>Tanggal Pembayaran</strong> sesuai tanggal realisasi transfer/tunai.
-          </li>
-          <li>
-            Simpan bukti transfer di halaman detail pembayaran setelah data berhasil disimpan.
-          </li>
-        </ol>
-      </div>
-    </div>
-
-    {# ── Tutor Info Card (muncul setelah tutor dipilih) ─────────────────── #}
-    <div class="card border-0 shadow-sm d-none" id="tutorInfoCard">
-      <div class="card-header bg-transparent py-2">
-        <h6 class="fw-bold mb-0 small text-uppercase text-muted" style="letter-spacing:.06em">
-          <i class="bi bi-person-badge me-1 text-success"></i>Info Tutor
-        </h6>
-      </div>
-      <div class="card-body small">
-        <div class="d-flex align-items-center mb-3">
-          <div class="rounded-circle bg-success bg-opacity-10 text-success
-                      d-flex align-items-center justify-content-center me-3 flex-shrink-0"
-               style="width:44px;height:44px;font-size:1.2rem">
-            <i class="bi bi-person-workspace"></i>
-          </div>
-          <div>
-            <div class="fw-bold" id="tutorInfoName">—</div>
-            <div class="text-muted" id="tutorInfoCode"></div>
-          </div>
         </div>
-        <div class="row g-1 text-muted">
-          <div class="col-5 fw-semibold">Bank</div>
-          <div class="col-7" id="tutorInfoBank">—</div>
-          <div class="col-5 fw-semibold">No. Rekening</div>
-          <div class="col-7" id="tutorInfoAccount">—</div>
-          <div class="col-5 fw-semibold">Pemilik Rekening</div>
-          <div class="col-7" id="tutorInfoHolder">—</div>
-        </div>
-        <button type="button" id="btnAutoFillBank"
-                class="btn btn-outline-success btn-sm w-100 mt-3 d-none">
-          <i class="bi bi-arrow-down-circle me-1"></i>
-          Salin Info Bank ke Form
-        </button>
-      </div>
     </div>
 
-  </div>
+    {# ═══════════════════════════════════════════════════════════════════════
+    KOLOM KANAN — Panduan
+    ═══════════════════════════════════════════════════════════════════════ #}
+    <div class="col-lg-5">
+        {# ── Info Card ────────────────────────────────────────────────────────
+        #}
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent py-2">
+                <h6
+                    class="fw-bold mb-0 small text-uppercase text-muted"
+                    style="letter-spacing: 0.06em"
+                >
+                    <i class="bi bi-lightbulb me-1 text-warning"></i>Panduan
+                    Pengisian
+                </h6>
+            </div>
+            <div class="card-body small text-muted">
+                <ol class="ps-3 mb-0">
+                    <li class="mb-2">
+                        Pilih <strong>Tutor</strong> yang akan menerima
+                        pembayaran.
+                    </li>
+                    <li class="mb-2">
+                        Pilih <strong>Bulan Layanan</strong> — sistem akan
+                        menampilkan saldo tagihan tutor untuk bulan tersebut.
+                    </li>
+                    <li class="mb-2">
+                        Gunakan tombol
+                        <span class="badge bg-secondary fw-normal"
+                            >Isi Saldo</span
+                        >
+                        untuk mengisi nominal secara otomatis sesuai sisa saldo
+                        tutor.
+                    </li>
+                    <li class="mb-2">
+                        Isi <strong>Tanggal Pembayaran</strong> sesuai tanggal
+                        realisasi transfer/tunai.
+                    </li>
+                    <li>
+                        Simpan bukti transfer di halaman detail pembayaran
+                        setelah data berhasil disimpan.
+                    </li>
+                </ol>
+            </div>
+        </div>
 
+        {# ── Tutor Info Card (muncul setelah tutor dipilih) ───────────────────
+        #}
+        <div class="card border-0 shadow-sm d-none" id="tutorInfoCard">
+            <div class="card-header bg-transparent py-2">
+                <h6
+                    class="fw-bold mb-0 small text-uppercase text-muted"
+                    style="letter-spacing: 0.06em"
+                >
+                    <i class="bi bi-person-badge me-1 text-success"></i>Info
+                    Tutor
+                </h6>
+            </div>
+            <div class="card-body small">
+                <div class="d-flex align-items-center mb-3">
+                    <div
+                        class="rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center me-3 flex-shrink-0"
+                        style="width: 44px; height: 44px; font-size: 1.2rem"
+                    >
+                        <i class="bi bi-person-workspace"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold" id="tutorInfoName">—</div>
+                        <div class="text-muted" id="tutorInfoCode"></div>
+                    </div>
+                </div>
+                <div class="row g-1 text-muted">
+                    <div class="col-5 fw-semibold">Bank</div>
+                    <div class="col-7" id="tutorInfoBank">—</div>
+                    <div class="col-5 fw-semibold">No. Rekening</div>
+                    <div class="col-7" id="tutorInfoAccount">—</div>
+                    <div class="col-5 fw-semibold">Pemilik Rekening</div>
+                    <div class="col-7" id="tutorInfoHolder">—</div>
+                </div>
+                <button
+                    type="button"
+                    id="btnAutoFillBank"
+                    class="btn btn-outline-success btn-sm w-100 mt-3 d-none"
+                >
+                    <i class="bi bi-arrow-down-circle me-1"></i>
+                    Salin Info Bank ke Form
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
-{% endblock %}
-
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script>
-(function () {
-  'use strict';
+    (function () {
+      'use strict';
 
-  const tutorPublicIds = {{ tutor_public_ids|default({}, true)|tojson }};
+      const tutorPublicIds = {{ tutor_public_ids|default({}, true)|tojson }};
 
-  /* ── Elemen ──────────────────────────────────────────────────────────── */
-  const elTutor        = document.getElementById('{{ form.tutor_id.id }}');
-  const elServiceMonth = document.getElementById('{{ form.service_month.id }}');
-  const elAmount       = document.getElementById('{{ form.amount.id }}');
-  const elPayMethod    = document.getElementById('{{ form.payment_method.id }}');
-  const elBankName     = document.getElementById('{{ form.bank_name.id }}');
-  const elAccountNo    = document.getElementById('{{ form.account_number.id }}');
-  const btnFillBalance = document.getElementById('btnFillBalance');
-  const balanceInfo    = document.getElementById('balanceInfo');
-  const balPayable     = document.getElementById('balPayable');
-  const balPaid        = document.getElementById('balPaid');
-  const balRemaining   = document.getElementById('balRemaining');
-  const balWarn        = document.getElementById('balanceWarning');
-  const balWarnTxt     = document.getElementById('balanceWarningText');
-  const tutorCard      = document.getElementById('tutorInfoCard');
-  const btnAutoBank    = document.getElementById('btnAutoFillBank');
-  const bankNameGroup  = document.getElementById('bankNameGroup');
-  const acctGroup      = document.getElementById('accountNumberGroup');
+      /* ── Elemen ──────────────────────────────────────────────────────────── */
+      const elTutor        = document.getElementById('{{ form.tutor_id.id }}');
+      const elServiceMonth = document.getElementById('{{ form.service_month.id }}');
+      const elAmount       = document.getElementById('{{ form.amount.id }}');
+      const elPayMethod    = document.getElementById('{{ form.payment_method.id }}');
+      const elBankName     = document.getElementById('{{ form.bank_name.id }}');
+      const elAccountNo    = document.getElementById('{{ form.account_number.id }}');
+      const btnFillBalance = document.getElementById('btnFillBalance');
+      const balanceInfo    = document.getElementById('balanceInfo');
+      const balPayable     = document.getElementById('balPayable');
+      const balPaid        = document.getElementById('balPaid');
+      const balRemaining   = document.getElementById('balRemaining');
+      const balWarn        = document.getElementById('balanceWarning');
+      const balWarnTxt     = document.getElementById('balanceWarningText');
+      const tutorCard      = document.getElementById('tutorInfoCard');
+      const btnAutoBank    = document.getElementById('btnAutoFillBank');
+      const bankNameGroup  = document.getElementById('bankNameGroup');
+      const acctGroup      = document.getElementById('accountNumberGroup');
 
-  let currentBalance = 0;
+      let currentBalance = 0;
 
-  /* ── Format Rupiah ───────────────────────────────────────────────────── */
-  function formatRp(val) {
-    const n = parseFloat(val) || 0;
-    return 'Rp ' + n.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  }
+      /* ── Format Rupiah ───────────────────────────────────────────────────── */
+      function formatRp(val) {
+        const n = parseFloat(val) || 0;
+        return 'Rp ' + n.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      }
 
-  /* ── Sembunyikan / tampilkan field bank sesuai metode ────────────────── */
-  function toggleBankFields() {
-    const method = elPayMethod ? elPayMethod.value : 'transfer';
-    const isCash = method === 'cash';
-    if (bankNameGroup) bankNameGroup.style.opacity = isCash ? '.4' : '1';
-    if (acctGroup) acctGroup.style.opacity = isCash ? '.4' : '1';
-  }
+      /* ── Sembunyikan / tampilkan field bank sesuai metode ────────────────── */
+      function toggleBankFields() {
+        const method = elPayMethod ? elPayMethod.value : 'transfer';
+        const isCash = method === 'cash';
+        if (bankNameGroup) bankNameGroup.style.opacity = isCash ? '.4' : '1';
+        if (acctGroup) acctGroup.style.opacity = isCash ? '.4' : '1';
+      }
 
-  if (elPayMethod) {
-    elPayMethod.addEventListener('change', toggleBankFields);
-    toggleBankFields();
-  }
+      if (elPayMethod) {
+        elPayMethod.addEventListener('change', toggleBankFields);
+        toggleBankFields();
+      }
 
-  /* ── Fetch saldo tutor via API ───────────────────────────────────────── */
-  async function fetchBalance() {
-    const tutorId = elTutor ? elTutor.value : null;
-    const tutorRef = tutorId ? tutorPublicIds[tutorId] : null;
-    const svcVal  = elServiceMonth ? elServiceMonth.value : null;
+      /* ── Fetch saldo tutor via API ───────────────────────────────────────── */
+      async function fetchBalance() {
+        const tutorId = elTutor ? elTutor.value : null;
+        const tutorRef = tutorId ? tutorPublicIds[tutorId] : null;
+        const svcVal  = elServiceMonth ? elServiceMonth.value : null;
 
-    if (!tutorId || tutorId === '0' || !tutorRef || !svcVal) {
-      balanceInfo.classList.add('d-none');
-      if (btnFillBalance) btnFillBalance.disabled = true;
-      return;
-    }
-
-    // Parse month/year dari input[type=month] → "YYYY-MM"
-    const parts = svcVal.split('-');
-    const year  = parts[0];
-    const month = parts[1];
-
-    if (!year || !month) return;
-
-    try {
-      const res = await fetch(
-        `/payroll/api/tutor/${tutorRef}/balance?month=${parseInt(month)}&year=${parseInt(year)}`,
-        { headers: { 'Accept': 'application/json' } }
-      );
-
-      if (!res.ok) return;
-      const data = await res.json();
-
-      if (data) {
-        const payable   = parseFloat(data.payable   || data.total_payable || 0);
-        const paid      = parseFloat(data.paid       || data.total_paid    || 0);
-        const balance   = parseFloat(data.balance    || data.remaining     || (payable - paid));
-
-        currentBalance = balance;
-
-        if (balPayable)   balPayable.textContent   = formatRp(payable);
-        if (balPaid)      balPaid.textContent       = formatRp(paid);
-        if (balRemaining) balRemaining.textContent  = formatRp(balance);
-
-        balanceInfo.classList.remove('d-none');
-
-        if (btnFillBalance) {
-          btnFillBalance.disabled = (balance <= 0);
+        if (!tutorId || tutorId === '0' || !tutorRef || !svcVal) {
+          balanceInfo.classList.add('d-none');
+          if (btnFillBalance) btnFillBalance.disabled = true;
+          return;
         }
 
-        if (balance <= 0) {
-          balWarnTxt.textContent = 'Tutor tidak memiliki saldo yang bisa dibayarkan untuk periode ini.';
+        // Parse month/year dari input[type=month] → "YYYY-MM"
+        const parts = svcVal.split('-');
+        const year  = parts[0];
+        const month = parts[1];
+
+        if (!year || !month) return;
+
+        try {
+          const res = await fetch(
+            `/payroll/api/tutor/${tutorRef}/balance?month=${parseInt(month)}&year=${parseInt(year)}`,
+            { headers: { 'Accept': 'application/json' } }
+          );
+
+          if (!res.ok) return;
+          const data = await res.json();
+
+          if (data) {
+            const payable   = parseFloat(data.payable   || data.total_payable || 0);
+            const paid      = parseFloat(data.paid       || data.total_paid    || 0);
+            const balance   = parseFloat(data.balance    || data.remaining     || (payable - paid));
+
+            currentBalance = balance;
+
+            if (balPayable)   balPayable.textContent   = formatRp(payable);
+            if (balPaid)      balPaid.textContent       = formatRp(paid);
+            if (balRemaining) balRemaining.textContent  = formatRp(balance);
+
+            balanceInfo.classList.remove('d-none');
+
+            if (btnFillBalance) {
+              btnFillBalance.disabled = (balance <= 0);
+            }
+
+            if (balance <= 0) {
+              balWarnTxt.textContent = 'Tutor tidak memiliki saldo yang bisa dibayarkan untuk periode ini.';
+              balWarn.classList.remove('d-none');
+            } else {
+              balWarn.classList.add('d-none');
+            }
+          }
+        } catch (err) {
+          balanceInfo.classList.add('d-none');
+        }
+      }
+
+      /* ── Fetch info tutor dari API ───────────────────────────────────────────── */
+      async function fetchTutorInfo() {
+        const tutorId  = elTutor ? elTutor.value : null;
+        const tutorRef = tutorId ? tutorPublicIds[tutorId] : null;
+        if (!tutorId || tutorId === '0' || !tutorRef) {
+          if (tutorCard) tutorCard.classList.add('d-none');
+          return;
+        }
+
+        try {
+          const res = await fetch(`/payroll/api/tutor/${tutorRef}/info`,
+            { headers: { 'Accept': 'application/json' } });
+          if (!res.ok) return;
+          const info = await res.json();
+
+          /* Tampilkan card info tutor */
+          if (tutorCard) {
+            const nm = document.getElementById('tutorInfoName');
+            const cd = document.getElementById('tutorInfoCode');
+            const bk = document.getElementById('tutorInfoBank');
+            const ac = document.getElementById('tutorInfoAccount');
+            const hl = document.getElementById('tutorInfoHolder');
+            if (nm) nm.textContent = info.name || '—';
+            if (cd) cd.textContent = info.tutor_code || '';
+            if (bk) bk.textContent = info.bank_name || '—';
+            if (ac) ac.textContent = info.bank_account_number || '—';
+            if (hl) hl.textContent = info.account_holder_name || '—';
+            tutorCard.classList.remove('d-none');
+          }
+
+          /* ✨ Auto-isi field Bank & Rekening di form langsung */
+          if (elBankName && info.bank_name)
+            elBankName.value = info.bank_name;
+          if (elAccountNo && info.bank_account_number)
+            elAccountNo.value = info.bank_account_number;
+
+        } catch (err) {
+          /* Fallback ke nama dari option text jika API gagal */
+          const sel  = elTutor.options[elTutor.selectedIndex];
+          const name = sel ? sel.text.trim() : '';
+          if (tutorCard) {
+            const nm = document.getElementById('tutorInfoName');
+            if (nm) nm.textContent = name || '—';
+            tutorCard.classList.remove('d-none');
+          }
+        }
+      }
+
+      /* ── Salin info bank tutor ke form (tombol opsional) ──────────────────── */
+      if (btnAutoBank) {
+        btnAutoBank.addEventListener('click', function () {
+          const bk = document.getElementById('tutorInfoBank');
+          const ac = document.getElementById('tutorInfoAccount');
+          const bankVal = bk ? bk.textContent.trim() : '';
+          const acctVal = ac ? ac.textContent.trim() : '';
+          if (elBankName && bankVal && bankVal !== '—') elBankName.value = bankVal;
+          if (elAccountNo && acctVal && acctVal !== '—') elAccountNo.value = acctVal;
+        });
+      }
+
+      /* ── Isi saldo ke field amount ───────────────────────────────────────── */
+      if (btnFillBalance) {
+        btnFillBalance.addEventListener('click', function () {
+          if (elAmount && currentBalance > 0) {
+            elAmount.value = currentBalance.toFixed(2);
+            validateAmount();
+          }
+        });
+      }
+
+      /* ── Validasi nominal terhadap saldo ─────────────────────────────────── */
+      function validateAmount() {
+        if (!elAmount || currentBalance <= 0) return;
+        const entered = parseFloat(elAmount.value) || 0;
+        if (entered > currentBalance) {
+          balWarnTxt.textContent =
+            `Nominal (${formatRp(entered)}) melebihi sisa saldo tutor (${formatRp(currentBalance)}).`;
           balWarn.classList.remove('d-none');
         } else {
           balWarn.classList.add('d-none');
         }
       }
-    } catch (err) {
-      balanceInfo.classList.add('d-none');
-    }
-  }
 
-  /* ── Fetch info tutor (nama, bank) ───────────────────────────────────── */
-  async function fetchTutorInfo() {
-    const tutorId = elTutor ? elTutor.value : null;
-    if (!tutorId || tutorId === '0') {
-      if (tutorCard) tutorCard.classList.add('d-none');
-      return;
-    }
+      if (elAmount) elAmount.addEventListener('input', validateAmount);
 
-    // Ambil dari option text (sudah tersedia di DOM — tidak perlu request ekstra)
-    const selectedOption = elTutor.options[elTutor.selectedIndex];
-    const name = selectedOption ? selectedOption.text.trim() : '';
-
-    if (tutorCard) {
-      document.getElementById('tutorInfoName').textContent    = name || '—';
-      document.getElementById('tutorInfoCode').textContent    = '';
-      document.getElementById('tutorInfoBank').textContent    = '—';
-      document.getElementById('tutorInfoAccount').textContent = '—';
-      document.getElementById('tutorInfoHolder').textContent  = '—';
-      tutorCard.classList.remove('d-none');
-    }
-
-    // Coba fetch detail via balance API untuk mendapatkan lebih banyak info
-    // (Jika app menyediakan endpoint tutor info terpisah, bisa diganti di sini)
-  }
-
-  /* ── Salin info bank tutor ke form ───────────────────────────────────── */
-  if (btnAutoBank) {
-    btnAutoBank.addEventListener('click', function () {
-      const bankVal = document.getElementById('tutorInfoBank').textContent.trim();
-      const acctVal = document.getElementById('tutorInfoAccount').textContent.trim();
-      if (elBankName && bankVal && bankVal !== '—') elBankName.value = bankVal;
-      if (elAccountNo && acctVal && acctVal !== '—') elAccountNo.value = acctVal;
-    });
-  }
-
-  /* ── Isi saldo ke field amount ───────────────────────────────────────── */
-  if (btnFillBalance) {
-    btnFillBalance.addEventListener('click', function () {
-      if (elAmount && currentBalance > 0) {
-        elAmount.value = currentBalance.toFixed(2);
-        validateAmount();
+      /* ── Event Listeners ─────────────────────────────────────────────────── */
+      if (elTutor) {
+        elTutor.addEventListener('change', function () {
+          fetchTutorInfo();
+          fetchBalance();
+        });
       }
-    });
-  }
 
-  /* ── Validasi nominal terhadap saldo ─────────────────────────────────── */
-  function validateAmount() {
-    if (!elAmount || currentBalance <= 0) return;
-    const entered = parseFloat(elAmount.value) || 0;
-    if (entered > currentBalance) {
-      balWarnTxt.textContent =
-        `Nominal (${formatRp(entered)}) melebihi sisa saldo tutor (${formatRp(currentBalance)}).`;
-      balWarn.classList.remove('d-none');
-    } else {
-      balWarn.classList.add('d-none');
-    }
-  }
+      if (elServiceMonth) {
+        elServiceMonth.addEventListener('change', fetchBalance);
+      }
 
-  if (elAmount) elAmount.addEventListener('input', validateAmount);
+      /* ── Default tanggal = hari ini ──────────────────────────────────────── */
+      const dateInput = document.getElementById('{{ form.payout_date.id }}');
+      if (dateInput && !dateInput.value) {
+        const today = new Date();
+        const yyyy  = today.getFullYear();
+        const mm    = String(today.getMonth() + 1).padStart(2, '0');
+        const dd    = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+      }
 
-  /* ── Event Listeners ─────────────────────────────────────────────────── */
-  if (elTutor) {
-    elTutor.addEventListener('change', function () {
-      fetchTutorInfo();
-      fetchBalance();
-    });
-  }
+      /* ── Default service_month = bulan ini ───────────────────────────────── */
+      if (elServiceMonth && !elServiceMonth.value) {
+        const today = new Date();
+        const yyyy  = today.getFullYear();
+        const mm    = String(today.getMonth() + 1).padStart(2, '0');
+        elServiceMonth.value = `${yyyy}-${mm}`;
+      }
 
-  if (elServiceMonth) {
-    elServiceMonth.addEventListener('change', fetchBalance);
-  }
+      /* ── Init ────────────────────────────────────────────────────────────── */
+      if (elTutor && elTutor.value && elTutor.value !== '0') {
+        fetchTutorInfo();
+        fetchBalance();
+      }
 
-  /* ── Default tanggal = hari ini ──────────────────────────────────────── */
-  const dateInput = document.getElementById('{{ form.payout_date.id }}');
-  if (dateInput && !dateInput.value) {
-    const today = new Date();
-    const yyyy  = today.getFullYear();
-    const mm    = String(today.getMonth() + 1).padStart(2, '0');
-    const dd    = String(today.getDate()).padStart(2, '0');
-    dateInput.value = `${yyyy}-${mm}-${dd}`;
-  }
-
-  /* ── Default service_month = bulan ini ───────────────────────────────── */
-  if (elServiceMonth && !elServiceMonth.value) {
-    const today = new Date();
-    const yyyy  = today.getFullYear();
-    const mm    = String(today.getMonth() + 1).padStart(2, '0');
-    elServiceMonth.value = `${yyyy}-${mm}`;
-  }
-
-  /* ── Init ────────────────────────────────────────────────────────────── */
-  if (elTutor && elTutor.value && elTutor.value !== '0') {
-    fetchTutorInfo();
-    fetchBalance();
-  }
-
-})();
+    })();
 </script>
 {% endblock %}

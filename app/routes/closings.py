@@ -56,9 +56,8 @@ def _compute_closing_data(month: int, year: int) -> dict:
     grand_profit = svc.get_grand_profit(month, year)
     estimasi_sisa = svc.get_estimated_remaining_balance(month, year)
 
-    # closing_tutor_payable  = hutang gaji yang terbawa ke bulan berikutnya
-    # = Grand Hutang Gaji bulan ini − Estimasi Gaji Tutor bulan ini
-    closing_tp = grand_hutang - tutor_salary
+    # closing_tutor_payable = hutang gaji tersisa setelah payout paid/confirmed.
+    closing_tp = grand_hutang
 
     # opening_tutor_payable  = hutang tutor dari bulan sebelumnya
     prev_m, prev_y = DashboardService._prev_month(month, year)

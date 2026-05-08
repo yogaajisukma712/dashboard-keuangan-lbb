@@ -7,7 +7,7 @@ Mendukung invoice multi-mapel dengan dua mode tagihan:
 
 from datetime import date, datetime
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db
@@ -58,6 +58,62 @@ BILLING_TYPE_LABELS = {
 def _first_of_month(year: int, month: int) -> date:
     """Kembalikan tanggal pertama dari bulan yang diberikan."""
     return date(year, month, 1)
+
+
+def _shift_month(service_month_date: date, offset: int) -> date:
+    """Geser tanggal awal bulan tanpa dependency eksternal."""
+    month_index = service_month_date.year * 12 + service_month_date.month - 1 + offset
+    return date(month_index // 12, month_index % 12 + 1, 1)
+
+
+def build_postpaid_month_options(service_month_date: date):
+    """Bulan penagihan pasca bayar: dua bulan sebelumnya + bulan berjalan."""
+    options = []
+    for offset in (-2, -1, 0):
+        month_date = _shift_month(service_month_date, offset)
+        options.append(
+            {
+                "value": month_date.strftime("%Y-%m"),
+                "date": month_date,
+                "label": _month_label(month_date),
+                "is_current": offset == 0,
+            }
+        )
+    return options
+
+
+def calc_unpaid_attendance_by_month(enr_id: int, service_month_date: date) -> dict:
+    """Kelompokkan sesi attended yang belum tertutup pembayaran per bulan."""
+    paid = (
+        db.session.query(
+            db.func.coalesce(db.func.sum(StudentPaymentLine.meeting_count), 0)
+        )
+        .filter(StudentPaymentLine.enrollment_id == enr_id)
+        .scalar()
+    )
+    paid_remaining = int(paid or 0)
+    service_month_end = _shift_month(service_month_date, 1)
+    sessions = (
+        AttendanceSession.query.with_entities(AttendanceSession.session_date)
+        .filter(
+            AttendanceSession.enrollment_id == enr_id,
+            AttendanceSession.status == "attended",
+            AttendanceSession.session_date < service_month_end,
+        )
+        .order_by(AttendanceSession.session_date.asc(), AttendanceSession.id.asc())
+        .all()
+    )
+
+    unpaid_by_month = {}
+    for (session_date,) in sessions:
+        if paid_remaining > 0:
+            paid_remaining -= 1
+            continue
+        month_key = _first_of_month(session_date.year, session_date.month).strftime(
+            "%Y-%m"
+        )
+        unpaid_by_month[month_key] = unpaid_by_month.get(month_key, 0) + 1
+    return unpaid_by_month
 
 
 def _month_label(service_month_date: date) -> str:
@@ -166,6 +222,9 @@ def _get_student_quota_details(student_id: int, service_month_date: date):
     details = []
     for enrollment in enrollments:
         quota = calc_quota(enrollment.id, service_month_date)
+        postpaid_month_counts = calc_unpaid_attendance_by_month(
+            enrollment.id, service_month_date
+        )
         details.append(
             {
                 "enrollment": enrollment,
@@ -175,6 +234,7 @@ def _get_student_quota_details(student_id: int, service_month_date: date):
                 "used": quota["used"],
                 "remaining": quota["remaining"],
                 "deficit": max(0, -quota["remaining"]),
+                "postpaid_month_counts": postpaid_month_counts,
                 "is_problem": quota["remaining"] <= 0,
             }
         )
@@ -205,8 +265,14 @@ def _build_quota_summary(quota_details):
 
 def _get_student_quota_alert_map(student_ids, service_month_date: date):
     """Return alert summary keyed by student_id for the selected period."""
+    active_student_ids = {
+        student_id
+        for (student_id,) in db.session.query(Student.id)
+        .filter(Student.id.in_(student_ids), Student.is_active.is_(True))
+        .all()
+    }
     summary_map = {}
-    for student_id in student_ids:
+    for student_id in active_student_ids:
         details = _get_student_quota_details(student_id, service_month_date)
         summary = _build_quota_summary(details)
         if summary["has_alert"]:
@@ -311,7 +377,7 @@ def _fetch_invoice_lines(invoice_id: int):
             LEFT JOIN tutors t ON t.id = e.tutor_id
             LEFT JOIN levels lv ON lv.id = e.level_id
             WHERE l.invoice_id = :invoice_id
-            ORDER BY LOWER(COALESCE(s.name, '')), l.enrollment_id
+            ORDER BY l.service_month, LOWER(COALESCE(s.name, '')), l.enrollment_id
             """
             ),
             {"invoice_id": invoice_id},
@@ -405,6 +471,30 @@ def _build_invoice_lines(
             if enrollment_id:
                 json_items[enrollment_id] = item
 
+    def add_line(enrollment, line_month, meeting_count, quota, note):
+        student_rate = float(enrollment.student_rate_per_meeting or 0)
+        tutor_rate = float(enrollment.tutor_rate_per_meeting or 0)
+        amounts = StudentPaymentLine.calculate_amounts(
+            meeting_count, student_rate, tutor_rate
+        )
+        lines.append(
+            {
+                "enrollment_id": enrollment.id,
+                "service_month": line_month,
+                "billing_type": billing_type,
+                "meeting_count": meeting_count,
+                "student_rate_per_meeting": student_rate,
+                "tutor_rate_per_meeting": tutor_rate,
+                "nominal_amount": float(amounts["nominal_amount"]),
+                "tutor_payable_amount": float(amounts["tutor_payable_amount"]),
+                "margin_amount": float(amounts["margin_amount"]),
+                "quota_paid_before": quota["paid"],
+                "quota_used_before": quota["used"],
+                "quota_remaining_before": quota["remaining"],
+                "notes": note,
+            }
+        )
+
     lines = []
     for enrollment_id in selected_ids:
         enrollment = Enrollment.query.filter_by(
@@ -425,11 +515,60 @@ def _build_invoice_lines(
         )
 
         if billing_type == "postpaid":
+            monthly_counts = []
+            if request.is_json:
+                raw_months = (json_items.get(enrollment.id) or {}).get("months") or []
+                for item in raw_months:
+                    try:
+                        month_date = _parse_service_month(item.get("service_month"))
+                    except (TypeError, ValueError, AttributeError):
+                        continue
+                    count = _safe_int(item.get("meeting_count"), 0)
+                    if count > 0:
+                        monthly_counts.append((month_date, count))
+            else:
+                prefix = f"postpaid_month_count_{enrollment.id}_"
+                for key, raw_value in request.form.items():
+                    if not key.startswith(prefix):
+                        continue
+                    month_value = key.removeprefix(prefix)
+                    try:
+                        month_date = _parse_service_month(month_value)
+                    except (TypeError, ValueError):
+                        continue
+                    count = _safe_int(raw_value, 0)
+                    if count > 0:
+                        monthly_counts.append((month_date, count))
+
+            if monthly_counts:
+                seen_months = set()
+                for month_date, meeting_count in sorted(monthly_counts):
+                    if month_date in seen_months:
+                        continue
+                    seen_months.add(month_date)
+                    month_quota = calc_quota(enrollment.id, month_date)
+                    add_line(
+                        enrollment,
+                        month_date,
+                        meeting_count,
+                        month_quota,
+                        f"Pasca Bayar {_month_label(month_date)}",
+                    )
+                continue
+
             meeting_count = max(0, -quota["remaining"])
             if meeting_count <= 0:
                 raise ValueError(
                     f"Mapel {subject_name} tidak memiliki sesi terhutang / minus untuk ditagihkan."
                 )
+            add_line(
+                enrollment,
+                service_month_date,
+                meeting_count,
+                quota,
+                BILLING_TYPE_LABELS.get(billing_type, billing_type),
+            )
+            continue
         else:
             raw_count = None
             if request.is_json:
@@ -442,29 +581,12 @@ def _build_invoice_lines(
                 raise ValueError(
                     f"Jumlah sesi pra bayar untuk mapel {subject_name} harus lebih dari 0."
                 )
-
-        student_rate = float(enrollment.student_rate_per_meeting or 0)
-        tutor_rate = float(enrollment.tutor_rate_per_meeting or 0)
-        amounts = StudentPaymentLine.calculate_amounts(
-            meeting_count, student_rate, tutor_rate
-        )
-
-        lines.append(
-            {
-                "enrollment_id": enrollment.id,
-                "service_month": service_month_date,
-                "billing_type": billing_type,
-                "meeting_count": meeting_count,
-                "student_rate_per_meeting": student_rate,
-                "tutor_rate_per_meeting": tutor_rate,
-                "nominal_amount": float(amounts["nominal_amount"]),
-                "tutor_payable_amount": float(amounts["tutor_payable_amount"]),
-                "margin_amount": float(amounts["margin_amount"]),
-                "quota_paid_before": quota["paid"],
-                "quota_used_before": quota["used"],
-                "quota_remaining_before": quota["remaining"],
-                "notes": BILLING_TYPE_LABELS.get(billing_type, billing_type),
-            }
+        add_line(
+            enrollment,
+            service_month_date,
+            meeting_count,
+            quota,
+            BILLING_TYPE_LABELS.get(billing_type, billing_type),
         )
 
     return lines
@@ -479,10 +601,15 @@ def count_quota_alerts() -> int:
         today = date.today()
         service_month_date = _first_of_month(today.year, today.month)
 
-        active_enrollments = Enrollment.query.filter_by(
-            status="active",
-            is_active=True,
-        ).all()
+        active_enrollments = (
+            Enrollment.query.join(Enrollment.student)
+            .filter(
+                Enrollment.status == "active",
+                Enrollment.is_active.is_(True),
+                Student.is_active.is_(True),
+            )
+            .all()
+        )
 
         student_ids = set()
         for enrollment in active_enrollments:
@@ -506,10 +633,15 @@ def quota_alerts():
     today = date.today()
     service_month_date = _first_of_month(today.year, today.month)
 
-    active_enrollments = Enrollment.query.filter_by(
-        status="active",
-        is_active=True,
-    ).all()
+    active_enrollments = (
+        Enrollment.query.join(Enrollment.student)
+        .filter(
+            Enrollment.status == "active",
+            Enrollment.is_active.is_(True),
+            Student.is_active.is_(True),
+        )
+        .all()
+    )
 
     grouped = {}
     for enrollment in active_enrollments:
@@ -845,6 +977,48 @@ def complete_invoice(invoice_ref):
     )
 
 
+@quota_invoice_bp.route("/invoice/<string:invoice_ref>/delete", methods=["POST"])
+@login_required
+def delete_invoice(invoice_ref):
+    """Hapus invoice draft beserta detail line-nya."""
+    invoice_id = _decode_invoice_ref_or_404(invoice_ref)
+    invoice = _fetch_invoice(invoice_id)
+    if not invoice:
+        flash("Invoice tidak ditemukan.", "danger")
+        return redirect(url_for("quota_invoice.quota_alerts"))
+
+    student = Student.query.get(invoice["student_id"])
+    redirect_target = (
+        url_for("master.student_detail", student_ref=student.public_id)
+        if student
+        else url_for("quota_invoice.invoice_list")
+    )
+
+    if invoice.get("status") == "paid" or invoice.get("completed_payment_id"):
+        flash(
+            "Invoice lunas tidak bisa dihapus dari detail siswa karena sudah terhubung ke pembayaran.",
+            "warning",
+        )
+        return redirect(redirect_target)
+
+    try:
+        db.session.execute(
+            db.text("DELETE FROM student_invoice_lines WHERE invoice_id = :id"),
+            {"id": invoice_id},
+        )
+        db.session.execute(
+            db.text("DELETE FROM student_invoices WHERE id = :id"),
+            {"id": invoice_id},
+        )
+        db.session.commit()
+        flash(f"Invoice #{invoice_id} berhasil dihapus.", "success")
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Gagal menghapus invoice: {exc}", "danger")
+
+    return redirect(redirect_target)
+
+
 @quota_invoice_bp.route("/invoice/<string:invoice_ref>", methods=["GET"])
 @login_required
 def invoice_detail(invoice_ref):
@@ -881,6 +1055,77 @@ def invoice_detail(invoice_ref):
         service_month_label=_month_label(invoice["service_month"]),
         total_meetings=sum(int(line["meeting_count"] or 0) for line in invoice_lines),
         total_subjects=len(invoice_lines),
+        MONTHS_ID=MONTHS_ID,
+    )
+
+
+@quota_invoice_bp.route("/invoice/<string:invoice_ref>/verify", methods=["GET"])
+def invoice_verify(invoice_ref):
+    """Public invoice verification page for QR/barcode scans."""
+    invoice_id = _decode_invoice_ref_or_404(invoice_ref)
+    invoice = _fetch_invoice(invoice_id)
+    if not invoice:
+        abort(404)
+
+    student = Student.query.get(invoice["student_id"])
+    invoice_lines = _fetch_invoice_lines(invoice_id)
+    if not invoice_lines:
+        invoice_lines = _build_legacy_invoice_lines(invoice)
+
+    total_amount = sum(float(line.get("nominal_amount") or line.get("line_total") or 0) for line in invoice_lines)
+    total_meetings = sum(int(line.get("meeting_count") or 0) for line in invoice_lines)
+    seen_subj, subjects = set(), []
+    for line in invoice_lines:
+        name = line.get("subject_name") or ""
+        if name and name not in seen_subj:
+            seen_subj.add(name)
+            subjects.append(name)
+    program = " & ".join(subjects) if subjects else "—"
+    grade_level = "—"
+    for line in invoice_lines:
+        grade = line.get("grade") or ""
+        level = line.get("level_name") or ""
+        grade_level = (grade + " " + level).strip() or "—"
+        break
+
+    bank_str = current_app.config.get("INSTITUTION_BANK_ACCOUNTS", "")
+    bank_accounts = [bank.strip() for bank in bank_str.split("|") if bank.strip()]
+    reg_fee = current_app.config.get("DEFAULT_REGISTRATION_FEE", 0)
+    created_at = invoice.get("created_at") or datetime.utcnow()
+    invoice_verify_url = url_for(
+        "quota_invoice.invoice_verify",
+        invoice_ref=invoice_ref,
+        _external=True,
+    )
+
+    return render_template(
+        "quota/invoice_print.html",
+        invoice=invoice,
+        invoice_ref=invoice_ref,
+        student=student,
+        invoice_lines=invoice_lines,
+        total_amount=total_amount,
+        total_meetings=total_meetings,
+        program=program,
+        grade_level=grade_level,
+        reg_fee=reg_fee,
+        billing_type_label=BILLING_TYPE_LABELS.get(
+            invoice.get("billing_type") or "prepaid", "Pra Bayar"
+        ),
+        service_month_label=_month_label(invoice["service_month"]),
+        bank_accounts=bank_accounts,
+        created_at=created_at,
+        invoice_verify_url=invoice_verify_url,
+        branding_logo_mark_data_uri=get_branding_logo_mark_data_uri(),
+        signature_qr_data_uri=build_qr_code_data_uri(invoice_verify_url, box_size=4),
+        institution_name=current_app.config.get("INSTITUTION_NAME", "LBB Super Smart"),
+        institution_phone=current_app.config.get("INSTITUTION_PHONE", ""),
+        institution_city=current_app.config.get("INSTITUTION_CITY", "Surabaya"),
+        ceo_name=current_app.config.get("INSTITUTION_CEO_NAME", ""),
+        ceo_title=current_app.config.get("INSTITUTION_CEO_TITLE", "CEO"),
+        MONTHS_ID=MONTHS_ID,
+        verify_mode=True,
+        hide_login_link=True,
     )
 
 
@@ -1041,6 +1286,11 @@ def invoice_print(invoice_ref):
     reg_fee = current_app.config.get("DEFAULT_REGISTRATION_FEE", 0)
 
     created_at = invoice.get("created_at") or datetime.utcnow()
+    invoice_verify_url = url_for(
+        "quota_invoice.invoice_verify",
+        invoice_ref=invoice_ref,
+        _external=True,
+    )
 
     return render_template(
         "quota/invoice_print.html",
@@ -1064,20 +1314,7 @@ def invoice_print(invoice_ref):
         ceo_name=current_app.config.get("INSTITUTION_CEO_NAME", ""),
         ceo_title=current_app.config.get("INSTITUTION_CEO_TITLE", "CEO"),
         created_at=created_at,
+        invoice_verify_url=invoice_verify_url,
         branding_logo_mark_data_uri=get_branding_logo_mark_data_uri(),
-        signature_qr_data_uri=build_qr_code_data_uri(
-            "|".join(
-                [
-                    "QUOTA-INVOICE",
-                    str(invoice.get("id") or invoice_id),
-                    student.name if student else "-",
-                    invoice["service_month"].strftime("%Y-%m")
-                    if invoice.get("service_month")
-                    else "-",
-                    f"{float(total_amount or 0):.0f}",
-                    invoice.get("billing_type") or "prepaid",
-                ]
-            ),
-            box_size=4,
-        ),
+        signature_qr_data_uri=build_qr_code_data_uri(invoice_verify_url, box_size=4),
     )

@@ -22,7 +22,33 @@ head %}
         color: #111111;
         line-height: 1.45;
         box-sizing: border-box;
+        position: relative;
+        overflow: hidden;
     }
+    {% if verify_mode %}
+    .no-print {
+        display: none !important;
+    }
+    #invoiceCard::before {
+        content: "VALID";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: rotate(-24deg);
+        color: rgba(22, 163, 74, 0.1);
+        font-size: 118px;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        pointer-events: none;
+    }
+    #invoiceCard > * {
+        position: relative;
+        z-index: 1;
+    }
+    {% endif %}
     .inv-hdr {
         display: flex;
         justify-content: space-between;
@@ -187,6 +213,9 @@ PNG) ── #}
     <button id="btnDownloadPNG" class="btn btn-primary">
         <i class="bi bi-file-earmark-image me-1"></i>Download PNG
     </button>
+    <button id="btnCopyInvoice" type="button" class="btn btn-outline-primary">
+        <i class="bi bi-clipboard me-1"></i>Copy to Clipboard
+    </button>
     <button onclick="window.print()" class="btn btn-outline-secondary">
         <i class="bi bi-printer me-1"></i>Print
     </button>
@@ -281,12 +310,22 @@ PNG) ── #}
                         </td>
                     </tr>
 
-                    {# Baris per mapel ── service_month sudah sama semua (satu
-                    invoice satu bulan) #} {% for line in invoice_lines %}
+                    {# Baris dikelompokkan per bulan tagihan #}
+                    {% set ns = namespace(current_month='') %}
+                    {% for line in invoice_lines %}
+                    {% set month_key = line.service_month.strftime('%Y-%m') %}
+                    {% if month_key != ns.current_month %}
+                    {% set ns.current_month = month_key %}
+                    <tr class="row-sec">
+                        <td colspan="3">
+                            {{ MONTHS_ID[line.service_month.month] }} {{
+                            line.service_month.year }}
+                        </td>
+                    </tr>
+                    {% endif %}
                     <tr>
                         <td class="td-desc">
-                            {{ line.subject_name or '—' }} {{
-                            MONTHS_ID[invoice.service_month.month] }}
+                            {{ line.subject_name or '—' }}
                         </td>
                         <td class="td-qty">{{ line.meeting_count }}</td>
                         <td class="td-price">
@@ -325,11 +364,13 @@ PNG) ── #}
                     MONTHS_ID[created_at.month] }} {{ created_at.year }}
                 </div>
                 <div style="margin-bottom: 8px">
+                    <a href="{{ invoice_verify_url }}" target="_blank" rel="noopener">
                     <img
                         src="{{ signature_qr_data_uri }}"
                         alt="Barcode Tanda Tangan"
                         style="width: 82px; height: 82px; object-fit: contain"
                     />
+                    </a>
                 </div>
                 <div class="inv-sig-name">{{ ceo_name }}</div>
                 <div>{{ ceo_title }}</div>
@@ -345,26 +386,38 @@ PNG) ── #}
     referrerpolicy="no-referrer"
 ></script>
 <script>
+    async function renderInvoiceCanvas() {
+        var el = document.getElementById("invoiceCard");
+        return html2canvas(el, {
+            scale: 2.5,
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: "#ffffff",
+            logging: false,
+            imageTimeout: 10000,
+            windowWidth: el.scrollWidth,
+            windowHeight: el.scrollHeight,
+        });
+    }
+
+    function setInvoiceButtonLoading(btn, label) {
+        var orig = btn.innerHTML;
+        btn.innerHTML =
+            '<span class="spinner-border spinner-border-sm me-1" role="status"></span>' + label;
+        btn.disabled = true;
+        return function restore() {
+            btn.innerHTML = orig;
+            btn.disabled = false;
+        };
+    }
+
     document
         .getElementById("btnDownloadPNG")
         .addEventListener("click", async function () {
             var btn = this;
-            var orig = btn.innerHTML;
-            btn.innerHTML =
-                '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Memproses...';
-            btn.disabled = true;
+            var restore = setInvoiceButtonLoading(btn, "Memproses...");
             try {
-                var el = document.getElementById("invoiceCard");
-                var canvas = await html2canvas(el, {
-                    scale: 2.5,
-                    useCORS: true,
-                    allowTaint: false,
-                    backgroundColor: "#ffffff",
-                    logging: false,
-                    imageTimeout: 10000,
-                    windowWidth: el.scrollWidth,
-                    windowHeight: el.scrollHeight,
-                });
+                var canvas = await renderInvoiceCanvas();
                 var link = document.createElement("a");
                 link.download =
                     'invoice-{{ invoice.id }}-{{ (student.name or "siswa") | replace(" ","_") }}.png';
@@ -374,8 +427,47 @@ PNG) ── #}
                 console.error(err);
                 alert("Gagal membuat PNG: " + err.message);
             } finally {
-                btn.innerHTML = orig;
-                btn.disabled = false;
+                restore();
+            }
+        });
+
+    document
+        .getElementById("btnCopyInvoice")
+        .addEventListener("click", async function () {
+            var btn = this;
+            var restore = setInvoiceButtonLoading(btn, "Menyalin...");
+            try {
+                var canvas = await renderInvoiceCanvas();
+                if (
+                    navigator.clipboard &&
+                    window.ClipboardItem &&
+                    canvas.toBlob
+                ) {
+                    var blob = await new Promise(function (resolve, reject) {
+                        canvas.toBlob(function (result) {
+                            result
+                                ? resolve(result)
+                                : reject(new Error("Gagal membuat gambar invoice."));
+                        }, "image/png");
+                    });
+                    await navigator.clipboard.write([
+                        new ClipboardItem({ "image/png": blob }),
+                    ]);
+                } else if (navigator.clipboard) {
+                    var invoiceText = document
+                        .getElementById("invoiceCard")
+                        .innerText.replace(/\n{3,}/g, "\n\n")
+                        .trim();
+                    await navigator.clipboard.writeText(invoiceText);
+                } else {
+                    throw new Error("Clipboard tidak didukung browser ini.");
+                }
+                btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Copied';
+                setTimeout(restore, 1400);
+            } catch (err) {
+                console.error(err);
+                alert("Gagal copy invoice: " + err.message);
+                restore();
             }
         });
 </script>

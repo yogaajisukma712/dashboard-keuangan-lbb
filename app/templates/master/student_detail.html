@@ -498,6 +498,21 @@
                     <a href="{{ url_for('quota_invoice.invoice_print', invoice_ref=inv.public_id) }}" class="btn btn-outline-success" title="Cetak" target="_blank" rel="noopener noreferrer">
                       <i class="bi bi-file-earmark-image"></i>
                     </a>
+                    {% if inv.status == 'draft' %}
+                    <form
+                      method="POST"
+                      action="{{ url_for('quota_invoice.delete_invoice', invoice_ref=inv.public_id) }}"
+                      class="d-inline"
+                      onsubmit="return confirm('Hapus invoice #{{ inv.id }}?')"
+                    >
+                      {% if csrf_token is defined %}
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      {% endif %}
+                      <button type="submit" class="btn btn-outline-danger" title="Hapus">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                    {% endif %}
                   </div>
                 </td>
               </tr>

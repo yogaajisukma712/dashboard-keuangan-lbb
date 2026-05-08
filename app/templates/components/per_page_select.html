@@ -12,7 +12,7 @@
     id="{{ per_page_select_id|default('per-page-select') }}"
     name="per_page"
     class="form-select form-select-sm w-auto"
-    onchange="this.form.submit()"
+    onchange="if (window.LbbFilterUi && window.LbbFilterUi.handlePerPageChange) { window.LbbFilterUi.handlePerPageChange(this); } else { this.form.submit(); }"
     aria-label="Jumlah baris per halaman"
   >
     {% for option in per_page_options %}

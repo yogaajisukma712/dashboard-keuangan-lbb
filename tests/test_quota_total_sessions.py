@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from pathlib import Path
 
 from flask import Flask
 
@@ -14,7 +15,7 @@ from app.models import (
     Subject,
     Tutor,
 )
-from app.routes.payments import _sync_payment_lines_from_form
+from app.routes.payments import _generate_receipt_number, _sync_payment_lines_from_form
 from app.routes.quota_invoice import _build_quota_summary, calc_quota
 
 
@@ -27,6 +28,52 @@ def _make_test_app():
     )
     db.init_app(app)
     return app
+
+
+def test_invoice_print_template_has_copy_to_clipboard_button():
+    project_root = Path(__file__).resolve().parents[1]
+    template_text = (
+        project_root / "app" / "templates" / "quota" / "invoice_print.html"
+    ).read_text(encoding="utf-8")
+
+    assert 'id="btnCopyInvoice"' in template_text
+    assert "Copy to Clipboard" in template_text
+    assert "navigator.clipboard.write" in template_text
+    assert "new ClipboardItem" in template_text
+    assert "navigator.clipboard.writeText(invoiceText)" in template_text
+
+
+def test_payment_form_receipt_number_is_system_generated():
+    project_root = Path(__file__).resolve().parents[1]
+    template_text = (
+        project_root / "app" / "templates" / "payments" / "form.html"
+    ).read_text(encoding="utf-8")
+    route_text = (project_root / "app" / "routes" / "payments.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'name="receipt_number"' not in template_text
+    assert "Dibuat otomatis oleh sistem" in template_text
+    assert "receipt_number=_generate_receipt_number(payment_date)" in route_text
+    assert 'request.form.get("receipt_number")' not in route_text
+
+
+def test_generate_receipt_number_increments_per_payment_date():
+    app = _make_test_app()
+    with app.app_context():
+        db.create_all()
+        existing = StudentPayment(
+            student_id=1,
+            receipt_number="KWT-20260507-001",
+            payment_method="cash",
+            total_amount=100000,
+            payment_date=datetime(2026, 5, 7),
+        )
+        db.session.add(existing)
+        db.session.commit()
+
+        assert _generate_receipt_number(datetime(2026, 5, 7)) == "KWT-20260507-002"
+        assert _generate_receipt_number(datetime(2026, 5, 8)) == "KWT-20260508-001"
 
 
 def test_calc_quota_uses_total_purchased_and_total_attended_sessions():

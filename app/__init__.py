@@ -2,7 +2,7 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -56,6 +56,10 @@ def create_app(config_name=None):
         "data_manager.update_row",
         "data_manager.insert_row",
         "data_manager.restore_sql",
+        # Payroll toggle endpoints (JSON POST)
+        "payroll.toggle_paid",
+        "payroll.toggle_session",
+        "payroll.api_tutor_info",
     ]
     for _vf in _dm_exempt:
         if _vf in app.view_functions:
@@ -72,6 +76,11 @@ def create_app(config_name=None):
 
     # Register error handlers
     register_error_handlers(app)
+
+    @app.route("/", methods=["GET"])
+    def root():
+        """Redirect the bare domain to the login flow."""
+        return redirect(url_for("auth.login"))
 
     # Create shell context for flask shell
     @app.shell_context_processor

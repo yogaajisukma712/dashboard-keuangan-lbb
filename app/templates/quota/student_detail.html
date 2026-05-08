@@ -458,6 +458,9 @@
                                     >
                                         Sesi Ditagihkan
                                     </th>
+                                    <th class="postpaid-month-head d-none" style="min-width: 260px">
+                                        Rincian Pasca Bayar per Bulan
+                                    </th>
                                     <th class="text-end">Tarif/Sesi</th>
                                     <th class="text-end">Subtotal</th>
                                 </tr>
@@ -536,6 +539,43 @@
                                             ada hutang{% endif %}
                                         </div>
                                     </td>
+                                    <td class="postpaid-month-cell d-none">
+                                        <div class="d-grid gap-2">
+                                            {% for month_option in postpaid_month_options %}
+                                            <div class="d-flex align-items-center gap-2">
+                                                {% if month_option.is_current %}
+                                                <input
+                                                    class="form-check-input postpaid-current-check"
+                                                    type="checkbox"
+                                                    id="currentMonth{{ item.enrollment.id }}"
+                                                    checked
+                                                />
+                                                {% else %}
+                                                <span style="width: 1.25rem"></span>
+                                                {% endif %}
+                                                <label
+                                                    class="small mb-0 flex-grow-1"
+                                                    {% if month_option.is_current %}for="currentMonth{{ item.enrollment.id }}"{% endif %}
+                                                >
+                                                    {{ month_option.label }}
+                                                    {% if month_option.is_current %}
+                                                    <span class="text-muted">(berjalan)</span>
+                                                    {% endif %}
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="1"
+                                                    class="form-control form-control-sm text-center postpaid-month-qty"
+                                                    name="postpaid_month_count_{{ item.enrollment.id }}_{{ month_option.value }}"
+                                                    value="{% if month_option.is_current %}{{ item.enrollment.meeting_quota_per_month or 4 }}{% else %}0{% endif %}"
+                                                    data-current-month="{{ '1' if month_option.is_current else '0' }}"
+                                                    style="width: 76px"
+                                                />
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
                                     <td class="text-end small">
                                         Rp {{
                                         '{:,.0f}'.format(item.enrollment.student_rate_per_meeting
@@ -552,7 +592,7 @@
                             <tfoot class="table-light">
                                 <tr>
                                     <td
-                                        colspan="8"
+                                        colspan="9"
                                         class="text-end fw-semibold"
                                     >
                                         Total Invoice
@@ -632,6 +672,29 @@
             return "Rp " + fmt.format(Math.round(Number(v || 0)));
         }
 
+        function setPostpaidMonthVisibility(isPostpaid) {
+            form.querySelectorAll(".postpaid-month-head, .postpaid-month-cell").forEach(function (el) {
+                el.classList.toggle("d-none", !isPostpaid);
+            });
+        }
+
+        function postpaidMonthlyCount(row) {
+            return Array.from(row.querySelectorAll(".postpaid-month-qty")).reduce(function (acc, input) {
+                return acc + (parseInt(input.value || "0", 10) || 0);
+            }, 0);
+        }
+
+        function updateCurrentMonthInput(row) {
+            var check = row.querySelector(".postpaid-current-check");
+            var currentQty = row.querySelector('.postpaid-month-qty[data-current-month="1"]');
+            if (!check || !currentQty) return;
+            currentQty.disabled = !check.checked;
+            if (!check.checked) currentQty.value = 0;
+            if (check.checked && (!currentQty.value || parseInt(currentQty.value, 10) <= 0)) {
+                currentQty.value = row.dataset.defaultQuota || "4";
+            }
+        }
+
         function updateSelectionState() {
             if (!selectAll || !selectedCount || !estimatedTotal) return;
             var selectable = rows.filter(function (row) {
@@ -660,22 +723,19 @@
             var rate = parseFloat(row.dataset.rate || "0");
 
             if (type === "postpaid") {
+                updateCurrentMonthInput(row);
                 qty.readOnly = true;
                 qty.classList.add("bg-light");
-                qty.value = deficit > 0 ? deficit : 0;
+                qty.value = postpaidMonthlyCount(row);
                 hint.textContent =
-                    deficit > 0
-                        ? "Tagih otomatis " + deficit + " sesi minus"
-                        : "Tidak ada sesi minus";
-                if (deficit <= 0) {
-                    qty.value = 0;
+                    "Isi sesi per bulan. Bulan berjalan default " +
+                    defaultQuota +
+                    " sesi.";
+                if (parseInt(qty.value || "0", 10) <= 0) {
                     chk.checked = false;
-                    chk.disabled = true;
-                    row.classList.add("table-light");
-                } else {
-                    chk.disabled = false;
-                    row.classList.remove("table-light");
                 }
+                chk.disabled = false;
+                row.classList.remove("table-light");
             } else {
                 qty.readOnly = false;
                 qty.classList.remove("bg-light");
@@ -693,6 +753,7 @@
         }
 
         function updateAll() {
+            setPostpaidMonthVisibility(billingType() === "postpaid");
             rows.forEach(updateRow);
             var total = rows.reduce(function (acc, row) {
                 var chk = row.querySelector(".invoice-check");
@@ -732,6 +793,10 @@
                 "input",
                 updateAll,
             );
+            row.querySelectorAll(".postpaid-month-qty, .postpaid-current-check").forEach(function (control) {
+                control.addEventListener("input", updateAll);
+                control.addEventListener("change", updateAll);
+            });
         });
 
         if (selectAll) {
@@ -768,6 +833,16 @@
                     e.preventDefault();
                     alert(
                         "Jumlah sesi pra bayar harus lebih dari 0 untuk semua mapel yang dipilih.",
+                    );
+                }
+            } else {
+                var emptyPostpaid = checked.some(function (row) {
+                    return postpaidMonthlyCount(row) <= 0;
+                });
+                if (emptyPostpaid) {
+                    e.preventDefault();
+                    alert(
+                        "Jumlah sesi pasca bayar per bulan harus lebih dari 0 untuk semua mapel yang dipilih.",
                     );
                 }
             }

@@ -454,57 +454,73 @@ Breadcrumb ───────────────────────
                 <i class="bi bi-image me-2 text-primary"></i>Bukti Transfer
             </div>
             <div class="card-body">
-                {# Tampilkan gambar jika sudah ada #} {% if payout.proof_image
-                %}
+                {# Tampilkan bukti jika sudah ada #} {% if proof_items %}
                 <div class="mb-3">
                     <div
                         class="text-muted small fw-semibold text-uppercase mb-2"
                     >
                         Bukti yang Diupload
                     </div>
-                    {% set proof_ext = payout.proof_image.rsplit('.',
-                    1)[-1].lower() %} {% if proof_ext in ['png', 'jpg', 'jpeg',
-                    'gif', 'webp'] %}
-                    <div
-                        class="border rounded overflow-hidden mb-2"
-                        style="max-height: 280px"
-                    >
-                        <img
-                            src="{{ url_for('payroll.serve_payroll_proof', filename=payout.proof_image.rsplit('/', 1)[-1]) }}"
-                            class="img-fluid w-100"
-                            style="object-fit: contain; max-height: 280px"
-                            alt="Bukti transfer"
-                            onerror="
-                                this.closest('.border').innerHTML =
-                                    '<div class=\'p-3 text-muted small\'>Gambar tidak dapat ditampilkan.</div>'
-                            "
-                        />
+                    <div class="d-flex flex-column gap-3">
+                        {% for proof in proof_items %}
+                        <div class="border rounded p-2 bg-light">
+                            <div
+                                class="d-flex justify-content-between align-items-start gap-2 mb-2"
+                            >
+                                <div class="small">
+                                    <div class="fw-semibold text-break">
+                                        Bukti #{{ loop.index }}
+                                    </div>
+                                    <div class="text-muted text-break">
+                                        {{ proof.original_filename }}
+                                    </div>
+                                </div>
+                                <a
+                                    href="{{ proof.download_url }}"
+                                    target="_blank"
+                                    class="btn btn-sm btn-outline-secondary flex-shrink-0"
+                                >
+                                    <i class="bi bi-box-arrow-up-right me-1"></i
+                                    >Buka
+                                </a>
+                            </div>
+                            {% if proof.is_image %}
+                            <div
+                                class="border rounded overflow-hidden bg-white"
+                                style="max-height: 220px"
+                            >
+                                <img
+                                    src="{{ proof.image_url }}"
+                                    class="img-fluid w-100"
+                                    style="object-fit: contain; max-height: 220px"
+                                    alt="Bukti transfer"
+                                    onerror="
+                                        this.closest('.border').innerHTML =
+                                            '<div class=\'p-3 text-muted small\'>Gambar tidak dapat ditampilkan.</div>'
+                                    "
+                                />
+                            </div>
+                            {% elif proof.is_pdf %}
+                            <div
+                                class="alert alert-info py-2 mb-0 d-flex align-items-center gap-2"
+                            >
+                                <i
+                                    class="bi bi-file-earmark-pdf fs-5 text-danger"
+                                ></i>
+                                <span class="small">File PDF telah diupload.</span>
+                            </div>
+                            {% endif %} {% if proof.notes %}
+                            <div class="small text-muted mt-2 text-break">
+                                <strong>Catatan:</strong> {{ proof.notes }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% elif proof_ext == 'pdf' %}
-                    <div
-                        class="alert alert-info py-2 mb-2 d-flex align-items-center gap-2"
-                    >
-                        <i class="bi bi-file-earmark-pdf fs-5 text-danger"></i>
-                        <span class="small">File PDF telah diupload.</span>
-                        <a
-                            href="{{ url_for('payroll.serve_payroll_proof', filename=payout.proof_image.rsplit('/', 1)[-1]) }}"
-                            target="_blank"
-                            class="btn btn-sm btn-outline-danger ms-auto"
-                            >Buka</a
-                        >
-                    </div>
-                    {% endif %} {% if payout.proof_notes %}
-                    <div
-                        class="text-muted small fw-semibold text-uppercase mb-1"
-                    >
-                        Catatan Bukti
-                    </div>
-                    <p class="mb-0 small">{{ payout.proof_notes }}</p>
-                    {% endif %}
                 </div>
                 <hr class="my-3" />
                 <div class="text-muted small fw-semibold mb-2">
-                    Ganti Bukti Transfer
+                    Tambah Bukti Transfer
                 </div>
                 {% else %}
                 <p class="text-muted small mb-3">
@@ -529,14 +545,16 @@ Breadcrumb ───────────────────────
                         </label>
                         <input
                             type="file"
-                            name="proof_file"
+                            name="proof_files"
                             id="proof_file"
                             class="form-control"
                             accept=".png,.jpg,.jpeg,.gif,.pdf"
+                            multiple
                             required
                         />
                         <div class="form-text">
-                            Format: PNG, JPG, GIF, atau PDF. Maks 16 MB.
+                            Bisa pilih beberapa file sekaligus. Format: PNG, JPG,
+                            GIF, atau PDF. Maks 16 MB per request.
                         </div>
                         <div
                             id="proofPasteZone"
@@ -571,7 +589,7 @@ Breadcrumb ───────────────────────
                             rows="2"
                             placeholder="Nomor transaksi, bank, waktu transfer, dll."
                         >
-{{ payout.proof_notes or '' }}</textarea
+                        {{ payout.proof_notes or '' }}</textarea
                         >
                     </div>
 
@@ -608,7 +626,7 @@ Breadcrumb ───────────────────────
                         id="uploadBtn"
                     >
                         <i class="bi bi-cloud-upload me-1"></i>
-                        {{ 'Ganti Bukti Transfer' if payout.proof_image else
+                        {{ 'Tambah Bukti Transfer' if proof_items else
                         'Upload Bukti Transfer' }}
                     </button>
                 </form>

@@ -270,32 +270,39 @@
     </div>
     {% endif %}
 
-    {% if proof_image_url or proof_is_pdf %}
+    {% if proof_items %}
     <div class="slip-proof-section">
       <div class="slip-proof-title">Bukti Pembayaran</div>
-      {% if proof_image_url %}
-      <div class="slip-proof-card">
-        <img src="{{ proof_image_url }}" alt="Bukti Pembayaran" class="slip-proof-image">
+      <div class="slip-proof-grid">
+      {% for proof in proof_items %}
+        <div class="slip-proof-item">
+          <div class="slip-proof-file-name">Bukti #{{ loop.index }} - {{ proof.original_filename }}</div>
+          {% if proof.is_image %}
+          <div class="slip-proof-card">
+            <img src="{{ proof.image_url }}" alt="Bukti Pembayaran" class="slip-proof-image">
+          </div>
+          <div class="slip-proof-actions no-print">
+            <a href="{{ proof.download_url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-box-arrow-up-right me-1"></i>Buka Bukti
+            </a>
+          </div>
+          {% elif proof.is_pdf %}
+          <div class="slip-proof-file">
+            <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+            Bukti pembayaran tersimpan sebagai PDF.
+          </div>
+          <div class="slip-proof-actions no-print">
+            <a href="{{ proof.download_url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-box-arrow-up-right me-1"></i>Buka File Bukti
+            </a>
+          </div>
+          {% endif %}
+          {% if proof.notes %}
+          <div class="slip-proof-notes"><strong>Catatan:</strong> {{ proof.notes }}</div>
+          {% endif %}
+        </div>
+      {% endfor %}
       </div>
-      <div class="slip-proof-actions no-print">
-        <a href="{{ proof_download_url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
-          <i class="bi bi-box-arrow-up-right me-1"></i>Buka Bukti
-        </a>
-      </div>
-      {% elif proof_is_pdf %}
-      <div class="slip-proof-file">
-        <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
-        Bukti pembayaran tersimpan sebagai PDF.
-      </div>
-      <div class="slip-proof-actions no-print">
-        <a href="{{ proof_download_url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
-          <i class="bi bi-box-arrow-up-right me-1"></i>Buka File Bukti
-        </a>
-      </div>
-      {% endif %}
-      {% if payout.proof_notes %}
-      <div class="slip-proof-notes"><strong>Catatan:</strong> {{ payout.proof_notes }}</div>
-      {% endif %}
     </div>
     {% endif %}
 
@@ -354,6 +361,25 @@
 
 {% block scripts %}
 <style>
+  {% if pdf_mode %}
+  #topbar,
+  #sidebar,
+  .flash-container,
+  .no-print {
+    display: none !important;
+  }
+
+  #main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+  {% endif %}
+
   /* ═══════════════════════════════════════════════════════════════════
      FEE SLIP STYLES — Screen + Print
   ═══════════════════════════════════════════════════════════════════ */
@@ -643,12 +669,31 @@
     letter-spacing: .4px;
   }
 
+  .slip-proof-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+
+  .slip-proof-item {
+    min-width: 0;
+  }
+
+  .slip-proof-file-name {
+    color: #4b5563;
+    font-size: 11px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    word-break: break-word;
+  }
+
   .slip-proof-card {
     border: 1px solid #ead682;
     border-radius: 8px;
     overflow: hidden;
     background: #fff;
-    max-height: 320px;
+    height: 245px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -656,7 +701,7 @@
 
   .slip-proof-image {
     width: 100%;
-    max-height: 320px;
+    height: 100%;
     object-fit: contain;
     display: block;
   }
@@ -752,18 +797,28 @@
       padding: 0;
     }
 
-    /* Sembunyikan semua kecuali dokumen slip */
+    /* Sembunyikan chrome aplikasi; cetak slip saja. */
+    #topbar,
+    #sidebar,
+    .flash-container,
     nav,
     .no-print,
     footer {
       display: none !important;
     }
 
+    #main-content {
+      margin: 0 !important;
+      padding: 0 !important;
+      min-height: auto !important;
+    }
+
     main.py-4 {
       padding: 0 !important;
     }
 
-    .container {
+    .container,
+    .container-fluid {
       max-width: 100% !important;
       padding: 0 !important;
       margin: 0 !important;

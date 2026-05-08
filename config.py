@@ -51,7 +51,7 @@ class Config:
     INSTITUTION_CEO_TITLE = os.environ.get("INSTITUTION_CEO_TITLE", "CEO")
     INSTITUTION_BANK_ACCOUNTS = os.environ.get(
         "INSTITUTION_BANK_ACCOUNTS",
-        "BCA (Yoga Aji Sukma) - 5200540672|BNI (Yoga Aji Sukma) - 0809530111|BRI (Yoga Aji Sukma) - 185901010065501|Permata (Yoga Aji Sukma) - 4129843662",
+        "BCA (Yoga Aji Sukma) - 5200540672|BNI (Yoga Aji Sukma) - 0809530111|BRI (Yoga Aji Sukma) - 185901010065501|Permata (Yoga Aji Sukma) - 4129843662|BSI (Yoga Aji Sukma) - 7311274753|Bank Jago (Yoga Aji Sukma) - 105576621785|SeaBank (Yoga Aji Sukma) - 901687553404",
     )
     DEFAULT_REGISTRATION_FEE = int(os.environ.get("DEFAULT_REGISTRATION_FEE", 0))
     WHATSAPP_BOT_INTERNAL_URL = os.environ.get(

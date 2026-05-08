@@ -2,6 +2,76 @@
 
 {% block title %}Daftar Pembayaran Siswa — LBB Super Smart{% endblock %}
 
+{% set MONTHS = ['','Januari','Februari','Maret','April','Mei','Juni',
+                 'Juli','Agustus','September','Oktober','November','Desember'] %}
+
+{% block head %}
+<style>
+  .payment-date-range {
+    position: relative;
+  }
+  .payment-date-range-panel {
+    position: absolute;
+    z-index: 1040;
+    top: calc(100% + 6px);
+    left: 0;
+    width: min(360px, calc(100vw - 32px));
+    background: #fff;
+    border: 1px solid #d8e0ec;
+    border-radius: 8px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, .16);
+    padding: 12px;
+  }
+  @media (min-width: 992px) {
+    .payment-date-range-panel {
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  .payment-calendar-head,
+  .payment-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .payment-calendar-head {
+    color: #64748b;
+    font-size: .72rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .payment-date-cell {
+    border: 0;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #1e293b;
+    font-size: .82rem;
+    height: 34px;
+  }
+  .payment-date-cell:hover {
+    background: #e8f1ff;
+  }
+  .payment-date-cell.is-muted {
+    color: #a8b2c1;
+    background: #fbfdff;
+  }
+  .payment-date-cell.is-range {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+  .payment-date-cell.is-start,
+  .payment-date-cell.is-end {
+    background: #2563eb;
+    color: #fff;
+    font-weight: 700;
+  }
+  .payment-date-cell.is-today {
+    box-shadow: inset 0 0 0 1px #2563eb;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
@@ -28,15 +98,30 @@
 {% endwith %}
 
 {# Filter Card #}
-<div class="card mb-4 shadow-sm">
+<div id="paymentsFilterCard" class="card mb-4 shadow-sm">
   <div class="card-header bg-light">
     <h6 class="mb-0"><i class="bi bi-funnel me-1"></i>Filter</h6>
   </div>
   <div class="card-body">
-    <form method="GET" action="{{ url_for('payments.list_payments') }}" class="row g-3 align-items-end">
-      <div class="col-md-4">
+    <form
+      id="paymentsFilterForm"
+      method="GET"
+      action="{{ url_for('payments.list_payments') }}"
+      class="row g-3 align-items-end"
+      data-lbb-filter-form
+      data-lbb-filter-targets="paymentsFilterCard paymentsFilterResults"
+      data-lbb-filter-autosubmit="change"
+    >
+      <div class="col-xl-3 col-lg-4 col-md-6">
         <label for="student_ref" class="form-label muted-label">Siswa</label>
-        <select name="student_ref" id="student_ref" class="form-select">
+        <select
+          name="student_ref"
+          id="student_ref"
+          class="form-select"
+          data-searchable-select
+          data-placeholder="Cari nama siswa..."
+          data-label="Cari siswa"
+        >
           <option value="">-- Semua Siswa --</option>
           {% for student in students %}
           <option value="{{ student.public_id }}"
@@ -46,21 +131,64 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-3">
-        <label for="date_from" class="form-label muted-label">Dari Tanggal</label>
-        <input type="date" name="date_from" id="date_from" class="form-control"
-               value="{{ request.args.get('date_from', '') }}">
+      <div class="col-6 col-xl-2 col-lg-2 col-md-3">
+        <label for="paymentMonth" class="form-label muted-label">Bulan</label>
+        <select name="month" id="paymentMonth" class="form-select">
+          <option value="">— Semua Bulan —</option>
+          {% for m in range(1, 13) %}
+          <option value="{{ m }}" {% if selected_month == m %}selected{% endif %}>{{ MONTHS[m] }}</option>
+          {% endfor %}
+        </select>
       </div>
-      <div class="col-md-3">
-        <label for="date_to" class="form-label muted-label">Sampai Tanggal</label>
-        <input type="date" name="date_to" id="date_to" class="form-control"
-               value="{{ request.args.get('date_to', '') }}">
+      <div class="col-6 col-xl-2 col-lg-2 col-md-3">
+        <label for="paymentYear" class="form-label muted-label">Tahun</label>
+        <select name="year" id="paymentYear" class="form-select">
+          <option value="">— Semua Tahun —</option>
+          {% for y in year_options %}
+          <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
       </div>
-      <div class="col-md-2 d-flex gap-2">
+      <div class="col-xl-3 col-lg-4 col-md-6 payment-date-range" id="paymentDateRange">
+        <label class="form-label muted-label">Rentang Tanggal</label>
+        <input type="hidden" name="date_from" id="paymentDateFrom" value="{{ selected_date_from or '' }}">
+        <input type="hidden" name="date_to" id="paymentDateTo" value="{{ selected_date_to or '' }}">
+        <button type="button"
+                class="form-control text-start bg-white"
+                id="paymentDateRangeButton"
+                aria-expanded="false">
+          <span id="paymentDateRangeLabel">Pilih rentang tanggal</span>
+        </button>
+        <div class="payment-date-range-panel d-none" id="paymentDateRangePanel">
+          <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="paymentCalendarPrev" aria-label="Bulan sebelumnya">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <div class="fw-semibold small" id="paymentCalendarTitle"></div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="paymentCalendarNext" aria-label="Bulan berikutnya">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+          <div class="payment-calendar-head">
+            <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
+          </div>
+          <div class="payment-calendar-grid" id="paymentCalendarGrid"></div>
+          <div class="d-flex align-items-center justify-content-between gap-2 mt-3">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="paymentDateClear">Reset Tanggal</button>
+            <button type="button" class="btn btn-primary btn-sm" id="paymentDateApply">Terapkan</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-xl-2 col-lg-4 col-md-6 d-flex gap-2">
         <button type="submit" class="btn btn-primary w-100">
           <i class="bi bi-search me-1"></i>Filter
         </button>
-        <a href="{{ url_for('payments.list_payments') }}" class="btn btn-outline-secondary" title="Reset">
+        <a
+          href="{{ url_for('payments.list_payments') }}"
+          class="btn btn-outline-secondary"
+          title="Reset"
+          data-lbb-filter-reset="paymentsFilterForm"
+        >
           <i class="bi bi-x-lg"></i>
         </a>
       </div>
@@ -69,7 +197,12 @@
 </div>
 
 {# Table Card #}
-<div class="card shadow-sm">
+<div
+  id="paymentsFilterResults"
+  class="card shadow-sm"
+  data-lbb-filter-results
+  data-lbb-filter-form-id="paymentsFilterForm"
+>
   <div class="card-body p-0">
     {% if payments %}
     <div class="table-responsive">
@@ -80,6 +213,7 @@
             <th>Tgl Bayar</th>
             <th>No. Kwitansi</th>
             <th>Siswa</th>
+            <th>Mapel</th>
             <th class="text-end">Total</th>
             <th>Metode</th>
             <th class="text-center">Status</th>
@@ -109,6 +243,18 @@
               </a>
               {% else %}
               <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% set paid_subjects = payment.paid_subject_names %}
+              {% if paid_subjects %}
+                <div class="d-flex flex-wrap gap-1">
+                  {% for subject_name in paid_subjects %}
+                  <span class="badge bg-light text-dark border">{{ subject_name }}</span>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <span class="text-muted">—</span>
               {% endif %}
             </td>
             <td class="text-end fw-semibold">
@@ -157,11 +303,31 @@
                 <i class="bi bi-pencil"></i>
               </a>
               <form method="POST"
+                    action="{{ url_for('payments.verify_payment', payment_ref=payment.public_id) }}"
+                    class="d-inline">
+                {% if csrf_token is defined %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% endif %}
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+                {% if payment.is_verified %}
+                <input type="hidden" name="is_verified" value="0">
+                <button type="submit" class="btn btn-sm btn-outline-warning me-1" title="Batalkan verifikasi">
+                  <i class="bi bi-shield-x"></i>
+                </button>
+                {% else %}
+                <input type="hidden" name="is_verified" value="1">
+                <button type="submit" class="btn btn-sm btn-outline-success me-1" title="Verifikasi pembayaran">
+                  <i class="bi bi-shield-check"></i>
+                </button>
+                {% endif %}
+              </form>
+              <form method="POST"
                     action="{{ url_for('payments.delete_payment', payment_ref=payment.public_id) }}"
                     class="d-inline"
                     onsubmit="return confirm('Yakin hapus pembayaran {{ payment.receipt_number }}?')">
-                {{ csrf_token() if csrf_token is defined else '' }}
+                {% if csrf_token is defined %}
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% endif %}
                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus">
                   <i class="bi bi-trash"></i>
                 </button>
@@ -172,7 +338,7 @@
         </tbody>
         <tfoot class="table-light fw-semibold">
           <tr>
-            <td colspan="4" class="ps-3 text-end">Total Halaman Ini:</td>
+            <td colspan="5" class="ps-3 text-end">Total Halaman Ini:</td>
             <td class="text-end text-success">
               Rp {{ "{:,.0f}".format(total_all.value) }}
             </td>
@@ -229,7 +395,7 @@
       <i class="bi bi-inbox display-4 text-muted d-block mb-3"></i>
       <h5 class="text-muted">Belum ada data pembayaran</h5>
       <p class="text-muted mb-3">
-        {% if current_student_ref or request.args.get('date_from') or request.args.get('date_to') %}
+        {% if current_student_ref or selected_month or selected_year or selected_date_from or selected_date_to %}
         Tidak ada pembayaran yang sesuai dengan filter yang dipilih.
         {% else %}
         Mulai tambahkan pembayaran siswa.
@@ -276,4 +442,187 @@
   </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  function initPaymentDateRange() {
+  const paymentMonthNames = {{ MONTHS | tojson }};
+  const paymentDateRange = document.getElementById("paymentDateRange");
+  const paymentDateRangeButton = document.getElementById("paymentDateRangeButton");
+  const paymentDateRangePanel = document.getElementById("paymentDateRangePanel");
+  const paymentDateRangeLabel = document.getElementById("paymentDateRangeLabel");
+  const paymentDateFromInput = document.getElementById("paymentDateFrom");
+  const paymentDateToInput = document.getElementById("paymentDateTo");
+  const paymentCalendarGrid = document.getElementById("paymentCalendarGrid");
+  const paymentCalendarTitle = document.getElementById("paymentCalendarTitle");
+  const paymentCalendarPrev = document.getElementById("paymentCalendarPrev");
+  const paymentCalendarNext = document.getElementById("paymentCalendarNext");
+  const paymentDateClear = document.getElementById("paymentDateClear");
+  const paymentDateApply = document.getElementById("paymentDateApply");
+  const paymentFilterForm = document.getElementById("paymentsFilterForm");
+  if (!paymentDateRange || paymentDateRange.dataset.paymentDateRangeReady === "1") return;
+  paymentDateRange.dataset.paymentDateRangeReady = "1";
+
+  function parsePaymentIsoDate(value) {
+    if (!value) return null;
+    const parts = value.split("-").map(Number);
+    if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+
+  function formatPaymentIsoDate(date) {
+    if (!date) return "";
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function formatPaymentDisplayDate(value) {
+    const date = parsePaymentIsoDate(value);
+    if (!date) return "";
+    return `${String(date.getDate()).padStart(2, "0")} ${paymentMonthNames[date.getMonth() + 1]} ${date.getFullYear()}`;
+  }
+
+  function samePaymentDate(a, b) {
+    return a && b && formatPaymentIsoDate(a) === formatPaymentIsoDate(b);
+  }
+
+  function updatePaymentDateRangeLabel() {
+    if (!paymentDateRangeLabel || !paymentDateFromInput || !paymentDateToInput) return;
+    const from = paymentDateFromInput.value;
+    const to = paymentDateToInput.value;
+    if (from && to) {
+      paymentDateRangeLabel.textContent = `${formatPaymentDisplayDate(from)} s/d ${formatPaymentDisplayDate(to)}`;
+    } else if (from) {
+      paymentDateRangeLabel.textContent = `${formatPaymentDisplayDate(from)} s/d ...`;
+    } else if (to) {
+      paymentDateRangeLabel.textContent = `... s/d ${formatPaymentDisplayDate(to)}`;
+    } else {
+      paymentDateRangeLabel.textContent = "Pilih rentang tanggal";
+    }
+  }
+
+  function showPaymentDateRangePanel() {
+    if (!paymentDateRangePanel || !paymentDateRangeButton) return;
+    paymentDateRangePanel.classList.remove("d-none");
+    paymentDateRangeButton.setAttribute("aria-expanded", "true");
+  }
+
+  function hidePaymentDateRangePanel() {
+    if (!paymentDateRangePanel || !paymentDateRangeButton) return;
+    paymentDateRangePanel.classList.add("d-none");
+    paymentDateRangeButton.setAttribute("aria-expanded", "false");
+  }
+
+  function renderPaymentCalendar() {
+    if (!paymentCalendarGrid || !paymentCalendarTitle) return;
+    const anchor = renderPaymentCalendar.anchor || parsePaymentIsoDate(paymentDateFromInput.value) || new Date();
+    const month = anchor.getMonth();
+    const year = anchor.getFullYear();
+    paymentCalendarTitle.textContent = `${paymentMonthNames[month + 1]} ${year}`;
+    paymentCalendarGrid.innerHTML = "";
+
+    const first = new Date(year, month, 1);
+    const startOffset = (first.getDay() + 6) % 7;
+    const gridStart = new Date(year, month, 1 - startOffset);
+    const from = parsePaymentIsoDate(paymentDateFromInput.value);
+    const to = parsePaymentIsoDate(paymentDateToInput.value);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let index = 0; index < 42; index += 1) {
+      const cellDate = new Date(gridStart);
+      cellDate.setDate(gridStart.getDate() + index);
+      const iso = formatPaymentIsoDate(cellDate);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "payment-date-cell";
+      btn.textContent = String(cellDate.getDate());
+      btn.dataset.date = iso;
+      if (cellDate.getMonth() !== month) btn.classList.add("is-muted");
+      if (samePaymentDate(cellDate, today)) btn.classList.add("is-today");
+      if (samePaymentDate(cellDate, from)) btn.classList.add("is-start");
+      if (samePaymentDate(cellDate, to)) btn.classList.add("is-end");
+      if (from && to && cellDate > from && cellDate < to) btn.classList.add("is-range");
+      paymentCalendarGrid.appendChild(btn);
+    }
+  }
+
+  function setPaymentCalendarAnchor(deltaMonth) {
+    const current = renderPaymentCalendar.anchor || parsePaymentIsoDate(paymentDateFromInput.value) || new Date();
+    renderPaymentCalendar.anchor = new Date(current.getFullYear(), current.getMonth() + deltaMonth, 1);
+    renderPaymentCalendar();
+  }
+
+  function selectPaymentRangeDate(isoDate) {
+    const selected = parsePaymentIsoDate(isoDate);
+    if (!selected || !paymentDateFromInput || !paymentDateToInput) return;
+    const from = parsePaymentIsoDate(paymentDateFromInput.value);
+    const to = parsePaymentIsoDate(paymentDateToInput.value);
+
+    if (!from || (from && to)) {
+      paymentDateFromInput.value = isoDate;
+      paymentDateToInput.value = "";
+    } else if (selected < from) {
+      paymentDateToInput.value = paymentDateFromInput.value;
+      paymentDateFromInput.value = isoDate;
+    } else {
+      paymentDateToInput.value = isoDate;
+    }
+    renderPaymentCalendar.anchor = new Date(selected.getFullYear(), selected.getMonth(), 1);
+    updatePaymentDateRangeLabel();
+    renderPaymentCalendar();
+    showPaymentDateRangePanel();
+  }
+
+  if (paymentDateRangeButton && paymentDateRangePanel) {
+    updatePaymentDateRangeLabel();
+    renderPaymentCalendar.anchor = parsePaymentIsoDate(paymentDateFromInput.value) || new Date();
+    renderPaymentCalendar();
+
+    paymentDateRangeButton.addEventListener("click", function () {
+      if (paymentDateRangePanel.classList.contains("d-none")) {
+        renderPaymentCalendar();
+        showPaymentDateRangePanel();
+      } else {
+        hidePaymentDateRangePanel();
+      }
+    });
+    paymentDateRangeButton.addEventListener("click", function (event) {
+      event.stopPropagation();
+    });
+    paymentDateRangePanel.addEventListener("click", function (event) {
+      event.stopPropagation();
+    });
+    paymentCalendarPrev?.addEventListener("click", function () { setPaymentCalendarAnchor(-1); });
+    paymentCalendarNext?.addEventListener("click", function () { setPaymentCalendarAnchor(1); });
+    paymentCalendarGrid?.addEventListener("click", function (event) {
+      const button = event.target.closest("[data-date]");
+      if (!button) return;
+      selectPaymentRangeDate(button.dataset.date);
+    });
+    paymentDateClear?.addEventListener("click", function () {
+      paymentDateFromInput.value = "";
+      paymentDateToInput.value = "";
+      updatePaymentDateRangeLabel();
+      renderPaymentCalendar();
+    });
+    paymentDateApply?.addEventListener("click", function () {
+      hidePaymentDateRangePanel();
+      paymentFilterForm?.requestSubmit();
+    });
+    document.addEventListener("click", function (event) {
+      const activeDateRange = document.getElementById("paymentDateRange");
+      if (!activeDateRange || activeDateRange.contains(event.target)) return;
+      hidePaymentDateRangePanel();
+    });
+  }
+  }
+  initPaymentDateRange();
+  document.addEventListener("lbb:filter-updated", initPaymentDateRange);
+})();
+</script>
 {% endblock %}

@@ -60,6 +60,9 @@ async function renderHtmlToSinglePagePdf(html, options = {}) {
     await page.addStyleTag({
       content: `
         html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+        #topbar, #sidebar, .flash-container, .no-print { display: none !important; }
+        #main-content { margin: 0 !important; padding: 0 !important; min-height: auto !important; }
+        .container, .container-fluid { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
         .fee-slip-wrapper { padding: 0 !important; margin: 0 !important; }
         .fee-slip-document { margin: 0 auto !important; box-shadow: none !important; }
       `,
@@ -279,9 +282,11 @@ app.post('/sync/messages/full', async (req, res) => {
 app.post('/sync/group/:groupId/messages', async (req, res) => {
   try {
     const limit = Number(req.body?.limit || config.defaultMessageLimit);
+    const fullSync = Boolean(req.body?.full_sync || req.body?.fullSync);
     const result = await syncGroupsAndMessages({
       groupIds: [req.params.groupId],
       limit,
+      fullSync,
     });
     res.json({ ok: true, result });
   } catch (error) {

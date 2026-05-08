@@ -125,14 +125,22 @@ class DashboardService:
 
     @staticmethod
     def get_tutor_salary_accrual(month, year):
-        """Get tutor salary paid/recorded for this service month."""
+        """Get tutor salary already paid/confirmed for this service month.
+
+        Only paid/confirmed payouts are counted so that:
+        - 'pending' payouts (being reviewed) do NOT reduce the estimated
+          remaining balance — the balance stays higher until payment confirmed.
+        - 'cancelled' payouts are excluded entirely.
+        This makes the Paid/Unpaid toggle in payout detail actually affect
+        dashboard saldo calculations.
+        """
         total = (
             db.session.query(func.sum(TutorPayoutLine.amount))
             .join(TutorPayout, TutorPayoutLine.tutor_payout_id == TutorPayout.id)
             .filter(
                 extract("month", TutorPayoutLine.service_month) == month,
                 extract("year", TutorPayoutLine.service_month) == year,
-                TutorPayout.status != "cancelled",
+                TutorPayout.status.in_(("completed", "paid", "confirmed")),
             )
             .scalar()
             or 0
@@ -140,12 +148,18 @@ class DashboardService:
         return float(total)
 
     @staticmethod
+    def get_tutor_paid_amount(month, year):
+        """Alias for tutor payout cash-out used by dashboard labels."""
+        return DashboardService.get_tutor_salary_accrual(month, year)
+
+    @staticmethod
     def get_grand_tutor_payable(month, year):
         """
-        Grand total tutor payable (cumulative up to this month).
+        Grand tutor payable outstanding (cumulative up to this month).
         Formula:
-          prev_month.closing_tutor_payable  (from MonthlyClosing)
-          + current_month tutor_payable_from_collection  (from StudentPaymentLine)
+          prev_month outstanding tutor payable
+          + current_month tutor_payable_from_collection (StudentPaymentLine)
+          - current_month tutor payout paid/confirmed
 
         Per acuan Feb 2025:
           Jan closing_tutor_payable = 3,380,000
@@ -153,16 +167,15 @@ class DashboardService:
           Grand Hutang Gaji = 12,990,000
           Grand Profit = Grand Total Saldo (22,900,745) - Grand Hutang Gaji (12,990,000) = 9,910,745
 
-        Payouts are NOT deducted here.
+        Payouts are deducted here so dashboard hutang gaji decreases after
+        tutor fee is paid.
         """
         current_closing = MonthlyClosing.query.filter_by(month=month, year=year).first()
         if current_closing:
-            return float(
-                current_closing.closing_tutor_payable or 0
-            ) + DashboardService.get_tutor_salary_accrual(month, year)
+            return float(current_closing.closing_tutor_payable or 0)
 
         earliest_period = DashboardService._get_earliest_dashboard_period()
-        return DashboardService._get_grand_tutor_payable_internal(
+        return DashboardService._get_closing_tutor_payable_internal(
             month, year, earliest_period
         )
 
@@ -465,7 +478,7 @@ class DashboardService:
             .filter(
                 extract("month", TutorPayoutLine.service_month) == month,
                 extract("year", TutorPayoutLine.service_month) == year,
-                TutorPayout.status != "cancelled",
+                TutorPayout.status.in_(("completed", "paid", "confirmed")),
             )
             .scalar()
             or 0

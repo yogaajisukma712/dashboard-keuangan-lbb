@@ -8,6 +8,7 @@ from app.models import (
     AttendanceSession,
     Curriculum,
     Enrollment,
+    EnrollmentSchedule,
     Level,
     Student,
     Subject,
@@ -71,6 +72,15 @@ def _seed_calendar_data(target_date: date):
     db.session.flush()
     db.session.add_all(
         [
+            EnrollmentSchedule(
+                enrollment_id=first_enrollment.id,
+                day_of_week=target_date.weekday(),
+                day_name="Tuesday",
+                start_time=datetime.strptime("15:30", "%H:%M").time(),
+                end_time=datetime.strptime("17:00", "%H:%M").time(),
+                location="Ruang A",
+                is_active=True,
+            ),
             AttendanceSession(
                 enrollment_id=first_enrollment.id,
                 student_id=first_enrollment.student_id,
@@ -124,13 +134,41 @@ def test_build_lesson_calendar_uses_attendance_sessions_as_source():
         assert len(lesson_items) == 2
         assert lesson_items[0]["tutor_name"] == "Dinda"
         assert lesson_items[0]["student_name"] == "Nadine"
+        assert lesson_items[0]["student_short_name"] == "Nadine"
         assert lesson_items[0]["subject_name"] == "Matematika"
         assert lesson_items[0]["attendance_status"] == "attended"
-        assert lesson_items[0]["schedule_label"] == "Sesi les"
-        assert lesson_items[0]["location"] == ""
+        assert lesson_items[0]["schedule_label"] == "15:30 - 17:00"
+        assert lesson_items[0]["chip_label"] == "15:30 - 17:00 - Dinda - Matematika - Nadine"
+        assert lesson_items[0]["location"] == "Ruang A"
         assert lesson_items[0]["whatsapp_group_name"] == "English Nadine"
         assert lesson_items[1]["student_name"] == "Ratih"
+        assert lesson_items[1]["student_short_name"] == "Ratih"
         assert lesson_items[1]["attendance_status"] == "scheduled"
+        assert lesson_items[1]["schedule_label"] == "Sesi les"
+
+
+def test_build_lesson_calendar_filters_by_student_and_tutor_from_attendance():
+    app = _make_test_app()
+    target_date = date(2026, 4, 7)
+
+    with app.app_context():
+        db.create_all()
+        _seed_calendar_data(target_date)
+        nadine = Student.query.filter_by(name="Nadine").one()
+        ratih = Student.query.filter_by(name="Ratih").one()
+        dinda = Tutor.query.filter_by(name="Dinda").one()
+
+        nadine_calendar = _build_lesson_calendar(4, 2026, student_id=nadine.id)
+        dinda_calendar = _build_lesson_calendar(4, 2026, tutor_id=dinda.id)
+        ratih_items = []
+        for week in _build_lesson_calendar(4, 2026, student_id=ratih.id)["weeks"]:
+            for day in week:
+                ratih_items.extend(day["items"])
+
+        assert nadine_calendar["lesson_count"] == 1
+        assert nadine_calendar["student_count"] == 1
+        assert dinda_calendar["lesson_count"] == 2
+        assert [item["student_name"] for item in ratih_items] == ["Ratih"]
 
 
 def test_calendar_route_and_sidebar_link_exist_in_source():
@@ -153,8 +191,23 @@ def test_calendar_route_and_sidebar_link_exist_in_source():
     assert "calendar_data.weeks" in calendar_template
     assert "Presensi Sesi Les" in calendar_template
     assert "Detail enrollment" in calendar_template
+    assert "calendar-lesson-chip" in calendar_template
+    assert "calendar-chip-list" in calendar_template
+    assert 'data-bs-toggle="popover"' in calendar_template
+    assert "{{ item.student_short_name }}</span>" in calendar_template
+    assert "{{ item.schedule_label }}</span>" not in calendar_template
+    assert "{{ item.tutor_name }}</span>" not in calendar_template
+    assert "{{ item.subject_name }}</span>" not in calendar_template
+    assert "{{ item.student_name }}</span>" not in calendar_template
+    assert "inline-flex" in calendar_template
+    assert "\n    width: 100%;" not in calendar_template
+    assert "min-height: 120px;" in calendar_template
+    assert "min-height: 180px;" not in calendar_template
     assert "day['items']" in calendar_template
     assert "day.items" not in calendar_template
     assert 'name="tutor_ref"' in calendar_template
+    assert 'name="student_ref"' in calendar_template
     assert "tutor.public_id" in calendar_template
+    assert "student.public_id" in calendar_template
     assert "selected_tutor_ref" in calendar_template
+    assert "selected_student_ref" in calendar_template

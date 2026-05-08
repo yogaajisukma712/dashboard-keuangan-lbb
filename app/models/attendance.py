@@ -75,3 +75,29 @@ class AttendanceSession(db.Model):
     def get_year(self):
         """Get year from session date"""
         return self.session_date.year
+
+
+class AttendancePeriodLock(db.Model):
+    """Monthly lock that prevents WhatsApp rescans from mutating attendance."""
+
+    __tablename__ = "attendance_period_locks"
+    __table_args__ = (
+        db.UniqueConstraint("month", "year", name="uq_attendance_period_locks_month_year"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    month = db.Column(db.Integer, nullable=False, index=True)
+    year = db.Column(db.Integer, nullable=False, index=True)
+    notes = db.Column(db.Text)
+    locked_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    locked_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    user = db.relationship("User", backref="attendance_period_locks")
+
+    @property
+    def label(self):
+        return f"{self.month:02d}/{self.year}"

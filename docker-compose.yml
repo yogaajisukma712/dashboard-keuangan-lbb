@@ -55,6 +55,7 @@ services:
       INSTITUTION_CITY: ${INSTITUTION_CITY:-Surabaya}
       INSTITUTION_CEO_NAME: ${INSTITUTION_CEO_NAME:-Yoga Aji Sukma, S.Mat., M.Stat.}
       INSTITUTION_CEO_TITLE: ${INSTITUTION_CEO_TITLE:-CEO}
+      INSTITUTION_BANK_ACCOUNTS: ${INSTITUTION_BANK_ACCOUNTS:-BCA (Yoga Aji Sukma) - 5200540672|BNI (Yoga Aji Sukma) - 0809530111|BRI (Yoga Aji Sukma) - 185901010065501|Permata (Yoga Aji Sukma) - 4129843662|BSI (Yoga Aji Sukma) - 7311274753|Bank Jago (Yoga Aji Sukma) - 105576621785|SeaBank (Yoga Aji Sukma) - 901687553404}
     ports:
       - "6001:5000"
     volumes:

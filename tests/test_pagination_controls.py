@@ -71,3 +71,52 @@ def test_whatsapp_tables_have_client_side_page_size_selectors():
     assert "groupsPageSizeSelect" in template_text
     assert "contactsPageSizeSelect" in template_text
     assert "readPageSize(" in template_text
+
+
+def test_saved_filter_restore_does_not_force_page_reload():
+    project_root = Path(__file__).resolve().parents[1]
+    template_text = (project_root / "app" / "templates" / "base.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "window.location.replace(currentUrl.toString())" not in template_text
+    assert 'window.history.replaceState({}, "", currentUrl.toString())' in template_text
+    assert "window.__lbbPendingFilterRestores.push" in template_text
+    assert "processPendingFilterRestores();" in template_text
+
+
+def test_payment_list_filter_uses_month_year_and_calendar_range():
+    project_root = Path(__file__).resolve().parents[1]
+    template_text = (
+        project_root / "app" / "templates" / "payments" / "list.html"
+    ).read_text(encoding="utf-8")
+    route_text = (project_root / "app" / "routes" / "payments.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'name="month"' in template_text
+    assert 'name="year"' in template_text
+    assert 'id="paymentDateRangeButton"' in template_text
+    assert 'id="paymentCalendarGrid"' in template_text
+    assert "selectPaymentRangeDate" in template_text
+    assert 'request.args.get("month", type=int)' in route_text
+    assert 'request.args.get("year", type=int)' in route_text
+    assert 'extract("month", StudentPayment.payment_date)' in route_text
+    assert 'extract("year", StudentPayment.payment_date)' in route_text
+
+
+def test_payment_list_has_verify_action():
+    project_root = Path(__file__).resolve().parents[1]
+    template_text = (
+        project_root / "app" / "templates" / "payments" / "list.html"
+    ).read_text(encoding="utf-8")
+    route_text = (project_root / "app" / "routes" / "payments.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "payments.verify_payment" in template_text
+    assert 'name="is_verified" value="1"' in template_text
+    assert 'name="is_verified" value="0"' in template_text
+    assert 'name="next" value="{{ request.full_path }}"' in template_text
+    assert 'def verify_payment(payment_ref):' in route_text
+    assert 'payment.is_verified = target in {"1", "true"}' in route_text

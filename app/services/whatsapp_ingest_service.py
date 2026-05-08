@@ -7,12 +7,14 @@ from __future__ import annotations
 import re
 import unicodedata
 from calendar import monthrange
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from types import SimpleNamespace
 
 from flask import current_app
 
 from app import db
 from app.models import (
+    AttendancePeriodLock,
     AttendanceSession,
     Enrollment,
     Student,
@@ -469,6 +471,16 @@ def resolve_attendance_date(message_sent_at: datetime, _reported_lesson_date: da
     return message_sent_at.date()
 
 
+def as_date(value) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return None
+
+
 INDONESIAN_MONTHS = {
     "januari": 1,
     "februari": 2,
@@ -553,6 +565,99 @@ def extract_labeled_value(body: str | None, labels: list[str], max_length: int =
     return None
 
 
+def extract_subject_hint(body: str | None) -> str | None:
+    text = str(body or "")
+    labeled = extract_labeled_value(
+        text,
+        ["mata pelajaran", "mapel", "subject", "pelajaran"],
+    )
+    if labeled:
+        labeled_match = re.search(
+            r"\*?\b(pkn|ppkn|ips|ipa|matematika|math|english|bahasa\s+inggris)\b\*?",
+            labeled,
+            re.IGNORECASE,
+        )
+        if labeled_match:
+            value = labeled_match.group(1).upper()
+            if value == "PPKN":
+                return "PKN"
+            if value == "MATH":
+                return "Matematika"
+            if value == "ENGLISH":
+                return "Bahasa Inggris"
+            return value
+        return labeled
+
+    normalized = text.lower()
+    patterns = [
+        r"pelajaran\s+\*?(pkn|ppkn|ips|ipa|matematika|math|english|bahasa\s+inggris)\*?",
+        r"belajar\s+\*?(pkn|ppkn|ips|ipa|matematika|math|english|bahasa\s+inggris)\*?",
+        r"kegiatan\s+belajar\s+\*?(pkn|ppkn|ips|ipa|matematika|math|english|bahasa\s+inggris)\*?",
+        r"evaluasi\s+untuk\s+(?:sesi\s+les\s+)?\*?(pkn|ppkn|ips|ipa|matematika|math|english|bahasa\s+inggris)\*?",
+        r"tutor\s+\*?(pkn|ppkn|ips|ipa|matematika|math|english|bahasa\s+inggris)\*?",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, normalized, re.IGNORECASE)
+        if match:
+            value = match.group(1).upper()
+            if value == "PPKN":
+                return "PKN"
+            if value == "MATH":
+                return "Matematika"
+            if value == "ENGLISH":
+                return "Bahasa Inggris"
+            return value
+    return None
+
+
+def extract_student_hint(body: str | None) -> str | None:
+    text = re.sub(r"[*_~`]+", "", str(body or ""))
+    patterns = [
+        r"(?:pelajaran|sesi\s+les)\s+(?:pkn|ppkn|ips|ipa|matematika|math|english|bahasa\s+inggris)\s+([A-Z][A-Za-zÀ-ÿ' .-]{2,60}?)\s+hari\s+ini",
+        r"(?:pelajaran|sesi\s+les)\s+([A-Z][A-Za-zÀ-ÿ' .-]{2,60}?)\s+hari\s+ini",
+        r"(?:evaluasi\s*:\s*)?hari\s+ini\s+([A-Z][A-Za-zÀ-ÿ' .-]{2,60}?)\s+(?:belajar|mempelajari|mengikuti)\b",
+        r"(?:evaluasi\s*:\s*)?([A-Z][A-Za-zÀ-ÿ' .-]{2,60}?)\s+(?:belajar|mempelajari|mengikuti)\b",
+    ]
+    ignored = {
+        "hari ini",
+        "selamat malam",
+        "selamat siang",
+        "selamat sore",
+        "selamat pagi",
+    }
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if not match:
+            continue
+        value = re.sub(r"\s+", " ", match.group(1)).strip(" .,-")
+        value = re.sub(
+            r"^(?:pkn|ppkn|ips|ipa|matematika|math|english|bahasa\s+inggris)\s+",
+            "",
+            value,
+            flags=re.IGNORECASE,
+        ).strip(" .,-")
+        value = re.sub(r"^hari\s+ini\s+", "", value, flags=re.IGNORECASE).strip(" .,-")
+        if value and value.lower() not in ignored:
+            return truncate_text(value, 255)
+    return None
+
+
+def extract_lesson_schedule_subjects(body: str | None) -> list[str]:
+    text = str(body or "")
+    normalized = text.lower()
+    if "meet.google.com" not in normalized and "google meet" not in normalized:
+        return []
+    if "pukul" not in normalized and "standby" not in normalized:
+        return []
+
+    subjects = []
+    for subject in ["IPS", "PKN", "IPA", "Matematika", "Bahasa Inggris"]:
+        pattern = subject.lower().replace(" ", r"\s+")
+        if re.search(rf"\b{pattern}\b\s*:", normalized, re.IGNORECASE):
+            subjects.append(subject)
+    return subjects
+
+
 def parse_loose_reported_date(body: str | None) -> date | None:
     text = str(body or "")
     match = re.search(
@@ -567,8 +672,16 @@ def parse_loose_reported_date(body: str | None) -> date | None:
             re.IGNORECASE,
         )
         if not match:
-            return None
-        month_name, day_text, year_text = match.groups()
+            match = re.search(
+                r"(?:📅|tanggal|date)\s*:?\s*(\d{1,2})\s+([A-Za-z]+)\s*,?\s*(\d{4})",
+                text,
+                re.IGNORECASE,
+            )
+            if not match:
+                return None
+            day_text, month_name, year_text = match.groups()
+        else:
+            month_name, day_text, year_text = match.groups()
     else:
         day_text, month_name, year_text = match.groups()
 
@@ -598,9 +711,10 @@ def build_stored_evaluation_payload(message: WhatsAppMessage) -> dict | None:
         tutor_name = truncate_text(closing_match.group(1).strip(), 255)
 
     return {
-        "student_name": None,
+        "student_name": extract_student_hint(body),
         "tutor_name": tutor_name or truncate_text(message.author_name, 255),
-        "subject_name": None,
+        "subject_name": extract_subject_hint(body)
+        or extract_subject_hint(message.author_name),
         "focus_topic": extract_labeled_value(
             body,
             ["topik", "topic", "focus topic"],
@@ -1297,6 +1411,7 @@ class WhatsAppIngestService:
 
         tutor = tutor_validation.tutor if tutor_validation else None
         student = student_group_validation.student if student_group_validation else None
+        subject = WhatsAppIngestService.find_subject(evaluation.subject_name)
 
         if group is None:
             return {
@@ -1364,12 +1479,35 @@ class WhatsAppIngestService:
                 for enrollment in filtered_candidates
                 if enrollment.tutor_id == tutor.id
             ]
-            if len(tutor_owned_candidates) == 1:
+            if tutor_owned_candidates:
                 filtered_candidates = tutor_owned_candidates
+            else:
+                return {
+                    "student": student,
+                    "tutor": tutor,
+                    "subject": subject,
+                    "enrollment": None,
+                    "confidence": 70,
+                    "status": "unmatched",
+                    "note": (
+                        "Tutor matched from validated WhatsApp identity, "
+                        "but no active enrollment in this group belongs to that tutor."
+                    ),
+                }
+
+        if subject is not None:
+            subject_owned_candidates = [
+                enrollment
+                for enrollment in filtered_candidates
+                if enrollment.subject_id == subject.id
+            ]
+            if subject_owned_candidates:
+                filtered_candidates = subject_owned_candidates
 
         if len(filtered_candidates) == 1:
             selected = filtered_candidates[0]
             selected_tutor = tutor or selected.tutor
+            selected_subject = subject or selected.subject
             note = (
                 "Enrollment matched from validated WhatsApp group student "
                 "and sender tutor identity."
@@ -1382,7 +1520,7 @@ class WhatsAppIngestService:
             return {
                 "student": student,
                 "tutor": selected_tutor,
-                "subject": selected.subject,
+                "subject": selected_subject,
                 "enrollment": selected,
                 "confidence": 99 if tutor is not None else 80,
                 "status": "matched",
@@ -1395,7 +1533,7 @@ class WhatsAppIngestService:
             return {
                 "student": student,
                 "tutor": selected_tutor,
-                "subject": selected.subject,
+                "subject": subject or selected.subject,
                 "enrollment": selected,
                 "confidence": 65,
                 "status": "matched",
@@ -1421,10 +1559,18 @@ class WhatsAppIngestService:
         evaluation: WhatsAppEvaluation,
         matched_tutor: Tutor | None,
     ) -> AttendanceSession | None:
-        if evaluation.attendance_session is not None:
-            return evaluation.attendance_session
-
         tutor_id = matched_tutor.id if matched_tutor is not None else enrollment.tutor_id
+        if evaluation.attendance_session is not None:
+            existing_link = evaluation.attendance_session
+            if (
+                existing_link.enrollment_id == enrollment.id
+                and existing_link.tutor_id == tutor_id
+                and as_date(existing_link.session_date) == evaluation.attendance_date
+                and existing_link.status == "attended"
+            ):
+                return existing_link
+            evaluation.attendance_session = None
+
         author_phone_number = normalize_phone_number(
             evaluation.message.author_phone_number if evaluation.message else None
         )
@@ -1554,11 +1700,141 @@ class WhatsAppIngestService:
         return summary
 
     @staticmethod
+    def scan_lesson_schedule_messages_for_month(month: int, year: int) -> dict:
+        period_start = datetime(year, month, 1)
+        period_end = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+        messages = (
+            WhatsAppMessage.query.filter(
+                WhatsAppMessage.group_id.isnot(None),
+                WhatsAppMessage.sent_at >= period_start,
+                WhatsAppMessage.sent_at < period_end,
+                ~WhatsAppMessage.evaluation.has(),
+            )
+            .order_by(WhatsAppMessage.sent_at.asc(), WhatsAppMessage.id.asc())
+            .all()
+        )
+
+        summary = {"checked_messages": len(messages), "schedule_messages": 0, "linked_attendance": 0}
+        for message in messages:
+            subjects = extract_lesson_schedule_subjects(message.body)
+            if not subjects:
+                continue
+            student_validation = WhatsAppIngestService.find_validated_student_by_group(
+                message.group
+            )
+            if student_validation is None or student_validation.student is None:
+                continue
+
+            probe = SimpleNamespace(
+                message=message,
+                group=message.group,
+            )
+            tutor_validation = WhatsAppIngestService.find_validated_tutor_by_message_identity(
+                probe,
+                message.author_phone_number,
+            )
+            if tutor_validation is None or tutor_validation.tutor is None:
+                continue
+            if (
+                tutor_validation.tutor_id != 49
+                and normalize_phone_number(tutor_validation.validated_phone_number)
+                != "6282134021241"
+            ):
+                continue
+
+            created_for_message = 0
+            attendance_date = (message.sent_at + timedelta(hours=7)).date()
+            for subject_name in subjects:
+                subject = WhatsAppIngestService.find_subject(subject_name)
+                if subject is None:
+                    continue
+                enrollment = (
+                    Enrollment.query.filter_by(
+                        student_id=student_validation.student_id,
+                        subject_id=subject.id,
+                        status="active",
+                        is_active=True,
+                    )
+                    .order_by(Enrollment.id.asc())
+                    .first()
+                )
+                if enrollment is None or find_matching_enrollment_group(enrollment, message.group) is None:
+                    continue
+
+                existing = (
+                    AttendanceSession.query.filter(
+                        AttendanceSession.enrollment_id == enrollment.id,
+                        AttendanceSession.tutor_id == tutor_validation.tutor_id,
+                        db.func.date(AttendanceSession.session_date) == attendance_date,
+                        AttendanceSession.status == "attended",
+                    )
+                    .order_by(AttendanceSession.id.asc())
+                    .first()
+                )
+                if existing is not None:
+                    continue
+
+                session = AttendanceSession(
+                    enrollment_id=enrollment.id,
+                    student_id=enrollment.student_id,
+                    tutor_id=tutor_validation.tutor_id,
+                    session_date=datetime.combine(attendance_date, datetime.min.time()),
+                    status="attended",
+                    student_present=True,
+                    tutor_present=True,
+                    subject_id=enrollment.subject_id,
+                    tutor_fee_amount=enrollment.tutor_rate_per_meeting,
+                    notes=(
+                        "Auto-generated from WhatsApp lesson schedule message "
+                        f"{message.whatsapp_message_id} in group {message.group.whatsapp_group_id}."
+                    ),
+                )
+                db.session.add(session)
+                db.session.flush()
+                summary["linked_attendance"] += 1
+                created_for_message += 1
+
+            if created_for_message:
+                message.filter_status = "relevant"
+                message.relevance_reason = "lesson-schedule-attendance-heuristic"
+                message.parsed_payload = {
+                    **(message.parsed_payload or {}),
+                    "lesson_schedule_subjects": subjects,
+                    "lesson_schedule_attendance_date": attendance_date.isoformat(),
+                    "lesson_schedule_created_attendance": created_for_message,
+                }
+                summary["schedule_messages"] += 1
+
+        return summary
+
+    @staticmethod
     def scan_attendance_for_month(month: int, year: int) -> dict:
         if month < 1 or month > 12:
             raise ValueError("Bulan scan presensi WhatsApp tidak valid.")
         if year < 2000 or year > 2100:
             raise ValueError("Tahun scan presensi WhatsApp tidak valid.")
+
+        locked_period = AttendancePeriodLock.query.filter_by(
+            month=month,
+            year=year,
+        ).first()
+        if locked_period:
+            return {
+                "month": month,
+                "year": year,
+                "locked": True,
+                "processed_evaluations": 0,
+                "linked_attendance": 0,
+                "already_linked": 0,
+                "ambiguous": 0,
+                "unmatched": 0,
+                "matched_without_link": 0,
+                "reprocessed_messages": 0,
+                "reprocessed_checked_messages": 0,
+                "schedule_messages": 0,
+                "schedule_linked_attendance": 0,
+                "schedule_checked_messages": 0,
+            }
 
         period_start = date(year, month, 1)
         period_end = date(year, month, monthrange(year, month)[1])
@@ -1567,6 +1843,10 @@ class WhatsAppIngestService:
                 month,
                 year,
             )
+        )
+        schedule_summary = WhatsAppIngestService.scan_lesson_schedule_messages_for_month(
+            month,
+            year,
         )
         evaluations = (
             WhatsAppEvaluation.query.filter(
@@ -1590,6 +1870,9 @@ class WhatsAppIngestService:
             "matched_without_link": 0,
             "reprocessed_messages": reprocess_summary["reprocessed_messages"],
             "reprocessed_checked_messages": reprocess_summary["checked_messages"],
+            "schedule_messages": schedule_summary["schedule_messages"],
+            "schedule_linked_attendance": schedule_summary["linked_attendance"],
+            "schedule_checked_messages": schedule_summary["checked_messages"],
         }
 
         for evaluation in evaluations:

@@ -897,6 +897,20 @@ class LegacyAlldataImportService:
                     status="active",
                     is_active=True,
                 )
+            else:
+                # Update bank info from CSV if the tutor already exists but
+                # bank data is missing or needs to be refreshed.
+                csv_bank = self.bulk._normalize_name(row.get("bank"))
+                csv_rekening = self.bulk._normalize_name(row.get("rekening"))
+                if csv_rekening and not tutor.bank_account_number:
+                    tutor.bank_account_number = csv_rekening
+                if csv_bank and not tutor.bank_name:
+                    tutor.bank_name = csv_bank
+                # Also update tutor_code from CSV if it was missing
+                if tutor_code and (
+                    not tutor.tutor_code or tutor.tutor_code.startswith("AUTO-")
+                ):
+                    tutor.tutor_code = tutor_code
             note = self._make_note(
                 "tutor-payouts",
                 f"{payout_month.isoformat()}|{tutor.tutor_code}|{int(amount)}|{occurrence}",

@@ -340,6 +340,46 @@
                 top: 0;
                 z-index: 999;
             }
+
+            .lbb-filter-loading {
+                opacity: 0.62;
+                pointer-events: none;
+                transition: opacity 0.16s ease;
+            }
+
+            .lbb-searchable-select {
+                position: relative;
+            }
+
+            .lbb-searchable-select-menu {
+                position: absolute;
+                z-index: 1055;
+                top: calc(100% + 0.25rem);
+                left: 0;
+                right: 0;
+                max-height: 240px;
+                overflow-y: auto;
+                border: 1px solid #d8dde8;
+                border-radius: 0.5rem;
+                background: #fff;
+                box-shadow: 0 14px 34px rgba(24, 37, 74, 0.16);
+            }
+
+            .lbb-searchable-select-option {
+                width: 100%;
+                border: 0;
+                background: transparent;
+                padding: 0.55rem 0.75rem;
+                text-align: left;
+                color: #1f2937;
+            }
+
+            .lbb-searchable-select-option:hover,
+            .lbb-searchable-select-option:focus,
+            .lbb-searchable-select-option.active {
+                background: #eef4ff;
+                outline: 0;
+            }
         </style>
 
         {% block head %}{% endblock %}
@@ -426,7 +466,7 @@
                         <span class="d-none d-sm-inline">Logout</span>
                     </a>
 
-                    {% else %}
+                    {% elif not (hide_login_link|default(false) or verify_mode|default(false)) %}
 
                     <a
                         href="{{ url_for('auth.login') }}"
@@ -480,7 +520,7 @@
             </a>
             <a
                 href="/master/tutors"
-                class="sidebar-link {% if 'tutors' in request.path %}active{% endif %}"
+                class="sidebar-link {% if request.endpoint in ['master.tutors_list', 'master.add_tutor', 'master.edit_tutor', 'master.tutor_detail'] %}active{% endif %}"
             >
                 <i class="bi bi-person-badge-fill"></i> Tutor
             </a>
@@ -531,10 +571,10 @@
                 <i class="bi bi-calendar3"></i> Kalender Les
             </a>
             <a
-                href="/attendance/bulk-add"
-                class="sidebar-link {% if 'bulk-add' in request.path %}active{% endif %}"
+                href="{{ url_for('master.tutor_schedule_view') }}"
+                class="sidebar-link {% if request.endpoint == 'master.tutor_schedule_view' %}active{% endif %}"
             >
-                <i class="bi bi-calendar-plus"></i> Presensi Massal
+                <i class="bi bi-calendar-week"></i> Jadwal Tutor
             </a>
             <a
                 href="{{ url_for('whatsapp_bot.management') }}"
@@ -724,6 +764,487 @@
                     });
                 }
             });
+        </script>
+
+        <script>
+            /* ── Pertahankan filter tabel saat halaman di-reload ── */
+            (function () {
+                var storagePrefix = "lbb:table-filter:";
+                var pathKey = window.location.pathname;
+
+                function storageAvailable() {
+                    try {
+                        var key = storagePrefix + "test";
+                        window.localStorage.setItem(key, "1");
+                        window.localStorage.removeItem(key);
+                        return true;
+                    } catch (err) {
+                        return false;
+                    }
+                }
+
+                if (!storageAvailable()) return;
+
+                function getFormKey(form, index) {
+                    var action = form.getAttribute("action") || pathKey;
+                    return storagePrefix + "form:" + pathKey + ":" + index + ":" + action;
+                }
+
+                function shouldPersistForm(form) {
+                    if ((form.getAttribute("method") || "get").toLowerCase() !== "get") {
+                        return false;
+                    }
+                    return !!form.querySelector("input[name], select[name], textarea[name]");
+                }
+
+                function getNamedControls(form) {
+                    return Array.prototype.slice
+                        .call(form.querySelectorAll("input[name], select[name], textarea[name]"))
+                        .filter(function (control) {
+                            return !["csrf_token", "page"].includes(control.name);
+                        });
+                }
+
+                function readForm(form) {
+                    var values = {};
+                    getNamedControls(form).forEach(function (control) {
+                        if ((control.type === "checkbox" || control.type === "radio") && !control.checked) {
+                            return;
+                        }
+                        values[control.name] = control.value || "";
+                    });
+                    return values;
+                }
+
+                function writeForm(form, values) {
+                    getNamedControls(form).forEach(function (control) {
+                        if (!Object.prototype.hasOwnProperty.call(values, control.name)) return;
+                        if (new URLSearchParams(window.location.search).has(control.name)) return;
+                        if (control.type === "checkbox" || control.type === "radio") {
+                            control.checked = control.value === values[control.name];
+                            return;
+                        }
+                        control.value = values[control.name] || "";
+                    });
+                }
+
+                function saveForm(form, key) {
+                    window.localStorage.setItem(key, JSON.stringify(readForm(form)));
+                }
+
+                function isServerFilterValue(name, value) {
+                    if (["csrf_token", "page", "per_page"].includes(name)) return false;
+                    return String(value || "").trim() !== "";
+                }
+
+                function shouldSyncServerFilter(values) {
+                    return Object.keys(values).some(function (name) {
+                        return isServerFilterValue(name, values[name]);
+                    });
+                }
+
+                function syncSavedFiltersToUrl(form, values) {
+                    if (!shouldSyncServerFilter(values)) return false;
+
+                    var currentUrl = new URL(window.location.href);
+                    if (currentUrl.pathname.indexOf("/attendance") === 0) {
+                        return false;
+                    }
+                    var action = new URL(
+                        form.getAttribute("action") || window.location.pathname,
+                        window.location.href,
+                    );
+
+                    if (action.pathname !== currentUrl.pathname) return false;
+
+                    var changed = false;
+                    Object.keys(values).forEach(function (name) {
+                        var value = String(values[name] || "").trim();
+                        if (!value || currentUrl.searchParams.has(name)) return;
+                        currentUrl.searchParams.set(name, value);
+                        changed = true;
+                    });
+
+                    currentUrl.searchParams.delete("page");
+                    if (changed) {
+                        window.history.replaceState({}, "", currentUrl.toString());
+                        if (form.matches("[data-lbb-filter-form]") && form.id) {
+                            window.__lbbPendingFilterRestores = window.__lbbPendingFilterRestores || [];
+                            window.__lbbPendingFilterRestores.push({
+                                formId: form.id,
+                                url: currentUrl.toString(),
+                            });
+                        }
+                    }
+                    return changed;
+                }
+
+                function clearPageFilters() {
+                    Object.keys(window.localStorage).forEach(function (key) {
+                        if (key.indexOf(storagePrefix) === 0 && key.indexOf(pathKey) !== -1) {
+                            window.localStorage.removeItem(key);
+                        }
+                    });
+                }
+
+                function persistStandaloneControl(control) {
+                    var key = storagePrefix + "control:" + pathKey + ":" + control.id;
+                    var saved = window.localStorage.getItem(key);
+                    if (saved !== null && !window.location.search) {
+                        control.value = saved;
+                        control.dispatchEvent(new Event("input", { bubbles: true }));
+                        control.dispatchEvent(new Event("change", { bubbles: true }));
+                    }
+                    ["input", "change"].forEach(function (eventName) {
+                        control.addEventListener(eventName, function () {
+                            window.localStorage.setItem(key, control.value || "");
+                        });
+                    });
+                }
+
+                document.addEventListener("DOMContentLoaded", function () {
+                    var forms = Array.prototype.slice
+                        .call(document.querySelectorAll("form"))
+                        .filter(shouldPersistForm);
+
+                    forms.forEach(function (form, index) {
+                        var key = getFormKey(form, index);
+                        var saved = window.localStorage.getItem(key);
+                        var savedValues = null;
+                        if (saved && !window.location.search) {
+                            try {
+                                savedValues = JSON.parse(saved);
+                                writeForm(form, savedValues);
+                            } catch (err) {
+                                window.localStorage.removeItem(key);
+                            }
+                        }
+                        if (savedValues) {
+                            syncSavedFiltersToUrl(form, savedValues);
+                        }
+                        saveForm(form, key);
+                        form.addEventListener("submit", function () {
+                            saveForm(form, key);
+                        });
+                        form.addEventListener("change", function () {
+                            saveForm(form, key);
+                        });
+                        form.addEventListener("input", function () {
+                            saveForm(form, key);
+                        });
+                    });
+
+                    Array.prototype.slice
+                        .call(document.querySelectorAll("#main-content input[id]:not([name]), #main-content select[id]:not([name])"))
+                        .filter(function (control) {
+                            var text = [
+                                control.id,
+                                control.placeholder || "",
+                                control.getAttribute("aria-label") || "",
+                            ].join(" ").toLowerCase();
+                            return /(filter|search|cari|saring|quick)/.test(text);
+                        })
+                        .forEach(persistStandaloneControl);
+
+                    document.addEventListener("click", function (event) {
+                        var link = event.target.closest("a[href]");
+                        if (!link) return;
+                        var target = new URL(link.href, window.location.href);
+                        if (
+                            target.pathname === pathKey &&
+                            (!target.search || target.searchParams.get("reset_filters") === "1")
+                        ) {
+                            clearPageFilters();
+                        }
+                    });
+                });
+            })();
+        </script>
+
+        <script>
+            (function () {
+                var activeRequests = new WeakMap();
+
+                function asArray(value) {
+                    return Array.prototype.slice.call(value || []);
+                }
+
+                function buildUrlFromForm(form) {
+                    var url = new URL(form.action || window.location.pathname, window.location.origin);
+                    var params = new URLSearchParams();
+                    new FormData(form).forEach(function (value, key) {
+                        if (value !== null && String(value).trim() !== "") {
+                            params.append(key, value);
+                        }
+                    });
+                    url.search = params.toString();
+                    return url;
+                }
+
+                function replaceTargetsFromResponse(html, targetIds) {
+                    var doc = new DOMParser().parseFromString(html, "text/html");
+                    targetIds.forEach(function (id) {
+                        var current = document.getElementById(id);
+                        var fresh = doc.getElementById(id);
+                        if (current && fresh) {
+                            current.replaceWith(fresh);
+                        }
+                    });
+                }
+
+                function setLoading(targetIds, loading) {
+                    targetIds.forEach(function (id) {
+                        var node = document.getElementById(id);
+                        if (node) {
+                            node.classList.toggle("lbb-filter-loading", loading);
+                            node.setAttribute("aria-busy", loading ? "true" : "false");
+                        }
+                    });
+                }
+
+                function requestFilter(form, url) {
+                    var targetIds = String(form.dataset.lbbFilterTargets || "")
+                        .split(/[,\s]+/)
+                        .filter(Boolean);
+                    if (!targetIds.length) {
+                        form.submit();
+                        return;
+                    }
+
+                    if (activeRequests.has(form)) {
+                        activeRequests.get(form).abort();
+                    }
+
+                    var controller = new AbortController();
+                    activeRequests.set(form, controller);
+                    setLoading(targetIds, true);
+
+                    fetch(url.toString(), {
+                        headers: {
+                            "X-Requested-With": "fetch",
+                        },
+                        signal: controller.signal,
+                    })
+                        .then(function (response) {
+                            if (!response.ok) throw new Error("HTTP " + response.status);
+                            return response.text();
+                        })
+                        .then(function (html) {
+                            replaceTargetsFromResponse(html, targetIds);
+                            window.history.pushState({}, "", url.toString());
+                            initLbbFilterUi(document);
+                            document.dispatchEvent(
+                                new CustomEvent("lbb:filter-updated", {
+                                    detail: { formId: form.id || null, url: url.toString() },
+                                }),
+                            );
+                        })
+                        .catch(function (error) {
+                            if (error.name !== "AbortError") {
+                                form.submit();
+                            }
+                        })
+                        .finally(function () {
+                            activeRequests.delete(form);
+                            setLoading(targetIds, false);
+                        });
+                }
+
+                function bindFilterForm(form) {
+                    if (form.dataset.lbbFilterBound === "1") return;
+                    form.dataset.lbbFilterBound = "1";
+
+                    form.addEventListener("submit", function (event) {
+                        event.preventDefault();
+                        requestFilter(form, buildUrlFromForm(form));
+                    });
+
+                    if (form.dataset.lbbFilterAutosubmit === "change") {
+                        form.addEventListener("change", function (event) {
+                            var control = event.target;
+                            if (!control || !control.name || control.dataset.lbbNoAutosubmit === "true") return;
+                            requestFilter(form, buildUrlFromForm(form));
+                        });
+                    }
+                }
+
+                function optionText(option) {
+                    return String(option.textContent || "").replace(/\s+/g, " ").trim();
+                }
+
+                function enhanceSearchableSelect(select) {
+                    if (select.dataset.lbbSearchableReady === "1" || select.multiple) return;
+                    select.dataset.lbbSearchableReady = "1";
+                    select.classList.add("visually-hidden");
+                    select.setAttribute("tabindex", "-1");
+
+                    var wrapper = document.createElement("div");
+                    wrapper.className = "lbb-searchable-select";
+
+                    var input = document.createElement("input");
+                    input.type = "search";
+                    input.className = "form-control";
+                    input.autocomplete = "off";
+                    input.placeholder = select.dataset.placeholder || "Cari...";
+                    input.setAttribute("aria-label", select.dataset.label || input.placeholder);
+
+                    var menu = document.createElement("div");
+                    menu.className = "lbb-searchable-select-menu d-none";
+
+                    select.parentNode.insertBefore(wrapper, select.nextSibling);
+                    wrapper.appendChild(input);
+                    wrapper.appendChild(menu);
+
+                    function selectedLabel() {
+                        var selected = select.options[select.selectedIndex];
+                        return selected ? optionText(selected) : "";
+                    }
+
+                    function closeMenu() {
+                        menu.classList.add("d-none");
+                    }
+
+                    function renderOptions() {
+                        var keyword = input.value.toLowerCase().trim();
+                        menu.innerHTML = "";
+                        var matches = asArray(select.options).filter(function (option) {
+                            return !keyword || optionText(option).toLowerCase().includes(keyword);
+                        });
+
+                        matches.slice(0, 80).forEach(function (option) {
+                            var button = document.createElement("button");
+                            button.type = "button";
+                            button.className =
+                                "lbb-searchable-select-option" +
+                                (option.selected ? " active" : "");
+                            button.textContent = optionText(option);
+                            button.addEventListener("mousedown", function (event) {
+                                event.preventDefault();
+                                select.value = option.value;
+                                input.value = optionText(option);
+                                closeMenu();
+                                select.dispatchEvent(new Event("change", { bubbles: true }));
+                            });
+                            menu.appendChild(button);
+                        });
+
+                        if (!matches.length) {
+                            var empty = document.createElement("div");
+                            empty.className = "px-3 py-2 text-muted small";
+                            empty.textContent = "Tidak ada hasil";
+                            menu.appendChild(empty);
+                        }
+                    }
+
+                    input.value = selectedLabel();
+                    input.addEventListener("focus", function () {
+                        input.select();
+                        renderOptions();
+                        menu.classList.remove("d-none");
+                    });
+                    input.addEventListener("input", function () {
+                        renderOptions();
+                        menu.classList.remove("d-none");
+                    });
+                    input.addEventListener("blur", function () {
+                        window.setTimeout(function () {
+                            input.value = selectedLabel();
+                            closeMenu();
+                        }, 120);
+                    });
+                    select.addEventListener("change", function () {
+                        input.value = selectedLabel();
+                    });
+                }
+
+                function bindFilterRegions(root) {
+                    asArray(root.querySelectorAll("[data-lbb-filter-results]")).forEach(function (region) {
+                        if (region.dataset.lbbFilterResultsBound === "1") return;
+                        region.dataset.lbbFilterResultsBound = "1";
+                        region.addEventListener("click", function (event) {
+                            var link = event.target.closest("a.page-link[href]");
+                            if (!link || link.closest(".page-item.disabled")) return;
+                            var form = document.getElementById(region.dataset.lbbFilterFormId || "");
+                            if (!form || !form.dataset.lbbFilterTargets) return;
+                            event.preventDefault();
+                            requestFilter(form, new URL(link.href, window.location.origin));
+                        });
+                    });
+                }
+
+                function bindQuickFilters(root) {
+                    asArray(root.querySelectorAll("[data-lbb-quick-filter]")).forEach(function (input) {
+                        if (input.dataset.lbbQuickFilterBound === "1") return;
+                        input.dataset.lbbQuickFilterBound = "1";
+                        input.addEventListener("input", function () {
+                            var keyword = String(input.value || "").trim().toLowerCase();
+                            var selector = input.dataset.lbbQuickFilter;
+                            var dataAttr = input.dataset.lbbQuickFilterAttr || "";
+                            var visibleCount = 0;
+                            asArray(document.querySelectorAll(selector)).forEach(function (row) {
+                                var haystack = dataAttr
+                                    ? String(row.getAttribute("data-" + dataAttr) || "")
+                                    : String(row.textContent || "");
+                                var hidden = Boolean(keyword && !haystack.toLowerCase().includes(keyword));
+                                row.classList.toggle("d-none", hidden);
+                                if (!hidden) visibleCount += 1;
+                            });
+                            var emptyRow = document.getElementById(input.dataset.lbbQuickEmptyRow || "");
+                            if (emptyRow) emptyRow.classList.toggle("d-none", visibleCount > 0);
+                        });
+                    });
+                }
+
+                function initLbbFilterUi(root) {
+                    root = root || document;
+                    asArray(root.querySelectorAll("form[data-lbb-filter-form]")).forEach(bindFilterForm);
+                    asArray(root.querySelectorAll("select[data-searchable-select]")).forEach(enhanceSearchableSelect);
+                    bindFilterRegions(root);
+                    bindQuickFilters(root);
+                }
+
+                function processPendingFilterRestores() {
+                    var pending = window.__lbbPendingFilterRestores || [];
+                    window.__lbbPendingFilterRestores = [];
+                    pending.forEach(function (item) {
+                        var form = document.getElementById(item.formId || "");
+                        if (!form || !form.dataset.lbbFilterTargets || !item.url) return;
+                        requestFilter(form, new URL(item.url, window.location.origin));
+                    });
+                }
+
+                document.addEventListener("click", function (event) {
+                    var link = event.target.closest("a[data-lbb-filter-reset]");
+                    if (!link) return;
+                    var form = document.getElementById(link.dataset.lbbFilterReset || "");
+                    if (!form || !form.dataset.lbbFilterTargets) return;
+                    event.preventDefault();
+                    requestFilter(form, new URL(link.href, window.location.origin));
+                });
+
+                window.LbbFilterUi = {
+                    init: initLbbFilterUi,
+                    request: requestFilter,
+                    handlePerPageChange: function (select) {
+                        var region = select.closest("[data-lbb-filter-results]");
+                        var form = region
+                            ? document.getElementById(region.dataset.lbbFilterFormId || "")
+                            : null;
+                        if (!form || !form.dataset.lbbFilterTargets) {
+                            select.form.submit();
+                            return;
+                        }
+                        var url = new URL(select.form.action || window.location.pathname, window.location.origin);
+                        url.search = new URLSearchParams(new FormData(select.form)).toString();
+                        requestFilter(form, url);
+                    },
+                };
+
+                document.addEventListener("DOMContentLoaded", function () {
+                    initLbbFilterUi(document);
+                    processPendingFilterRestores();
+                });
+            })();
         </script>
 
         {% block scripts %}{% endblock %}

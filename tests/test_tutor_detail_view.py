@@ -87,6 +87,10 @@ def test_tutor_weekly_schedule_route_and_templates_exist():
     assert "tutor-schedule-cell-available" in grid_template
     assert "tutor-schedule-cell-unavailable" in grid_template
     assert "tutor-schedule-cell-filled" in grid_template
+    assert "tutor-schedule-copy-btn" in grid_template
+    assert "navigator.clipboard.write" in grid_template
+    assert "ClipboardItem({ 'image/png': blob })" in grid_template
+    assert "--bs-table-bg: #fdba74;" in grid_template
     assert "--bs-table-bg: #86efac;" in grid_template
     assert "--bs-table-bg: #fca5a5;" in grid_template
     assert "Tutor tidak bisa" in grid_template
@@ -97,10 +101,13 @@ def test_tutor_weekly_schedule_route_and_templates_exist():
     assert "{{ item.subject_name }}" in grid_template
     assert "Tutor bisa, belum ada siswa" in schedule_template
     assert "Tutor tidak bisa" in schedule_template
+    assert "background: #fdba74;" in schedule_template
     assert "tutor-schedule-legend-available" in schedule_template
-    assert "tutor-detail-schedule-legend-available" in (
+    tutor_detail_template = (
         project_root / "app" / "templates" / "master" / "tutor_detail.html"
     ).read_text(encoding="utf-8")
+    assert "tutor-detail-schedule-legend-available" in tutor_detail_template
+    assert "background: #fdba74;" in tutor_detail_template
     assert "url_for('master.tutor_schedule_view')" in tutors_list_template
     assert "url_for('master.tutor_schedule_view')" in base_template
     assert "Jadwal Tutor" in base_template

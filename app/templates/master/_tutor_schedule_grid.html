@@ -1,3 +1,26 @@
+{% if selected_tutor is defined and selected_tutor %}
+  {% set schedule_copy_title = selected_tutor.name %}
+{% elif tutor is defined and tutor %}
+  {% set schedule_copy_title = tutor.name %}
+{% else %}
+  {% set schedule_copy_title = "Jadwal Tutor" %}
+{% endif %}
+
+<div
+  class="tutor-schedule-copy-card"
+  data-schedule-title="{{ schedule_copy_title }}"
+>
+  <div class="d-flex justify-content-end mb-2">
+    <button
+      type="button"
+      class="btn btn-outline-primary btn-sm tutor-schedule-copy-btn"
+      data-copy-label="Copy Image"
+      data-copying-label="Menyalin..."
+      data-copied-label="Tersalin"
+    >
+      <i class="bi bi-clipboard me-1"></i>Copy Image
+    </button>
+  </div>
 <div class="table-responsive tutor-schedule-table-wrap">
   <table class="table table-bordered align-middle tutor-schedule-table mb-0">
     <thead>
@@ -41,8 +64,12 @@
     </tbody>
   </table>
 </div>
+</div>
 
 <style>
+  .tutor-schedule-copy-btn {
+    white-space: nowrap;
+  }
   .tutor-schedule-table {
     min-width: 980px;
     table-layout: fixed;
@@ -66,8 +93,8 @@
     border-color: #94a3b8;
   }
   .tutor-schedule-cell-filled {
-    --bs-table-bg: #ffffff;
-    background: #ffffff;
+    --bs-table-bg: #fdba74;
+    background: #fdba74;
   }
   .tutor-schedule-cell-available {
     --bs-table-bg: #86efac;
@@ -89,6 +116,15 @@
     line-height: 1.15;
     padding: 0.22rem 0.35rem;
   }
+  .tutor-schedule-copy-card.is-copying .tutor-schedule-item {
+    color: transparent !important;
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  .tutor-schedule-copy-card.is-copying .tutor-schedule-item * {
+    visibility: hidden;
+  }
   .tutor-schedule-item span {
     display: block;
     overflow: hidden;
@@ -105,3 +141,176 @@
     }
   }
 </style>
+
+<script>
+  (() => {
+    if (window.__tutorScheduleCopyInitialized) return;
+    window.__tutorScheduleCopyInitialized = true;
+
+    const COLORS = {
+      page: '#ffffff',
+      border: '#94a3b8',
+      header: '#f8fafc',
+      text: '#0f172a',
+      muted: '#64748b',
+      filled: '#fdba74',
+      available: '#86efac',
+      unavailable: '#fca5a5',
+      latest: '#22c55e',
+    };
+
+    function drawText(ctx, text, x, y, maxWidth, options = {}) {
+      const value = String(text || '');
+      ctx.fillStyle = options.color || COLORS.text;
+      ctx.font = options.font || '14px Arial, sans-serif';
+      ctx.textAlign = options.align || 'left';
+      ctx.textBaseline = options.baseline || 'middle';
+      if (!maxWidth) {
+        ctx.fillText(value, x, y);
+        return;
+      }
+      let output = value;
+      while (ctx.measureText(output).width > maxWidth && output.length > 1) {
+        output = output.slice(0, -2);
+      }
+      if (output !== value) output = `${output}...`;
+      ctx.fillText(output, x, y);
+    }
+
+    function cellFill(cell) {
+      if (cell.classList.contains('tutor-schedule-cell-filled')) return COLORS.filled;
+      if (cell.classList.contains('tutor-schedule-cell-available')) return COLORS.available;
+      if (cell.classList.contains('tutor-schedule-cell-unavailable')) return COLORS.unavailable;
+      return COLORS.page;
+    }
+
+    function drawRect(ctx, x, y, width, height, fill, stroke = COLORS.border) {
+      ctx.fillStyle = fill;
+      ctx.fillRect(x, y, width, height);
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, width, height);
+    }
+
+    function drawLegend(ctx, x, y) {
+      const items = [
+        ['Terisi siswa', COLORS.filled],
+        ['Tutor bisa, belum ada siswa', COLORS.available],
+        ['Tutor tidak bisa', COLORS.unavailable],
+      ];
+      let cursor = x;
+      items.forEach(([label, color]) => {
+        drawRect(ctx, cursor, y - 9, 18, 18, color, COLORS.muted);
+        drawText(ctx, label, cursor + 26, y, 190, {
+          color: COLORS.muted,
+          font: '13px Arial, sans-serif',
+        });
+        cursor += label.length > 14 ? 235 : 130;
+      });
+    }
+
+    function buildScheduleCanvas(card) {
+      const table = card.querySelector('.tutor-schedule-table');
+      if (!table) throw new Error('Tabel jadwal tidak ditemukan.');
+
+      const scale = 2;
+      const padding = 28;
+      const titleHeight = 84;
+      const colWidths = [78, 128, 128, 128, 128, 128, 128, 128];
+      const rowHeights = Array.from(table.rows).map((row, index) => (index === 0 ? 42 : 46));
+      const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
+      const tableHeight = rowHeights.reduce((sum, height) => sum + height, 0);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil((tableWidth + padding * 2) * scale);
+      canvas.height = Math.ceil((tableHeight + titleHeight + padding * 2) * scale);
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(scale, scale);
+      ctx.fillStyle = COLORS.page;
+      ctx.fillRect(0, 0, canvas.width / scale, canvas.height / scale);
+
+      const title = card.dataset.scheduleTitle || 'Jadwal Tutor';
+      drawText(ctx, 'Jadwal Tutor', padding, padding + 8, 300, {
+        font: '700 22px Arial, sans-serif',
+      });
+      drawText(ctx, title, padding, padding + 36, 420, {
+        color: COLORS.muted,
+        font: '14px Arial, sans-serif',
+      });
+      drawLegend(ctx, padding, padding + 66);
+
+      let y = padding + titleHeight;
+      Array.from(table.rows).forEach((row, rowIndex) => {
+        let x = padding;
+        const rowHeight = rowHeights[rowIndex];
+        Array.from(row.cells).forEach((cell, cellIndex) => {
+          const width = colWidths[cellIndex] || 128;
+          const isHeader = rowIndex === 0 || cell.tagName === 'TH';
+          drawRect(ctx, x, y, width, rowHeight, isHeader ? COLORS.header : cellFill(cell));
+          if (isHeader) {
+            drawText(ctx, cell.textContent.trim(), x + width / 2, y + rowHeight / 2, width - 10, {
+              align: 'center',
+              font: '700 13px Arial, sans-serif',
+              color: '#334155',
+            });
+          }
+          if (!isHeader && cell.classList.contains('tutor-schedule-cell-latest')) {
+            ctx.strokeStyle = COLORS.latest;
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x + 2, y + 2, width - 4, rowHeight - 4);
+          }
+          x += width;
+        });
+        y += rowHeight;
+      });
+
+      return canvas;
+    }
+
+    function canvasToBlob(canvas) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Gagal membuat gambar jadwal.'));
+        }, 'image/png');
+      });
+    }
+
+    async function copyScheduleCard(button) {
+      const card = button.closest('.tutor-schedule-copy-card');
+      if (!card) return;
+      const originalHtml = button.innerHTML;
+      const copyingLabel = button.dataset.copyingLabel || 'Menyalin...';
+      const copiedLabel = button.dataset.copiedLabel || 'Tersalin';
+      button.disabled = true;
+      button.innerHTML = `<i class="bi bi-hourglass-split me-1"></i>${copyingLabel}`;
+      card.classList.add('is-copying');
+      try {
+        if (!navigator.clipboard || !window.ClipboardItem) {
+          throw new Error('Clipboard image tidak didukung browser ini.');
+        }
+        const canvas = buildScheduleCanvas(card);
+        const blob = await canvasToBlob(canvas);
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob }),
+        ]);
+        button.innerHTML = `<i class="bi bi-check2 me-1"></i>${copiedLabel}`;
+      } catch (error) {
+        button.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Gagal copy';
+        console.error(error);
+      } finally {
+        card.classList.remove('is-copying');
+        window.setTimeout(() => {
+          button.disabled = false;
+          button.innerHTML = originalHtml;
+        }, 1800);
+      }
+    }
+
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('.tutor-schedule-copy-btn');
+      if (!button) return;
+      void copyScheduleCard(button);
+    });
+  })();
+</script>

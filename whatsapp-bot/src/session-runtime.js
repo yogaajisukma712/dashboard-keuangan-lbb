@@ -10,6 +10,9 @@ function createInitialState() {
     qrDataUrl: null,
     lastError: null,
     lastSyncAt: null,
+    lastReadyAt: null,
+    lastRestartAt: null,
+    reconnectAttempts: 0,
     me: null,
     syncInProgress: false,
     syncProgress: createInitialSyncProgress(),
@@ -47,6 +50,14 @@ function isRecoverableWhatsAppRuntimeError(errorLike) {
   return [
     'Execution context was destroyed',
     'Attempted to use detached Frame',
+    'Protocol error',
+    'Runtime.callFunctionOn timed out',
+    'Target closed',
+    'Session closed',
+    'Navigation timeout',
+    'ERR_NAME_NOT_RESOLVED',
+    'ERR_INTERNET_DISCONNECTED',
+    'net::ERR',
   ].some((needle) => message.includes(needle));
 }
 

@@ -52,6 +52,16 @@ test('isRecoverableWhatsAppRuntimeError detects transient frame/navigation failu
     true,
   );
   assert.equal(
+    isRecoverableWhatsAppRuntimeError(new Error('Runtime.callFunctionOn timed out')),
+    true,
+  );
+  assert.equal(
+    isRecoverableWhatsAppRuntimeError(
+      new Error('Protocol error (Runtime.callFunctionOn): Target closed'),
+    ),
+    true,
+  );
+  assert.equal(
     isRecoverableWhatsAppRuntimeError(new Error('Authentication failure')),
     false,
   );

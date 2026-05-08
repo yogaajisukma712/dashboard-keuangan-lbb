@@ -82,13 +82,27 @@ services:
       WHATSAPP_BOT_TOKEN: ${WHATSAPP_BOT_TOKEN:-change-this-whatsapp-bot-token}
       WHATSAPP_EXCLUDED_GROUP_NAMES: ${WHATSAPP_EXCLUDED_GROUP_NAMES:-VPS / RDP MURAH III}
       WWEBJS_DATA_PATH: /app/.wwebjs_auth
+      WWEBJS_BACKUP_PATH: /app/.wwebjs_backups
       WWEBJS_CLIENT_ID: ${WWEBJS_CLIENT_ID:-billing-supersmart}
       WHATSAPP_SYNC_MESSAGE_LIMIT: ${WHATSAPP_SYNC_MESSAGE_LIMIT:-500}
+      WHATSAPP_AUTO_START: ${WHATSAPP_AUTO_START:-true}
+      WHATSAPP_WATCHDOG_INTERVAL_MS: ${WHATSAPP_WATCHDOG_INTERVAL_MS:-60000}
+      WHATSAPP_RECONNECT_DELAY_MS: ${WHATSAPP_RECONNECT_DELAY_MS:-15000}
+      WHATSAPP_READY_TIMEOUT_MS: ${WHATSAPP_READY_TIMEOUT_MS:-120000}
+      PUPPETEER_PROTOCOL_TIMEOUT_MS: ${PUPPETEER_PROTOCOL_TIMEOUT_MS:-180000}
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+    shm_size: "1gb"
     ports:
       - "6002:3000"
     volumes:
       - whatsapp_bot_auth:/app/.wwebjs_auth
+      - whatsapp_bot_backups:/app/.wwebjs_backups
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
     networks:
       - billing_net
 
@@ -99,3 +113,4 @@ networks:
 volumes:
   billing_postgres_data:
   whatsapp_bot_auth:
+  whatsapp_bot_backups:

@@ -13,6 +13,7 @@ const {
   logout,
   recoverFromRuntimeError,
   restoreSession,
+  startRuntimeSupervisor,
   syncGroupsAndMessages,
 } = require('./whatsapp-client');
 const { backupPathFor } = require('./session-backup');
@@ -307,4 +308,5 @@ app.post('/sync/messages', async (req, res) => {
 
 app.listen(config.port, () => {
   console.log(`whatsapp-bot listening on ${config.port}`);
+  startRuntimeSupervisor();
 });

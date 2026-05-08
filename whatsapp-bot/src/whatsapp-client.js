@@ -29,6 +29,10 @@ let client = null;
 let initializing = null;
 let readyPromise = null;
 let resolveReady = null;
+let rejectReady = null;
+let reconnectTimer = null;
+let watchdogTimer = null;
+let initializationStartedAt = null;
 
 const state = {
   ...createInitialState(),
@@ -134,8 +138,9 @@ async function fetchContactProfile(bot, jid, cache) {
 }
 
 function createReadyPromise() {
-  readyPromise = new Promise((resolve) => {
+  readyPromise = new Promise((resolve, reject) => {
     resolveReady = resolve;
+    rejectReady = reject;
   });
 }
 
@@ -160,6 +165,8 @@ function clearClientReferences() {
   initializing = null;
   readyPromise = null;
   resolveReady = null;
+  rejectReady = null;
+  initializationStartedAt = null;
 }
 
 async function destroyClientInstance() {
@@ -186,6 +193,7 @@ async function handleRuntimeFailure(error, overrides = {}) {
   resetRuntime({
     status: recoverable ? 'idle' : 'error',
     lastError: message,
+    reconnectAttempts: state.reconnectAttempts + 1,
     ...overrides,
   });
   logBotEvent('runtime_failure', {
@@ -193,7 +201,76 @@ async function handleRuntimeFailure(error, overrides = {}) {
     status: state.status,
     message,
   });
+  if (recoverable) {
+    scheduleReconnect('runtime_failure');
+  }
   return recoverable;
+}
+
+function scheduleReconnect(source = 'watchdog') {
+  if (!config.autoStart) return;
+  if (reconnectTimer || client || initializing) return;
+  if (state.status === 'awaiting_qr' || state.status === 'auth_failure') return;
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    logBotEvent('reconnect_attempt', {
+      source,
+      attempt: state.reconnectAttempts + 1,
+    });
+    void startClient().catch((error) => {
+      void handleRuntimeFailure(error);
+    });
+  }, config.reconnectDelayMs);
+}
+
+function rejectReadyPromise(error) {
+  if (rejectReady) {
+    rejectReady(error);
+  }
+}
+
+async function checkReadyClient() {
+  if (!client || !state.ready) return;
+  try {
+    await client.getState();
+  } catch (error) {
+    await handleRuntimeFailure(error, { status: 'idle' });
+  }
+}
+
+function startWatchdog() {
+  if (watchdogTimer || !config.autoStart) return;
+  watchdogTimer = setInterval(() => {
+    if (state.status === 'awaiting_qr' || state.status === 'auth_failure') return;
+
+    if (initializing && initializationStartedAt) {
+      const elapsedMs = Date.now() - initializationStartedAt;
+      if (elapsedMs > config.readyTimeoutMs) {
+        const error = new Error(`WhatsApp client was not ready after ${config.readyTimeoutMs}ms`);
+        rejectReadyPromise(error);
+        void handleRuntimeFailure(error, { status: 'idle' });
+      }
+      return;
+    }
+
+    if (!client || ['idle', 'error', 'disconnected'].includes(state.status)) {
+      scheduleReconnect('watchdog');
+      return;
+    }
+
+    void checkReadyClient();
+  }, config.watchdogIntervalMs);
+  if (typeof watchdogTimer.unref === 'function') {
+    watchdogTimer.unref();
+  }
+}
+
+function startRuntimeSupervisor() {
+  startWatchdog();
+  if (config.autoStart) {
+    scheduleReconnect('startup');
+  }
 }
 
 async function startClient() {
@@ -208,6 +285,7 @@ async function startClient() {
   initializing = new Promise((resolve) => {
     createReadyPromise();
     clearChromiumSingletonLocks(config.authDataPath);
+    initializationStartedAt = Date.now();
     client = new Client({
       authStrategy: new LocalAuth({
         clientId: config.clientId,
@@ -216,7 +294,8 @@ async function startClient() {
       puppeteer: {
         executablePath: config.chromiumPath,
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        protocolTimeout: config.protocolTimeoutMs,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       },
     });
 
@@ -230,14 +309,18 @@ async function startClient() {
     client.on('authenticated', () => {
       state.authenticated = true;
       state.lastError = null;
+      state.reconnectAttempts = 0;
       logBotEvent('authenticated');
     });
 
     client.on('ready', async () => {
       state.status = 'ready';
       state.ready = true;
+      state.lastReadyAt = new Date().toISOString();
+      state.reconnectAttempts = 0;
       state.qr = null;
       state.qrDataUrl = null;
+      initializationStartedAt = null;
       try {
         state.me = extractSelfIdentity(client);
       } catch (error) {
@@ -260,27 +343,33 @@ async function startClient() {
       });
     });
 
-    client.on('auth_failure', (message) => {
+    client.on('auth_failure', async (message) => {
       resetRuntime({
         status: 'auth_failure',
         lastError: String(message || 'Authentication failure'),
+        reconnectAttempts: state.reconnectAttempts,
       });
       clearChromiumSingletonLocks(config.authDataPath);
-      void destroyClientInstance();
+      rejectReadyPromise(new Error(state.lastError));
+      await destroyClientInstance();
       logBotEvent('auth_failure', { message: state.lastError });
     });
 
-    client.on('disconnected', (reason) => {
+    client.on('disconnected', async (reason) => {
       resetRuntime({
         status: 'disconnected',
         lastError: String(reason || 'Disconnected'),
+        reconnectAttempts: state.reconnectAttempts + 1,
       });
       clearChromiumSingletonLocks(config.authDataPath);
-      void destroyClientInstance();
+      rejectReadyPromise(new Error(state.lastError));
+      await destroyClientInstance();
       logBotEvent('disconnected', { reason: state.lastError });
+      scheduleReconnect('disconnected');
     });
 
     client.initialize().catch(async (error) => {
+      rejectReadyPromise(error);
       await handleRuntimeFailure(error);
     });
 
@@ -293,7 +382,14 @@ async function startClient() {
 async function ensureReady() {
   await startClient();
   if (state.ready) return client;
-  return readyPromise;
+  return Promise.race([
+    readyPromise,
+    new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`WhatsApp client was not ready after ${config.readyTimeoutMs}ms`));
+      }, config.readyTimeoutMs);
+    }),
+  ]);
 }
 
 function getSessionState() {
@@ -608,6 +704,7 @@ module.exports = {
   listGroups,
   sendDirectMessage,
   syncGroupsAndMessages,
+  startRuntimeSupervisor,
   backupSession,
   restoreSession,
   deleteBackup,
@@ -618,5 +715,7 @@ module.exports = {
     handleRuntimeFailure,
     isRecoverableWhatsAppRuntimeError,
     resetRuntime,
+    scheduleReconnect,
+    startWatchdog,
   },
 };

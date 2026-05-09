@@ -1213,6 +1213,7 @@ def invoice_list():
 
     # Hitung jumlah line per invoice
     for inv in invoices:
+        inv["public_id"] = _encode_invoice_public_id(inv["id"])
         cnt = db.session.execute(
             db.text(
                 "SELECT COUNT(*) FROM student_invoice_lines WHERE invoice_id = :id"

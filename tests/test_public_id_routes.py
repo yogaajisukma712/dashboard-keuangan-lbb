@@ -81,3 +81,15 @@ def test_templates_use_public_refs_in_links_and_browser_fetches():
     assert "const tutorRef = tutorId ? tutorPublicIds[tutorId] : null;" in payout_form
     assert "/payroll/api/tutor/${tutorRef}/balance" in payout_form
     assert "/payroll/api/tutor/${tutorId}/balance" not in payout_form
+
+
+def test_quota_invoice_list_attaches_public_invoice_refs():
+    quota_routes = _read("app/routes/quota_invoice.py")
+    invoice_list_section = quota_routes[
+        quota_routes.index("def invoice_list():") : quota_routes.index(
+            '@quota_invoice_bp.route("/invoice/<string:invoice_ref>/print"'
+        )
+    ]
+
+    assert 'inv["public_id"] = _encode_invoice_public_id(inv["id"])' in invoice_list_section
+    assert "invoice_ref=inv.public_id" in _read("app/templates/quota/invoice_list.html")

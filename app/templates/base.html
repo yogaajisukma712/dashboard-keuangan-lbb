@@ -46,6 +46,7 @@
                 --brand-dark: #1a2c75;
                 --brand-accent: #f4be18;
                 --sidebar-w: 260px;
+                --sidebar-collapsed-w: 72px;
                 --topbar-h: 60px;
                 --sidebar-bg: #0f1d3e;
                 --body-bg: #f0f4fb;
@@ -162,7 +163,9 @@
                 background: var(--sidebar-bg);
                 overflow-y: auto;
                 z-index: 1000;
-                transition: transform 0.25s ease;
+                transition:
+                    transform 0.25s ease,
+                    width 0.25s ease;
             }
 
             /* ── Brand area at the top of the sidebar ── */
@@ -222,6 +225,8 @@
                 font-weight: 500;
                 border-left: 3px solid transparent;
                 text-decoration: none;
+                overflow: hidden;
+                white-space: nowrap;
                 transition:
                     color 0.15s,
                     background 0.15s,
@@ -274,10 +279,52 @@
                 transition: margin 0.25s ease;
             }
 
+            @media (min-width: 992px) {
+                body.sidebar-collapsed #sidebar {
+                    width: var(--sidebar-collapsed-w);
+                }
+                body.sidebar-collapsed #main-content {
+                    margin-left: var(--sidebar-collapsed-w);
+                }
+                body.sidebar-collapsed .sidebar-brand-area {
+                    justify-content: center;
+                    padding-left: 0.75rem;
+                    padding-right: 0.75rem;
+                }
+                body.sidebar-collapsed .sidebar-brand-text,
+                body.sidebar-collapsed .sidebar-section,
+                body.sidebar-collapsed .side-badge {
+                    display: none;
+                }
+                body.sidebar-collapsed .sidebar-link {
+                    justify-content: center;
+                    gap: 0;
+                    font-size: 0;
+                    padding-left: 0;
+                    padding-right: 0;
+                    min-height: 42px;
+                    border-left-width: 0;
+                    border-right: 3px solid transparent;
+                }
+                body.sidebar-collapsed .sidebar-link:hover {
+                    border-right-color: rgba(244, 190, 24, 0.35);
+                }
+                body.sidebar-collapsed .sidebar-link.active {
+                    border-right-color: #f4be18;
+                }
+                body.sidebar-collapsed .sidebar-link i {
+                    width: var(--sidebar-collapsed-w);
+                    font-size: 1rem;
+                }
+            }
+
             /* ══════════════════════════════════════════
            RESPONSIVE  (≤ 991 px — tablet / mobile)
         ══════════════════════════════════════════ */
             @media (max-width: 991.98px) {
+                body.sidebar-collapsed #sidebar {
+                    width: var(--sidebar-w);
+                }
                 #sidebar {
                     transform: translateX(-100%);
                 }
@@ -390,16 +437,19 @@
 ═══════════════════════════════════════════════════════ -->
         <nav id="topbar" class="navbar sticky-top">
             <div class="container-fluid px-3 px-lg-4">
-                <!-- ── Left: hamburger (mobile only) + brand ── -->
+                <!-- ── Left: sidebar toggle + brand ── -->
                 <div class="d-flex align-items-center gap-2">
+                    {% if current_user.is_authenticated %}
                     <button
                         id="sidebarToggle"
-                        class="d-lg-none"
                         type="button"
                         aria-label="Toggle sidebar"
+                        aria-expanded="true"
+                        title="Minimize sidebar"
                     >
                         <i class="bi bi-list fs-5"></i>
                     </button>
+                    {% endif %}
 
                     <a
                         class="topbar-brand"
@@ -493,7 +543,7 @@
                         class="brand-mark"
                     />
                 </div>
-                <div>
+                <div class="sidebar-brand-text">
                     <span class="sidebar-app-name">LBB Super Smart</span>
                     <span class="sidebar-tagline">Being Smart for Future</span>
                 </div>
@@ -734,15 +784,94 @@
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
         <script>
-            /* ── Sidebar toggle (mobile) ── */
+            /* ── Sidebar toggle ── */
             (function () {
                 var toggle = document.getElementById("sidebarToggle");
                 var sidebar = document.getElementById("sidebar");
                 if (!toggle || !sidebar) return;
+                var storageKey = "lbb:sidebar-collapsed";
+                var icon = toggle.querySelector("i");
+
+                sidebar.querySelectorAll(".sidebar-link").forEach(function (link) {
+                    if (!link.getAttribute("title")) {
+                        link.setAttribute(
+                            "title",
+                            link.textContent.replace(/\s+/g, " ").trim(),
+                        );
+                    }
+                });
+
+                function isDesktop() {
+                    return window.innerWidth >= 992;
+                }
+
+                function setToggleState(isCollapsed) {
+                    toggle.setAttribute(
+                        "aria-expanded",
+                        isCollapsed ? "false" : "true",
+                    );
+                    toggle.setAttribute(
+                        "title",
+                        isCollapsed ? "Expand sidebar" : "Minimize sidebar",
+                    );
+                    if (icon) {
+                        icon.classList.toggle("bi-layout-sidebar-inset", isCollapsed);
+                        icon.classList.toggle("bi-list", !isCollapsed);
+                    }
+                }
+
+                function setMobileToggleState(isShown) {
+                    toggle.setAttribute("aria-expanded", isShown ? "true" : "false");
+                    toggle.setAttribute(
+                        "title",
+                        isShown ? "Tutup sidebar" : "Buka sidebar",
+                    );
+                    if (icon) {
+                        icon.classList.remove("bi-layout-sidebar-inset");
+                        icon.classList.add("bi-list");
+                    }
+                }
+
+                function applyStoredState() {
+                    var shouldCollapse =
+                        isDesktop() &&
+                        window.localStorage.getItem(storageKey) === "1";
+                    document.body.classList.toggle(
+                        "sidebar-collapsed",
+                        shouldCollapse,
+                    );
+                    if (!isDesktop()) {
+                        sidebar.classList.remove("show");
+                        setMobileToggleState(false);
+                        return;
+                    }
+                    setToggleState(shouldCollapse);
+                }
+
+                applyStoredState();
 
                 toggle.addEventListener("click", function () {
-                    sidebar.classList.toggle("show");
+                    if (isDesktop()) {
+                        var isCollapsed =
+                            !document.body.classList.contains(
+                                "sidebar-collapsed",
+                            );
+                        document.body.classList.toggle(
+                            "sidebar-collapsed",
+                            isCollapsed,
+                        );
+                        window.localStorage.setItem(
+                            storageKey,
+                            isCollapsed ? "1" : "0",
+                        );
+                        setToggleState(isCollapsed);
+                    } else {
+                        var isShown = sidebar.classList.toggle("show");
+                        setMobileToggleState(isShown);
+                    }
                 });
+
+                window.addEventListener("resize", applyStoredState);
 
                 /* Close sidebar when clicking outside on mobile */
                 document.addEventListener("click", function (e) {
@@ -752,6 +881,7 @@
                         !toggle.contains(e.target)
                     ) {
                         sidebar.classList.remove("show");
+                        setMobileToggleState(false);
                     }
                 });
             })();

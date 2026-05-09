@@ -1,0 +1,211 @@
+{% extends "tutor_portal/base.html" %}
+
+{% block title %}{{ tutor.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <div class="flex-grow-1">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-person-badge-fill text-primary me-2"></i>Detail Tutor</h4>
+    <p class="text-muted small mb-0">Data berasal dari database utama. Presensi dan slip gaji ditampilkan mulai {{ min_date.strftime('%d %b %Y') }}.</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body text-center py-4">
+        {% if tutor.profile_photo_path %}
+        <img src="{{ url_for('tutor_portal.uploaded_file', filename=tutor.profile_photo_path) }}" class="rounded-circle object-fit-cover mx-auto mb-3" style="width:72px;height:72px" alt="Foto profil">
+        {% else %}
+        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width:72px;height:72px;font-size:2rem;">
+          <i class="bi bi-person-badge-fill"></i>
+        </div>
+        {% endif %}
+        <h5 class="fw-bold mb-1">{{ tutor.name }}</h5>
+        <span class="badge bg-light text-dark border font-monospace mb-2">{{ tutor.tutor_code }}</span>
+        <br>
+        <span class="badge bg-success-subtle text-success-emphasis px-3 py-2">
+          <i class="bi bi-check-circle me-1"></i>{{ tutor.status|title if tutor.status else 'Aktif' }}
+        </span>
+      </div>
+      <div class="card-footer bg-white border-top py-3">
+        <div class="row text-center g-2">
+          <div class="col-6">
+            <div class="fw-bold text-primary">{{ enrollments | length }}</div>
+            <div class="text-muted" style="font-size:.72rem">Enrollment</div>
+          </div>
+          <div class="col-6">
+            <div class="fw-bold text-success">Rp {{ "{:,.0f}".format(validated_fee_total | float) }}</div>
+            <div class="text-muted" style="font-size:.72rem">Fee Valid</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-telephone text-primary me-2"></i>Kontak</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 text-muted fw-normal">No. HP</dt><dd class="col-7">{{ tutor.phone or '—' }}</dd>
+          <dt class="col-5 text-muted fw-normal">Email</dt><dd class="col-7 text-break">{{ tutor.email or '—' }}</dd>
+          <dt class="col-5 text-muted fw-normal">Alamat</dt><dd class="col-7">{{ tutor.address or '—' }}</dd>
+          <dt class="col-5 text-muted fw-normal">CV</dt>
+          <dd class="col-7">{% if tutor.cv_file_path %}<span class="badge bg-success-subtle text-success-emphasis">Tersimpan</span>{% else %}<span class="text-muted">—</span>{% endif %}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-pencil-square text-primary me-2"></i>Ajukan Perbaikan Data</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('tutor_portal.request_profile_update') }}" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-2"><input class="form-control form-control-sm" name="phone" placeholder="No. HP" value="{{ tutor.phone or '' }}"></div>
+          <div class="mb-2"><textarea class="form-control form-control-sm" name="address" rows="2" placeholder="Alamat">{{ tutor.address or '' }}</textarea></div>
+          <div class="mb-2"><input class="form-control form-control-sm" name="bank_name" placeholder="Bank" value="{{ tutor.bank_name or '' }}"></div>
+          <div class="mb-2"><input class="form-control form-control-sm" name="bank_account_number" placeholder="Nomor rekening" value="{{ tutor.bank_account_number or '' }}"></div>
+          <div class="mb-2"><input class="form-control form-control-sm" name="account_holder_name" placeholder="Nama pemilik rekening" value="{{ tutor.account_holder_name or '' }}"></div>
+          <label class="form-label small fw-semibold">Foto profil</label>
+          <input class="form-control form-control-sm mb-2" type="file" name="profile_photo" accept=".png,.jpg,.jpeg,.webp">
+          <label class="form-label small fw-semibold">CV</label>
+          <input class="form-control form-control-sm mb-2" type="file" name="cv_file" accept=".pdf,.doc,.docx">
+          <textarea class="form-control form-control-sm mb-3" name="notes" rows="2" placeholder="Catatan untuk admin"></textarea>
+          <button class="btn btn-primary btn-sm w-100" type="submit">Ajukan ke Admin</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-week text-primary me-2"></i>Jadwal Mengajar</h6>
+      </div>
+      <div class="card-body p-0">
+        {% if schedules %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light"><tr><th>Siswa</th><th>Mapel</th><th>Jadwal</th><th class="text-end">Ajukan Perubahan</th></tr></thead>
+            <tbody>
+              {% for schedule in schedules %}
+              <tr>
+                <td>{{ schedule.enrollment.student.name if schedule.enrollment and schedule.enrollment.student else '—' }}</td>
+                <td>{{ schedule.enrollment.subject.name if schedule.enrollment and schedule.enrollment.subject else '—' }}</td>
+                <td>{{ schedule.day_name }} {{ schedule.start_time.strftime('%H:%M') if schedule.start_time else '' }}{% if schedule.end_time %}-{{ schedule.end_time.strftime('%H:%M') }}{% endif %}</td>
+                <td>
+                  <form class="d-flex flex-wrap justify-content-end gap-2" method="post" action="{{ url_for('tutor_portal.request_schedule_change') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
+                    <select class="form-select form-select-sm" name="requested_day" style="width:120px">
+                      {% for day in ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"] %}
+                      <option value="{{ day }}" {% if day == schedule.day_name %}selected{% endif %}>{{ day }}</option>
+                      {% endfor %}
+                    </select>
+                    <input class="form-control form-control-sm" type="time" name="requested_start_time" value="{{ schedule.start_time.strftime('%H:%M') if schedule.start_time else '' }}" style="width:110px">
+                    <input class="form-control form-control-sm" type="time" name="requested_end_time" value="{{ schedule.end_time.strftime('%H:%M') if schedule.end_time else '' }}" style="width:110px">
+                    <input class="form-control form-control-sm" name="notes" placeholder="Catatan" style="width:160px">
+                    <button class="btn btn-outline-primary btn-sm" type="submit">Ajukan</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-muted small">Belum ada jadwal aktif.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-palette text-primary me-2"></i>Ajukan Jadwal Merah/Hijau</h6>
+      </div>
+      <div class="card-body">
+        <form class="row g-2 align-items-end" method="post" action="{{ url_for('tutor_portal.request_availability') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="col-md-2"><label class="form-label small">Status</label><select class="form-select form-select-sm" name="color"><option value="green">Hijau</option><option value="red">Merah</option></select></div>
+          <div class="col-md-3"><label class="form-label small">Tanggal</label><input class="form-control form-control-sm" type="date" name="date" required></div>
+          <div class="col-md-2"><label class="form-label small">Mulai</label><input class="form-control form-control-sm" type="time" name="start_time"></div>
+          <div class="col-md-2"><label class="form-label small">Selesai</label><input class="form-control form-control-sm" type="time" name="end_time"></div>
+          <div class="col-md-3"><label class="form-label small">Catatan</label><input class="form-control form-control-sm" name="notes"></div>
+          <div class="col-12"><button class="btn btn-outline-primary btn-sm" type="submit">Kirim Pengajuan</button></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 d-flex justify-content-between">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-check text-primary me-2"></i>Presensi Tutor</h6>
+        <span class="badge bg-success-subtle text-success-emphasis">Fee valid Rp {{ "{:,.0f}".format(validated_fee_total | float) }}</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light"><tr><th>Tanggal</th><th>Siswa</th><th>Mapel</th><th>Status</th><th>Validasi Admin</th><th class="text-end">Fee</th></tr></thead>
+            <tbody>
+              {% for item in attendance_sessions %}
+              {% set review_status = validation_map.get(item.id, 'pending') %}
+              <tr>
+                <td>{{ item.session_date.strftime('%d %b %Y') }}</td>
+                <td>{{ item.student.name if item.student else '—' }}</td>
+                <td>{{ item.subject.name if item.subject else '—' }}</td>
+                <td>{{ item.status|title }}</td>
+                <td>
+                  {% if review_status == 'valid' %}<span class="badge bg-success-subtle text-success-emphasis">Tervalidasi</span>
+                  {% elif review_status == 'invalid' %}<span class="badge bg-warning-subtle text-warning-emphasis">Perlu Koreksi</span>
+                  {% else %}<span class="badge bg-secondary-subtle text-secondary-emphasis">Belum tervalidasi</span>{% endif %}
+                </td>
+                <td class="text-end">Rp {{ "{:,.0f}".format(item.tutor_fee_amount | float) }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="6" class="text-center text-muted py-4">Belum ada presensi sejak {{ min_date.strftime('%d %b %Y') }}.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white py-3"><h6 class="mb-0 fw-semibold"><i class="bi bi-wallet2 text-success me-2"></i>Slip Gaji</h6></div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0 small">
+              <tbody>
+              {% for payout in payouts %}
+              <tr><td>{{ payout.payout_date.strftime('%d %b %Y') if payout.payout_date else '—' }}</td><td class="text-end">Rp {{ "{:,.0f}".format(payout.amount | float) }}</td><td>{{ payout.status|title }}</td></tr>
+              {% else %}
+              <tr><td class="text-muted p-3">Belum ada slip gaji sejak {{ min_date.strftime('%d %b %Y') }}.</td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white py-3"><h6 class="mb-0 fw-semibold"><i class="bi bi-inbox text-primary me-2"></i>Status Pengajuan</h6></div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0 small">
+              <tbody>
+              {% for item in requests %}
+              <tr><td>{{ request_type_labels.get(item.request_type, item.request_type) }}</td><td><span class="badge bg-light text-dark border">{{ item.status|title }}</span></td><td>{{ item.requested_at.strftime('%d %b') }}</td></tr>
+              {% else %}
+              <tr><td class="text-muted p-3">Belum ada pengajuan.</td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

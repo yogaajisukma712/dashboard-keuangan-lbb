@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Approval Dashboard Tutor{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <div class="flex-grow-1">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-person-check text-primary me-2"></i>Approval Dashboard Tutor</h4>
+    <p class="text-muted small mb-0">Setujui atau tolak pengajuan perubahan jadwal, jadwal merah/hijau, dan data diri tutor.</p>
+  </div>
+  <div class="btn-group btn-group-sm">
+    <a class="btn btn-outline-secondary {% if status == 'pending' %}active{% endif %}" href="{{ url_for('tutor_portal.admin_requests', status='pending') }}">Pending</a>
+    <a class="btn btn-outline-secondary {% if status == 'approved' %}active{% endif %}" href="{{ url_for('tutor_portal.admin_requests', status='approved') }}">Approved</a>
+    <a class="btn btn-outline-secondary {% if status == 'rejected' %}active{% endif %}" href="{{ url_for('tutor_portal.admin_requests', status='rejected') }}">Rejected</a>
+    <a class="btn btn-outline-secondary {% if status == 'all' %}active{% endif %}" href="{{ url_for('tutor_portal.admin_requests', status='all') }}">Semua</a>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Tanggal</th>
+            <th>Tutor</th>
+            <th>Jenis</th>
+            <th>Detail</th>
+            <th>Status</th>
+            <th class="text-end pe-4">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in requests %}
+          <tr>
+            <td class="ps-4">{{ item.requested_at.strftime('%d %b %Y %H:%M') }}</td>
+            <td>
+              <div class="fw-semibold">{{ item.tutor.name if item.tutor else '—' }}</div>
+              <div class="text-muted font-monospace">{{ item.tutor.tutor_code if item.tutor else '' }}</div>
+            </td>
+            <td>{{ request_type_labels.get(item.request_type, item.request_type) }}</td>
+            <td>
+              <pre class="mb-1 small bg-light border rounded p-2" style="white-space:pre-wrap">{{ item.payload_json }}</pre>
+              {% if item.notes %}<div class="text-muted">{{ item.notes }}</div>{% endif %}
+            </td>
+            <td><span class="badge bg-light text-dark border">{{ item.status|title }}</span></td>
+            <td class="text-end pe-4">
+              {% if item.status == 'pending' %}
+              <form method="post" class="d-inline" action="{{ url_for('tutor_portal.review_request', request_ref=item.public_id, action='approve') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-success btn-sm" type="submit">Setujui</button>
+              </form>
+              <form method="post" class="d-inline" action="{{ url_for('tutor_portal.review_request', request_ref=item.public_id, action='reject') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline-danger btn-sm" type="submit">Tolak</button>
+              </form>
+              {% else %}
+              <span class="text-muted">Diproses {{ item.reviewed_at.strftime('%d %b %Y') if item.reviewed_at else '—' }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-5">Belum ada pengajuan.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -67,6 +67,8 @@ EXTRA_DDL = [
     # Tutors
     "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS status    VARCHAR(20)  DEFAULT 'active'",
     "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS is_active BOOLEAN      DEFAULT TRUE",
+    "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS profile_photo_path VARCHAR(500)",
+    "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS cv_file_path VARCHAR(500)",
     # Enrollments
     "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS is_active                BOOLEAN  DEFAULT TRUE",
     "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS meeting_quota_per_month  INTEGER  DEFAULT 4",
@@ -88,11 +90,15 @@ EXTRA_DDL = [
     "ALTER TABLE whatsapp_evaluations ADD COLUMN IF NOT EXISTS manual_reviewed_by INTEGER REFERENCES users(id)",
     "ALTER TABLE whatsapp_evaluations ADD COLUMN IF NOT EXISTS manual_review_notes TEXT",
     "CREATE INDEX IF NOT EXISTS ix_whatsapp_evaluations_manual_review_status ON whatsapp_evaluations(manual_review_status)",
-    "CREATE TABLE IF NOT EXISTS attendance_period_locks (\\n        id        SERIAL PRIMARY KEY,\\n        month     INTEGER NOT NULL,\\n        year      INTEGER NOT NULL,\\n        notes     TEXT,\\n        locked_by INTEGER REFERENCES users(id),\\n        locked_at TIMESTAMP DEFAULT NOW() NOT NULL,\\n        created_at TIMESTAMP DEFAULT NOW() NOT NULL,\\n        updated_at TIMESTAMP DEFAULT NOW() NOT NULL,\\n        CONSTRAINT uq_attendance_period_locks_month_year UNIQUE(month, year)\\n    )",
+    "CREATE TABLE IF NOT EXISTS attendance_period_locks (\n        id        SERIAL PRIMARY KEY,\n        month     INTEGER NOT NULL,\n        year      INTEGER NOT NULL,\n        notes     TEXT,\n        locked_by INTEGER REFERENCES users(id),\n        locked_at TIMESTAMP DEFAULT NOW() NOT NULL,\n        created_at TIMESTAMP DEFAULT NOW() NOT NULL,\n        updated_at TIMESTAMP DEFAULT NOW() NOT NULL,\n        CONSTRAINT uq_attendance_period_locks_month_year UNIQUE(month, year)\n    )",
     "CREATE INDEX IF NOT EXISTS ix_attendance_period_locks_month ON attendance_period_locks(month)",
     "CREATE INDEX IF NOT EXISTS ix_attendance_period_locks_year ON attendance_period_locks(year)",
     # Manual subject tutor visibility overrides
     "CREATE TABLE IF NOT EXISTS subject_tutor_assignments (\n        id         SERIAL PRIMARY KEY,\n        subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,\n        tutor_id   INTEGER NOT NULL REFERENCES tutors(id) ON DELETE CASCADE,\n        status     VARCHAR(20) NOT NULL DEFAULT 'included',\n        notes      TEXT,\n        created_at TIMESTAMP DEFAULT NOW(),\n        updated_at TIMESTAMP DEFAULT NOW(),\n        CONSTRAINT uq_subject_tutor_assignments_subject_tutor UNIQUE(subject_id, tutor_id)\n    )",
+    "CREATE TABLE IF NOT EXISTS tutor_portal_requests (\n        id            SERIAL PRIMARY KEY,\n        tutor_id      INTEGER NOT NULL REFERENCES tutors(id) ON DELETE CASCADE,\n        request_type  VARCHAR(40) NOT NULL,\n        status        VARCHAR(20) NOT NULL DEFAULT 'pending',\n        payload_json  JSONB DEFAULT '{}'::jsonb,\n        notes         TEXT,\n        admin_notes   TEXT,\n        requested_at  TIMESTAMP DEFAULT NOW() NOT NULL,\n        reviewed_at   TIMESTAMP,\n        reviewed_by   INTEGER REFERENCES users(id)\n    )",
+    "CREATE INDEX IF NOT EXISTS ix_tutor_portal_requests_tutor_id ON tutor_portal_requests(tutor_id)",
+    "CREATE INDEX IF NOT EXISTS ix_tutor_portal_requests_request_type ON tutor_portal_requests(request_type)",
+    "CREATE INDEX IF NOT EXISTS ix_tutor_portal_requests_status ON tutor_portal_requests(status)",
 ]
 with app.app_context():
     for stmt in EXTRA_DDL:

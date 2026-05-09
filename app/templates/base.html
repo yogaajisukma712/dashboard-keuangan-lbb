@@ -638,6 +638,12 @@
             >
                 <i class="bi bi-whatsapp"></i> WhatsApp Bot
             </a>
+            <a
+                href="{{ url_for('tutor_portal.admin_requests') }}"
+                class="sidebar-link {% if request.endpoint and request.endpoint.startswith('tutor_portal.admin') %}active{% endif %}"
+            >
+                <i class="bi bi-person-check-fill"></i> Approval Tutor
+            </a>
 
             <!-- ── Keuangan ── -->
             <div class="sidebar-section">Keuangan</div>

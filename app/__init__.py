@@ -80,6 +80,9 @@ def create_app(config_name=None):
     @app.route("/", methods=["GET"])
     def root():
         """Redirect the bare domain to the login flow."""
+        tutor_host = app.config.get("TUTOR_PORTAL_HOST", "")
+        if tutor_host and request.host.split(":")[0] == tutor_host:
+            return redirect(url_for("tutor_portal.login"))
         return redirect(url_for("auth.login"))
 
     # Create shell context for flask shell
@@ -102,6 +105,7 @@ def create_app(config_name=None):
             Tutor,
             TutorPayout,
             TutorPayoutLine,
+            TutorPortalRequest,
             User,
         )
 
@@ -123,6 +127,7 @@ def create_app(config_name=None):
             "Expense": Expense,
             "TutorPayout": TutorPayout,
             "TutorPayoutLine": TutorPayoutLine,
+            "TutorPortalRequest": TutorPortalRequest,
             "MonthlyClosing": MonthlyClosing,
         }
 
@@ -154,6 +159,7 @@ def register_blueprints(app):
         payments_bp,
         payroll_bp,
         reports_bp,
+        tutor_portal_bp,
         whatsapp_bot_bp,
         whatsapp_bp,
     )
@@ -170,6 +176,7 @@ def register_blueprints(app):
     app.register_blueprint(payroll_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(tutor_portal_bp)
     app.register_blueprint(closings_bp)
     app.register_blueprint(quota_invoice_bp)
     app.register_blueprint(whatsapp_bp)

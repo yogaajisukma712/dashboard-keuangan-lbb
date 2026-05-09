@@ -217,6 +217,8 @@ class Tutor(db.Model):
     bank_name = db.Column(db.String(50))  # BNI, BCA, Mandiri, dll
     bank_account_number = db.Column(db.String(50))
     account_holder_name = db.Column(db.String(120))
+    profile_photo_path = db.Column(db.String(500))
+    cv_file_path = db.Column(db.String(500))
     status = db.Column(db.String(20), default="active")  # active, inactive, suspended
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

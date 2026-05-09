@@ -60,6 +60,20 @@ class Config:
     WHATSAPP_EXCLUDED_GROUP_NAMES = os.environ.get(
         "WHATSAPP_EXCLUDED_GROUP_NAMES", "VPS / RDP MURAH III"
     )
+    TUTOR_PORTAL_BASE_URL = os.environ.get(
+        "TUTOR_PORTAL_BASE_URL", "http://localhost:6003"
+    )
+    TUTOR_PORTAL_HOST = os.environ.get("TUTOR_PORTAL_HOST", "tutor.supersmart.click")
+    TUTOR_PORTAL_MIN_DATE = os.environ.get("TUTOR_PORTAL_MIN_DATE", "2026-04-01")
+    MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
+    MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))
+    MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
+    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
+    MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "true").lower() == "true"
+    MAIL_USE_SSL = os.environ.get("MAIL_USE_SSL", "false").lower() == "true"
+    MAIL_DEFAULT_SENDER = os.environ.get(
+        "MAIL_DEFAULT_SENDER", "no-reply@supersmart.click"
+    )
 
 
 class DevelopmentConfig(Config):

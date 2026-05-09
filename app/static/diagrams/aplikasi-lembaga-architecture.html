@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arsitektur Aplikasi Lembaga</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-display: 'Instrument Serif', Georgia, serif;
+      --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+      --bg: #fbf8f3;
+      --surface: #fffdf9;
+      --surface2: #f4eee4;
+      --surface3: #ece2d3;
+      --border: rgba(55, 43, 30, 0.12);
+      --border-strong: rgba(55, 43, 30, 0.22);
+      --text: #2b2218;
+      --text-dim: #746655;
+      --accent: #9f3d1c;
+      --accent-dim: rgba(159, 61, 28, 0.1);
+      --sage: #587a34;
+      --sage-dim: rgba(88, 122, 52, 0.11);
+      --teal: #0f6f66;
+      --teal-dim: rgba(15, 111, 102, 0.1);
+      --gold: #b27a12;
+      --gold-dim: rgba(178, 122, 18, 0.12);
+      --cranberry: #9b1c3d;
+      --cranberry-dim: rgba(155, 28, 61, 0.1);
+      --shadow: 0 18px 50px rgba(55, 43, 30, 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #17130f;
+        --surface: #211b16;
+        --surface2: #2a231d;
+        --surface3: #362c23;
+        --border: rgba(245, 233, 217, 0.1);
+        --border-strong: rgba(245, 233, 217, 0.2);
+        --text: #f2e8da;
+        --text-dim: #b7a893;
+        --accent: #f19a6b;
+        --accent-dim: rgba(241, 154, 107, 0.13);
+        --sage: #afd17d;
+        --sage-dim: rgba(175, 209, 125, 0.12);
+        --teal: #7ddbd2;
+        --teal-dim: rgba(125, 219, 210, 0.12);
+        --gold: #f0c15a;
+        --gold-dim: rgba(240, 193, 90, 0.13);
+        --cranberry: #f08aa5;
+        --cranberry-dim: rgba(240, 138, 165, 0.12);
+        --shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: var(--font-body);
+      background:
+        radial-gradient(ellipse at 8% 5%, var(--accent-dim), transparent 34%),
+        radial-gradient(ellipse at 90% 18%, var(--sage-dim), transparent 34%),
+        repeating-linear-gradient(90deg, transparent 0 31px, var(--border) 32px),
+        linear-gradient(160deg, var(--bg), color-mix(in srgb, var(--bg) 82%, var(--surface3)));
+      background-size: auto, auto, 32px 32px, auto;
+      padding: 36px;
+    }
+
+    .wrap {
+      display: grid;
+      grid-template-columns: 184px minmax(0, 1fr);
+      gap: 36px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .toc {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      padding: 12px 0;
+      max-height: calc(100dvh - 48px);
+      overflow-y: auto;
+    }
+
+    .toc-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.8px;
+      color: var(--text-dim);
+      padding-bottom: 12px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toc a {
+      display: block;
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 12px;
+      line-height: 1.35;
+      padding: 7px 9px;
+      border-left: 2px solid transparent;
+      border-radius: 6px;
+      margin-bottom: 3px;
+    }
+
+    .toc a:hover,
+    .toc a.active {
+      color: var(--text);
+      background: var(--surface2);
+      border-left-color: var(--accent);
+    }
+
+    .main { min-width: 0; }
+
+    .hero {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+      gap: 28px;
+      align-items: stretch;
+      margin-bottom: 34px;
+    }
+
+    .hero-copy {
+      background: color-mix(in srgb, var(--surface) 90%, var(--accent) 10%);
+      border: 1px solid color-mix(in srgb, var(--border) 55%, var(--accent));
+      box-shadow: var(--shadow);
+      padding: 34px;
+      border-radius: 18px;
+    }
+
+    .kpi-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(44px, 7vw, 82px);
+      line-height: 0.9;
+      font-weight: 400;
+      margin: 0 0 18px;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .lead {
+      color: var(--text-dim);
+      font-size: 18px;
+      line-height: 1.65;
+      max-width: 860px;
+      margin: 0;
+    }
+
+    .source-line {
+      margin-top: 24px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      overflow-wrap: anywhere;
+    }
+
+    .metric {
+      min-width: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .metric b {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 42px;
+      line-height: 1;
+      font-weight: 400;
+      color: var(--accent);
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 7px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.4;
+      overflow-wrap: break-word;
+    }
+
+    .section-head {
+      scroll-margin-top: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 42px 0 16px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.6px;
+    }
+
+    .section-head::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .ve-card {
+      min-width: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      position: relative;
+    }
+
+    .ve-card--elevated {
+      background: color-mix(in srgb, var(--surface) 94%, var(--gold) 6%);
+      border-color: color-mix(in srgb, var(--border) 60%, var(--gold));
+      box-shadow: var(--shadow);
+    }
+
+    .ve-card--recessed {
+      background: var(--surface2);
+      box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    .label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      margin-bottom: 12px;
+    }
+
+    .label::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    .label.sage { color: var(--sage); }
+    .label.teal { color: var(--teal); }
+    .label.gold { color: var(--gold); }
+    .label.cranberry { color: var(--cranberry); }
+
+    .topology {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1.2fr) 70px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 26px;
+    }
+
+    .mini-title {
+      font-weight: 700;
+      font-size: 17px;
+      margin: 0 0 6px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--text-dim);
+      line-height: 1.55;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      color: var(--text);
+      background: color-mix(in srgb, var(--surface2) 85%, var(--accent) 15%);
+      padding: 1px 5px;
+      border-radius: 5px;
+      overflow-wrap: anywhere;
+    }
+
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .module-grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .module-grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .module {
+      min-height: 136px;
+      border-left: 4px solid var(--accent);
+    }
+
+    .module.sage { border-left-color: var(--sage); }
+    .module.teal { border-left-color: var(--teal); }
+    .module.gold { border-left-color: var(--gold); }
+    .module.cranberry { border-left-color: var(--cranberry); }
+
+    .module h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      line-height: 1.25;
+    }
+
+    .module small {
+      display: block;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .flow-step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 4px solid var(--teal);
+      border-radius: 12px;
+      padding: 16px;
+      min-width: 0;
+    }
+
+    .flow-step:nth-child(2) { border-top-color: var(--sage); }
+    .flow-step:nth-child(3) { border-top-color: var(--gold); }
+    .flow-step:nth-child(4) { border-top-color: var(--cranberry); }
+    .flow-step:nth-child(5) { border-top-color: var(--accent); }
+
+    .flow-step .num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .flow-step h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 860px;
+    }
+
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 13px 15px;
+      border-bottom: 1px solid var(--border);
+      line-height: 1.45;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--surface2);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    td { font-size: 14px; color: var(--text-dim); }
+    td:first-child { color: var(--text); font-weight: 700; }
+    tr:last-child td { border-bottom: 0; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 7px;
+      margin: 2px 3px 2px 0;
+      border-radius: 999px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .callout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .callout .ve-card {
+      background: color-mix(in srgb, var(--surface) 92%, var(--sage) 8%);
+      border-color: color-mix(in srgb, var(--border) 60%, var(--sage));
+    }
+
+    .footer-note {
+      margin: 28px 0 10px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero, .section-head, .ve-card, .flow-step, .table-wrap {
+      animation: fadeUp 420ms ease-out both;
+      animation-delay: calc(var(--i, 0) * 45ms);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    @media (max-width: 1180px) {
+      body { padding: 24px; }
+      .wrap { grid-template-columns: 1fr; gap: 0; }
+      .toc {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        overflow-x: auto;
+        max-height: none;
+        margin: 0 -24px 24px;
+        padding: 10px 24px;
+        background: color-mix(in srgb, var(--bg) 88%, var(--surface));
+        border-bottom: 1px solid var(--border);
+      }
+      .toc-title { display: none; }
+      .toc a {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        border-left: none;
+        border-bottom: 2px solid transparent;
+      }
+      .toc a.active { border-bottom-color: var(--accent); }
+      .hero { grid-template-columns: 1fr; }
+      .module-grid, .module-grid.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .topology { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); min-height: 34px; }
+      .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .section-head { scroll-margin-top: 70px; }
+    }
+
+    @media (max-width: 680px) {
+      body { padding: 16px; }
+      .toc { margin: 0 -16px 20px; padding: 10px 16px; }
+      .hero-copy { padding: 24px; border-radius: 14px; }
+      .kpi-panel, .module-grid, .module-grid.three, .module-grid.two, .flow, .callout {
+        grid-template-columns: 1fr;
+      }
+      h1 { font-size: 46px; }
+      .lead { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="toc" id="toc">
+      <div class="toc-title">Isi Diagram</div>
+      <a href="#overview">Overview</a>
+      <a href="#runtime">Runtime</a>
+      <a href="#modules">Modul</a>
+      <a href="#domain">Domain Data</a>
+      <a href="#flows">Alur Bisnis</a>
+      <a href="#services">Service</a>
+      <a href="#notes">Catatan</a>
+    </nav>
+
+    <main class="main">
+      <section class="hero" style="--i: 0">
+        <div class="hero-copy">
+          <h1>Arsitektur Aplikasi Lembaga</h1>
+          <p class="lead">
+            Peta teknis aplikasi Flask LBB Super Smart: request masuk ke blueprint,
+            diproses oleh service bisnis, disimpan sebagai model SQLAlchemy di PostgreSQL,
+            lalu disajikan kembali lewat template dashboard, master data, presensi,
+            pembayaran, payroll, laporan, quota invoice, dan WhatsApp.
+          </p>
+          <div class="source-line">Sumber scan: <code>/workspace/apps/lembaga/aplikasi-lembaga</code></div>
+        </div>
+        <div class="kpi-panel">
+          <div class="metric"><b>153</b><span>route Flask terdeteksi di <code>app/routes</code></span></div>
+          <div class="metric"><b>14</b><span>file route termasuk WhatsApp API dan bot UI</span></div>
+          <div class="metric"><b>27</b><span>model SQLAlchemy inti lintas akademik, finansial, payroll, WhatsApp</span></div>
+          <div class="metric"><b>3</b><span>container utama: <code>web</code>, <code>db</code>, <code>whatsapp_bot</code></span></div>
+        </div>
+      </section>
+
+      <div id="overview" class="section-head" style="--i: 1">1. Layer utama</div>
+      <section class="topology">
+        <div class="stack">
+          <div class="ve-card ve-card--elevated">
+            <div class="label">User Interface</div>
+            <h2 class="mini-title">Browser + Jinja</h2>
+            <p><code>base.html</code>, halaman dashboard, master data, presensi, payment, payroll, quota, laporan, dan WhatsApp management.</p>
+          </div>
+          <div class="ve-card">
+            <div class="label sage">Form & Upload</div>
+            <h2 class="mini-title">WTForms, CSV, bukti transfer</h2>
+            <p>Input manual dan import massal mengalir ke route sebelum masuk service.</p>
+          </div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="stack">
+          <div class="ve-card ve-card--elevated">
+            <div class="label teal">Flask Application</div>
+            <h2 class="mini-title"><code>create_app()</code> + blueprint registry</h2>
+            <p><code>app/__init__.py</code> menginisialisasi SQLAlchemy, Flask-Migrate, Flask-Login, CSRF, error handlers, context processors, lalu mendaftarkan semua blueprint.</p>
+          </div>
+          <div class="ve-card">
+            <div class="label gold">Business Services</div>
+            <h2 class="mini-title">Perhitungan dan orkestrasi</h2>
+            <p>Service menghitung cash flow, payable tutor, progress enrollment, import CSV, rekonsiliasi, laporan, dan ingestion WhatsApp.</p>
+          </div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="stack">
+          <div class="ve-card ve-card--elevated">
+            <div class="label cranberry">Persistence</div>
+            <h2 class="mini-title">PostgreSQL + SQLAlchemy models</h2>
+            <p>Model akademik dan finansial menjadi sumber kebenaran untuk invoice, dashboard, payroll, closing, dan laporan.</p>
+          </div>
+          <div class="ve-card">
+            <div class="label">External Bot</div>
+            <h2 class="mini-title">WhatsApp bridge</h2>
+            <p><code>/api/whatsapp</code> dan <code>/whatsapp</code> menghubungkan sinkronisasi grup, kontak, pesan, validasi siswa/tutor, dan kandidat presensi.</p>
+          </div>
+        </div>
+      </section>
+
+      <div id="runtime" class="section-head" style="--i: 2">2. Runtime dan deployment</div>
+      <section class="module-grid three">
+        <article class="ve-card module teal">
+          <h3>Container web</h3>
+          <small>Flask 2.3.3, Gunicorn, Jinja2, Flask-Login, Flask-WTF, SQLAlchemy, Flask-Migrate.</small>
+        </article>
+        <article class="ve-card module cranberry">
+          <h3>Container db</h3>
+          <small>PostgreSQL menyimpan master data, enrollment, attendance, payment, payroll, closing, WhatsApp cache.</small>
+        </article>
+        <article class="ve-card module sage">
+          <h3>Container whatsapp_bot</h3>
+          <small>Service pendamping untuk sesi WhatsApp, sync group/message, backup/restore auth, dan API integrasi.</small>
+        </article>
+      </section>
+
+      <div id="modules" class="section-head" style="--i: 3">3. Peta modul route</div>
+      <section class="module-grid">
+        <article class="ve-card module"><h3>Master</h3><small><code>/master</code><br>34 route: siswa, tutor, mapel, kurikulum, pricing, jadwal, detail siswa/tutor, bulk upload.</small></article>
+        <article class="ve-card module sage"><h3>Presensi</h3><small><code>/attendance</code><br>13 route: daftar, kalender, form, bulk, summary, export, lock periode.</small></article>
+        <article class="ve-card module teal"><h3>Pembayaran</h3><small><code>/payments</code><br>10 route: input, edit, verifikasi, invoice, history siswa, summary bulanan.</small></article>
+        <article class="ve-card module gold"><h3>Payroll</h3><small><code>/payroll</code><br>20 route: ringkasan tutor, payout, transfer list, fee slip, proof upload, quick pay.</small></article>
+        <article class="ve-card module cranberry"><h3>Quota Invoice</h3><small><code>/quota</code><br>10 route: alert, detail siswa, invoice list/detail/print, refresh sesi.</small></article>
+        <article class="ve-card module teal"><h3>Dashboard</h3><small><code>/dashboard</code><br>8 route: owner, income, payroll, reconciliation, ringkasan operasional.</small></article>
+        <article class="ve-card module sage"><h3>Enrollment</h3><small><code>/enrollments</code><br>6 route: kontrak belajar, jadwal, progres, group WhatsApp terkait.</small></article>
+        <article class="ve-card module"><h3>Finance Ops</h3><small><code>/incomes</code>, <code>/expenses</code>, <code>/closings</code>, <code>/reports</code><br>Pemasukan lain, pengeluaran, closing bulanan, laporan periodik.</small></article>
+        <article class="ve-card module gold"><h3>Data Manager</h3><small>7 route: eksplorasi tabel, introspeksi kolom SQLAlchemy, operasi data administratif.</small></article>
+        <article class="ve-card module cranberry"><h3>WhatsApp</h3><small><code>/api/whatsapp</code>, <code>/whatsapp</code><br>20 route: health, sync, session, groups, contact validation, message ingest.</small></article>
+        <article class="ve-card module teal"><h3>Auth</h3><small><code>/auth</code><br>Login, logout, register, session user lewat Flask-Login.</small></article>
+        <article class="ve-card module sage"><h3>Templates</h3><small>Jinja pages di <code>app/templates</code> menjadi lapisan presentasi per modul.</small></article>
+      </section>
+
+      <div id="domain" class="section-head" style="--i: 4">4. Domain data</div>
+      <section class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>Model utama</th>
+              <th>Peran arsitektur</th>
+              <th>Dipakai oleh</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Master akademik</td>
+              <td><span class="badge">Student</span><span class="badge">Tutor</span><span class="badge">Subject</span><span class="badge">Curriculum</span><span class="badge">Level</span><span class="badge">SubjectTutorAssignment</span></td>
+              <td>Entitas dasar untuk siswa, tutor, kurikulum, jenjang, mapel, dan pairing pengajar.</td>
+              <td>Master, Enrollment, Attendance, Payment, Payroll, WhatsApp.</td>
+            </tr>
+            <tr>
+              <td>Enrollment</td>
+              <td><span class="badge">Enrollment</span><span class="badge">EnrollmentSchedule</span><span class="badge">PricingRule</span></td>
+              <td>Kontrak belajar, jadwal, paket sesi, nominal siswa, dan fee tutor.</td>
+              <td>Presensi, quota invoice, pembayaran, laporan siswa.</td>
+            </tr>
+            <tr>
+              <td>Presensi</td>
+              <td><span class="badge">AttendanceSession</span><span class="badge">AttendancePeriodLock</span></td>
+              <td>Bukti sesi terlaksana dan pengunci periode agar data historis tidak berubah sembarang.</td>
+              <td>Payroll, quota, laporan tutor, rekonsiliasi accrual.</td>
+            </tr>
+            <tr>
+              <td>Pembayaran siswa</td>
+              <td><span class="badge">StudentPayment</span><span class="badge">StudentPaymentLine</span></td>
+              <td>Transaksi pembayaran dan distribusi ke enrollment/mapel untuk income dan quota beli.</td>
+              <td>Dashboard cash, invoice, quota refresh, laporan bulanan.</td>
+            </tr>
+            <tr>
+              <td>Payroll tutor</td>
+              <td><span class="badge">TutorPayout</span><span class="badge">TutorPayoutLine</span><span class="badge">TutorPayoutProof</span></td>
+              <td>Pencatatan kewajiban, pembayaran, bukti transfer, dan status paid.</td>
+              <td>Payroll dashboard, fee slip, reconciliation.</td>
+            </tr>
+            <tr>
+              <td>Operasional</td>
+              <td><span class="badge">OtherIncome</span><span class="badge">Expense</span><span class="badge">MonthlyClosing</span></td>
+              <td>Pemasukan selain SPP, pengeluaran, dan snapshot tutup bulan.</td>
+              <td>Owner dashboard, cash balance, monthly report.</td>
+            </tr>
+            <tr>
+              <td>WhatsApp</td>
+              <td><span class="badge">WhatsAppGroup</span><span class="badge">WhatsAppContact</span><span class="badge">WhatsAppMessage</span><span class="badge">WhatsAppEvaluation</span></td>
+              <td>Cache grup/kontak/pesan dan hasil evaluasi untuk validasi tutor-siswa-presensi.</td>
+              <td>WhatsApp UI, enrollment group matching, candidate attendance.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <div id="flows" class="section-head" style="--i: 5">5. Alur bisnis utama</div>
+      <section class="flow">
+        <article class="flow-step">
+          <div class="num">01</div>
+          <h3>Setup master data</h3>
+          <p>Siswa, tutor, mapel, kurikulum, pricing, dan assignment tutor dibuat manual atau lewat CSV.</p>
+        </article>
+        <article class="flow-step">
+          <div class="num">02</div>
+          <h3>Enrollment aktif</h3>
+          <p>Enrollment mengikat siswa, tutor, subject, paket sesi, jadwal, dan nominal layanan.</p>
+        </article>
+        <article class="flow-step">
+          <div class="num">03</div>
+          <h3>Presensi sesi</h3>
+          <p>Attendance mencatat sesi terlaksana; ini menjadi dasar progress siswa dan accrual fee tutor.</p>
+        </article>
+        <article class="flow-step">
+          <div class="num">04</div>
+          <h3>Pembayaran & quota</h3>
+          <p>Payment line mengalokasikan pembayaran ke enrollment; quota membandingkan sesi beli dengan sesi hadir.</p>
+        </article>
+        <article class="flow-step">
+          <div class="num">05</div>
+          <h3>Payroll, dashboard, laporan</h3>
+          <p>Service finansial menarik data canonical untuk payable tutor, cash balance, closing, dan reporting.</p>
+        </article>
+      </section>
+
+      <div id="services" class="section-head" style="--i: 6">6. Service dan tanggung jawab</div>
+      <section class="module-grid three">
+        <article class="ve-card module teal"><h3>DashboardService</h3><small>Opening balance, income, other income, expenses, tutor payable, margin, payroll accrual, cash balance, chart dashboard.</small></article>
+        <article class="ve-card module gold"><h3>PayrollService</h3><small>Raw attendance tutor, payable dari presensi, paid amount, balance tutor, payout, mark paid, fee slip.</small></article>
+        <article class="ve-card module cranberry"><h3>ReconciliationService</h3><small>Banding payable dari collection, accrual dari attendance, payout, gap analysis per tutor.</small></article>
+        <article class="ve-card module sage"><h3>AttendanceService</h3><small>Record/update/cancel attendance, bulk attendance, monthly summary, progress enrollment.</small></article>
+        <article class="ve-card module"><h3>PaymentService</h3><small>Create payment, history siswa, total income, margin, summary bulanan, income by subject/student.</small></article>
+        <article class="ve-card module teal"><h3>EnrollmentService</h3><small>Create/update enrollment, remaining meetings, deactivate, active enrollment, total payable.</small></article>
+        <article class="ve-card module gold"><h3>BulkImportService</h3><small>CSV reader, dialect detection, parser currency/date/bool, import dataset master-operasional.</small></article>
+        <article class="ve-card module cranberry"><h3>ReportingService</h3><small>Monthly report, tutor report, student report, Excel/PDF export, aggregate income/expense/payroll.</small></article>
+        <article class="ve-card module sage"><h3>WhatsAppIngestService</h3><small>Normalize phone/group/name, match contact, group suggestions, parse reported date, entity matching.</small></article>
+      </section>
+
+      <div id="notes" class="section-head" style="--i: 7">7. Catatan desain dan titik perhatian</div>
+      <section class="callout">
+        <article class="ve-card">
+          <div class="label cranberry">Sinkronisasi nilai turunan</div>
+          <p>Quota, invoice, dashboard, dan payroll bergantung pada data canonical: <code>Enrollment</code>, <code>AttendanceSession</code>, <code>StudentPaymentLine</code>, dan <code>TutorPayoutLine</code>. Saat payment/enrollment berubah, nilai turunan perlu dihitung ulang atau ditarik langsung dari sumber canonical.</p>
+        </article>
+        <article class="ve-card">
+          <div class="label teal">Boundary yang jelas</div>
+          <p>Route menangani HTTP dan rendering; service menampung aturan bisnis; model menyimpan state. Pola ini sudah tampak kuat, tetapi file route besar seperti <code>master.py</code> dan <code>payroll.py</code> menjadi kandidat pemecahan jika fitur makin bertambah.</p>
+        </article>
+        <article class="ve-card">
+          <div class="label gold">Operasional container</div>
+          <p>Perubahan kode pada deployment Docker perlu rebuild/restart container <code>web</code>. Verifikasi live sebaiknya mengecek route terproteksi dengan sesi login, bukan hanya status proses.</p>
+        </article>
+        <article class="ve-card">
+          <div class="label sage">Integrasi WhatsApp</div>
+          <p>WhatsApp menjadi ingestion channel tambahan, bukan pengganti data utama. Hasil matching perlu tetap masuk ke model aplikasi agar laporan dan payroll memakai sumber yang sama.</p>
+        </article>
+      </section>
+
+      <p class="footer-note">Dibuat dari scan repo aktual: route blueprint, model SQLAlchemy, service layer, template Jinja, requirements, dan docker-compose.</p>
+    </main>
+  </div>
+
+  <script>
+    (function() {
+      const toc = document.getElementById('toc');
+      const links = Array.from(toc.querySelectorAll('a'));
+      const sections = links
+        .map(link => ({ link, el: document.getElementById(link.getAttribute('href').slice(1)) }))
+        .filter(item => item.el);
+
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          links.forEach(link => link.classList.remove('active'));
+          const match = sections.find(item => item.el === entry.target);
+          if (match) {
+            match.link.classList.add('active');
+            if (window.innerWidth <= 1180) {
+              match.link.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+            }
+          }
+        });
+      }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+
+      sections.forEach(item => observer.observe(item.el));
+      if (links[0]) links[0].classList.add('active');
+    })();
+  </script>
+</body>
+</html>

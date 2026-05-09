@@ -216,6 +216,13 @@ def reconciliation_dashboard():
         ), 500
 
 
+@dashboard_bp.route("/architecture", methods=["GET"])
+@login_required
+def architecture_diagram():
+    """Visual architecture diagram for the application."""
+    return render_template("dashboard/architecture.html")
+
+
 @dashboard_bp.route("/api/kpi/<int:month>/<int:year>", methods=["GET"])
 @login_required
 def api_get_kpi(month, year):

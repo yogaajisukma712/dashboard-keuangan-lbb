@@ -508,6 +508,12 @@
             >
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
+            <a
+                href="{{ url_for('dashboard.architecture_diagram') }}"
+                class="sidebar-link {% if request.endpoint == 'dashboard.architecture_diagram' %}active{% endif %}"
+            >
+                <i class="bi bi-diagram-3-fill"></i> Arsitektur
+            </a>
 
             <!-- ── Master Data ── -->
             <div class="sidebar-section">Master Data</div>

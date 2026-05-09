@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Diagram Arsitektur — LBB Super Smart{% endblock %}
+
+{% block head %}
+<style>
+    .architecture-shell {
+        min-height: calc(100vh - var(--topbar-h) - 3rem);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .architecture-header {
+        background: #fff;
+        border: 1px solid #e5e9f0;
+        border-radius: var(--card-radius);
+        box-shadow: var(--card-shadow);
+        padding: 1rem 1.15rem;
+    }
+
+    .architecture-header h4 {
+        color: #1a1f36;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .architecture-header small {
+        color: #6b7280;
+    }
+
+    .architecture-frame-card {
+        flex: 1 1 auto;
+        min-height: 720px;
+        background: #fff;
+        border: 1px solid #e5e9f0;
+        border-radius: var(--card-radius);
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+    }
+
+    .architecture-frame {
+        display: block;
+        width: 100%;
+        min-height: 720px;
+        height: calc(100vh - var(--topbar-h) - 10.5rem);
+        border: 0;
+        background: #fbf8f3;
+    }
+
+    @media (max-width: 991.98px) {
+        .architecture-frame-card,
+        .architecture-frame {
+            min-height: 680px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="architecture-shell">
+    <div class="architecture-header d-flex flex-wrap align-items-start align-items-sm-center justify-content-between gap-3">
+        <div>
+            <h4>
+                <i class="bi bi-diagram-3-fill me-2" style="color: #253b9b;"></i>
+                Diagram Arsitektur Aplikasi
+            </h4>
+            <small>
+                Peta visual layer Flask, blueprint, service, model, database, container, dan alur bisnis utama.
+            </small>
+        </div>
+        <a
+            class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+            href="{{ url_for('static', filename='diagrams/aplikasi-lembaga-architecture.html') }}"
+            target="_blank"
+            rel="noopener"
+        >
+            <i class="bi bi-arrows-fullscreen"></i>
+            Buka Penuh
+        </a>
+    </div>
+
+    <div class="architecture-frame-card">
+        <iframe
+            class="architecture-frame"
+            title="Diagram Arsitektur Aplikasi Lembaga"
+            src="{{ url_for('static', filename='diagrams/aplikasi-lembaga-architecture.html') }}"
+        ></iframe>
+    </div>
+</div>
+{% endblock %}

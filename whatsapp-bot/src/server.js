@@ -266,7 +266,7 @@ app.post('/sync/groups', async (req, res) => {
     const result = await syncGroupsAndMessages({ limit, fullSync });
     res.json({ ok: true, result });
   } catch (error) {
-    res.status(500).json({ ok: false, error: error.message, details: error.details || null });
+    res.status(error.statusCode || 500).json({ ok: false, error: error.message, details: error.details || null });
   }
 });
 
@@ -276,7 +276,7 @@ app.post('/sync/messages/full', async (req, res) => {
     const result = await syncGroupsAndMessages({ groupIds, fullSync: true });
     res.json({ ok: true, result });
   } catch (error) {
-    res.status(500).json({ ok: false, error: error.message, details: error.details || null });
+    res.status(error.statusCode || 500).json({ ok: false, error: error.message, details: error.details || null });
   }
 });
 
@@ -291,7 +291,7 @@ app.post('/sync/group/:groupId/messages', async (req, res) => {
     });
     res.json({ ok: true, result });
   } catch (error) {
-    res.status(500).json({ ok: false, error: error.message, details: error.details || null });
+    res.status(error.statusCode || 500).json({ ok: false, error: error.message, details: error.details || null });
   }
 });
 
@@ -302,7 +302,7 @@ app.post('/sync/messages', async (req, res) => {
     const result = await syncGroupsAndMessages({ groupIds, limit });
     res.json({ ok: true, result });
   } catch (error) {
-    res.status(500).json({ ok: false, error: error.message, details: error.details || null });
+    res.status(error.statusCode || 500).json({ ok: false, error: error.message, details: error.details || null });
   }
 });
 

@@ -22,6 +22,7 @@ const {
   isRecoverableWhatsAppRuntimeError,
   resetSessionState,
   startSyncProgress,
+  updateAutoSyncState,
   updateSyncProgress,
 } = require('./session-runtime');
 
@@ -32,6 +33,9 @@ let resolveReady = null;
 let rejectReady = null;
 let reconnectTimer = null;
 let watchdogTimer = null;
+let autoSyncTimer = null;
+let autoSyncRunning = false;
+let syncOperationRunning = false;
 let initializationStartedAt = null;
 
 const state = {
@@ -156,6 +160,7 @@ function logBotEvent(event, details = {}) {
 function resetRuntime(overrides = {}) {
   resetSessionState(state, {
     lastSyncAt: state.lastSyncAt,
+    autoSync: state.autoSync,
     ...overrides,
   });
 }
@@ -271,6 +276,122 @@ function startRuntimeSupervisor() {
   if (config.autoStart) {
     scheduleReconnect('startup');
   }
+  startAutoSyncScheduler();
+}
+
+function autoSyncRetryDelayMs() {
+  return Math.min(config.watchdogIntervalMs, 60_000);
+}
+
+function summarizeAutoSyncResult(result) {
+  return {
+    fullSync: !!result?.fullSync,
+    syncedGroups: Number(result?.syncedGroups || 0),
+    syncedMessages: Number(result?.syncedMessages || 0),
+    syncedContacts: Number(result?.syncedContacts || 0),
+    evaluations: Number(result?.ingest?.result?.evaluations || 0),
+    linkedAttendance: Number(result?.ingest?.result?.linked_attendance || 0),
+  };
+}
+
+function scheduleNextAutoSync(delayMs = config.autoSyncIntervalMs) {
+  if (!config.autoSyncEnabled) return;
+  if (autoSyncTimer) {
+    clearTimeout(autoSyncTimer);
+    autoSyncTimer = null;
+  }
+
+  const safeDelayMs = Math.max(0, Number(delayMs || 0));
+  updateAutoSyncState(state, {
+    enabled: true,
+    intervalMs: config.autoSyncIntervalMs,
+    fullSync: config.autoSyncFullSync,
+    nextRunAt: new Date(Date.now() + safeDelayMs).toISOString(),
+  });
+
+  autoSyncTimer = setTimeout(() => {
+    autoSyncTimer = null;
+    void runScheduledAutoSync('timer');
+  }, safeDelayMs);
+  if (typeof autoSyncTimer.unref === 'function') {
+    autoSyncTimer.unref();
+  }
+}
+
+async function runScheduledAutoSync(source = 'timer') {
+  if (!config.autoSyncEnabled) return null;
+  if (autoSyncRunning || state.syncInProgress) {
+    updateAutoSyncState(state, {
+      skipCount: (state.autoSync?.skipCount || 0) + 1,
+      lastError: 'Auto sync skipped because another sync is still running.',
+    });
+    scheduleNextAutoSync();
+    return null;
+  }
+  if (!state.ready) {
+    updateAutoSyncState(state, {
+      skipCount: (state.autoSync?.skipCount || 0) + 1,
+      lastError: 'Auto sync waiting for WhatsApp session to be ready.',
+    });
+    scheduleReconnect(`auto_sync_${source}`);
+    scheduleNextAutoSync(autoSyncRetryDelayMs());
+    return null;
+  }
+
+  autoSyncRunning = true;
+  updateAutoSyncState(state, {
+    lastStartedAt: new Date().toISOString(),
+    lastFinishedAt: null,
+    lastError: null,
+    nextRunAt: null,
+  });
+  logBotEvent('auto_sync_started', {
+    source,
+    intervalMs: config.autoSyncIntervalMs,
+    fullSync: config.autoSyncFullSync,
+  });
+
+  try {
+    const result = await syncGroupsAndMessages({ fullSync: config.autoSyncFullSync });
+    updateAutoSyncState(state, {
+      lastFinishedAt: new Date().toISOString(),
+      lastError: null,
+      runCount: (state.autoSync?.runCount || 0) + 1,
+      lastResult: summarizeAutoSyncResult(result),
+    });
+    logBotEvent('auto_sync_completed', summarizeAutoSyncResult(result));
+    return result;
+  } catch (error) {
+    updateAutoSyncState(state, {
+      lastFinishedAt: new Date().toISOString(),
+      lastError: errorMessage(error),
+    });
+    logBotEvent('auto_sync_failed', { message: errorMessage(error) });
+    return null;
+  } finally {
+    autoSyncRunning = false;
+    scheduleNextAutoSync();
+  }
+}
+
+function triggerAutoSyncSoon(source = 'ready') {
+  if (!config.autoSyncEnabled) return;
+  if (autoSyncRunning || state.syncInProgress) return;
+  scheduleNextAutoSync(0);
+  logBotEvent('auto_sync_queued', { source });
+}
+
+function startAutoSyncScheduler() {
+  if (!config.autoSyncEnabled) {
+    updateAutoSyncState(state, { enabled: false });
+    return;
+  }
+  updateAutoSyncState(state, {
+    enabled: true,
+    intervalMs: config.autoSyncIntervalMs,
+    fullSync: config.autoSyncFullSync,
+  });
+  scheduleNextAutoSync(0);
 }
 
 async function startClient() {
@@ -330,6 +451,7 @@ async function startClient() {
         resolveReady(client);
       }
       logBotEvent('ready');
+      triggerAutoSyncSoon('ready');
     });
 
     client.on('change_state', (value) => {
@@ -639,6 +761,12 @@ async function syncGroupsAndMessages({
   limit = config.defaultMessageLimit,
   fullSync = false,
 } = {}) {
+  if (syncOperationRunning || state.syncInProgress) {
+    const error = new Error('WhatsApp sync is already running.');
+    error.statusCode = 409;
+    throw error;
+  }
+  syncOperationRunning = true;
   try {
     const effectiveLimit = fullSync ? Infinity : limit;
     const payload = await buildSyncPayloadForGroups(groupIds, effectiveLimit, { fullSync });
@@ -668,6 +796,8 @@ async function syncGroupsAndMessages({
   } catch (error) {
     failSyncProgress(state, error);
     throw error;
+  } finally {
+    syncOperationRunning = false;
   }
 }
 
@@ -705,6 +835,7 @@ module.exports = {
   sendDirectMessage,
   syncGroupsAndMessages,
   startRuntimeSupervisor,
+  startAutoSyncScheduler,
   backupSession,
   restoreSession,
   deleteBackup,
@@ -715,7 +846,10 @@ module.exports = {
     handleRuntimeFailure,
     isRecoverableWhatsAppRuntimeError,
     resetRuntime,
+    runScheduledAutoSync,
     scheduleReconnect,
+    scheduleNextAutoSync,
     startWatchdog,
+    triggerAutoSyncSoon,
   },
 };

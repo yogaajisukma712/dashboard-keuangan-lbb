@@ -16,6 +16,7 @@ function createInitialState() {
     me: null,
     syncInProgress: false,
     syncProgress: createInitialSyncProgress(),
+    autoSync: createInitialAutoSyncState(),
   };
 }
 
@@ -35,6 +36,21 @@ function createInitialSyncProgress() {
     evaluationCount: 0,
     linkedAttendanceCount: 0,
     error: null,
+  };
+}
+
+function createInitialAutoSyncState() {
+  return {
+    enabled: false,
+    intervalMs: null,
+    fullSync: true,
+    nextRunAt: null,
+    lastStartedAt: null,
+    lastFinishedAt: null,
+    lastError: null,
+    runCount: 0,
+    skipCount: 0,
+    lastResult: null,
   };
 }
 
@@ -78,6 +94,15 @@ function extractSelfIdentity(botClient) {
 function resetSessionState(target, overrides = {}) {
   Object.assign(target, createInitialState(), overrides);
   return target;
+}
+
+function updateAutoSyncState(target, overrides = {}) {
+  target.autoSync = {
+    ...createInitialAutoSyncState(),
+    ...(target.autoSync || {}),
+    ...overrides,
+  };
+  return target.autoSync;
 }
 
 function startSyncProgress(target, overrides = {}) {
@@ -162,6 +187,7 @@ function clearChromiumSingletonLocks(rootPath) {
 
 module.exports = {
   clearChromiumSingletonLocks,
+  createInitialAutoSyncState,
   createInitialState,
   createInitialSyncProgress,
   errorMessage,
@@ -171,5 +197,6 @@ module.exports = {
   isRecoverableWhatsAppRuntimeError,
   resetSessionState,
   startSyncProgress,
+  updateAutoSyncState,
   updateSyncProgress,
 };

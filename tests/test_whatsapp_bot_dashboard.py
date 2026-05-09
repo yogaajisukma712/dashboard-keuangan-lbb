@@ -150,6 +150,31 @@ def test_whatsapp_bot_source_exposes_session_backup_restore_endpoints():
     assert "getSessionManagementState" in client_text
 
 
+def test_whatsapp_bot_source_enables_six_hour_auto_group_message_scan():
+    project_root = Path(__file__).resolve().parents[1]
+    config_text = (
+        project_root / "whatsapp-bot" / "src" / "config.js"
+    ).read_text(encoding="utf-8")
+    client_text = (
+        project_root / "whatsapp-bot" / "src" / "whatsapp-client.js"
+    ).read_text(encoding="utf-8")
+    runtime_text = (
+        project_root / "whatsapp-bot" / "src" / "session-runtime.js"
+    ).read_text(encoding="utf-8")
+    compose_text = (project_root / "docker-compose.yml").read_text(encoding="utf-8")
+
+    assert "6 * 60 * 60 * 1000" in config_text
+    assert "WHATSAPP_AUTO_SYNC_ENABLED" in config_text
+    assert "WHATSAPP_AUTO_SYNC_FULL_SYNC" in config_text
+    assert "WHATSAPP_AUTO_SYNC_INTERVAL_MS" in config_text
+    assert "startAutoSyncScheduler" in client_text
+    assert "runScheduledAutoSync" in client_text
+    assert "syncGroupsAndMessages({ fullSync: config.autoSyncFullSync })" in client_text
+    assert "WhatsApp sync is already running." in client_text
+    assert "createInitialAutoSyncState" in runtime_text
+    assert "WHATSAPP_AUTO_SYNC_INTERVAL_MS:-21600000" in compose_text
+
+
 def test_base_sidebar_links_to_whatsapp_management_page():
     project_root = Path(__file__).resolve().parents[1]
     base_template = (

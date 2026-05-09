@@ -6,12 +6,14 @@ const assert = require('node:assert/strict');
 
 const {
   clearChromiumSingletonLocks,
+  createInitialAutoSyncState,
   createInitialState,
   extractSelfIdentity,
   failSyncProgress,
   finishSyncProgress,
   isRecoverableWhatsAppRuntimeError,
   startSyncProgress,
+  updateAutoSyncState,
   updateSyncProgress,
 } = require('../src/session-runtime');
 
@@ -122,4 +124,38 @@ test('failSyncProgress stores raw runtime error message for dashboard polling', 
   assert.equal(state.syncProgress.phase, 'failed');
   assert.equal(state.syncProgress.error, 'Bot fetch timeout');
   assert.ok(state.syncProgress.finishedAt);
+});
+
+test('auto sync state tracks scheduler timing and counters', () => {
+  const state = createInitialState();
+
+  assert.deepEqual(createInitialAutoSyncState(), {
+    enabled: false,
+    intervalMs: null,
+    fullSync: true,
+    nextRunAt: null,
+    lastStartedAt: null,
+    lastFinishedAt: null,
+    lastError: null,
+    runCount: 0,
+    skipCount: 0,
+    lastResult: null,
+  });
+
+  updateAutoSyncState(state, {
+    enabled: true,
+    intervalMs: 21_600_000,
+    nextRunAt: '2026-05-09T06:00:00.000Z',
+  });
+  updateAutoSyncState(state, {
+    runCount: 1,
+    lastResult: { syncedGroups: 4, linkedAttendance: 2 },
+  });
+
+  assert.equal(state.autoSync.enabled, true);
+  assert.equal(state.autoSync.intervalMs, 21_600_000);
+  assert.equal(state.autoSync.fullSync, true);
+  assert.equal(state.autoSync.nextRunAt, '2026-05-09T06:00:00.000Z');
+  assert.equal(state.autoSync.runCount, 1);
+  assert.deepEqual(state.autoSync.lastResult, { syncedGroups: 4, linkedAttendance: 2 });
 });

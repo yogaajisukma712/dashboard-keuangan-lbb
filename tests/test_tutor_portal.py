@@ -25,14 +25,13 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "URLSafeTimedSerializer" in route_text
     assert "portal_username" in model_text
     assert "set_portal_password" in model_text
-    assert "login_method == \"email\"" in route_text
     assert "check_portal_password" in route_text
     assert "portal_must_change_password" in route_text
-    assert "def _tutor_onboarding_step" in route_text
-    assert "if step == \"password\"" in route_text
-    assert "Password berhasil diganti" in route_text
+    assert "login_method == \"email\"" not in route_text
+    assert "def _tutor_onboarding_step" not in route_text
+    assert "tutor.set_portal_password(new_password)" in route_text
     assert "tutor.email = email" in route_text
-    assert "Gmail tutor sudah disimpan" in route_text
+    assert "Password baru dan Gmail sudah disimpan" in route_text
     assert "verify_email" in route_text
     assert "email.endswith(\"@gmail.com\")" in route_text
     assert "TUTOR_PORTAL_MIN_DATE" in route_text
@@ -72,11 +71,14 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Aktivasi Akun Tutor" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "onboarding.html"
     ).read_text(encoding="utf-8")
-    assert "Ganti Password" in (
+    assert "Password Baru" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "onboarding.html"
     ).read_text(encoding="utf-8")
-    assert "Simpan Gmail dan Kirim Verifikasi" in (
+    assert "Simpan Password, Gmail, dan Kirim Verifikasi" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "onboarding.html"
+    ).read_text(encoding="utf-8")
+    assert "Kirim Link Login" not in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "login.html"
     ).read_text(encoding="utf-8")
     assert "Presensi Tutor" in dashboard_text
     assert "Slip Gaji" in dashboard_text

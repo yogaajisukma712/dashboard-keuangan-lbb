@@ -119,14 +119,6 @@ def _tutor_needs_onboarding(tutor):
     return bool(tutor.portal_must_change_password or not tutor.portal_email_verified)
 
 
-def _tutor_onboarding_step(tutor):
-    if tutor.portal_must_change_password:
-        return "password"
-    if not tutor.portal_email_verified:
-        return "email"
-    return "complete"
-
-
 def tutor_login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -347,31 +339,6 @@ def _save_tutor_upload(file_storage, tutor, folder, extensions):
 @tutor_portal_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        login_method = request.form.get("login_method", "username")
-        if login_method == "email":
-            email = _normalize_email(request.form.get("email"))
-            if not email.endswith("@gmail.com"):
-                flash("Gunakan alamat Gmail tutor yang terverifikasi.", "danger")
-                return redirect(url_for("tutor_portal.login"))
-
-            tutor = Tutor.query.filter(db.func.lower(Tutor.email) == email).first()
-            if not tutor or not tutor.is_active or not tutor.portal_email_verified:
-                flash("Gmail belum cocok atau belum terverifikasi.", "danger")
-                return redirect(url_for("tutor_portal.login"))
-
-            token = _token_serializer().dumps({"tutor_id": tutor.id, "email": email})
-            verify_url = _build_login_url(token)
-            try:
-                sent = _send_login_email(tutor, verify_url)
-            except Exception as exc:
-                current_app.logger.warning("Failed to send tutor login email: %s", exc)
-                sent = False
-            if sent:
-                flash("Link login sudah dikirim ke Gmail tutor.", "success")
-            else:
-                flash("MAIL_SERVER belum aktif. Link login dicatat di log server.", "warning")
-            return render_template("tutor_portal/login_sent.html", tutor=tutor)
-
         username = (request.form.get("username") or "").strip().lower()
         password = request.form.get("password") or ""
         tutor = Tutor.query.filter(db.func.lower(Tutor.portal_username) == username).first()
@@ -449,29 +416,19 @@ def onboarding():
         flash("Silakan login dengan username tutor terlebih dahulu.", "warning")
         return redirect(url_for("tutor_portal.login"))
 
-    step = _tutor_onboarding_step(tutor)
-    if step == "complete":
+    if not _tutor_needs_onboarding(tutor):
         return redirect(url_for("tutor_portal.dashboard"))
 
     if request.method == "POST":
-        if step == "password":
-            new_password = request.form.get("new_password") or ""
-            confirm_password = request.form.get("confirm_password") or ""
-            if len(new_password) < 8:
-                flash("Password baru minimal 8 karakter.", "danger")
-                return redirect(url_for("tutor_portal.onboarding"))
-            if new_password != confirm_password:
-                flash("Konfirmasi password tidak cocok.", "danger")
-                return redirect(url_for("tutor_portal.onboarding"))
-
-            tutor.set_portal_password(new_password)
-            tutor.portal_must_change_password = False
-            tutor.updated_at = datetime.utcnow()
-            db.session.commit()
-            flash("Password berhasil diganti. Lanjutkan dengan memasukkan Gmail tutor.", "success")
-            return redirect(url_for("tutor_portal.onboarding"))
-
+        new_password = request.form.get("new_password") or ""
+        confirm_password = request.form.get("confirm_password") or ""
         email = _normalize_email(request.form.get("email"))
+        if len(new_password) < 8:
+            flash("Password baru minimal 8 karakter.", "danger")
+            return redirect(url_for("tutor_portal.onboarding"))
+        if new_password != confirm_password:
+            flash("Konfirmasi password tidak cocok.", "danger")
+            return redirect(url_for("tutor_portal.onboarding"))
         if not email.endswith("@gmail.com"):
             flash("Email tutor wajib menggunakan Gmail.", "danger")
             return redirect(url_for("tutor_portal.onboarding"))
@@ -484,6 +441,8 @@ def onboarding():
             flash("Gmail sudah dipakai tutor lain.", "danger")
             return redirect(url_for("tutor_portal.onboarding"))
 
+        tutor.set_portal_password(new_password)
+        tutor.portal_must_change_password = False
         tutor.email = email
         tutor.portal_email_verified = False
         tutor.portal_email_verified_at = None
@@ -496,12 +455,12 @@ def onboarding():
             current_app.logger.warning("Failed to send tutor verification email: %s", exc)
             sent = False
         if sent:
-            flash("Gmail tutor sudah disimpan. Link verifikasi Gmail sudah dikirim.", "success")
+            flash("Password baru dan Gmail sudah disimpan. Link verifikasi Gmail sudah dikirim.", "success")
         else:
-            flash("Gmail tutor sudah disimpan. MAIL_SERVER belum aktif, link verifikasi dicatat di log server.", "warning")
+            flash("Password baru dan Gmail sudah disimpan. MAIL_SERVER belum aktif, link verifikasi dicatat di log server.", "warning")
         return redirect(url_for("tutor_portal.onboarding"))
 
-    return render_template("tutor_portal/onboarding.html", tutor=tutor, step=step)
+    return render_template("tutor_portal/onboarding.html", tutor=tutor)
 
 
 @tutor_portal_bp.route("/logout")

@@ -29,7 +29,14 @@
           Dashboard Tutor
         </a>
         <div class="d-flex align-items-center gap-2">
-          {% if session.get("tutor_portal_tutor_id") %}
+          {% if current_user.is_authenticated and current_user.role == "admin" %}
+          <a href="{{ url_for('tutor_portal.admin_dashboard_select') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-person-lines-fill me-1"></i>Pilih Tutor
+          </a>
+          <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm">
+            <i class="bi bi-box-arrow-right me-1"></i>Keluar Admin
+          </a>
+          {% elif session.get("tutor_portal_tutor_id") %}
           <a href="{{ url_for('tutor_portal.logout') }}" class="btn btn-outline-danger btn-sm">
             <i class="bi bi-box-arrow-right me-1"></i>Keluar
           </a>

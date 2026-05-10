@@ -139,9 +139,36 @@
 <div class="d-flex align-items-center mb-4">
   <div class="flex-grow-1">
     <h4 class="mb-0 fw-bold"><i class="bi bi-person-badge-fill text-primary me-2"></i>Detail Tutor</h4>
-    <p class="text-muted small mb-0">Data berasal dari database utama. Presensi dan slip gaji ditampilkan mulai {{ min_date.strftime('%d %b %Y') }}.</p>
+    <p class="text-muted small mb-0">Data berasal dari database utama. Presensi bisa dilihat mulai {{ min_date.strftime('%d %b %Y') }}.</p>
   </div>
 </div>
+
+{% if admin_tutor_dashboard %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form class="row g-2 align-items-end" method="get" action="{{ url_for('tutor_portal.dashboard') }}">
+      <div class="col-md-7 col-lg-5">
+        <label class="form-label small fw-semibold" for="admin-dashboard-tutor-ref">Lihat Dashboard Tutor</label>
+        <select class="form-select form-select-sm" id="admin-dashboard-tutor-ref" name="tutor_ref">
+          {% for tutor_option in admin_tutor_options %}
+            <option value="{{ tutor_option.public_id }}" {% if tutor_option.id == tutor.id %}selected{% endif %}>
+              {{ tutor_option.name }}{% if tutor_option.tutor_code %} - {{ tutor_option.tutor_code }}{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-auto">
+        <button class="btn btn-primary btn-sm" type="submit">
+          <i class="bi bi-arrow-repeat me-1"></i>Tampilkan
+        </button>
+      </div>
+      <div class="col-md">
+        <div class="small text-muted text-md-end">Mode admin: hanya melihat dashboard tutor.</div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 <div class="card border-0 shadow-sm mb-4 tutor-dashboard-schedule">
   <div class="card-header bg-white py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
@@ -248,9 +275,12 @@
 
   <div class="tutor-dashboard-main">
     <div class="card border-0 shadow-sm mb-4">
-      <div class="card-header bg-white py-3 d-flex justify-content-between">
-        <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-check text-primary me-2"></i>Presensi Tutor</h6>
-        <span class="badge bg-success-subtle text-success-emphasis">Fee valid Rp {{ "{:,.0f}".format(validated_fee_total | float) }}</span>
+      <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between gap-2">
+        <div>
+          <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-check text-primary me-2"></i>Presensi Tutor</h6>
+          <div class="text-muted small">{{ attendance_period_start.strftime('%d %b %Y') }} - {{ attendance_period_end.strftime('%d %b %Y') }}, hanya yang sudah divalidasi admin.</div>
+        </div>
+        <span class="badge bg-success-subtle text-success-emphasis align-self-start">Fee valid Rp {{ "{:,.0f}".format(validated_fee_total | float) }}</span>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
@@ -272,10 +302,45 @@
                 <td class="text-end">Rp {{ "{:,.0f}".format(item.tutor_fee_amount | float) }}</td>
               </tr>
               {% else %}
-              <tr><td colspan="6" class="text-center text-muted py-4">Belum ada presensi sejak {{ min_date.strftime('%d %b %Y') }}.</td></tr>
+              <tr><td colspan="6" class="text-center text-muted py-4">Belum ada presensi valid untuk bulan ini.</td></tr>
               {% endfor %}
             </tbody>
           </table>
+        </div>
+        <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+          <small class="text-muted">
+            {% if attendance_pagination.total %}
+              Menampilkan presensi {{ attendance_pagination.first }}-{{ attendance_pagination.last }}
+              dari {{ attendance_pagination.total }}
+            {% else %}
+              Tidak ada presensi valid
+            {% endif %}
+          </small>
+          {% if attendance_pagination.pages > 1 %}
+          <nav aria-label="Pagination presensi tutor">
+            <ul class="pagination pagination-sm mb-0">
+              <li class="page-item {% if not attendance_pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('tutor_portal.dashboard', month=attendance_calendar.month, year=attendance_calendar.year, page=attendance_pagination.prev_num) }}">
+                  <i class="bi bi-chevron-left"></i>
+                </a>
+              </li>
+              {% for page_num in attendance_pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                <li class="page-item {% if page_num == attendance_pagination.page %}active{% endif %}">
+                  <a class="page-link" href="{{ url_for('tutor_portal.dashboard', month=attendance_calendar.month, year=attendance_calendar.year, page=page_num) }}">{{ page_num }}</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+              {% endfor %}
+              <li class="page-item {% if not attendance_pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('tutor_portal.dashboard', month=attendance_calendar.month, year=attendance_calendar.year, page=attendance_pagination.next_num) }}">
+                  <i class="bi bi-chevron-right"></i>
+                </a>
+              </li>
+            </ul>
+          </nav>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -323,12 +388,18 @@
             <div class="text-muted small">Presensi tutor bulan {{ attendance_calendar.title }}.</div>
           </div>
           <div class="d-flex flex-wrap align-items-center gap-2">
-            <a
-              class="btn btn-outline-secondary btn-sm"
-              href="{{ url_for('tutor_portal.dashboard', month=attendance_calendar.previous_month, year=attendance_calendar.previous_year) }}"
-            >
-              <i class="bi bi-chevron-left me-1"></i>Bulan Sebelumnya
-            </a>
+            {% if attendance_calendar.can_view_previous %}
+              <a
+                class="btn btn-outline-secondary btn-sm"
+                href="{{ url_for('tutor_portal.dashboard', month=attendance_calendar.previous_month, year=attendance_calendar.previous_year) }}"
+              >
+                <i class="bi bi-chevron-left me-1"></i>Bulan Sebelumnya
+              </a>
+            {% else %}
+              <span class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true">
+                <i class="bi bi-chevron-left me-1"></i>Bulan Sebelumnya
+              </span>
+            {% endif %}
             <a
               class="btn btn-outline-secondary btn-sm"
               href="{{ url_for('tutor_portal.dashboard', month=attendance_calendar.next_month, year=attendance_calendar.next_year) }}"
@@ -350,7 +421,7 @@
           </div>
           <div class="col-sm-4 col-md-3 col-lg-2">
             <label class="form-label small fw-semibold" for="calendar-year">Tahun</label>
-            <input class="form-control form-control-sm" id="calendar-year" name="year" type="number" min="2000" max="2100" value="{{ attendance_calendar.year }}">
+            <input class="form-control form-control-sm" id="calendar-year" name="year" type="number" min="{{ min_date.year }}" max="2100" value="{{ attendance_calendar.year }}">
           </div>
           <div class="col-sm-4 col-md-3 col-lg-2">
             <button class="btn btn-primary btn-sm w-100" type="submit">

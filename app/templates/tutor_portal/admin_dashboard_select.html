@@ -1,0 +1,32 @@
+{% extends "tutor_portal/base.html" %}
+
+{% block title %}Pilih Dashboard Tutor{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <div class="mb-4">
+          <div class="muted-label mb-1">Mode Admin</div>
+          <h4 class="fw-bold mb-1">Pilih Tutor</h4>
+          <p class="text-muted small mb-0">Dashboard tutor yang dipilih akan ditampilkan dalam mode lihat saja.</p>
+        </div>
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="form-label fw-semibold" for="admin-tutor-ref">Tutor</label>
+          <select class="form-select form-select-lg" id="admin-tutor-ref" name="tutor_ref" required>
+            <option value="">Pilih tutor...</option>
+            {% for tutor in tutors %}
+              <option value="{{ tutor.public_id }}">{{ tutor.name }}{% if tutor.tutor_code %} - {{ tutor.tutor_code }}{% endif %}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-primary w-100 mt-3" type="submit">
+            <i class="bi bi-eye-fill me-1"></i>Lihat Dashboard Tutor
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

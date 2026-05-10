@@ -46,6 +46,7 @@ from app.utils import decode_public_id
 tutor_portal_bp = Blueprint("tutor_portal", __name__, url_prefix="/tutor")
 
 PORTAL_MIN_DATE = date(2026, 4, 1)
+ATTENDANCE_TABLE_PER_PAGE = 10
 WEEKDAY_NAMES = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
 MONTH_NAMES = [
     "",
@@ -80,8 +81,34 @@ def _normalize_email(value):
     return (value or "").strip().lower()
 
 
+def _current_user_can_view_tutor_dashboard():
+    return bool(
+        current_user.is_authenticated
+        and getattr(current_user, "role", None) == "admin"
+    )
+
+
+def _selected_admin_tutor_id():
+    if not _current_user_can_view_tutor_dashboard():
+        return None
+
+    tutor_ref = request.args.get("tutor_ref")
+    if tutor_ref:
+        try:
+            tutor_id = decode_public_id(tutor_ref, "tutor")
+        except ValueError:
+            abort(404)
+        session["tutor_portal_admin_tutor_id"] = tutor_id
+        return tutor_id
+    return session.get("tutor_portal_admin_tutor_id")
+
+
+def _is_admin_tutor_dashboard_view():
+    return bool(_current_user_can_view_tutor_dashboard() and _selected_admin_tutor_id())
+
+
 def _current_tutor():
-    tutor_id = session.get("tutor_portal_tutor_id")
+    tutor_id = _selected_admin_tutor_id() or session.get("tutor_portal_tutor_id")
     if not tutor_id:
         return None
     return Tutor.query.get(tutor_id)
@@ -144,9 +171,21 @@ def tutor_login_required(view):
     def wrapped(*args, **kwargs):
         tutor = _current_tutor()
         if not tutor:
+            if _current_user_can_view_tutor_dashboard():
+                return redirect(url_for("tutor_portal.admin_dashboard_select"))
             flash("Silakan masuk dengan Gmail tutor terlebih dahulu.", "warning")
             return redirect(url_for("tutor_portal.login"))
-        if _tutor_needs_onboarding(tutor) and request.endpoint != "tutor_portal.onboarding":
+        if _is_admin_tutor_dashboard_view() and request.endpoint not in {
+            "tutor_portal.dashboard",
+            "tutor_portal.uploaded_file",
+        }:
+            flash("Mode admin hanya untuk melihat dashboard tutor.", "warning")
+            return redirect(url_for("tutor_portal.dashboard"))
+        if (
+            not _is_admin_tutor_dashboard_view()
+            and _tutor_needs_onboarding(tutor)
+            and request.endpoint != "tutor_portal.onboarding"
+        ):
             flash("Lengkapi password baru dan verifikasi Gmail terlebih dahulu.", "warning")
             return redirect(url_for("tutor_portal.onboarding"))
         return view(*args, **kwargs)
@@ -338,6 +377,8 @@ def _render_tutor_credential_whatsapp_message(tutor, initial_password, template)
 
 
 def _attendance_validation_map(session_ids):
+    if not session_ids:
+        return {}
     rows = (
         WhatsAppEvaluation.query.filter(
             WhatsAppEvaluation.attendance_session_id.in_(session_ids)
@@ -362,8 +403,29 @@ def _normalize_calendar_period(month, year):
     return target_month, target_year
 
 
-def _build_tutor_attendance_calendar(tutor_id, month=None, year=None):
+def _month_bounds(month, year):
+    period_start = date(year, month, 1)
+    period_end = date(year, month, monthrange(year, month)[1])
+    return period_start, period_end
+
+
+def _normalize_portal_attendance_period(month, year, min_date):
     target_month, target_year = _normalize_calendar_period(month, year)
+    period_start, _period_end = _month_bounds(target_month, target_year)
+    min_period_start = date(min_date.year, min_date.month, 1)
+    if period_start < min_period_start:
+        return min_date.month, min_date.year
+    return target_month, target_year
+
+
+def _build_tutor_attendance_calendar(tutor_id, month=None, year=None, min_date=None):
+    if min_date is None:
+        min_date = _parse_portal_min_date()
+    target_month, target_year = _normalize_portal_attendance_period(
+        month,
+        year,
+        min_date,
+    )
     period_start = date(target_year, target_month, 1)
     period_end = date(target_year, target_month, monthrange(target_year, target_month)[1])
     sessions = (
@@ -415,6 +477,8 @@ def _build_tutor_attendance_calendar(tutor_id, month=None, year=None):
     previous_year = target_year if target_month > 1 else target_year - 1
     next_month = target_month + 1 if target_month < 12 else 1
     next_year = target_year if target_month < 12 else target_year + 1
+    previous_period_start = date(previous_year, previous_month, 1)
+    min_period_start = date(min_date.year, min_date.month, 1)
     valid_fee_total = sum(
         item["fee"]
         for items in items_by_date.values()
@@ -433,9 +497,62 @@ def _build_tutor_attendance_calendar(tutor_id, month=None, year=None):
         "valid_fee_total": valid_fee_total,
         "previous_month": previous_month,
         "previous_year": previous_year,
+        "can_view_previous": previous_period_start >= min_period_start,
         "next_month": next_month,
         "next_year": next_year,
     }
+
+
+def _validated_tutor_attendance_sessions(tutor_id, period_start, period_end):
+    sessions = (
+        AttendanceSession.query.filter(
+            AttendanceSession.tutor_id == tutor_id,
+            AttendanceSession.session_date.between(period_start, period_end),
+        )
+        .order_by(AttendanceSession.session_date.desc(), AttendanceSession.id.desc())
+        .all()
+    )
+    validation_map = _attendance_validation_map([session.id for session in sessions])
+    valid_sessions = [
+        session for session in sessions if validation_map.get(session.id) == "valid"
+    ]
+    return valid_sessions, validation_map
+
+
+class _ListPagination:
+    def __init__(self, items, page, per_page):
+        self.total = len(items)
+        self.per_page = per_page
+        self.pages = max((self.total + per_page - 1) // per_page, 1)
+        self.page = min(max(page, 1), self.pages)
+        self.has_prev = self.page > 1
+        self.has_next = self.page < self.pages
+        self.prev_num = self.page - 1 if self.has_prev else 1
+        self.next_num = self.page + 1 if self.has_next else self.pages
+        start_index = (self.page - 1) * per_page
+        end_index = start_index + per_page
+        self.items = items[start_index:end_index]
+        self.first = start_index + 1 if self.total else 0
+        self.last = min(end_index, self.total)
+
+    def iter_pages(
+        self,
+        left_edge=1,
+        right_edge=1,
+        left_current=2,
+        right_current=2,
+    ):
+        last = 0
+        for num in range(1, self.pages + 1):
+            if (
+                num <= left_edge
+                or num > self.pages - right_edge
+                or self.page - left_current <= num <= self.page + right_current
+            ):
+                if last + 1 != num:
+                    yield None
+                yield num
+                last = num
 
 
 def _allowed_upload(filename, extensions):
@@ -889,8 +1006,32 @@ def onboarding():
 @tutor_portal_bp.route("/logout")
 def logout():
     session.pop("tutor_portal_tutor_id", None)
+    session.pop("tutor_portal_admin_tutor_id", None)
     flash("Anda sudah keluar dari Dashboard Tutor.", "info")
     return redirect(url_for("tutor_portal.login"))
+
+
+@tutor_portal_bp.route("/admin/dashboard-select", methods=["GET", "POST"])
+@login_required
+def admin_dashboard_select():
+    if not _current_user_can_view_tutor_dashboard():
+        abort(403)
+    if request.method == "POST":
+        tutor_ref = request.form.get("tutor_ref") or ""
+        try:
+            tutor_id = decode_public_id(tutor_ref, "tutor")
+        except ValueError:
+            abort(404)
+        tutor = Tutor.query.get_or_404(tutor_id)
+        if not tutor.is_active:
+            flash("Tutor yang dipilih tidak aktif.", "warning")
+            return redirect(url_for("tutor_portal.admin_dashboard_select"))
+        session["tutor_portal_admin_tutor_id"] = tutor.id
+        flash(f"Dashboard tutor {tutor.name} ditampilkan.", "success")
+        return redirect(url_for("tutor_portal.dashboard"))
+
+    tutors = Tutor.query.filter_by(is_active=True).order_by(Tutor.name.asc(), Tutor.id.asc()).all()
+    return render_template("tutor_portal/admin_dashboard_select.html", tutors=tutors)
 
 
 @tutor_portal_bp.route("/uploads/<path:filename>")
@@ -903,9 +1044,25 @@ def uploaded_file(filename):
 @tutor_login_required
 def dashboard():
     tutor = _current_tutor()
+    admin_tutor_dashboard = _is_admin_tutor_dashboard_view()
+    admin_tutor_options = (
+        Tutor.query.filter_by(is_active=True).order_by(Tutor.name.asc(), Tutor.id.asc()).all()
+        if admin_tutor_dashboard
+        else []
+    )
     min_date = _parse_portal_min_date()
     calendar_month = request.args.get("month", type=int)
     calendar_year = request.args.get("year", type=int)
+    attendance_page = request.args.get("page", 1, type=int)
+    attendance_month, attendance_year = _normalize_portal_attendance_period(
+        calendar_month,
+        calendar_year,
+        min_date,
+    )
+    attendance_period_start, attendance_period_end = _month_bounds(
+        attendance_month,
+        attendance_year,
+    )
     enrollments = (
         Enrollment.query.filter_by(tutor_id=tutor.id)
         .order_by(Enrollment.status.asc(), Enrollment.updated_at.desc())
@@ -918,25 +1075,26 @@ def dashboard():
         .all()
     )
     schedule_grid = _build_tutor_weekly_schedule_grid(tutor.id)
-    attendance_sessions = (
-        AttendanceSession.query.filter(
-            AttendanceSession.tutor_id == tutor.id,
-            AttendanceSession.session_date >= min_date,
-        )
-        .order_by(AttendanceSession.session_date.desc(), AttendanceSession.id.desc())
-        .limit(80)
-        .all()
+    attendance_sessions, validation_map = _validated_tutor_attendance_sessions(
+        tutor.id,
+        attendance_period_start,
+        attendance_period_end,
     )
-    validation_map = _attendance_validation_map([s.id for s in attendance_sessions])
+    attendance_pagination = _ListPagination(
+        attendance_sessions,
+        attendance_page,
+        ATTENDANCE_TABLE_PER_PAGE,
+    )
+    attendance_sessions = attendance_pagination.items
     attendance_calendar = _build_tutor_attendance_calendar(
         tutor.id,
-        month=calendar_month,
-        year=calendar_year,
+        month=attendance_month,
+        year=attendance_year,
+        min_date=min_date,
     )
     validated_fee_total = sum(
         Decimal(s.tutor_fee_amount or 0)
         for s in attendance_sessions
-        if validation_map.get(s.id) == "valid"
     )
     payouts = (
         TutorPayout.query.filter(
@@ -956,10 +1114,13 @@ def dashboard():
     return render_template(
         "tutor_portal/dashboard.html",
         tutor=tutor,
+        admin_tutor_dashboard=admin_tutor_dashboard,
+        admin_tutor_options=admin_tutor_options,
         enrollments=enrollments,
         schedules=schedules,
         schedule_grid=schedule_grid,
         attendance_sessions=attendance_sessions,
+        attendance_pagination=attendance_pagination,
         validation_map=validation_map,
         attendance_calendar=attendance_calendar,
         validated_fee_total=validated_fee_total,
@@ -967,6 +1128,8 @@ def dashboard():
         requests=requests,
         request_type_labels=REQUEST_TYPES,
         min_date=min_date,
+        attendance_period_start=attendance_period_start,
+        attendance_period_end=attendance_period_end,
     )
 
 

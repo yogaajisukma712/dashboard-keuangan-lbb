@@ -176,105 +176,6 @@
   </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-white py-3">
-    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
-      <div>
-        <h6 class="mb-1 fw-semibold"><i class="bi bi-calendar3 text-primary me-2"></i>Kalender Presensi</h6>
-        <div class="text-muted small">Presensi tutor bulan {{ attendance_calendar.title }}.</div>
-      </div>
-      <div class="d-flex flex-wrap align-items-center gap-2">
-        <a
-          class="btn btn-outline-secondary btn-sm"
-          href="{{ url_for('tutor_portal.dashboard', month=attendance_calendar.previous_month, year=attendance_calendar.previous_year) }}"
-        >
-          <i class="bi bi-chevron-left me-1"></i>Bulan Sebelumnya
-        </a>
-        <a
-          class="btn btn-outline-secondary btn-sm"
-          href="{{ url_for('tutor_portal.dashboard', month=attendance_calendar.next_month, year=attendance_calendar.next_year) }}"
-        >
-          Bulan Berikutnya<i class="bi bi-chevron-right ms-1"></i>
-        </a>
-      </div>
-    </div>
-  </div>
-  <div class="card-body border-bottom">
-    <form class="row g-2 align-items-end" method="get" action="{{ url_for('tutor_portal.dashboard') }}">
-      <div class="col-sm-4 col-md-3 col-lg-2">
-        <label class="form-label small fw-semibold" for="calendar-month">Bulan</label>
-        <select class="form-select form-select-sm" id="calendar-month" name="month">
-          {% for month_value, month_label in attendance_calendar.month_options %}
-          <option value="{{ month_value }}" {% if month_value == attendance_calendar.month %}selected{% endif %}>{{ month_label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-sm-4 col-md-3 col-lg-2">
-        <label class="form-label small fw-semibold" for="calendar-year">Tahun</label>
-        <input class="form-control form-control-sm" id="calendar-year" name="year" type="number" min="2000" max="2100" value="{{ attendance_calendar.year }}">
-      </div>
-      <div class="col-sm-4 col-md-3 col-lg-2">
-        <button class="btn btn-primary btn-sm w-100" type="submit">
-          <i class="bi bi-funnel-fill me-1"></i>Tampilkan
-        </button>
-      </div>
-      <div class="col-lg-6">
-        <div class="d-flex flex-wrap gap-2 justify-content-lg-end small">
-          <span class="badge bg-primary-subtle text-primary-emphasis">{{ attendance_calendar.session_count }} presensi</span>
-          <span class="badge bg-info-subtle text-info-emphasis">{{ attendance_calendar.active_day_count }} hari terisi</span>
-          <span class="badge bg-success-subtle text-success-emphasis">Fee valid Rp {{ "{:,.0f}".format(attendance_calendar.valid_fee_total | float) }}</span>
-        </div>
-      </div>
-    </form>
-  </div>
-  <div class="table-responsive">
-    <table class="table table-bordered align-middle tutor-attendance-calendar-table mb-0">
-      <thead>
-        <tr>
-          {% for weekday_name in attendance_calendar.weekday_names %}
-          <th class="text-center">{{ weekday_name }}</th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for week in attendance_calendar.weeks %}
-        <tr>
-          {% for day in week %}
-          <td class="tutor-attendance-calendar-day {% if not day.in_month %}is-outside{% endif %} {% if day.is_today %}is-today{% endif %}">
-            <div class="tutor-attendance-calendar-date">
-              <span class="tutor-attendance-calendar-number">{{ day.date.day }}</span>
-              {% if day.count %}
-              <span class="badge bg-light text-dark border tutor-attendance-calendar-count">{{ day.count }}</span>
-              {% endif %}
-            </div>
-            <div class="tutor-attendance-calendar-items">
-              {% for item in day['items'] %}
-              <div class="tutor-attendance-calendar-chip tutor-attendance-calendar-chip-{{ item.status }}">
-                <strong>{{ item.student_short_name or item.student_name }}</strong>
-                <span>{{ item.subject_name }} • {{ item.status|title }}</span>
-                {% if item.review_status == 'valid' %}
-                <span class="text-success">Tervalidasi</span>
-                {% elif item.review_status == 'invalid' %}
-                <span class="text-warning">Perlu Koreksi</span>
-                {% else %}
-                <span class="text-muted">Belum tervalidasi</span>
-                {% endif %}
-              </div>
-              {% else %}
-              {% if day.in_month %}
-              <div class="tutor-attendance-calendar-empty">Tidak ada presensi</div>
-              {% endif %}
-              {% endfor %}
-            </div>
-          </td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
 <div class="tutor-dashboard-grid">
   <div class="tutor-dashboard-sidebar">
     <div class="card border-0 shadow-sm mb-4">
@@ -411,6 +312,105 @@
             </table>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-header bg-white py-3">
+        <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+          <div>
+            <h6 class="mb-1 fw-semibold"><i class="bi bi-calendar3 text-primary me-2"></i>Kalender Presensi</h6>
+            <div class="text-muted small">Presensi tutor bulan {{ attendance_calendar.title }}.</div>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <a
+              class="btn btn-outline-secondary btn-sm"
+              href="{{ url_for('tutor_portal.dashboard', month=attendance_calendar.previous_month, year=attendance_calendar.previous_year) }}"
+            >
+              <i class="bi bi-chevron-left me-1"></i>Bulan Sebelumnya
+            </a>
+            <a
+              class="btn btn-outline-secondary btn-sm"
+              href="{{ url_for('tutor_portal.dashboard', month=attendance_calendar.next_month, year=attendance_calendar.next_year) }}"
+            >
+              Bulan Berikutnya<i class="bi bi-chevron-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="card-body border-bottom">
+        <form class="row g-2 align-items-end" method="get" action="{{ url_for('tutor_portal.dashboard') }}">
+          <div class="col-sm-4 col-md-3 col-lg-2">
+            <label class="form-label small fw-semibold" for="calendar-month">Bulan</label>
+            <select class="form-select form-select-sm" id="calendar-month" name="month">
+              {% for month_value, month_label in attendance_calendar.month_options %}
+              <option value="{{ month_value }}" {% if month_value == attendance_calendar.month %}selected{% endif %}>{{ month_label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-4 col-md-3 col-lg-2">
+            <label class="form-label small fw-semibold" for="calendar-year">Tahun</label>
+            <input class="form-control form-control-sm" id="calendar-year" name="year" type="number" min="2000" max="2100" value="{{ attendance_calendar.year }}">
+          </div>
+          <div class="col-sm-4 col-md-3 col-lg-2">
+            <button class="btn btn-primary btn-sm w-100" type="submit">
+              <i class="bi bi-funnel-fill me-1"></i>Tampilkan
+            </button>
+          </div>
+          <div class="col-lg-6">
+            <div class="d-flex flex-wrap gap-2 justify-content-lg-end small">
+              <span class="badge bg-primary-subtle text-primary-emphasis">{{ attendance_calendar.session_count }} presensi</span>
+              <span class="badge bg-info-subtle text-info-emphasis">{{ attendance_calendar.active_day_count }} hari terisi</span>
+              <span class="badge bg-success-subtle text-success-emphasis">Fee valid Rp {{ "{:,.0f}".format(attendance_calendar.valid_fee_total | float) }}</span>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle tutor-attendance-calendar-table mb-0">
+          <thead>
+            <tr>
+              {% for weekday_name in attendance_calendar.weekday_names %}
+              <th class="text-center">{{ weekday_name }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for week in attendance_calendar.weeks %}
+            <tr>
+              {% for day in week %}
+              <td class="tutor-attendance-calendar-day {% if not day.in_month %}is-outside{% endif %} {% if day.is_today %}is-today{% endif %}">
+                <div class="tutor-attendance-calendar-date">
+                  <span class="tutor-attendance-calendar-number">{{ day.date.day }}</span>
+                  {% if day.count %}
+                  <span class="badge bg-light text-dark border tutor-attendance-calendar-count">{{ day.count }}</span>
+                  {% endif %}
+                </div>
+                <div class="tutor-attendance-calendar-items">
+                  {% for item in day['items'] %}
+                  <div class="tutor-attendance-calendar-chip tutor-attendance-calendar-chip-{{ item.status }}">
+                    <strong>{{ item.student_short_name or item.student_name }}</strong>
+                    <span>{{ item.subject_name }} • {{ item.status|title }}</span>
+                    {% if item.review_status == 'valid' %}
+                    <span class="text-success">Tervalidasi</span>
+                    {% elif item.review_status == 'invalid' %}
+                    <span class="text-warning">Perlu Koreksi</span>
+                    {% else %}
+                    <span class="text-muted">Belum tervalidasi</span>
+                    {% endif %}
+                  </div>
+                  {% else %}
+                  {% if day.in_month %}
+                  <div class="tutor-attendance-calendar-empty">Tidak ada presensi</div>
+                  {% endif %}
+                  {% endfor %}
+                </div>
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

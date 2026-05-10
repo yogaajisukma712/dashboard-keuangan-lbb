@@ -11,10 +11,11 @@
           <div class="muted-label mb-1">Aktivasi Akun Tutor</div>
           <h4 class="fw-bold mb-1">{{ tutor.name }}</h4>
           <p class="text-muted small mb-0">
-            Login pertama wajib mengganti password awal dan menambahkan Gmail aktif untuk verifikasi.
+            Login pertama dimulai dari ganti password, lalu menambahkan Gmail aktif untuk verifikasi.
           </p>
         </div>
 
+        {% if step == 'password' %}
         <form method="post" novalidate>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label class="form-label fw-semibold" for="new_password">Password Baru</label>
@@ -23,17 +24,29 @@
           <label class="form-label fw-semibold mt-3" for="confirm_password">Konfirmasi Password</label>
           <input class="form-control form-control-lg" id="confirm_password" name="confirm_password" type="password" minlength="8" autocomplete="new-password" required>
 
-          <label class="form-label fw-semibold mt-3" for="email">Gmail Tutor</label>
-          <input class="form-control form-control-lg" id="email" name="email" type="email" value="{{ tutor.email or '' }}" placeholder="nama@gmail.com" required>
-
           <button class="btn btn-primary w-100 mt-4" type="submit">
-            <i class="bi bi-shield-check me-1"></i>Simpan dan Kirim Verifikasi Gmail
+            <i class="bi bi-key me-1"></i>Ganti Password
           </button>
         </form>
 
         <div class="alert alert-info small mt-4 mb-0">
-          Setelah link verifikasi Gmail diklik, dashboard tutor akan terbuka penuh.
+          Setelah password diganti, tutor akan diminta memasukkan Gmail untuk verifikasi.
         </div>
+        {% elif step == 'email' %}
+        <form method="post" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="form-label fw-semibold mt-3" for="email">Gmail Tutor</label>
+          <input class="form-control form-control-lg" id="email" name="email" type="email" value="{{ tutor.email or '' }}" placeholder="nama@gmail.com" required>
+
+          <button class="btn btn-primary w-100 mt-4" type="submit">
+            <i class="bi bi-shield-check me-1"></i>Simpan Gmail dan Kirim Verifikasi
+          </button>
+        </form>
+
+        <div class="alert alert-info small mt-4 mb-0">
+          Gmail yang dimasukkan akan memperbarui data email tutor di database utama. Setelah link verifikasi diklik, dashboard tutor akan terbuka penuh.
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>

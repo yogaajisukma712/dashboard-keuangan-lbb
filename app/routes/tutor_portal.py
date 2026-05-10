@@ -4,7 +4,9 @@ import json
 import os
 import re
 import smtplib
-from datetime import date, datetime, time
+from calendar import monthrange
+from collections import defaultdict
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from email.message import EmailMessage
 from functools import wraps
@@ -37,12 +39,30 @@ from app.models import (
     TutorPortalRequest,
     WhatsAppEvaluation,
 )
+from app.routes.master import _build_tutor_weekly_schedule_grid
 from app.utils import decode_public_id
 
 
 tutor_portal_bp = Blueprint("tutor_portal", __name__, url_prefix="/tutor")
 
 PORTAL_MIN_DATE = date(2026, 4, 1)
+WEEKDAY_NAMES = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+MONTH_NAMES = [
+    "",
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+]
+SCHEDULE_HOUR_SLOTS = list(range(8, 22))
 REQUEST_TYPES = {
     "schedule_change": "Perubahan Jadwal Siswa",
     "availability": "Jadwal Merah/Hijau",
@@ -143,10 +163,18 @@ def _parse_portal_min_date():
 
 
 def _send_login_email(tutor, verify_url):
-    sender = current_app.config.get("MAIL_DEFAULT_SENDER")
+    username = current_app.config.get("MAIL_USERNAME")
+    sender = (
+        current_app.config.get("MAIL_DEFAULT_SENDER")
+        or username
+        or current_app.config.get("INSTITUTION_EMAIL")
+    )
     server = current_app.config.get("MAIL_SERVER")
     if not server:
         current_app.logger.warning("MAIL_SERVER is empty; tutor login link: %s", verify_url)
+        return False
+    if not sender:
+        current_app.logger.warning("MAIL_DEFAULT_SENDER is empty; tutor login link: %s", verify_url)
         return False
 
     message = EmailMessage()
@@ -167,16 +195,22 @@ def _send_login_email(tutor, verify_url):
     )
 
     port = int(current_app.config.get("MAIL_PORT", 587))
-    username = current_app.config.get("MAIL_USERNAME")
     password = current_app.config.get("MAIL_PASSWORD")
     use_ssl = current_app.config.get("MAIL_USE_SSL")
     use_tls = current_app.config.get("MAIL_USE_TLS")
+
+    if username and not password:
+        current_app.logger.warning(
+            "MAIL_USERNAME is set but MAIL_PASSWORD is empty; tutor login link: %s",
+            verify_url,
+        )
+        return False
 
     smtp_cls = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
     with smtp_cls(server, port, timeout=20) as smtp:
         if use_tls and not use_ssl:
             smtp.starttls()
-        if username:
+        if username and password:
             smtp.login(username, password)
         smtp.send_message(message)
     return True
@@ -280,7 +314,7 @@ def _build_tutor_credential_whatsapp_template():
         "Fungsi dashboard tutor:\n"
         "- Melihat jadwal siswa.\n"
         "- Mengajukan perubahan jadwal ke admin.\n"
-        "- Mengajukan jadwal merah/hijau ke admin.\n"
+        "- Melihat kalender presensi bulanan.\n"
         "- Melihat presensi dan status validasi admin.\n"
         "- Melihat akumulasi fee dari presensi tervalidasi.\n"
         "- Mengajukan perbaikan data diri, CV, dan foto profil.\n\n"
@@ -317,6 +351,93 @@ def _attendance_validation_map(session_ids):
     return result
 
 
+def _normalize_calendar_period(month, year):
+    today = date.today()
+    target_month = month or today.month
+    target_year = year or today.year
+    if target_month < 1 or target_month > 12:
+        target_month = today.month
+    if target_year < 2000 or target_year > 2100:
+        target_year = today.year
+    return target_month, target_year
+
+
+def _build_tutor_attendance_calendar(tutor_id, month=None, year=None):
+    target_month, target_year = _normalize_calendar_period(month, year)
+    period_start = date(target_year, target_month, 1)
+    period_end = date(target_year, target_month, monthrange(target_year, target_month)[1])
+    sessions = (
+        AttendanceSession.query.filter(
+            AttendanceSession.tutor_id == tutor_id,
+            AttendanceSession.session_date.between(period_start, period_end),
+        )
+        .order_by(AttendanceSession.session_date.asc(), AttendanceSession.id.asc())
+        .all()
+    )
+    validation_map = _attendance_validation_map([session_item.id for session_item in sessions])
+    items_by_date = defaultdict(list)
+    for session_item in sessions:
+        student_name = session_item.student.name if session_item.student else "Siswa"
+        subject_name = session_item.subject.name if session_item.subject else "Mapel"
+        items_by_date[session_item.session_date].append(
+            {
+                "id": session_item.id,
+                "student_name": student_name,
+                "student_short_name": " ".join(student_name.split()[:2]),
+                "subject_name": subject_name,
+                "status": session_item.status,
+                "review_status": validation_map.get(session_item.id, "pending"),
+                "fee": Decimal(session_item.tutor_fee_amount or 0),
+            }
+        )
+
+    grid_start = period_start - timedelta(days=period_start.weekday())
+    grid_end = period_end + timedelta(days=6 - period_end.weekday())
+    weeks = []
+    cursor = grid_start
+    while cursor <= grid_end:
+        days = []
+        for _ in range(7):
+            day_items = items_by_date.get(cursor, [])
+            days.append(
+                {
+                    "date": cursor,
+                    "in_month": cursor.month == target_month,
+                    "is_today": cursor == date.today(),
+                    "items": day_items,
+                    "count": len(day_items),
+                }
+            )
+            cursor += timedelta(days=1)
+        weeks.append(days)
+
+    previous_month = target_month - 1 if target_month > 1 else 12
+    previous_year = target_year if target_month > 1 else target_year - 1
+    next_month = target_month + 1 if target_month < 12 else 1
+    next_year = target_year if target_month < 12 else target_year + 1
+    valid_fee_total = sum(
+        item["fee"]
+        for items in items_by_date.values()
+        for item in items
+        if item["review_status"] == "valid"
+    )
+    return {
+        "month": target_month,
+        "year": target_year,
+        "title": f"{MONTH_NAMES[target_month]} {target_year}",
+        "weekday_names": WEEKDAY_NAMES,
+        "month_options": list(enumerate(MONTH_NAMES))[1:],
+        "weeks": weeks,
+        "session_count": len(sessions),
+        "active_day_count": len(items_by_date),
+        "valid_fee_total": valid_fee_total,
+        "previous_month": previous_month,
+        "previous_year": previous_year,
+        "next_month": next_month,
+        "next_year": next_year,
+    }
+
+
 def _allowed_upload(filename, extensions):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in extensions
 
@@ -334,6 +455,303 @@ def _save_tutor_upload(file_storage, tutor, folder, extensions):
     relative_path = os.path.join(relative_dir, f"tutor-{tutor.id}-{stamp}-{filename}")
     file_storage.save(os.path.join(current_app.config["UPLOAD_FOLDER"], relative_path))
     return relative_path
+
+
+def _active_tutor_enrollments(tutor_id):
+    return (
+        Enrollment.query.filter(
+            Enrollment.tutor_id == tutor_id,
+            Enrollment.is_active.is_(True),
+        )
+        .order_by(Enrollment.status.asc(), Enrollment.id.asc())
+        .all()
+    )
+
+
+def _build_schedule_change_rows(tutor_id):
+    enrollments_by_value = {
+        f"enrollment:{enrollment.id}": enrollment
+        for enrollment in _active_tutor_enrollments(tutor_id)
+    }
+    label_by_value = {
+        value: f"{enrollment.student.name if enrollment.student else 'Siswa'} - {enrollment.subject.name if enrollment.subject else 'Mapel'}"
+        for value, enrollment in enrollments_by_value.items()
+    }
+    active_schedules = (
+        EnrollmentSchedule.query.join(Enrollment)
+        .filter(
+            Enrollment.tutor_id == tutor_id,
+            Enrollment.status == "active",
+            Enrollment.is_active.is_(True),
+            EnrollmentSchedule.is_active.is_(True),
+        )
+        .order_by(
+            EnrollmentSchedule.day_of_week.asc(),
+            EnrollmentSchedule.start_time.asc(),
+            EnrollmentSchedule.id.asc(),
+        )
+        .all()
+    )
+    selected_by_slot = defaultdict(list)
+    for schedule in active_schedules:
+        if schedule.start_time is None:
+            continue
+        hour = schedule.start_time.hour
+        weekday = schedule.day_of_week
+        if weekday not in range(7) or hour not in SCHEDULE_HOUR_SLOTS:
+            continue
+        value = f"enrollment:{schedule.enrollment_id}"
+        if value not in selected_by_slot[(weekday, hour)]:
+            selected_by_slot[(weekday, hour)].append(value)
+
+    schedule_grid = _build_tutor_weekly_schedule_grid(tutor_id)
+    for row in schedule_grid.get("rows", []):
+        hour = row.get("hour")
+        if hour not in SCHEDULE_HOUR_SLOTS:
+            continue
+        for cell in row.get("cells", []):
+            weekday = cell.get("weekday")
+            if weekday not in range(7):
+                continue
+            for item in cell.get("items", []):
+                enrollment_ref = item.get("enrollment_ref")
+                if not enrollment_ref:
+                    continue
+                try:
+                    enrollment_id = decode_public_id(enrollment_ref, "enrollment")
+                except ValueError:
+                    continue
+                value = f"enrollment:{enrollment_id}"
+                label_by_value[value] = (
+                    f"{item.get('student_name') or 'Siswa'} - "
+                    f"{item.get('subject_name') or 'Mapel'}"
+                )
+                if value not in selected_by_slot[(weekday, hour)]:
+                    selected_by_slot[(weekday, hour)].append(value)
+
+    rows = []
+    waiting_values = []
+    for hour in SCHEDULE_HOUR_SLOTS:
+        cells = []
+        for weekday in range(7):
+            selections = selected_by_slot.get((weekday, hour))
+            if not selections:
+                selections = ["unavailable" if hour < 16 else "available"]
+            selected = selections[0]
+            selected_label = (
+                label_by_value.get(selected)
+                if selected.startswith("enrollment:")
+                else "Available" if selected == "available" else "Tidak Available"
+            )
+            cell_waiting_values = [
+                value for value in selections[1:] if value.startswith("enrollment:")
+            ]
+            waiting_values.extend(cell_waiting_values)
+            cells.append(
+                {
+                    "weekday": weekday,
+                    "day_name": WEEKDAY_NAMES[weekday],
+                    "hour": hour,
+                    "field_name": f"slot_{weekday}_{hour}",
+                    "selected": selected,
+                    "selected_label": selected_label,
+                    "waiting_values": cell_waiting_values,
+                }
+            )
+        rows.append({"hour": hour, "cells": cells})
+    return rows
+
+
+def _schedule_editor_waitinglist(enrollments, rows):
+    enrollment_by_value = {f"enrollment:{enrollment.id}": enrollment for enrollment in enrollments}
+    assigned_values = {
+        cell["selected"]
+        for row in rows
+        for cell in row["cells"]
+        if str(cell["selected"]).startswith("enrollment:")
+    }
+    waiting_values = []
+    for row in rows:
+        for cell in row["cells"]:
+            waiting_values.extend(cell.get("waiting_values", []))
+    waiting_values.extend(
+        value for value in enrollment_by_value if value not in assigned_values
+    )
+
+    waitinglist = []
+    seen = set()
+    for value in waiting_values:
+        if value in seen:
+            continue
+        seen.add(value)
+        enrollment = enrollment_by_value.get(value)
+        if enrollment is None:
+            continue
+        waitinglist.append(
+            {
+                "value": value,
+                "label": f"{enrollment.student.name if enrollment.student else 'Siswa'} - {enrollment.subject.name if enrollment.subject else 'Mapel'}",
+                "student_name": enrollment.student.name if enrollment.student else "Siswa",
+                "subject_name": enrollment.subject.name if enrollment.subject else "Mapel",
+            }
+        )
+    return waitinglist
+
+
+def _schedule_editor_enrollments(tutor_id, rows):
+    option_ids = {
+        enrollment.id for enrollment in _active_tutor_enrollments(tutor_id)
+    }
+    for row in rows:
+        for cell in row["cells"]:
+            values = [cell["selected"], *cell.get("waiting_values", [])]
+            for value in values:
+                if not str(value).startswith("enrollment:"):
+                    continue
+                try:
+                    option_ids.add(int(str(value).split(":", 1)[1]))
+                except ValueError:
+                    continue
+    if not option_ids:
+        return []
+    return (
+        Enrollment.query.filter(Enrollment.id.in_(option_ids))
+        .order_by(Enrollment.status.asc(), Enrollment.id.asc())
+        .all()
+    )
+
+
+def _build_schedule_change_payload(tutor, form):
+    enrollments = Enrollment.query.all()
+    enrollment_by_id = {enrollment.id: enrollment for enrollment in enrollments}
+    slots = []
+    assigned_count = 0
+    available_count = 0
+    unavailable_count = 0
+
+    for weekday in range(7):
+        for hour in SCHEDULE_HOUR_SLOTS:
+            field_name = f"slot_{weekday}_{hour}"
+            raw_values = (
+                form.getlist(field_name)
+                if hasattr(form, "getlist")
+                else [form.get(field_name, "unavailable")]
+            )
+            values = [
+                value
+                for value in raw_values
+                if value in {"available", "unavailable"} or value.startswith("enrollment:")
+            ]
+            if not values:
+                values = ["unavailable"]
+            enrollment_values = []
+            seen_enrollments = set()
+            for value in values:
+                if not value.startswith("enrollment:"):
+                    continue
+                if value in seen_enrollments:
+                    continue
+                seen_enrollments.add(value)
+                enrollment_values.append(value)
+            if enrollment_values:
+                values = enrollment_values
+            else:
+                values = [values[0]]
+
+            for value in values:
+                slot = {
+                    "weekday": weekday,
+                    "day_name": WEEKDAY_NAMES[weekday],
+                    "hour": hour,
+                    "start_time": f"{hour:02d}:00",
+                    "end_time": f"{hour + 1:02d}:00",
+                }
+                if value == "available":
+                    slot["state"] = "available"
+                    available_count += 1
+                elif value == "unavailable":
+                    slot["state"] = "unavailable"
+                    unavailable_count += 1
+                elif value.startswith("enrollment:"):
+                    try:
+                        enrollment_id = int(value.split(":", 1)[1])
+                    except ValueError:
+                        raise ValueError("Pilihan jadwal tidak valid.") from None
+                    enrollment = enrollment_by_id.get(enrollment_id)
+                    if enrollment is None:
+                        raise ValueError("Ada siswa yang tidak sesuai dengan tutor ini.")
+                    slot.update(
+                        {
+                            "state": "enrollment",
+                            "enrollment_id": enrollment.id,
+                            "student_name": enrollment.student.name if enrollment.student else "",
+                            "subject_name": enrollment.subject.name if enrollment.subject else "",
+                        }
+                    )
+                    assigned_count += 1
+                else:
+                    raise ValueError("Pilihan jadwal tidak valid.")
+                slots.append(slot)
+
+    return {
+        "mode": "weekly_grid",
+        "weekday_names": WEEKDAY_NAMES,
+        "hour_slots": SCHEDULE_HOUR_SLOTS,
+        "slots": slots,
+        "summary": {
+            "assigned_count": assigned_count,
+            "available_count": available_count,
+            "unavailable_count": unavailable_count,
+        },
+    }
+
+
+def _apply_weekly_schedule_grid_request(portal_request, payload):
+    tutor_id = portal_request.tutor_id
+    enrollment_ids = {
+        int(slot["enrollment_id"])
+        for slot in payload.get("slots", [])
+        if slot.get("state") == "enrollment" and slot.get("enrollment_id")
+    }
+    enrollments_by_id = {
+        enrollment.id: enrollment
+        for enrollment in Enrollment.query.filter(Enrollment.id.in_(enrollment_ids)).all()
+    }
+    if enrollment_ids and set(enrollments_by_id) != enrollment_ids:
+        raise ValueError("Payload jadwal berisi siswa yang tidak ditemukan.")
+
+    active_schedules = (
+        EnrollmentSchedule.query.join(Enrollment)
+        .filter(
+            Enrollment.tutor_id == tutor_id,
+            EnrollmentSchedule.is_active.is_(True),
+        )
+        .all()
+    )
+    for schedule in active_schedules:
+        schedule.is_active = False
+        schedule.updated_at = datetime.utcnow()
+
+    for slot in payload.get("slots", []):
+        if slot.get("state") != "enrollment":
+            continue
+        weekday = int(slot["weekday"])
+        hour = int(slot["hour"])
+        if weekday not in range(7) or hour not in SCHEDULE_HOUR_SLOTS:
+            continue
+        enrollment = enrollments_by_id.get(int(slot["enrollment_id"]))
+        if enrollment is not None and enrollment.tutor_id != tutor_id:
+            enrollment.tutor_id = tutor_id
+            enrollment.updated_at = datetime.utcnow()
+        schedule = EnrollmentSchedule(
+            enrollment_id=int(slot["enrollment_id"]),
+            day_of_week=weekday,
+            day_name=EnrollmentSchedule.get_day_name(weekday),
+            start_time=time(hour, 0),
+            end_time=time(hour + 1, 0),
+            is_active=True,
+        )
+        db.session.add(schedule)
 
 
 @tutor_portal_bp.route("/login", methods=["GET", "POST"])
@@ -456,6 +874,11 @@ def onboarding():
             sent = False
         if sent:
             flash("Password baru dan Gmail sudah disimpan. Link verifikasi Gmail sudah dikirim.", "success")
+        elif current_app.config.get("MAIL_SERVER"):
+            flash(
+                "Password baru dan Gmail sudah disimpan, tetapi email verifikasi belum terkirim. Admin perlu cek koneksi SMTP.",
+                "warning",
+            )
         else:
             flash("Password baru dan Gmail sudah disimpan. MAIL_SERVER belum aktif, link verifikasi dicatat di log server.", "warning")
         return redirect(url_for("tutor_portal.onboarding"))
@@ -481,6 +904,8 @@ def uploaded_file(filename):
 def dashboard():
     tutor = _current_tutor()
     min_date = _parse_portal_min_date()
+    calendar_month = request.args.get("month", type=int)
+    calendar_year = request.args.get("year", type=int)
     enrollments = (
         Enrollment.query.filter_by(tutor_id=tutor.id)
         .order_by(Enrollment.status.asc(), Enrollment.updated_at.desc())
@@ -492,6 +917,7 @@ def dashboard():
         .order_by(EnrollmentSchedule.day_of_week.asc(), EnrollmentSchedule.start_time.asc())
         .all()
     )
+    schedule_grid = _build_tutor_weekly_schedule_grid(tutor.id)
     attendance_sessions = (
         AttendanceSession.query.filter(
             AttendanceSession.tutor_id == tutor.id,
@@ -502,6 +928,11 @@ def dashboard():
         .all()
     )
     validation_map = _attendance_validation_map([s.id for s in attendance_sessions])
+    attendance_calendar = _build_tutor_attendance_calendar(
+        tutor.id,
+        month=calendar_month,
+        year=calendar_year,
+    )
     validated_fee_total = sum(
         Decimal(s.tutor_fee_amount or 0)
         for s in attendance_sessions
@@ -527,8 +958,10 @@ def dashboard():
         tutor=tutor,
         enrollments=enrollments,
         schedules=schedules,
+        schedule_grid=schedule_grid,
         attendance_sessions=attendance_sessions,
         validation_map=validation_map,
+        attendance_calendar=attendance_calendar,
         validated_fee_total=validated_fee_total,
         payouts=payouts,
         requests=requests,
@@ -537,29 +970,29 @@ def dashboard():
     )
 
 
-@tutor_portal_bp.route("/schedule-change", methods=["POST"])
+@tutor_portal_bp.route("/schedule-change", methods=["GET", "POST"])
 @tutor_login_required
 def request_schedule_change():
     tutor = _current_tutor()
-    schedule_id = request.form.get("schedule_id", type=int)
-    schedule = (
-        EnrollmentSchedule.query.join(Enrollment)
-        .filter(EnrollmentSchedule.id == schedule_id, Enrollment.tutor_id == tutor.id)
-        .first()
-    )
-    if not schedule:
-        abort(404)
-    payload = {
-        "schedule_id": schedule.id,
-        "student_name": schedule.enrollment.student.name if schedule.enrollment.student else "",
-        "subject_name": schedule.enrollment.subject.name if schedule.enrollment.subject else "",
-        "current_day": schedule.day_name,
-        "current_start_time": schedule.start_time.strftime("%H:%M") if schedule.start_time else "",
-        "current_end_time": schedule.end_time.strftime("%H:%M") if schedule.end_time else "",
-        "requested_day": request.form.get("requested_day"),
-        "requested_start_time": request.form.get("requested_start_time"),
-        "requested_end_time": request.form.get("requested_end_time"),
-    }
+    enrollments = _active_tutor_enrollments(tutor.id)
+    if request.method == "GET":
+        rows = _build_schedule_change_rows(tutor.id)
+        enrollments = _schedule_editor_enrollments(tutor.id, rows)
+        return render_template(
+            "tutor_portal/schedule_change.html",
+            tutor=tutor,
+            enrollments=enrollments,
+            rows=rows,
+            waitinglist=_schedule_editor_waitinglist(enrollments, rows),
+            weekday_names=WEEKDAY_NAMES,
+        )
+
+    try:
+        payload = _build_schedule_change_payload(tutor, request.form)
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("tutor_portal.request_schedule_change"))
+
     db.session.add(
         TutorPortalRequest(
             tutor_id=tutor.id,
@@ -753,7 +1186,12 @@ def review_request(request_ref, action):
     portal_request.reviewed_by = current_user.id
     portal_request.admin_notes = request.form.get("admin_notes")
     if action == "approve":
-        _apply_approved_request(portal_request)
+        try:
+            _apply_approved_request(portal_request)
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+            return redirect(url_for("tutor_portal.admin_requests"))
     db.session.commit()
     flash("Pengajuan tutor berhasil diproses.", "success")
     return redirect(url_for("tutor_portal.admin_requests"))
@@ -762,6 +1200,9 @@ def review_request(request_ref, action):
 def _apply_approved_request(portal_request):
     payload = portal_request.payload_json or {}
     if portal_request.request_type == "schedule_change":
+        if payload.get("mode") == "weekly_grid":
+            _apply_weekly_schedule_grid_request(portal_request, payload)
+            return
         schedule = EnrollmentSchedule.query.get(payload.get("schedule_id"))
         if schedule:
             day_map = {EnrollmentSchedule.get_day_name(i): i for i in range(7)}

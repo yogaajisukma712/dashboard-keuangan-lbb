@@ -1,0 +1,358 @@
+{% extends "tutor_portal/base.html" %}
+
+{% block title %}Perubahan Jadwal{% endblock %}
+
+{% block head %}
+<style>
+  .portal-shell {
+    max-width: none;
+    width: 100%;
+    padding: 1rem clamp(0.75rem, 2vw, 2rem) 2rem;
+  }
+  .schedule-editor-wrap {
+    overflow-x: auto;
+  }
+  .schedule-editor-table {
+    min-width: 1120px;
+    table-layout: fixed;
+    font-size: 0.78rem;
+    border-color: #94a3b8;
+  }
+  .schedule-editor-table th {
+    background: #f8fafc;
+    color: #334155;
+    font-weight: 700;
+    border-color: #94a3b8;
+  }
+  .schedule-editor-time {
+    width: 72px;
+  }
+  .schedule-editor-cell {
+    height: 64px;
+    padding: 0.3rem;
+    border-color: #94a3b8;
+    vertical-align: top;
+  }
+  .schedule-cell-button {
+    width: 100%;
+    min-height: 52px;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    border-radius: 6px;
+    color: #0f172a;
+    line-height: 1.15;
+    padding: 0.25rem 0.35rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .schedule-cell-button.is-available {
+    background: #86efac;
+  }
+  .schedule-cell-button.is-unavailable {
+    background: #fca5a5;
+  }
+  .schedule-cell-button.is-enrollment {
+    background: #fdba74;
+  }
+  .schedule-cell-button:not(.is-enrollment) .schedule-cell-main,
+  .schedule-cell-button:not(.is-enrollment) .schedule-cell-meta {
+    display: none !important;
+  }
+  .schedule-cell-button span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .schedule-choice {
+    text-align: left;
+  }
+  .waiting-row.is-hidden {
+    display: none;
+  }
+  @media (max-width: 1199.98px) {
+    .schedule-editor-table {
+      min-width: 980px;
+    }
+  }
+  @media (max-width: 575.98px) {
+    .portal-shell {
+      padding-inline: 0.75rem;
+    }
+    .schedule-editor-table {
+      min-width: 840px;
+      font-size: 0.72rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">
+      <i class="bi bi-calendar-week text-primary me-2"></i>Perubahan Jadwal
+    </h4>
+    <p class="text-muted small mb-0">Jadwal mingguan tutor dan waitinglist siswa.</p>
+  </div>
+  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('tutor_portal.dashboard') }}">
+    <i class="bi bi-arrow-left me-1"></i>Kembali
+  </a>
+</div>
+
+<form method="post" action="{{ url_for('tutor_portal.request_schedule_change') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div>
+        <h6 class="mb-0 fw-semibold">{{ tutor.name }}</h6>
+        <div class="text-muted small">Slot 08.00 sampai 22.00, Senin sampai Minggu.</div>
+      </div>
+      <div class="d-flex flex-wrap gap-2 small">
+        <span class="badge text-bg-success">Available</span>
+        <span class="badge text-bg-danger">Tidak Available</span>
+        <span class="badge text-bg-warning">Siswa</span>
+      </div>
+    </div>
+    <div class="schedule-editor-wrap">
+      <table class="table table-bordered align-middle schedule-editor-table mb-0">
+        <thead>
+          <tr>
+            <th class="text-center schedule-editor-time">Jam</th>
+            {% for day_name in weekday_names %}
+            <th class="text-center">{{ day_name }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <th class="text-center schedule-editor-time">{{ "%02d.00"|format(row.hour) }}</th>
+            {% for cell in row.cells %}
+            <td class="schedule-editor-cell">
+              <input type="hidden" name="{{ cell.field_name }}" value="{{ cell.selected }}" class="schedule-cell-input">
+              {% set cell_class = "is-available" if cell.selected == "available" else "is-unavailable" if cell.selected == "unavailable" else "is-enrollment" %}
+              <button
+                class="schedule-cell-button {{ cell_class }}"
+                type="button"
+                data-field="{{ cell.field_name }}"
+                data-value="{{ cell.selected }}"
+                data-label="{{ cell.selected_label }}"
+                data-day="{{ cell.day_name }}"
+                data-hour="{{ '%02d.00'|format(cell.hour) }}"
+              >
+                <span class="fw-semibold schedule-cell-main">{{ cell.selected_label if cell.selected.startswith("enrollment:") else "" }}</span>
+                <span class="text-muted schedule-cell-meta">{{ cell.day_name ~ " " ~ "%02d.00"|format(cell.hour) if cell.selected.startswith("enrollment:") else "" }}</span>
+              </button>
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body border-top">
+      <label class="form-label small fw-semibold" for="schedule-notes">Catatan untuk admin</label>
+      <textarea id="schedule-notes" class="form-control form-control-sm" name="notes" rows="2" placeholder="Contoh: perubahan mulai minggu depan"></textarea>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3">
+      <h6 class="mb-0 fw-semibold"><i class="bi bi-hourglass-split text-primary me-2"></i>Waitinglist</h6>
+    </div>
+    <div id="schedule-waiting-warning" class="alert alert-warning rounded-0 border-start-0 border-end-0 mb-0 {% if not waitinglist %}d-none{% endif %}" role="alert">
+      <div class="fw-semibold">Ada siswa di waitinglist.</div>
+      <div class="small">Pengajuan tetap bisa dikirim. Pastikan siswa tersebut memang tidak perlu slot jadwal, misalnya karena sudah tidak aktif lagi.</div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Siswa</th>
+              <th>Mapel</th>
+            </tr>
+          </thead>
+          <tbody id="schedule-waitinglist">
+            {% for item in waitinglist %}
+            <tr class="waiting-row" data-value="{{ item.value }}" data-label="{{ item.label }}">
+              <td class="ps-3 fw-semibold">{{ item.student_name }}</td>
+              <td>{{ item.subject_name }}</td>
+            </tr>
+            {% else %}
+            <tr class="waiting-empty"><td colspan="2" class="text-muted text-center py-3">Kosong</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('tutor_portal.dashboard') }}">Batal</a>
+    <button class="btn btn-primary" type="submit">
+      <i class="bi bi-send me-1"></i>Ajukan Jadwal
+    </button>
+  </div>
+</form>
+
+<div class="modal fade" id="scheduleCellModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title">Isi Jadwal</h5>
+          <div class="text-muted small" id="schedule-cell-title"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-grid gap-2">
+          <button type="button" class="btn btn-outline-success schedule-choice" data-value="available" data-label="Available">
+            Available
+          </button>
+          <button type="button" class="btn btn-outline-danger schedule-choice" data-value="unavailable" data-label="Tidak Available">
+            Tidak Available
+          </button>
+          {% for enrollment in enrollments %}
+          {% set option_value = 'enrollment:' ~ enrollment.id %}
+          {% set option_label = (enrollment.student.name if enrollment.student else 'Siswa') ~ ' - ' ~ (enrollment.subject.name if enrollment.subject else 'Mapel') %}
+          <button type="button" class="btn btn-outline-warning schedule-choice" data-value="{{ option_value }}" data-label="{{ option_label }}">
+            <span class="fw-semibold">{{ enrollment.student.name if enrollment.student else 'Siswa' }}</span>
+            <span class="text-muted"> - {{ enrollment.subject.name if enrollment.subject else 'Mapel' }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (() => {
+    document.addEventListener('DOMContentLoaded', () => {
+    const modalElement = document.getElementById('scheduleCellModal');
+    if (!modalElement || !window.bootstrap) return;
+    const modal = new bootstrap.Modal(modalElement);
+    const modalTitle = document.getElementById('schedule-cell-title');
+    let activeButton = null;
+
+    function stateClass(value) {
+      if (value === 'available') return 'is-available';
+      if (value === 'unavailable') return 'is-unavailable';
+      return 'is-enrollment';
+    }
+
+    function findCellByValue(value, exceptButton = null) {
+      if (!value || !value.startsWith('enrollment:')) return null;
+      return Array.from(document.querySelectorAll('.schedule-cell-button')).find((button) => {
+        return button !== exceptButton && button.dataset.value === value;
+      });
+    }
+
+    function syncEmptyWaitingRow() {
+      const tbody = document.getElementById('schedule-waitinglist');
+      if (!tbody) return;
+      const hasVisible = Array.from(tbody.querySelectorAll('.waiting-row')).some((row) => !row.classList.contains('is-hidden'));
+      const warning = document.getElementById('schedule-waiting-warning');
+      let empty = tbody.querySelector('.waiting-empty');
+      if (!hasVisible && !empty) {
+        empty = document.createElement('tr');
+        empty.className = 'waiting-empty';
+        empty.innerHTML = '<td colspan="2" class="text-muted text-center py-3">Kosong</td>';
+        tbody.appendChild(empty);
+      } else if (hasVisible && empty) {
+        empty.remove();
+      }
+      if (warning) warning.classList.toggle('d-none', !hasVisible);
+    }
+
+    function addWaiting(value, label) {
+      if (!value || !value.startsWith('enrollment:')) return;
+      const tbody = document.getElementById('schedule-waitinglist');
+      if (!tbody) return;
+      const existing = tbody.querySelector(`.waiting-row[data-value="${CSS.escape(value)}"]`);
+      if (existing) {
+        existing.classList.remove('is-hidden');
+        syncEmptyWaitingRow();
+        return;
+      }
+      const parts = label.split(' - ');
+      const row = document.createElement('tr');
+      row.className = 'waiting-row';
+      row.dataset.value = value;
+      row.dataset.label = label;
+      row.innerHTML = `<td class="ps-3 fw-semibold"></td><td></td>`;
+      row.children[0].textContent = parts[0] || label;
+      row.children[1].textContent = parts.slice(1).join(' - ') || '-';
+      tbody.appendChild(row);
+      syncEmptyWaitingRow();
+    }
+
+    function removeWaiting(value) {
+      if (!value || !value.startsWith('enrollment:')) return;
+      const row = document.querySelector(`#schedule-waitinglist .waiting-row[data-value="${CSS.escape(value)}"]`);
+      if (row) row.classList.add('is-hidden');
+      syncEmptyWaitingRow();
+    }
+
+    function setCell(button, value, label) {
+      const input = button.closest('.schedule-editor-cell').querySelector('.schedule-cell-input');
+      button.classList.remove('is-available', 'is-unavailable', 'is-enrollment');
+      button.classList.add(stateClass(value));
+      button.dataset.value = value;
+      button.dataset.label = label;
+      const main = button.querySelector('.schedule-cell-main');
+      const meta = button.querySelector('.schedule-cell-meta');
+      if (value.startsWith('enrollment:')) {
+        if (main) main.textContent = label;
+        if (meta) meta.textContent = `${button.dataset.day} ${button.dataset.hour}`;
+        if (main) main.classList.remove('visually-hidden');
+        if (meta) meta.classList.remove('visually-hidden');
+      } else {
+        if (main) main.textContent = '';
+        if (meta) meta.textContent = '';
+        if (main) main.classList.add('visually-hidden');
+        if (meta) meta.classList.add('visually-hidden');
+      }
+      if (input) input.value = value;
+    }
+
+    function choose(value, label) {
+      if (!activeButton) return;
+      const oldValue = activeButton.dataset.value;
+      const oldLabel = activeButton.dataset.label;
+      const currentOwner = findCellByValue(value, activeButton);
+
+      if (currentOwner) {
+        setCell(currentOwner, 'available', 'Available');
+      }
+      if (oldValue !== value) {
+        addWaiting(oldValue, oldLabel);
+      }
+      setCell(activeButton, value, label);
+      removeWaiting(value);
+      modal.hide();
+    }
+
+    document.querySelectorAll('.schedule-cell-button').forEach((button) => {
+      setCell(button, button.dataset.value, button.dataset.label);
+      button.addEventListener('click', () => {
+        activeButton = button;
+        modalTitle.textContent = `${button.dataset.day} ${button.dataset.hour}`;
+        modal.show();
+      });
+    });
+
+    document.querySelectorAll('.schedule-choice').forEach((choice) => {
+      choice.addEventListener('click', () => choose(choice.dataset.value, choice.dataset.label));
+    });
+
+    document.querySelectorAll('.schedule-cell-button[data-value^="enrollment:"]').forEach((button) => {
+      removeWaiting(button.dataset.value);
+    });
+    syncEmptyWaitingRow();
+    });
+  })();
+</script>
+{% endblock %}

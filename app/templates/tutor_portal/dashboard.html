@@ -2,6 +2,139 @@
 
 {% block title %}{{ tutor.name }}{% endblock %}
 
+{% block head %}
+<style>
+  .portal-shell {
+    max-width: none;
+    width: 100%;
+    padding: 1rem clamp(0.75rem, 2vw, 2rem) 2rem;
+  }
+  .tutor-dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+  .tutor-dashboard-main {
+    min-width: 0;
+  }
+  .tutor-dashboard-schedule .tutor-schedule-table-wrap {
+    width: 100%;
+  }
+  .tutor-dashboard-schedule .tutor-schedule-table {
+    min-width: 1120px;
+    width: 100%;
+  }
+  .tutor-dashboard-schedule .tutor-schedule-cell {
+    height: 64px;
+  }
+  .tutor-attendance-calendar-table {
+    min-width: 980px;
+    table-layout: fixed;
+  }
+  .tutor-attendance-calendar-table th {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #475569;
+    font-size: 0.72rem;
+    padding: 0.65rem 0.45rem;
+    text-transform: uppercase;
+  }
+  .tutor-attendance-calendar-day {
+    width: 14.285%;
+    height: 124px;
+    border-color: #e2e8f0;
+    padding: 0.5rem;
+    vertical-align: top;
+  }
+  .tutor-attendance-calendar-day.is-outside {
+    background: #f8fafc;
+  }
+  .tutor-attendance-calendar-day.is-today {
+    background: #eff6ff;
+  }
+  .tutor-attendance-calendar-date {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+  }
+  .tutor-attendance-calendar-number {
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .tutor-attendance-calendar-count {
+    font-size: 0.68rem;
+  }
+  .tutor-attendance-calendar-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+  }
+  .tutor-attendance-calendar-chip {
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 0.7rem;
+    line-height: 1.15;
+    padding: 0.28rem 0.36rem;
+    overflow: hidden;
+  }
+  .tutor-attendance-calendar-chip-attended {
+    border-color: #86efac;
+    background: #f0fdf4;
+  }
+  .tutor-attendance-calendar-chip-cancelled {
+    border-color: #fecaca;
+    background: #fef2f2;
+  }
+  .tutor-attendance-calendar-chip-rescheduled {
+    border-color: #fde68a;
+    background: #fffbeb;
+  }
+  .tutor-attendance-calendar-chip-scheduled {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+  }
+  .tutor-attendance-calendar-chip strong,
+  .tutor-attendance-calendar-chip span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tutor-attendance-calendar-empty {
+    color: #94a3b8;
+    font-size: 0.72rem;
+  }
+  @media (max-width: 1199.98px) {
+    .tutor-dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+    .tutor-dashboard-schedule .tutor-schedule-table {
+      min-width: 980px;
+    }
+  }
+  @media (max-width: 575.98px) {
+    .portal-shell {
+      padding-inline: 0.75rem;
+    }
+    .tutor-dashboard-schedule .tutor-schedule-table {
+      min-width: 840px;
+    }
+    .tutor-attendance-calendar-table {
+      min-width: 760px;
+    }
+    .tutor-attendance-calendar-day {
+      height: 104px;
+      padding: 0.4rem;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex align-items-center mb-4">
   <div class="flex-grow-1">
@@ -10,8 +143,140 @@
   </div>
 </div>
 
-<div class="row g-4">
-  <div class="col-lg-4">
+<div class="card border-0 shadow-sm mb-4 tutor-dashboard-schedule">
+  <div class="card-header bg-white py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-week text-primary me-2"></i>Jadwal Mengajar</h6>
+    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('tutor_portal.request_schedule_change') }}">
+      <i class="bi bi-pencil-square me-1"></i>Perubahan Jadwal
+    </a>
+  </div>
+  <div class="card-body p-0">
+    {% if schedule_grid.lesson_count %}
+    <div class="p-3 border-bottom">
+      <div class="d-flex flex-wrap gap-3 mb-3 small">
+        <span class="d-inline-flex align-items-center gap-2">
+          <span class="tutor-detail-schedule-legend tutor-detail-schedule-legend-filled"></span>
+          Terisi siswa
+        </span>
+        <span class="d-inline-flex align-items-center gap-2">
+          <span class="tutor-detail-schedule-legend tutor-detail-schedule-legend-available"></span>
+          Tutor bisa, belum ada siswa
+        </span>
+        <span class="d-inline-flex align-items-center gap-2">
+          <span class="tutor-detail-schedule-legend tutor-detail-schedule-legend-unavailable"></span>
+          Tutor tidak bisa
+        </span>
+      </div>
+      {% set schedule_item_links = false %}
+      {% include "master/_tutor_schedule_grid.html" %}
+    </div>
+    {% else %}
+    <div class="p-4 text-muted small">Belum ada jadwal enrollment atau presensi yang cukup untuk membentuk jadwal tutor ini.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white py-3">
+    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+      <div>
+        <h6 class="mb-1 fw-semibold"><i class="bi bi-calendar3 text-primary me-2"></i>Kalender Presensi</h6>
+        <div class="text-muted small">Presensi tutor bulan {{ attendance_calendar.title }}.</div>
+      </div>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <a
+          class="btn btn-outline-secondary btn-sm"
+          href="{{ url_for('tutor_portal.dashboard', month=attendance_calendar.previous_month, year=attendance_calendar.previous_year) }}"
+        >
+          <i class="bi bi-chevron-left me-1"></i>Bulan Sebelumnya
+        </a>
+        <a
+          class="btn btn-outline-secondary btn-sm"
+          href="{{ url_for('tutor_portal.dashboard', month=attendance_calendar.next_month, year=attendance_calendar.next_year) }}"
+        >
+          Bulan Berikutnya<i class="bi bi-chevron-right ms-1"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="card-body border-bottom">
+    <form class="row g-2 align-items-end" method="get" action="{{ url_for('tutor_portal.dashboard') }}">
+      <div class="col-sm-4 col-md-3 col-lg-2">
+        <label class="form-label small fw-semibold" for="calendar-month">Bulan</label>
+        <select class="form-select form-select-sm" id="calendar-month" name="month">
+          {% for month_value, month_label in attendance_calendar.month_options %}
+          <option value="{{ month_value }}" {% if month_value == attendance_calendar.month %}selected{% endif %}>{{ month_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-4 col-md-3 col-lg-2">
+        <label class="form-label small fw-semibold" for="calendar-year">Tahun</label>
+        <input class="form-control form-control-sm" id="calendar-year" name="year" type="number" min="2000" max="2100" value="{{ attendance_calendar.year }}">
+      </div>
+      <div class="col-sm-4 col-md-3 col-lg-2">
+        <button class="btn btn-primary btn-sm w-100" type="submit">
+          <i class="bi bi-funnel-fill me-1"></i>Tampilkan
+        </button>
+      </div>
+      <div class="col-lg-6">
+        <div class="d-flex flex-wrap gap-2 justify-content-lg-end small">
+          <span class="badge bg-primary-subtle text-primary-emphasis">{{ attendance_calendar.session_count }} presensi</span>
+          <span class="badge bg-info-subtle text-info-emphasis">{{ attendance_calendar.active_day_count }} hari terisi</span>
+          <span class="badge bg-success-subtle text-success-emphasis">Fee valid Rp {{ "{:,.0f}".format(attendance_calendar.valid_fee_total | float) }}</span>
+        </div>
+      </div>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-bordered align-middle tutor-attendance-calendar-table mb-0">
+      <thead>
+        <tr>
+          {% for weekday_name in attendance_calendar.weekday_names %}
+          <th class="text-center">{{ weekday_name }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in attendance_calendar.weeks %}
+        <tr>
+          {% for day in week %}
+          <td class="tutor-attendance-calendar-day {% if not day.in_month %}is-outside{% endif %} {% if day.is_today %}is-today{% endif %}">
+            <div class="tutor-attendance-calendar-date">
+              <span class="tutor-attendance-calendar-number">{{ day.date.day }}</span>
+              {% if day.count %}
+              <span class="badge bg-light text-dark border tutor-attendance-calendar-count">{{ day.count }}</span>
+              {% endif %}
+            </div>
+            <div class="tutor-attendance-calendar-items">
+              {% for item in day['items'] %}
+              <div class="tutor-attendance-calendar-chip tutor-attendance-calendar-chip-{{ item.status }}">
+                <strong>{{ item.student_short_name or item.student_name }}</strong>
+                <span>{{ item.subject_name }} • {{ item.status|title }}</span>
+                {% if item.review_status == 'valid' %}
+                <span class="text-success">Tervalidasi</span>
+                {% elif item.review_status == 'invalid' %}
+                <span class="text-warning">Perlu Koreksi</span>
+                {% else %}
+                <span class="text-muted">Belum tervalidasi</span>
+                {% endif %}
+              </div>
+              {% else %}
+              {% if day.in_month %}
+              <div class="tutor-attendance-calendar-empty">Tidak ada presensi</div>
+              {% endif %}
+              {% endfor %}
+            </div>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="tutor-dashboard-grid">
+  <div class="tutor-dashboard-sidebar">
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body text-center py-4">
         {% if tutor.profile_photo_path %}
@@ -80,65 +345,7 @@
     </div>
   </div>
 
-  <div class="col-lg-8">
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-header bg-white py-3">
-        <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-week text-primary me-2"></i>Jadwal Mengajar</h6>
-      </div>
-      <div class="card-body p-0">
-        {% if schedules %}
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0 small">
-            <thead class="table-light"><tr><th>Siswa</th><th>Mapel</th><th>Jadwal</th><th class="text-end">Ajukan Perubahan</th></tr></thead>
-            <tbody>
-              {% for schedule in schedules %}
-              <tr>
-                <td>{{ schedule.enrollment.student.name if schedule.enrollment and schedule.enrollment.student else '—' }}</td>
-                <td>{{ schedule.enrollment.subject.name if schedule.enrollment and schedule.enrollment.subject else '—' }}</td>
-                <td>{{ schedule.day_name }} {{ schedule.start_time.strftime('%H:%M') if schedule.start_time else '' }}{% if schedule.end_time %}-{{ schedule.end_time.strftime('%H:%M') }}{% endif %}</td>
-                <td>
-                  <form class="d-flex flex-wrap justify-content-end gap-2" method="post" action="{{ url_for('tutor_portal.request_schedule_change') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
-                    <select class="form-select form-select-sm" name="requested_day" style="width:120px">
-                      {% for day in ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"] %}
-                      <option value="{{ day }}" {% if day == schedule.day_name %}selected{% endif %}>{{ day }}</option>
-                      {% endfor %}
-                    </select>
-                    <input class="form-control form-control-sm" type="time" name="requested_start_time" value="{{ schedule.start_time.strftime('%H:%M') if schedule.start_time else '' }}" style="width:110px">
-                    <input class="form-control form-control-sm" type="time" name="requested_end_time" value="{{ schedule.end_time.strftime('%H:%M') if schedule.end_time else '' }}" style="width:110px">
-                    <input class="form-control form-control-sm" name="notes" placeholder="Catatan" style="width:160px">
-                    <button class="btn btn-outline-primary btn-sm" type="submit">Ajukan</button>
-                  </form>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <div class="p-4 text-muted small">Belum ada jadwal aktif.</div>
-        {% endif %}
-      </div>
-    </div>
-
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-header bg-white py-3">
-        <h6 class="mb-0 fw-semibold"><i class="bi bi-palette text-primary me-2"></i>Ajukan Jadwal Merah/Hijau</h6>
-      </div>
-      <div class="card-body">
-        <form class="row g-2 align-items-end" method="post" action="{{ url_for('tutor_portal.request_availability') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="col-md-2"><label class="form-label small">Status</label><select class="form-select form-select-sm" name="color"><option value="green">Hijau</option><option value="red">Merah</option></select></div>
-          <div class="col-md-3"><label class="form-label small">Tanggal</label><input class="form-control form-control-sm" type="date" name="date" required></div>
-          <div class="col-md-2"><label class="form-label small">Mulai</label><input class="form-control form-control-sm" type="time" name="start_time"></div>
-          <div class="col-md-2"><label class="form-label small">Selesai</label><input class="form-control form-control-sm" type="time" name="end_time"></div>
-          <div class="col-md-3"><label class="form-label small">Catatan</label><input class="form-control form-control-sm" name="notes"></div>
-          <div class="col-12"><button class="btn btn-outline-primary btn-sm" type="submit">Kirim Pengajuan</button></div>
-        </form>
-      </div>
-    </div>
-
+  <div class="tutor-dashboard-main">
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white py-3 d-flex justify-content-between">
         <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-check text-primary me-2"></i>Presensi Tutor</h6>

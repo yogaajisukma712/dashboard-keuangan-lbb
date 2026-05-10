@@ -32,12 +32,20 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "tutor.set_portal_password(new_password)" in route_text
     assert "tutor.email = email" in route_text
     assert "Password baru dan Gmail sudah disimpan" in route_text
+    assert "Admin perlu cek koneksi SMTP" in route_text
     assert "verify_email" in route_text
     assert "email.endswith(\"@gmail.com\")" in route_text
     assert "TUTOR_PORTAL_MIN_DATE" in route_text
     assert "AttendanceSession.session_date >= min_date" in route_text
+    assert "_build_tutor_attendance_calendar" in route_text
+    assert "AttendanceSession.session_date.between(period_start, period_end)" in route_text
+    assert "_build_tutor_weekly_schedule_grid(tutor.id)" in route_text
     assert "TutorPortalRequest" in route_text
     assert "request_schedule_change" in route_text
+    assert 'methods=["GET", "POST"]' in route_text
+    assert "_build_schedule_change_payload" in route_text
+    assert "_apply_weekly_schedule_grid_request" in route_text
+    assert "_build_tutor_weekly_schedule_grid(tutor_id)" in route_text
     assert "request_availability" in route_text
     assert "request_profile_update" in route_text
     assert "admin_credentials" in route_text
@@ -81,8 +89,31 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "login.html"
     ).read_text(encoding="utf-8")
     assert "Presensi Tutor" in dashboard_text
+    assert "Kalender Presensi" in dashboard_text
+    assert "attendance_calendar.weeks" in dashboard_text
+    assert "Bulan Sebelumnya" in dashboard_text
     assert "Slip Gaji" in dashboard_text
-    assert "Ajukan Jadwal Merah/Hijau" in dashboard_text
+    assert "Ajukan Jadwal Merah/Hijau" not in dashboard_text
+    assert "master/_tutor_schedule_grid.html" in dashboard_text
+    assert "Perubahan Jadwal" in dashboard_text
+    assert "schedule-editor-table" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "schedule_change.html"
+    ).read_text(encoding="utf-8")
+    assert "scheduleCellModal" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "schedule_change.html"
+    ).read_text(encoding="utf-8")
+    assert "Waitinglist" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "schedule_change.html"
+    ).read_text(encoding="utf-8")
+    assert "Ada siswa di waitinglist" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "schedule_change.html"
+    ).read_text(encoding="utf-8")
+    assert "Pengajuan tetap bisa dikirim" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "schedule_change.html"
+    ).read_text(encoding="utf-8")
+    assert "setCell(currentOwner, 'available', 'Available')" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "schedule_change.html"
+    ).read_text(encoding="utf-8")
 
 
 def test_tutor_portal_docker_service_and_mail_config_exist():
@@ -101,6 +132,9 @@ def test_tutor_portal_docker_service_and_mail_config_exist():
     if env_text:
         assert "TUTOR_PORTAL_PORT=6003" in env_text
         assert "tutor.supersmart.click" in env_text
+        assert "MAIL_SERVER=smtp.gmail.com" in env_text
+        assert "MAIL_USERNAME=lbbsupersmart@gmail.com" in env_text
+        assert "MAIL_DEFAULT_SENDER=lbbsupersmart@gmail.com" in env_text
     assert "CREATE TABLE IF NOT EXISTS tutor_portal_requests" in entrypoint_text
     assert "profile_photo_path" in entrypoint_text
     assert "cv_file_path" in entrypoint_text

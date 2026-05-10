@@ -51,3 +51,11 @@ Default tool roles:
 - repomapper: architecture maps and module relationships.
 
 Only skip MCP for tiny one-command tasks where MCP adds no value.
+
+## Handoff Continuity
+
+At the start of every new Codex session or chat in code-server:
+- Read `/root/CODEX_HANDOFF.md`.
+- Read `/workspace/CODEX_HANDOFF.md` when present.
+- Check current real state before edits.
+- Continue from the handoff and dirty worktree; do not restart setup from zero.

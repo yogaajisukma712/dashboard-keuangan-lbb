@@ -316,6 +316,12 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Kirim Link Login" not in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "login.html"
     ).read_text(encoding="utf-8")
+    assert "Login Admin" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "login.html"
+    ).read_text(encoding="utf-8")
+    assert "tutor_portal.admin_dashboard_select" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "login.html"
+    ).read_text(encoding="utf-8")
     assert "Presensi Tutor" in dashboard_text
     assert "Lihat Dashboard Tutor" in dashboard_text
     assert "admin_tutor_options" in dashboard_text

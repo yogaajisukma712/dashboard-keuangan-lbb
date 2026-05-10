@@ -19,6 +19,7 @@ from app.models import (
 from app.routes.tutor_portal import (
     ATTENDANCE_TABLE_PER_PAGE,
     _ListPagination,
+    _build_tutor_attendance_calendar,
     _month_bounds,
     _normalize_portal_attendance_period,
     _validated_tutor_attendance_sessions,
@@ -195,6 +196,32 @@ def test_tutor_portal_attendance_table_uses_selected_month_and_valid_reviews_onl
         assert [session.id for session in april_sessions] == [seeded["april"].id]
 
 
+def test_tutor_portal_attendance_calendar_uses_valid_reviews_only():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        seeded = _seed_tutor_portal_attendance()
+
+        calendar = _build_tutor_attendance_calendar(
+            seeded["tutor"].id,
+            month=5,
+            year=2026,
+            min_date=date(2026, 4, 1),
+        )
+        calendar_items = [
+            item
+            for week in calendar["weeks"]
+            for day in week
+            for item in day["items"]
+        ]
+
+        assert calendar["session_count"] == 1
+        assert calendar["active_day_count"] == 1
+        assert [item["id"] for item in calendar_items] == [seeded["valid_may"].id]
+        assert all(item["review_status"] == "valid" for item in calendar_items)
+
+
 def test_tutor_portal_attendance_pagination_limits_table_to_10_rows():
     items = list(range(23))
 
@@ -262,6 +289,7 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "validation_map.get(session.id) == \"valid\"" in route_text
     assert "_build_tutor_attendance_calendar" in route_text
     assert "AttendanceSession.session_date.between(period_start, period_end)" in route_text
+    assert "validation_map.get(session_item.id) == \"valid\"" in route_text
     assert "_build_tutor_weekly_schedule_grid(tutor.id)" in route_text
     assert "TutorPortalRequest" in route_text
     assert "request_schedule_change" in route_text

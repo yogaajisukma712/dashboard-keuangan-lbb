@@ -437,6 +437,11 @@ def _build_tutor_attendance_calendar(tutor_id, month=None, year=None, min_date=N
         .all()
     )
     validation_map = _attendance_validation_map([session_item.id for session_item in sessions])
+    sessions = [
+        session_item
+        for session_item in sessions
+        if validation_map.get(session_item.id) == "valid"
+    ]
     items_by_date = defaultdict(list)
     for session_item in sessions:
         student_name = session_item.student.name if session_item.student else "Siswa"

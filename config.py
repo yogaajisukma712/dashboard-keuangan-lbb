@@ -61,7 +61,7 @@ class Config:
         "WHATSAPP_EXCLUDED_GROUP_NAMES", "VPS / RDP MURAH III"
     )
     TUTOR_PORTAL_BASE_URL = os.environ.get(
-        "TUTOR_PORTAL_BASE_URL", "http://localhost:6003"
+        "TUTOR_PORTAL_BASE_URL", "https://tutor.supersmart.click"
     )
     TUTOR_PORTAL_HOST = os.environ.get("TUTOR_PORTAL_HOST", "tutor.supersmart.click")
     TUTOR_PORTAL_MIN_DATE = os.environ.get("TUTOR_PORTAL_MIN_DATE", "2026-04-01")

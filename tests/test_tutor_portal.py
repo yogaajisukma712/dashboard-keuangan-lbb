@@ -12,6 +12,7 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     route_text = (PROJECT_ROOT / "app" / "routes" / "tutor_portal.py").read_text(
         encoding="utf-8"
     )
+    config_text = (PROJECT_ROOT / "config.py").read_text(encoding="utf-8")
     model_text = (PROJECT_ROOT / "app" / "models" / "master.py").read_text(
         encoding="utf-8"
     )
@@ -46,6 +47,9 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Cara login pertama" in route_text
     assert "Fungsi dashboard tutor" in route_text
     assert "_normalize_whatsapp_phone" in route_text
+    assert "https://tutor.supersmart.click" in route_text
+    assert "request.form.get(\"message\")" in route_text
+    assert '"https://tutor.supersmart.click"' in config_text
     assert "Approval Dashboard Tutor" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_requests.html"
     ).read_text(encoding="utf-8")
@@ -53,6 +57,12 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
     assert "Kirim WA" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
+    ).read_text(encoding="utf-8")
+    assert "Edit template pesan WA" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
+    ).read_text(encoding="utf-8")
+    assert "row.whatsapp_message" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
     assert "Aktivasi Akun Tutor" in (
@@ -80,6 +90,7 @@ def test_tutor_portal_docker_service_and_mail_config_exist():
     assert "tutor_web:" in compose_text
     assert "${TUTOR_PORTAL_PORT:-6003}:5000" in compose_text
     assert "TUTOR_PORTAL_BASE_URL" in compose_text
+    assert "TUTOR_PORTAL_BASE_URL: ${TUTOR_PORTAL_BASE_URL:-https://tutor.supersmart.click}" in compose_text
     assert "MAIL_SERVER" in compose_text
     if env_text:
         assert "TUTOR_PORTAL_PORT=6003" in env_text

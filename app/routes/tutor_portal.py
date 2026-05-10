@@ -216,10 +216,10 @@ def _build_email_verification_url(token):
 
 def _build_tutor_login_url():
     base_url = current_app.config.get("TUTOR_PORTAL_BASE_URL", "").rstrip("/")
+    if not base_url or "localhost" in base_url:
+        base_url = "https://tutor.supersmart.click"
     path = url_for("tutor_portal.login")
-    return f"{base_url}{path}" if base_url else url_for(
-        "tutor_portal.login", _external=True
-    )
+    return f"{base_url}{path}"
 
 
 def _bot_request(method: str, path: str, payload: dict | None = None, timeout: int = 10):
@@ -703,6 +703,12 @@ def admin_credentials():
             ),
             "must_change_password": tutor.portal_must_change_password,
             "email_verified": tutor.portal_email_verified,
+            "whatsapp_message": _build_tutor_credential_whatsapp_message(
+                tutor,
+                _initial_portal_password(tutor)
+                if tutor.portal_must_change_password
+                else None,
+            ),
         }
         for tutor in tutors
     ]
@@ -738,7 +744,11 @@ def admin_send_credential_whatsapp(tutor_ref):
     initial_password = (
         _initial_portal_password(tutor) if tutor.portal_must_change_password else None
     )
-    message = _build_tutor_credential_whatsapp_message(tutor, initial_password)
+    default_message = _build_tutor_credential_whatsapp_message(tutor, initial_password)
+    message = (request.form.get("message") or default_message).strip()
+    if not message:
+        flash("Isi pesan WhatsApp tidak boleh kosong.", "warning")
+        return redirect(url_for("tutor_portal.admin_credentials"))
     payload, status_code = _bot_request(
         "POST",
         "/messages/send",

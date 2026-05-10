@@ -5,7 +5,7 @@ import os
 import re
 import smtplib
 from calendar import monthrange
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from email.message import EmailMessage
@@ -39,7 +39,7 @@ from app.models import (
     TutorPortalRequest,
     WhatsAppEvaluation,
 )
-from app.routes.master import _build_tutor_weekly_schedule_grid
+from app.routes.master import _build_tutor_weekly_schedule_grid, _short_person_name
 from app.utils import decode_public_id
 
 
@@ -522,6 +522,124 @@ def _validated_tutor_attendance_sessions(tutor_id, period_start, period_end):
         session for session in sessions if validation_map.get(session.id) == "valid"
     ]
     return valid_sessions, validation_map
+
+
+def _dominant_attendance_weekday(sessions):
+    weekdays = [session.session_date.weekday() for session in sessions]
+    average_weekday = sum(weekdays) / len(weekdays)
+    counts = Counter(weekdays)
+    return max(
+        counts,
+        key=lambda weekday: (
+            counts[weekday],
+            -abs(weekday - average_weekday),
+            -weekday,
+        ),
+    )
+
+
+def _build_tutor_presensi_schedule_grid(tutor_id):
+    period_start = date(2026, 1, 1)
+    period_end = date(2026, 5, 31)
+    cells = {
+        (hour, weekday): {"hour": hour, "weekday": weekday, "items": []}
+        for hour in SCHEDULE_HOUR_SLOTS
+        for weekday in range(7)
+    }
+    period_sessions = (
+        AttendanceSession.query.join(AttendanceSession.enrollment)
+        .filter(
+            AttendanceSession.tutor_id == tutor_id,
+            AttendanceSession.session_date.between(period_start, period_end),
+            Enrollment.status == "active",
+            Enrollment.is_active.is_(True),
+        )
+        .order_by(AttendanceSession.session_date.asc(), AttendanceSession.id.asc())
+        .all()
+    )
+    validation_map = _attendance_validation_map(
+        [session_item.id for session_item in period_sessions]
+    )
+    valid_sessions = [
+        session_item
+        for session_item in period_sessions
+        if validation_map.get(session_item.id) == "valid"
+    ]
+    sessions_by_enrollment = defaultdict(list)
+    for session_item in valid_sessions:
+        if session_item.enrollment_id:
+            sessions_by_enrollment[session_item.enrollment_id].append(session_item)
+
+    schedule_hours = {}
+    active_schedules = (
+        EnrollmentSchedule.query.join(Enrollment)
+        .filter(
+            Enrollment.tutor_id == tutor_id,
+            Enrollment.status == "active",
+            Enrollment.is_active.is_(True),
+            EnrollmentSchedule.is_active.is_(True),
+        )
+        .order_by(EnrollmentSchedule.start_time.asc(), EnrollmentSchedule.id.asc())
+        .all()
+    )
+    for schedule in active_schedules:
+        if schedule.start_time and schedule.start_time.hour in SCHEDULE_HOUR_SLOTS:
+            schedule_hours.setdefault(schedule.enrollment_id, schedule.start_time.hour)
+
+    latest_session_date = max(
+        (session_item.session_date for session_item in valid_sessions),
+        default=None,
+    )
+    items = []
+    for enrollment_id, sessions in sessions_by_enrollment.items():
+        enrollment = sessions[-1].enrollment
+        if not enrollment or not enrollment.student or not enrollment.subject:
+            continue
+        weekday = _dominant_attendance_weekday(sessions)
+        hour = schedule_hours.get(enrollment_id, 17)
+        latest_for_enrollment = max(session_item.session_date for session_item in sessions)
+        items.append(
+            {
+                "weekday": weekday,
+                "hour": hour,
+                "student_name": enrollment.student.name,
+                "student_short_name": _short_person_name(enrollment.student.name),
+                "subject_name": enrollment.subject.name,
+                "enrollment_ref": enrollment.public_id,
+                "latest_session_date": latest_for_enrollment,
+                "is_latest": bool(
+                    latest_session_date and latest_for_enrollment == latest_session_date
+                ),
+                "source": "validated_attendance",
+            }
+        )
+
+    for item in items:
+        cells[(item["hour"], item["weekday"])]["items"].append(item)
+
+    for cell in cells.values():
+        cell["has_latest"] = any(item["is_latest"] for item in cell["items"])
+        cell["availability"] = (
+            "filled" if cell["items"] else "unavailable" if cell["hour"] < 16 else "available"
+        )
+        cell["items"].sort(
+            key=lambda item: (
+                item["student_short_name"].lower(),
+                item["subject_name"].lower(),
+            )
+        )
+
+    return {
+        "weekday_names": WEEKDAY_NAMES,
+        "hour_slots": SCHEDULE_HOUR_SLOTS,
+        "rows": [
+            {"hour": hour, "cells": [cells[(hour, weekday)] for weekday in range(7)]}
+            for hour in SCHEDULE_HOUR_SLOTS
+        ],
+        "lesson_count": len(items),
+        "latest_session_date": latest_session_date,
+        "source_period_label": "Januari-Mei 2026",
+    }
 
 
 class _ListPagination:
@@ -1079,7 +1197,7 @@ def dashboard():
         .order_by(EnrollmentSchedule.day_of_week.asc(), EnrollmentSchedule.start_time.asc())
         .all()
     )
-    schedule_grid = _build_tutor_weekly_schedule_grid(tutor.id)
+    schedule_grid = _build_tutor_presensi_schedule_grid(tutor.id)
     attendance_sessions, validation_map = _validated_tutor_attendance_sessions(
         tutor.id,
         attendance_period_start,

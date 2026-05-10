@@ -20,6 +20,7 @@ from app.routes.tutor_portal import (
     ATTENDANCE_TABLE_PER_PAGE,
     _ListPagination,
     _build_tutor_attendance_calendar,
+    _build_tutor_presensi_schedule_grid,
     _month_bounds,
     _normalize_portal_attendance_period,
     _validated_tutor_attendance_sessions,
@@ -222,6 +223,30 @@ def test_tutor_portal_attendance_calendar_uses_valid_reviews_only():
         assert all(item["review_status"] == "valid" for item in calendar_items)
 
 
+def test_tutor_portal_teaching_schedule_uses_validated_january_to_may_attendance():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        seeded = _seed_tutor_portal_attendance()
+
+        schedule_grid = _build_tutor_presensi_schedule_grid(seeded["tutor"].id)
+        schedule_items = [
+            item
+            for row in schedule_grid["rows"]
+            for cell in row["cells"]
+            for item in cell["items"]
+        ]
+
+        assert schedule_grid["source_period_label"] == "Januari-Mei 2026"
+        assert schedule_grid["lesson_count"] == 1
+        assert [item["enrollment_ref"] for item in schedule_items] == [
+            seeded["valid_may"].enrollment.public_id
+        ]
+        assert schedule_items[0]["weekday"] == seeded["april"].session_date.weekday()
+        assert schedule_items[0]["source"] == "validated_attendance"
+
+
 def test_tutor_portal_attendance_pagination_limits_table_to_10_rows():
     items = list(range(23))
 
@@ -290,7 +315,8 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "_build_tutor_attendance_calendar" in route_text
     assert "AttendanceSession.session_date.between(period_start, period_end)" in route_text
     assert "validation_map.get(session_item.id) == \"valid\"" in route_text
-    assert "_build_tutor_weekly_schedule_grid(tutor.id)" in route_text
+    assert "_build_tutor_presensi_schedule_grid(tutor.id)" in route_text
+    assert "Januari-Mei 2026" in route_text
     assert "TutorPortalRequest" in route_text
     assert "request_schedule_change" in route_text
     assert 'methods=["GET", "POST"]' in route_text
@@ -361,6 +387,7 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Kalender Presensi" in dashboard_text
     assert "attendance_calendar.weeks" in dashboard_text
     assert "Bulan Sebelumnya" in dashboard_text
+    assert "Jadwal dibentuk dari pola hari presensi tervalidasi admin" in dashboard_text
     assert "Pilih Tutor" in base_text
     assert "Keluar Admin" in base_text
     assert "Mode Admin" in admin_select_text

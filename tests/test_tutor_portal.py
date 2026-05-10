@@ -48,7 +48,8 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Fungsi dashboard tutor" in route_text
     assert "_normalize_whatsapp_phone" in route_text
     assert "https://tutor.supersmart.click" in route_text
-    assert "request.form.get(\"message\")" in route_text
+    assert "request.form.get(\"message_template\")" in route_text
+    assert "def _render_tutor_credential_whatsapp_message" in route_text
     assert '"https://tutor.supersmart.click"' in config_text
     assert "Approval Dashboard Tutor" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_requests.html"
@@ -59,10 +60,13 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Kirim WA" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
-    assert "Edit template pesan WA" in (
+    assert "Template Pesan WhatsApp" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
-    assert "row.whatsapp_message" in (
+    assert "whatsapp_message_template" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
+    ).read_text(encoding="utf-8")
+    assert "formaction" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
     assert "Aktivasi Akun Tutor" in (

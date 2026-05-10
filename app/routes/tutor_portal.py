@@ -272,14 +272,13 @@ def _normalize_whatsapp_phone(value):
     return digits
 
 
-def _build_tutor_credential_whatsapp_message(tutor, initial_password):
-    password_line = initial_password or "Password sudah diganti tutor, tidak ditampilkan ulang."
+def _build_tutor_credential_whatsapp_template():
     return (
-        f"Halo {tutor.name},\n\n"
+        "Halo {tutor_name},\n\n"
         "Ini akses Dashboard Tutor LBB Super Smart.\n\n"
-        f"Link dashboard: {_build_tutor_login_url()}\n"
-        f"Username: {tutor.portal_username}\n"
-        f"Password awal: {password_line}\n\n"
+        "Link dashboard: {dashboard_url}\n"
+        "Username: {username}\n"
+        "Password awal: {password}\n\n"
         "Cara login pertama:\n"
         "1. Buka link dashboard tutor.\n"
         "2. Login memakai username dan password awal.\n"
@@ -295,6 +294,21 @@ def _build_tutor_credential_whatsapp_message(tutor, initial_password):
         "- Mengajukan perbaikan data diri, CV, dan foto profil.\n\n"
         "Mohon segera aktivasi akun agar dashboard bisa digunakan."
     )
+
+
+def _render_tutor_credential_whatsapp_message(tutor, initial_password, template):
+    password_line = initial_password or "Password sudah diganti tutor, tidak ditampilkan ulang."
+    values = {
+        "tutor_name": tutor.name or "",
+        "dashboard_url": _build_tutor_login_url(),
+        "username": tutor.portal_username or "",
+        "password": password_line,
+        "tutor_code": tutor.tutor_code or "",
+    }
+    message = template or _build_tutor_credential_whatsapp_template()
+    for key, value in values.items():
+        message = message.replace(f"{{{key}}}", str(value))
+    return message
 
 
 def _attendance_validation_map(session_ids):
@@ -703,18 +717,13 @@ def admin_credentials():
             ),
             "must_change_password": tutor.portal_must_change_password,
             "email_verified": tutor.portal_email_verified,
-            "whatsapp_message": _build_tutor_credential_whatsapp_message(
-                tutor,
-                _initial_portal_password(tutor)
-                if tutor.portal_must_change_password
-                else None,
-            ),
         }
         for tutor in tutors
     ]
     return render_template(
         "tutor_portal/admin_credentials.html",
         credential_rows=credential_rows,
+        whatsapp_message_template=_build_tutor_credential_whatsapp_template(),
     )
 
 
@@ -744,8 +753,12 @@ def admin_send_credential_whatsapp(tutor_ref):
     initial_password = (
         _initial_portal_password(tutor) if tutor.portal_must_change_password else None
     )
-    default_message = _build_tutor_credential_whatsapp_message(tutor, initial_password)
-    message = (request.form.get("message") or default_message).strip()
+    message_template = (
+        request.form.get("message_template") or _build_tutor_credential_whatsapp_template()
+    )
+    message = _render_tutor_credential_whatsapp_message(
+        tutor, initial_password, message_template
+    ).strip()
     if not message:
         flash("Isi pesan WhatsApp tidak boleh kosong.", "warning")
         return redirect(url_for("tutor_portal.admin_credentials"))

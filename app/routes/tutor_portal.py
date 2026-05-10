@@ -1,5 +1,6 @@
 """Tutor-facing portal routes."""
 
+import json
 import os
 import re
 import smtplib
@@ -7,6 +8,8 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from email.message import EmailMessage
 from functools import wraps
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 from flask import (
     Blueprint,
@@ -208,6 +211,89 @@ def _build_email_verification_url(token):
     path = url_for("tutor_portal.verify_email", token=token)
     return f"{base_url}{path}" if base_url else url_for(
         "tutor_portal.verify_email", token=token, _external=True
+    )
+
+
+def _build_tutor_login_url():
+    base_url = current_app.config.get("TUTOR_PORTAL_BASE_URL", "").rstrip("/")
+    path = url_for("tutor_portal.login")
+    return f"{base_url}{path}" if base_url else url_for(
+        "tutor_portal.login", _external=True
+    )
+
+
+def _bot_request(method: str, path: str, payload: dict | None = None, timeout: int = 10):
+    body = None
+    headers = {}
+    if payload is not None:
+        body = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+
+    req = urllib_request.Request(
+        f"{current_app.config['WHATSAPP_BOT_INTERNAL_URL'].rstrip('/')}{path}",
+        data=body,
+        method=method.upper(),
+        headers=headers,
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=timeout) as response:
+            text = response.read().decode("utf-8")
+            return (json.loads(text) if text else {}), response.status
+    except urllib_error.HTTPError as exc:
+        text = exc.read().decode("utf-8")
+        try:
+            payload = json.loads(text) if text else {}
+        except json.JSONDecodeError:
+            payload = {"ok": False, "error": text or str(exc)}
+        return payload, exc.code
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 502
+
+
+def _get_whatsapp_session_status() -> dict:
+    payload, status_code = _bot_request("GET", "/session", timeout=5)
+    session_data = payload.get("session") if isinstance(payload, dict) else {}
+    return {
+        "ok": status_code == 200 and bool(payload.get("ok")),
+        "ready": bool(session_data.get("ready")) or session_data.get("status") == "ready",
+        "status": session_data.get("status") or "offline",
+        "error": payload.get("error"),
+    }
+
+
+def _normalize_whatsapp_phone(value):
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    if not digits:
+        return ""
+    if digits.startswith("0"):
+        return f"62{digits[1:]}"
+    if digits.startswith("8"):
+        return f"62{digits}"
+    return digits
+
+
+def _build_tutor_credential_whatsapp_message(tutor, initial_password):
+    password_line = initial_password or "Password sudah diganti tutor, tidak ditampilkan ulang."
+    return (
+        f"Halo {tutor.name},\n\n"
+        "Ini akses Dashboard Tutor LBB Super Smart.\n\n"
+        f"Link dashboard: {_build_tutor_login_url()}\n"
+        f"Username: {tutor.portal_username}\n"
+        f"Password awal: {password_line}\n\n"
+        "Cara login pertama:\n"
+        "1. Buka link dashboard tutor.\n"
+        "2. Login memakai username dan password awal.\n"
+        "3. Ganti password baru.\n"
+        "4. Masukkan Gmail aktif.\n"
+        "5. Klik link verifikasi yang dikirim ke Gmail.\n\n"
+        "Fungsi dashboard tutor:\n"
+        "- Melihat jadwal siswa.\n"
+        "- Mengajukan perubahan jadwal ke admin.\n"
+        "- Mengajukan jadwal merah/hijau ke admin.\n"
+        "- Melihat presensi dan status validasi admin.\n"
+        "- Melihat akumulasi fee dari presensi tervalidasi.\n"
+        "- Mengajukan perbaikan data diri, CV, dan foto profil.\n\n"
+        "Mohon segera aktivasi akun agar dashboard bisa digunakan."
     )
 
 
@@ -609,6 +695,7 @@ def admin_credentials():
         {
             "tutor": tutor,
             "username": tutor.portal_username,
+            "whatsapp_phone": _normalize_whatsapp_phone(tutor.phone),
             "initial_password": (
                 _initial_portal_password(tutor)
                 if tutor.portal_must_change_password
@@ -623,6 +710,46 @@ def admin_credentials():
         "tutor_portal/admin_credentials.html",
         credential_rows=credential_rows,
     )
+
+
+@tutor_portal_bp.route(
+    "/admin/credentials/<string:tutor_ref>/send-whatsapp", methods=["POST"]
+)
+@login_required
+def admin_send_credential_whatsapp(tutor_ref):
+    try:
+        tutor_id = decode_public_id(tutor_ref, "tutor")
+    except ValueError:
+        abort(404)
+    tutor = Tutor.query.get_or_404(tutor_id)
+    if _ensure_tutor_portal_credentials(tutor):
+        db.session.commit()
+
+    contact_id = _normalize_whatsapp_phone(tutor.phone)
+    if not contact_id:
+        flash(f"Nomor WhatsApp {tutor.name} belum tersedia di data tutor.", "warning")
+        return redirect(url_for("tutor_portal.admin_credentials"))
+
+    session_status = _get_whatsapp_session_status()
+    if not session_status["ready"]:
+        flash("WhatsApp bot belum ready. Silakan login/scan QR terlebih dahulu.", "warning")
+        return redirect(url_for("whatsapp_bot.management"))
+
+    initial_password = (
+        _initial_portal_password(tutor) if tutor.portal_must_change_password else None
+    )
+    message = _build_tutor_credential_whatsapp_message(tutor, initial_password)
+    payload, status_code = _bot_request(
+        "POST",
+        "/messages/send",
+        {"to": contact_id, "message": message},
+        timeout=30,
+    )
+    if status_code == 200 and payload.get("ok"):
+        flash(f"Link dashboard dan credential berhasil dikirim ke WhatsApp {tutor.name}.", "success")
+    else:
+        flash(f"Kirim WhatsApp gagal: {payload.get('error') or 'Bot error'}", "danger")
+    return redirect(url_for("tutor_portal.admin_credentials"))
 
 
 @tutor_portal_bp.route("/admin/requests/<string:request_ref>/<action>", methods=["POST"])

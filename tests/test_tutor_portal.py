@@ -41,10 +41,18 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "request_availability" in route_text
     assert "request_profile_update" in route_text
     assert "admin_credentials" in route_text
+    assert "admin_send_credential_whatsapp" in route_text
+    assert "\"/messages/send\"" in route_text
+    assert "Cara login pertama" in route_text
+    assert "Fungsi dashboard tutor" in route_text
+    assert "_normalize_whatsapp_phone" in route_text
     assert "Approval Dashboard Tutor" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_requests.html"
     ).read_text(encoding="utf-8")
     assert "Credential Tutor" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
+    ).read_text(encoding="utf-8")
+    assert "Kirim WA" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
     assert "Aktivasi Akun Tutor" in (

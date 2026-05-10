@@ -219,6 +219,11 @@ class Tutor(db.Model):
     account_holder_name = db.Column(db.String(120))
     profile_photo_path = db.Column(db.String(500))
     cv_file_path = db.Column(db.String(500))
+    portal_username = db.Column(db.String(80), unique=True, index=True)
+    portal_password_hash = db.Column(db.String(255))
+    portal_must_change_password = db.Column(db.Boolean, default=True)
+    portal_email_verified = db.Column(db.Boolean, default=False)
+    portal_email_verified_at = db.Column(db.DateTime)
     status = db.Column(db.String(20), default="active")  # active, inactive, suspended
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -248,6 +253,16 @@ class Tutor(db.Model):
 
     def __repr__(self):
         return f"<Tutor {self.name}>"
+
+    def set_portal_password(self, password):
+        """Hash and set the tutor portal password."""
+        self.portal_password_hash = generate_password_hash(password)
+
+    def check_portal_password(self, password):
+        """Check tutor portal password."""
+        if not self.portal_password_hash:
+            return False
+        return check_password_hash(self.portal_password_hash, password)
 
     @property
     def public_id(self):

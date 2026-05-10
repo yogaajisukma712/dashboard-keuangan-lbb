@@ -12,6 +12,9 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     route_text = (PROJECT_ROOT / "app" / "routes" / "tutor_portal.py").read_text(
         encoding="utf-8"
     )
+    model_text = (PROJECT_ROOT / "app" / "models" / "master.py").read_text(
+        encoding="utf-8"
+    )
     dashboard_text = (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "dashboard.html"
     ).read_text(encoding="utf-8")
@@ -19,6 +22,12 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "tutor_portal_bp" in routes_init
     assert "app.register_blueprint(tutor_portal_bp)" in init_text
     assert "URLSafeTimedSerializer" in route_text
+    assert "portal_username" in model_text
+    assert "set_portal_password" in model_text
+    assert "login_method == \"email\"" in route_text
+    assert "check_portal_password" in route_text
+    assert "portal_must_change_password" in route_text
+    assert "verify_email" in route_text
     assert "email.endswith(\"@gmail.com\")" in route_text
     assert "TUTOR_PORTAL_MIN_DATE" in route_text
     assert "AttendanceSession.session_date >= min_date" in route_text
@@ -26,8 +35,15 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "request_schedule_change" in route_text
     assert "request_availability" in route_text
     assert "request_profile_update" in route_text
+    assert "admin_credentials" in route_text
     assert "Approval Dashboard Tutor" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_requests.html"
+    ).read_text(encoding="utf-8")
+    assert "Credential Tutor" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
+    ).read_text(encoding="utf-8")
+    assert "Aktivasi Akun Tutor" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "onboarding.html"
     ).read_text(encoding="utf-8")
     assert "Presensi Tutor" in dashboard_text
     assert "Slip Gaji" in dashboard_text
@@ -52,3 +68,7 @@ def test_tutor_portal_docker_service_and_mail_config_exist():
     assert "CREATE TABLE IF NOT EXISTS tutor_portal_requests" in entrypoint_text
     assert "profile_photo_path" in entrypoint_text
     assert "cv_file_path" in entrypoint_text
+    assert "portal_username" in entrypoint_text
+    assert "portal_password_hash" in entrypoint_text
+    assert "portal_must_change_password" in entrypoint_text
+    assert "portal_email_verified" in entrypoint_text

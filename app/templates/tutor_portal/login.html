@@ -10,16 +10,35 @@
         <div class="text-center mb-4">
           <img src="{{ branding_logo_mark_data_uri or '' }}" alt="Logo Super Smart" style="width:72px;height:72px;object-fit:contain">
           <h4 class="fw-bold mt-3 mb-1">Dashboard Tutor</h4>
-          <p class="text-muted small mb-0">Masuk dengan Gmail tutor yang terdaftar.</p>
+          <p class="text-muted small mb-0">Masuk dengan username tutor atau Gmail yang sudah terverifikasi.</p>
         </div>
-        <form method="post" novalidate>
+        <form method="post" novalidate class="mb-4">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label class="form-label fw-semibold" for="email">Gmail Tutor</label>
-          <input class="form-control form-control-lg" id="email" name="email" type="email" placeholder="nama@gmail.com" required>
+          <input type="hidden" name="login_method" value="username">
+          <label class="form-label fw-semibold" for="username">Username Tutor</label>
+          <input class="form-control form-control-lg" id="username" name="username" autocomplete="username" required>
+          <label class="form-label fw-semibold mt-3" for="password">Password</label>
+          <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" required>
           <button class="btn btn-primary w-100 mt-3" type="submit">
-            <i class="bi bi-envelope-check me-1"></i>Kirim Link Verifikasi
+            <i class="bi bi-box-arrow-in-right me-1"></i>Login dengan Username
           </button>
         </form>
+
+        <div class="border-top pt-4">
+          <div class="small text-muted mb-2">Atau masuk dengan Gmail yang sudah diverifikasi.</div>
+          <form method="post" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="login_method" value="email">
+            <label class="form-label fw-semibold" for="email">Gmail Tutor</label>
+            <input class="form-control" id="email" name="email" type="email" placeholder="nama@gmail.com">
+            <button class="btn btn-outline-primary w-100 mt-3" type="submit">
+              <i class="bi bi-envelope-check me-1"></i>Kirim Link Login
+            </button>
+          </form>
+          <div class="text-muted small mt-3">
+            Login pertama gunakan username dan password awal dari admin, lalu wajib ganti password dan verifikasi Gmail.
+          </div>
+        </div>
       </div>
     </div>
   </div>

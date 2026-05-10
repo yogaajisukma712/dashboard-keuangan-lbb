@@ -69,6 +69,12 @@ EXTRA_DDL = [
     "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS is_active BOOLEAN      DEFAULT TRUE",
     "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS profile_photo_path VARCHAR(500)",
     "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS cv_file_path VARCHAR(500)",
+    "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS portal_username VARCHAR(80)",
+    "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS portal_password_hash VARCHAR(255)",
+    "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS portal_must_change_password BOOLEAN DEFAULT TRUE",
+    "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS portal_email_verified BOOLEAN DEFAULT FALSE",
+    "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS portal_email_verified_at TIMESTAMP",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ix_tutors_portal_username ON tutors(portal_username)",
     # Enrollments
     "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS is_active                BOOLEAN  DEFAULT TRUE",
     "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS meeting_quota_per_month  INTEGER  DEFAULT 4",

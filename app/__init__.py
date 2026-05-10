@@ -1,6 +1,7 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
+from urllib.parse import urlparse
 
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_login import LoginManager
@@ -76,6 +77,29 @@ def create_app(config_name=None):
 
     # Register error handlers
     register_error_handlers(app)
+
+    @app.before_request
+    def enforce_domain_route_boundaries():
+        """Keep the tutor portal and main dashboard separated by public host."""
+        request_host = (request.host or "").split(":")[0].lower()
+        tutor_host = (app.config.get("TUTOR_PORTAL_HOST") or "").lower()
+        main_hosts = set(app.config.get("MAIN_APP_HOSTS") or ())
+        app_base_host = urlparse(app.config.get("APP_BASE_URL") or "").hostname
+        if app_base_host:
+            main_hosts.add(app_base_host.lower())
+
+        if request_host == tutor_host:
+            allowed_prefixes = ("/tutor", "/auth/login", "/auth/logout", "/static/")
+            allowed_paths = {"/favicon.ico"}
+            if request.path in allowed_paths or request.path.startswith(allowed_prefixes):
+                return None
+            return redirect(url_for("tutor_portal.dashboard"))
+
+        if request_host in main_hosts and request.path.startswith("/tutor"):
+            tutor_base_url = (app.config.get("TUTOR_PORTAL_BASE_URL") or "").rstrip("/")
+            if tutor_base_url:
+                return redirect(f"{tutor_base_url}{request.full_path.rstrip('?')}")
+        return None
 
     @app.route("/", methods=["GET"])
     def root():

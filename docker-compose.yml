@@ -47,6 +47,7 @@ services:
       WHATSAPP_BOT_TOKEN: ${WHATSAPP_BOT_TOKEN:-change-this-whatsapp-bot-token}
       WHATSAPP_EXCLUDED_GROUP_NAMES: ${WHATSAPP_EXCLUDED_GROUP_NAMES:-VPS / RDP MURAH III}
       APP_BASE_URL: ${APP_BASE_URL:-https://billing.supersmart.click}
+      MAIN_APP_HOSTS: ${MAIN_APP_HOSTS:-billing.supersmart.click,app.supersmart.click}
       TUTOR_PORTAL_BASE_URL: ${TUTOR_PORTAL_BASE_URL:-https://tutor.supersmart.click}
       TUTOR_PORTAL_HOST: ${TUTOR_PORTAL_HOST:-tutor.supersmart.click}
       INSTITUTION_NAME: ${INSTITUTION_NAME:-LBB Super Smart}
@@ -87,6 +88,7 @@ services:
       PAGINATION_PER_PAGE: ${PAGINATION_PER_PAGE:-20}
       PYTHONUNBUFFERED: "1"
       APP_BASE_URL: ${APP_BASE_URL:-https://billing.supersmart.click}
+      MAIN_APP_HOSTS: ${MAIN_APP_HOSTS:-billing.supersmart.click,app.supersmart.click}
       TUTOR_PORTAL_BASE_URL: ${TUTOR_PORTAL_BASE_URL:-https://tutor.supersmart.click}
       TUTOR_PORTAL_HOST: ${TUTOR_PORTAL_HOST:-tutor.supersmart.click}
       TUTOR_PORTAL_MIN_DATE: ${TUTOR_PORTAL_MIN_DATE:-2026-04-01}

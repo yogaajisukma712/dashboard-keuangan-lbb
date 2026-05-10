@@ -7,6 +7,14 @@ class Config:
 
     SECRET_KEY = os.environ.get("SECRET_KEY") or "dev-secret-key-change-in-production"
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000")
+    MAIN_APP_HOSTS = tuple(
+        host.strip().lower()
+        for host in os.environ.get(
+            "MAIN_APP_HOSTS",
+            "billing.supersmart.click,app.supersmart.click",
+        ).split(",")
+        if host.strip()
+    )
     SQLALCHEMY_DATABASE_URI = (
         os.environ.get("DATABASE_URL")
         or "postgresql://postgres:password@localhost:5432/lbb_db"

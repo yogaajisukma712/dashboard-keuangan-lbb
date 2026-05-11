@@ -1,0 +1,125 @@
+{% extends "base_auth.html" %}
+
+{% block title %}Kontrak Digital Tutor{% endblock %}
+
+{% block head %}
+<style>
+  .document-box {
+    white-space: pre-wrap;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+  }
+  #signature-pad {
+    width: 100%;
+    height: 180px;
+    border: 1px solid #94a3b8;
+    border-radius: 8px;
+    background: #fff;
+    touch-action: none;
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<main class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-9">
+      <div class="card border-0 shadow-lg">
+        <div class="card-body p-4 p-md-5">
+          <h1 class="h4 fw-bold mb-1">Kontrak & Offering Digital</h1>
+          <div class="text-muted small mb-4">{{ candidate.name }} | {{ candidate.google_email }}</div>
+          <h2 class="h6 fw-bold">Kontrak</h2>
+          <div class="document-box mb-3">{{ candidate.contract_text }}</div>
+          <h2 class="h6 fw-bold">Offering</h2>
+          <div class="document-box mb-4">{{ candidate.offering_text }}</div>
+
+          {% if candidate.is_signed %}
+          <div class="alert alert-success">Kontrak sudah ditandatangani pada {{ candidate.signed_at.strftime('%d %b %Y %H:%M') }}.</div>
+          {% if candidate.signature_data_url %}
+          <img src="{{ candidate.signature_data_url }}" class="border rounded bg-white p-2" style="max-width:280px" alt="Tanda tangan">
+          {% endif %}
+          {% else %}
+          <form method="post" id="contract-sign-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="signature_data_url" id="signature-data-url">
+            <label class="form-label fw-semibold">Tanda Tangan Digital</label>
+            <canvas id="signature-pad"></canvas>
+            <div class="d-flex justify-content-between gap-2 mt-3">
+              <button class="btn btn-outline-secondary" type="button" id="clear-signature">Hapus</button>
+              <button class="btn btn-primary" type="submit">
+                <i class="bi bi-pen me-1"></i>Tandatangani & Masuk Dashboard Tutor
+              </button>
+            </div>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+  (function () {
+    const canvas = document.getElementById("signature-pad");
+    const form = document.getElementById("contract-sign-form");
+    if (!canvas || !form) return;
+    const ctx = canvas.getContext("2d");
+    let drawing = false;
+    let hasInk = false;
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#0f172a";
+    }
+    function point(event) {
+      const rect = canvas.getBoundingClientRect();
+      const touch = event.touches ? event.touches[0] : event;
+      return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+    }
+    function start(event) {
+      drawing = true;
+      const p = point(event);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      event.preventDefault();
+    }
+    function move(event) {
+      if (!drawing) return;
+      const p = point(event);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      hasInk = true;
+      event.preventDefault();
+    }
+    function stop() {
+      drawing = false;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+    canvas.addEventListener("mousedown", start);
+    canvas.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", stop);
+    canvas.addEventListener("touchstart", start, { passive: false });
+    canvas.addEventListener("touchmove", move, { passive: false });
+    canvas.addEventListener("touchend", stop);
+    document.getElementById("clear-signature").addEventListener("click", function () {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      hasInk = false;
+    });
+    form.addEventListener("submit", function (event) {
+      if (!hasInk) {
+        event.preventDefault();
+        alert("Tanda tangan digital wajib diisi.");
+        return;
+      }
+      document.getElementById("signature-data-url").value = canvas.toDataURL("image/png");
+    });
+  })();
+</script>
+{% endblock %}

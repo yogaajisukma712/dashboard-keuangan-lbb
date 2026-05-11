@@ -1,0 +1,64 @@
+{% extends "base_auth.html" %}
+
+{% block title %}Form Recruitment Tutor{% endblock %}
+
+{% block body %}
+<main class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-lg">
+        <div class="card-body p-4 p-md-5">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+            <div>
+              <h1 class="h4 fw-bold mb-1">Form Recruitment Tutor</h1>
+              <div class="text-muted small">{{ candidate.google_email }}</div>
+            </div>
+            {% if candidate.email_verified %}
+            <span class="badge text-bg-success">Email terverifikasi</span>
+            {% else %}
+            <span class="badge text-bg-warning">Menunggu verifikasi email</span>
+            {% endif %}
+          </div>
+          <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if not candidate.email_verified %}
+            <div class="alert alert-warning small">
+              Verifikasi email Google/Gmail terlebih dahulu sebelum mengirim data recruitment.
+            </div>
+            {% endif %}
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Nama Lengkap</label>
+                <input class="form-control" name="name" value="{{ candidate.name or '' }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Nomor WhatsApp Aktif</label>
+                <input class="form-control" name="phone" value="{{ candidate.phone or '' }}" required>
+              </div>
+              <div class="col-md-12">
+                <label class="form-label fw-semibold">Alamat</label>
+                <textarea class="form-control" name="address" rows="2">{{ candidate.address or '' }}</textarea>
+              </div>
+              <div class="col-md-12">
+                <label class="form-label fw-semibold">Mapel / Bidang Mengajar</label>
+                <input class="form-control" name="subject_interest" value="{{ candidate.subject_interest or '' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Upload CV</label>
+                <input class="form-control" type="file" name="cv_file" accept=".pdf,.doc,.docx" {% if not candidate.cv_file_path %}required{% endif %}>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Upload Foto</label>
+                <input class="form-control" type="file" name="photo_file" accept=".png,.jpg,.jpeg,.webp" {% if not candidate.photo_file_path %}required{% endif %}>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">
+              <i class="bi bi-send me-2"></i>Kirim Data Recruitment
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}

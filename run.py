@@ -82,6 +82,31 @@ def _apply_schema_patches():
         # Tutor is_active
         "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
         "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'",
+        """
+        CREATE TABLE IF NOT EXISTS tutor_meet_links (
+            id SERIAL PRIMARY KEY,
+            enrollment_id INTEGER NOT NULL REFERENCES enrollments(id),
+            tutor_id INTEGER NOT NULL REFERENCES tutors(id),
+            student_id INTEGER NOT NULL REFERENCES students(id),
+            subject_id INTEGER REFERENCES subjects(id),
+            token VARCHAR(96) NOT NULL UNIQUE,
+            room VARCHAR(255) NOT NULL,
+            join_url TEXT NOT NULL,
+            jitsi_url TEXT,
+            status VARCHAR(20) NOT NULL DEFAULT 'active',
+            max_joins INTEGER NOT NULL DEFAULT 1,
+            source VARCHAR(40) DEFAULT 'tutor_portal',
+            expires_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_tutor_meet_links_enrollment_id ON tutor_meet_links(enrollment_id)",
+        "CREATE INDEX IF NOT EXISTS ix_tutor_meet_links_tutor_id ON tutor_meet_links(tutor_id)",
+        "CREATE INDEX IF NOT EXISTS ix_tutor_meet_links_student_id ON tutor_meet_links(student_id)",
+        "ALTER TABLE tutor_meet_links ALTER COLUMN join_url TYPE TEXT",
+        "ALTER TABLE tutor_meet_links ALTER COLUMN jitsi_url TYPE TEXT",
+        "CREATE INDEX IF NOT EXISTS ix_tutor_meet_links_status ON tutor_meet_links(status)",
     ]
     for stmt in extra_ddl:
         try:

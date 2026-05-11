@@ -105,6 +105,10 @@ EXTRA_DDL = [
     "CREATE INDEX IF NOT EXISTS ix_tutor_portal_requests_tutor_id ON tutor_portal_requests(tutor_id)",
     "CREATE INDEX IF NOT EXISTS ix_tutor_portal_requests_request_type ON tutor_portal_requests(request_type)",
     "CREATE INDEX IF NOT EXISTS ix_tutor_portal_requests_status ON tutor_portal_requests(status)",
+    "CREATE TABLE IF NOT EXISTS recruitment_candidates (\n        id SERIAL PRIMARY KEY,\n        google_email VARCHAR(160) NOT NULL,\n        email_verified BOOLEAN DEFAULT FALSE NOT NULL,\n        name VARCHAR(120),\n        phone VARCHAR(40),\n        address TEXT,\n        subject_interest VARCHAR(160),\n        cv_file_path VARCHAR(500),\n        photo_file_path VARCHAR(500),\n        status VARCHAR(30) NOT NULL DEFAULT 'draft',\n        meet_link VARCHAR(500),\n        interview_notes TEXT,\n        contract_text TEXT,\n        offering_text TEXT,\n        signature_data_url TEXT,\n        invited_at TIMESTAMP,\n        interview_agreed_at TIMESTAMP,\n        contract_sent_at TIMESTAMP,\n        signed_at TIMESTAMP,\n        tutor_id INTEGER REFERENCES tutors(id),\n        created_at TIMESTAMP DEFAULT NOW() NOT NULL,\n        updated_at TIMESTAMP DEFAULT NOW() NOT NULL\n    )",
+    "CREATE INDEX IF NOT EXISTS ix_recruitment_candidates_google_email ON recruitment_candidates(google_email)",
+    "CREATE INDEX IF NOT EXISTS ix_recruitment_candidates_status ON recruitment_candidates(status)",
+    "CREATE INDEX IF NOT EXISTS ix_recruitment_candidates_tutor_id ON recruitment_candidates(tutor_id)",
 ]
 with app.app_context():
     for stmt in EXTRA_DDL:
@@ -122,7 +126,7 @@ else
 fi
 
 # ── Create required directories ──────────────────────────────────────────────
-mkdir -p logs uploads/payroll_proofs
+mkdir -p logs uploads/payroll_proofs uploads/recruitment/cv uploads/recruitment/photos
 
 # ── Launch ───────────────────────────────────────────────────────────────────
 echo "[entrypoint] Launching app on 0.0.0.0:${PORT} with ${GUNICORN_WORKERS} workers..."

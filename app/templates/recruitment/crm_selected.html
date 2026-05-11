@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Pelamar Terpilih{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="bi bi-person-check-fill text-primary me-2"></i>Pelamar Terpilih</h4>
+    <p class="text-muted small mb-0">Kirim undangan interview dan pindahkan ke tahap interview.</p>
+  </div>
+  <div class="btn-group btn-group-sm">
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_candidates') }}">Pelamar</a>
+    <a class="btn btn-primary" href="{{ url_for('recruitment.crm_selected') }}">Pelamar Terpilih</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_interview') }}">Interview</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  {% for candidate in candidates %}
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex gap-3">
+          {% if candidate.photo_file_path %}
+          <img src="{{ url_for('recruitment.uploaded_file', filename=candidate.photo_file_path) }}" class="rounded object-fit-cover" style="width:56px;height:56px" alt="Foto">
+          {% endif %}
+          <div class="flex-grow-1">
+            <h5 class="fw-bold mb-1">{{ candidate.name }}</h5>
+            <div class="text-muted small">{{ candidate.google_email }} | {{ candidate.phone }}</div>
+            <div class="small mt-1">{{ candidate.subject_interest or '-' }}</div>
+          </div>
+        </div>
+        <form method="post" action="{{ url_for('recruitment.send_interview_invite', candidate_ref=candidate.public_id) }}" class="mt-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="form-label small fw-semibold">Link Google Meet</label>
+          <div class="input-group input-group-sm">
+            <input class="form-control" name="meet_link" value="{{ candidate.meet_link or '' }}" placeholder="https://meet.google.com/..." required>
+            <button class="btn btn-success" type="submit"><i class="bi bi-whatsapp me-1"></i>Kirim WA</button>
+          </div>
+        </form>
+        <form method="post" action="{{ url_for('recruitment.agree_interview', candidate_ref=candidate.public_id) }}" class="mt-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-primary btn-sm w-100" type="submit">Setuju Interview</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12">
+    <div class="card border-0 shadow-sm"><div class="card-body text-center text-muted py-5">Belum ada pelamar terpilih.</div></div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

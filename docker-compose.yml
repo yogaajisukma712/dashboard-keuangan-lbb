@@ -50,6 +50,8 @@ services:
       MAIN_APP_HOSTS: ${MAIN_APP_HOSTS:-billing.supersmart.click,app.supersmart.click}
       TUTOR_PORTAL_BASE_URL: ${TUTOR_PORTAL_BASE_URL:-https://tutor.supersmart.click}
       TUTOR_PORTAL_HOST: ${TUTOR_PORTAL_HOST:-tutor.supersmart.click}
+      SS_MEET_API_URL: ${SS_MEET_API_URL:-https://meet-admin.supersmart.click/api/meet/create}
+      SS_MEET_API_KEY: ${SS_MEET_API_KEY:-}
       INSTITUTION_NAME: ${INSTITUTION_NAME:-LBB Super Smart}
       INSTITUTION_TAGLINE: ${INSTITUTION_TAGLINE:-BEING SMART FOR FUTURE}
       INSTITUTION_PHONE: ${INSTITUTION_PHONE:-0895-6359-07419}
@@ -92,6 +94,8 @@ services:
       TUTOR_PORTAL_BASE_URL: ${TUTOR_PORTAL_BASE_URL:-https://tutor.supersmart.click}
       TUTOR_PORTAL_HOST: ${TUTOR_PORTAL_HOST:-tutor.supersmart.click}
       TUTOR_PORTAL_MIN_DATE: ${TUTOR_PORTAL_MIN_DATE:-2026-04-01}
+      SS_MEET_API_URL: ${SS_MEET_API_URL:-https://meet-admin.supersmart.click/api/meet/create}
+      SS_MEET_API_KEY: ${SS_MEET_API_KEY:-}
       MAIL_SERVER: ${MAIL_SERVER:-}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}

@@ -58,6 +58,38 @@
               >
                 <span class="fw-semibold">{{ item.student_short_name }}</span>
                 <span class="text-muted">{{ item.subject_name }}</span>
+                {% if item.meet_link is defined %}
+                  {% if item.meet_link %}
+                  <div class="tutor-schedule-meet mt-1">
+                    <input class="form-control form-control-sm tutor-schedule-meet-link" value="{{ item.meet_link.join_url }}" readonly onclick="this.select();navigator.clipboard&&navigator.clipboard.writeText(this.value)">
+                    <div class="d-flex gap-1 mt-1">
+                      {% if item.meet_link.jitsi_url %}
+                      <a class="btn btn-sm btn-primary tutor-schedule-meet-btn" href="{{ item.meet_link.jitsi_url }}" target="_blank" rel="noopener">
+                        Buka Room Tutor
+                      </a>
+                      {% endif %}
+                      <button class="btn btn-sm btn-outline-secondary tutor-schedule-meet-btn" type="button" onclick="navigator.clipboard&&navigator.clipboard.writeText('{{ item.meet_link.join_url }}')">
+                        Copy Link Siswa
+                      </button>
+                    </div>
+                    <form class="mt-1" method="post" action="{{ url_for('tutor_portal.create_meet_link', enrollment_ref=item.enrollment_ref) }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input class="form-control form-control-sm tutor-schedule-meet-link mb-1" type="time" name="meeting_time" value="{{ '%02d:00'|format(item.hour) }}" required>
+                      <button class="btn btn-sm btn-outline-primary tutor-schedule-meet-btn w-100" type="submit">
+                        Aktifkan Lagi
+                      </button>
+                    </form>
+                  </div>
+                  {% else %}
+                  <form class="mt-1" method="post" action="{{ url_for('tutor_portal.create_meet_link', enrollment_ref=item.enrollment_ref) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input class="form-control form-control-sm tutor-schedule-meet-link mb-1" type="time" name="meeting_time" value="{{ '%02d:00'|format(item.hour) }}" required>
+                    <button class="btn btn-sm btn-outline-primary tutor-schedule-meet-btn w-100" type="submit">
+                      Buat Link Meet
+                    </button>
+                  </form>
+                  {% endif %}
+                {% endif %}
               </div>
               {% endif %}
               {% endfor %}
@@ -139,6 +171,19 @@
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tutor-schedule-meet-link {
+    height: 1.55rem;
+    border-radius: 5px;
+    font-size: 0.64rem;
+    padding: 0.1rem 0.25rem;
+  }
+  .tutor-schedule-meet-btn {
+    --bs-btn-padding-y: 0.12rem;
+    --bs-btn-padding-x: 0.32rem;
+    --bs-btn-font-size: 0.62rem;
+    line-height: 1.25;
     white-space: nowrap;
   }
   @media (max-width: 991.98px) {

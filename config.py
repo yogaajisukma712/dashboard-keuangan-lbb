@@ -73,6 +73,10 @@ class Config:
     )
     TUTOR_PORTAL_HOST = os.environ.get("TUTOR_PORTAL_HOST", "tutor.supersmart.click")
     TUTOR_PORTAL_MIN_DATE = os.environ.get("TUTOR_PORTAL_MIN_DATE", "2026-04-01")
+    SS_MEET_API_URL = os.environ.get(
+        "SS_MEET_API_URL", "https://meet-admin.supersmart.click/api/meet/create"
+    )
+    SS_MEET_API_KEY = os.environ.get("SS_MEET_API_KEY", "")
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
     MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))
     MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")

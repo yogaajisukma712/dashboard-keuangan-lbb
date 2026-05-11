@@ -3,7 +3,7 @@ import os
 from logging.handlers import RotatingFileHandler
 from urllib.parse import urlparse
 
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -95,7 +95,11 @@ def create_app(config_name=None):
                 return None
             return redirect(url_for("tutor_portal.dashboard"))
 
-        if request_host in main_hosts and request.path.startswith("/tutor"):
+        if (
+            request_host in main_hosts
+            and request.path.startswith("/tutor")
+            and not session.get("tutor_portal_tutor_id")
+        ):
             tutor_base_url = (app.config.get("TUTOR_PORTAL_BASE_URL") or "").rstrip("/")
             if tutor_base_url:
                 return redirect(f"{tutor_base_url}{request.full_path.rstrip('?')}")
@@ -129,6 +133,8 @@ def create_app(config_name=None):
             Tutor,
             TutorPayout,
             TutorPayoutLine,
+            RecruitmentCandidate,
+            TutorMeetLink,
             TutorPortalRequest,
             User,
         )
@@ -151,6 +157,8 @@ def create_app(config_name=None):
             "Expense": Expense,
             "TutorPayout": TutorPayout,
             "TutorPayoutLine": TutorPayoutLine,
+            "RecruitmentCandidate": RecruitmentCandidate,
+            "TutorMeetLink": TutorMeetLink,
             "TutorPortalRequest": TutorPortalRequest,
             "MonthlyClosing": MonthlyClosing,
         }
@@ -183,6 +191,7 @@ def register_blueprints(app):
         payments_bp,
         payroll_bp,
         reports_bp,
+        recruitment_bp,
         tutor_portal_bp,
         whatsapp_bot_bp,
         whatsapp_bp,
@@ -200,6 +209,7 @@ def register_blueprints(app):
     app.register_blueprint(payroll_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(recruitment_bp)
     app.register_blueprint(tutor_portal_bp)
     app.register_blueprint(closings_bp)
     app.register_blueprint(quota_invoice_bp)

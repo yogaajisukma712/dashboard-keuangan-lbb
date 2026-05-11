@@ -12,6 +12,7 @@ from email.message import EmailMessage
 from functools import wraps
 from urllib import error as urllib_error
 from urllib import request as urllib_request
+from zoneinfo import ZoneInfo
 
 from flask import (
     Blueprint,
@@ -34,7 +35,9 @@ from app.models import (
     AttendanceSession,
     Enrollment,
     EnrollmentSchedule,
+    RecruitmentCandidate,
     Tutor,
+    TutorMeetLink,
     TutorPayout,
     TutorPortalRequest,
     WhatsAppEvaluation,
@@ -69,6 +72,7 @@ REQUEST_TYPES = {
     "availability": "Jadwal Merah/Hijau",
     "profile_update": "Perbaikan Data Diri",
 }
+JAKARTA_TZ = ZoneInfo("Asia/Jakarta")
 
 
 def _token_serializer():
@@ -324,6 +328,72 @@ def _get_whatsapp_session_status() -> dict:
         "status": session_data.get("status") or "offline",
         "error": payload.get("error"),
     }
+
+
+def _ss_meet_api_request(payload: dict, timeout: int = 12, endpoint: str = "create"):
+    api_url = (current_app.config.get("SS_MEET_API_URL") or "").strip()
+    api_key = (current_app.config.get("SS_MEET_API_KEY") or "").strip()
+    if not api_url or not api_key:
+        return {"ok": False, "error": "SS Meet API belum dikonfigurasi."}, 500
+    if endpoint != "create":
+        api_url = api_url.rsplit("/", 1)[0] + "/" + endpoint
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib_request.Request(
+        api_url,
+        data=body,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "X-SS-Meet-Key": api_key,
+        },
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=timeout) as response:
+            text = response.read().decode("utf-8")
+            return (json.loads(text) if text else {}), response.status
+    except urllib_error.HTTPError as exc:
+        text = exc.read().decode("utf-8")
+        try:
+            error_payload = json.loads(text) if text else {}
+        except json.JSONDecodeError:
+            error_payload = {"ok": False, "error": text or str(exc)}
+        return error_payload, exc.code
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 502
+
+
+def _active_meet_links_for_enrollments(enrollment_ids):
+    if not enrollment_ids:
+        return {}
+    links = (
+        TutorMeetLink.query.filter(
+            TutorMeetLink.enrollment_id.in_(enrollment_ids),
+            TutorMeetLink.status == "active",
+        )
+        .order_by(TutorMeetLink.created_at.desc(), TutorMeetLink.id.desc())
+        .all()
+    )
+    result = {}
+    for link in links:
+        result.setdefault(link.enrollment_id, link)
+    return result
+
+
+def _meeting_window_from_form(default_hour):
+    raw = (request.form.get("meeting_time") or "").strip()
+    try:
+        start_time = datetime.strptime(raw, "%H:%M").time() if raw else time(int(default_hour or 19), 0)
+    except ValueError:
+        raise ValueError("Jam meet tidak valid. Gunakan format HH:MM.")
+    now = datetime.now(JAKARTA_TZ)
+    start_at = datetime.combine(now.date(), start_time, tzinfo=JAKARTA_TZ)
+    valid_from = start_at - timedelta(minutes=10)
+    expires_at = valid_from + timedelta(minutes=150)
+    if now > expires_at:
+        start_at += timedelta(days=1)
+        valid_from = start_at - timedelta(minutes=10)
+        expires_at = valid_from + timedelta(minutes=150)
+    return start_at, valid_from, expires_at
 
 
 def _normalize_whatsapp_phone(value):
@@ -591,10 +661,12 @@ def _build_tutor_presensi_schedule_grid(tutor_id):
         default=None,
     )
     items = []
+    meet_links = _active_meet_links_for_enrollments(sessions_by_enrollment.keys())
     for enrollment_id, sessions in sessions_by_enrollment.items():
         enrollment = sessions[-1].enrollment
         if not enrollment or not enrollment.student or not enrollment.subject:
             continue
+        meet_link = meet_links.get(enrollment_id)
         weekday = _dominant_attendance_weekday(sessions)
         hour = schedule_hours.get(enrollment_id, 17)
         latest_for_enrollment = max(session_item.session_date for session_item in sessions)
@@ -606,6 +678,8 @@ def _build_tutor_presensi_schedule_grid(tutor_id):
                 "student_short_name": _short_person_name(enrollment.student.name),
                 "subject_name": enrollment.subject.name,
                 "enrollment_ref": enrollment.public_id,
+                "enrollment_id": enrollment.id,
+                "meet_link": meet_link,
                 "latest_session_date": latest_for_enrollment,
                 "is_latest": bool(
                     latest_session_date and latest_for_enrollment == latest_session_date
@@ -946,6 +1020,70 @@ def _build_schedule_change_payload(tutor, form):
     }
 
 
+def _build_schedule_request_display_rows(payload):
+    if not payload or payload.get("mode") != "weekly_grid":
+        return []
+
+    slots_by_cell = defaultdict(list)
+    for slot in payload.get("slots", []):
+        try:
+            weekday = int(slot.get("weekday"))
+            hour = int(slot.get("hour"))
+        except (TypeError, ValueError):
+            continue
+        if weekday not in range(7) or hour not in SCHEDULE_HOUR_SLOTS:
+            continue
+
+        state = slot.get("state")
+        if state == "enrollment":
+            student_name = slot.get("student_name") or "Siswa"
+            subject_name = slot.get("subject_name") or "Mapel"
+            item = {
+                "state": state,
+                "label": f"{student_name} - {subject_name}",
+                "meta": "Siswa",
+                "class": "is-enrollment",
+            }
+        elif state == "available":
+            item = {
+                "state": state,
+                "label": "Available",
+                "meta": "",
+                "class": "is-available",
+            }
+        else:
+            item = {
+                "state": "unavailable",
+                "label": "Tidak Available",
+                "meta": "",
+                "class": "is-unavailable",
+            }
+        slots_by_cell[(weekday, hour)].append(item)
+
+    rows = []
+    for hour in SCHEDULE_HOUR_SLOTS:
+        cells = []
+        for weekday in range(7):
+            items = slots_by_cell.get((weekday, hour), [])
+            if items:
+                cell_class = "is-enrollment" if any(
+                    item["state"] == "enrollment" for item in items
+                ) else items[0]["class"]
+            else:
+                cell_class = "is-empty"
+            cells.append(
+                {
+                    "weekday": weekday,
+                    "day_name": WEEKDAY_NAMES[weekday],
+                    "hour": hour,
+                    "items": items,
+                    "class": cell_class,
+                }
+            )
+        rows.append({"hour": hour, "cells": cells})
+    return rows
+
+
 def _apply_weekly_schedule_grid_request(portal_request, payload):
     tutor_id = portal_request.tutor_id
     enrollment_ids = {
@@ -1234,6 +1372,11 @@ def dashboard():
         .limit(12)
         .all()
     )
+    recruitment_contracts = (
+        RecruitmentCandidate.query.filter_by(tutor_id=tutor.id)
+        .order_by(RecruitmentCandidate.signed_at.desc(), RecruitmentCandidate.id.desc())
+        .all()
+    )
     return render_template(
         "tutor_portal/dashboard.html",
         tutor=tutor,
@@ -1249,11 +1392,100 @@ def dashboard():
         validated_fee_total=validated_fee_total,
         payouts=payouts,
         requests=requests,
+        recruitment_contracts=recruitment_contracts,
         request_type_labels=REQUEST_TYPES,
         min_date=min_date,
         attendance_period_start=attendance_period_start,
         attendance_period_end=attendance_period_end,
     )
+
+
+@tutor_portal_bp.route("/meet-links/<string:enrollment_ref>/create", methods=["POST"])
+@tutor_login_required
+def create_meet_link(enrollment_ref):
+    tutor = _current_tutor()
+    try:
+        enrollment_id = decode_public_id(enrollment_ref, "enrollment")
+    except ValueError:
+        abort(404)
+    enrollment = Enrollment.query.get_or_404(enrollment_id)
+    if enrollment.tutor_id != tutor.id:
+        abort(403)
+
+    existing = _active_meet_links_for_enrollments([enrollment.id]).get(enrollment.id)
+
+    try:
+        start_at, valid_from, expires_at_dt = _meeting_window_from_form(
+            getattr(enrollment, "schedule_hour", None) or 19
+        )
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("tutor_portal.dashboard"))
+
+    if existing:
+        payload = {
+            "token": existing.token,
+            "valid_from": int(valid_from.timestamp()),
+            "expires_at": int(expires_at_dt.timestamp()),
+            "max_joins": 100,
+        }
+        response, status_code = _ss_meet_api_request(payload, endpoint="reactivate")
+    else:
+        title = f"SS Meet - {tutor.name} - {enrollment.student.name} - {enrollment.subject.name}"
+        payload = {
+            "title": title,
+            "tutor": tutor.name or "",
+            "student": enrollment.student.name if enrollment.student else "",
+            "subject": enrollment.subject.name if enrollment.subject else "",
+            "source": "tutor_portal",
+            "valid_from": int(valid_from.timestamp()),
+            "expires_at": int(expires_at_dt.timestamp()),
+            "max_joins": 100,
+        }
+        response, status_code = _ss_meet_api_request(payload)
+    if status_code >= 400 or not response.get("ok"):
+        flash(
+            "Gagal membuat link SS Meet: "
+            + str(response.get("error") or response.get("message") or status_code),
+            "danger",
+        )
+        return redirect(url_for("tutor_portal.dashboard"))
+
+    meet = response.get("meet") or {}
+    expires_at = None
+    if meet.get("expires_at"):
+        expires_at = datetime.fromtimestamp(int(meet["expires_at"]))
+    valid_from_db = None
+    if meet.get("valid_from"):
+        valid_from_db = datetime.fromtimestamp(int(meet["valid_from"]))
+    link = existing or TutorMeetLink(
+        enrollment_id=enrollment.id,
+        tutor_id=tutor.id,
+        student_id=enrollment.student_id,
+        subject_id=enrollment.subject_id,
+        source="tutor_portal",
+    )
+    link.token = meet.get("token") or link.token or ""
+    link.room = meet.get("room") or link.room or ""
+    link.join_url = meet.get("join_url") or link.join_url or ""
+    link.jitsi_url = meet.get("jitsi_url") or link.jitsi_url or ""
+    link.status = meet.get("status") or "active"
+    link.max_joins = int(meet.get("max_joins") or 100)
+    link.valid_from = valid_from_db or valid_from.replace(tzinfo=None)
+    link.expires_at = expires_at
+    db.session.add(link)
+    db.session.commit()
+    flash(
+        "Link SS Meet "
+        + ("diaktifkan ulang. " if existing else "dibuat. ")
+        + "Aktif "
+        + valid_from.strftime("%H:%M")
+        + " sampai "
+        + expires_at_dt.strftime("%H:%M")
+        + ".",
+        "success",
+    )
+    return redirect(url_for("tutor_portal.dashboard"))
 
 
 @tutor_portal_bp.route("/schedule-change", methods=["GET", "POST"])
@@ -1376,13 +1608,93 @@ def admin_requests():
         requests=requests,
         status=status,
         request_type_labels=REQUEST_TYPES,
+        schedule_request_rows=_build_schedule_request_display_rows,
+        weekday_names=WEEKDAY_NAMES,
     )
+
+
+def _credential_active_filter():
+    value = (
+        request.values.get("active_filter")
+        or request.args.get("active_filter")
+        or "all"
+    )
+    return value if value in {"all", "active", "inactive"} else "all"
+
+
+def _credential_redirect():
+    return redirect(
+        url_for(
+            "tutor_portal.admin_credentials",
+            active_filter=_credential_active_filter(),
+        )
+    )
+
+
+def _selected_credential_tutors():
+    selected_ids = []
+    for tutor_ref in request.form.getlist("tutor_refs"):
+        try:
+            tutor_id = decode_public_id(tutor_ref, "tutor")
+        except ValueError:
+            continue
+        if tutor_id not in selected_ids:
+            selected_ids.append(tutor_id)
+    if not selected_ids:
+        return []
+
+    tutors = Tutor.query.filter(Tutor.id.in_(selected_ids)).all()
+    tutor_by_id = {tutor.id: tutor for tutor in tutors}
+    return [tutor_by_id[tutor_id] for tutor_id in selected_ids if tutor_id in tutor_by_id]
+
+
+def _reset_tutor_portal_password(tutor):
+    if _ensure_tutor_portal_credentials(tutor):
+        db.session.flush()
+    tutor.set_portal_password(_initial_portal_password(tutor))
+    tutor.portal_must_change_password = True
+    tutor.updated_at = datetime.utcnow()
+
+
+def _send_tutor_credential_whatsapp(tutor, message_template):
+    if _ensure_tutor_portal_credentials(tutor):
+        db.session.commit()
+
+    contact_id = _normalize_whatsapp_phone(tutor.phone)
+    if not contact_id:
+        return False, f"Nomor WhatsApp {tutor.name} belum tersedia."
+
+    initial_password = (
+        _initial_portal_password(tutor) if tutor.portal_must_change_password else None
+    )
+    message = _render_tutor_credential_whatsapp_message(
+        tutor,
+        initial_password,
+        message_template or _build_tutor_credential_whatsapp_template(),
+    ).strip()
+    if not message:
+        return False, "Isi pesan WhatsApp tidak boleh kosong."
+
+    payload, status_code = _bot_request(
+        "POST",
+        "/messages/send",
+        {"to": contact_id, "message": message},
+        timeout=30,
+    )
+    if status_code == 200 and payload.get("ok"):
+        return True, ""
+    return False, f"{tutor.name}: {payload.get('error') or 'Bot error'}"
 
 
 @tutor_portal_bp.route("/admin/credentials")
 @login_required
 def admin_credentials():
+    active_filter = _credential_active_filter()
     tutors = _ensure_all_tutor_portal_credentials()
+    if active_filter == "active":
+        tutors = [tutor for tutor in tutors if tutor.is_active]
+    elif active_filter == "inactive":
+        tutors = [tutor for tutor in tutors if not tutor.is_active]
     credential_rows = [
         {
             "tutor": tutor,
@@ -1401,8 +1713,58 @@ def admin_credentials():
     return render_template(
         "tutor_portal/admin_credentials.html",
         credential_rows=credential_rows,
+        active_filter=active_filter,
         whatsapp_message_template=_build_tutor_credential_whatsapp_template(),
     )
+
+
+@tutor_portal_bp.route("/admin/credentials/send-whatsapp", methods=["POST"])
+@login_required
+def admin_send_bulk_credential_whatsapp():
+    tutors = _selected_credential_tutors()
+    if not tutors:
+        flash("Pilih minimal satu tutor untuk kirim WhatsApp.", "warning")
+        return _credential_redirect()
+
+    session_status = _get_whatsapp_session_status()
+    if not session_status["ready"]:
+        flash("WhatsApp bot belum ready. Silakan login/scan QR terlebih dahulu.", "warning")
+        return redirect(url_for("whatsapp_bot.management"))
+
+    message_template = (
+        request.form.get("message_template") or _build_tutor_credential_whatsapp_template()
+    )
+    sent_count = 0
+    failed_messages = []
+    for tutor in tutors:
+        ok, error_message = _send_tutor_credential_whatsapp(tutor, message_template)
+        if ok:
+            sent_count += 1
+        elif error_message:
+            failed_messages.append(error_message)
+
+    if sent_count:
+        flash(f"Credential berhasil dikirim ke {sent_count} tutor.", "success")
+    if failed_messages:
+        preview = "; ".join(failed_messages[:3])
+        suffix = f" dan {len(failed_messages) - 3} lainnya" if len(failed_messages) > 3 else ""
+        flash(f"Sebagian kirim WhatsApp gagal: {preview}{suffix}", "warning")
+    return _credential_redirect()
+
+
+@tutor_portal_bp.route("/admin/credentials/reset-passwords", methods=["POST"])
+@login_required
+def admin_reset_bulk_credential_passwords():
+    tutors = _selected_credential_tutors()
+    if not tutors:
+        flash("Pilih minimal satu tutor untuk reset password.", "warning")
+        return _credential_redirect()
+
+    for tutor in tutors:
+        _reset_tutor_portal_password(tutor)
+    db.session.commit()
+    flash(f"Password default berhasil direset untuk {len(tutors)} tutor.", "success")
+    return _credential_redirect()
 
 
 @tutor_portal_bp.route(
@@ -1415,42 +1777,37 @@ def admin_send_credential_whatsapp(tutor_ref):
     except ValueError:
         abort(404)
     tutor = Tutor.query.get_or_404(tutor_id)
-    if _ensure_tutor_portal_credentials(tutor):
-        db.session.commit()
-
-    contact_id = _normalize_whatsapp_phone(tutor.phone)
-    if not contact_id:
-        flash(f"Nomor WhatsApp {tutor.name} belum tersedia di data tutor.", "warning")
-        return redirect(url_for("tutor_portal.admin_credentials"))
 
     session_status = _get_whatsapp_session_status()
     if not session_status["ready"]:
         flash("WhatsApp bot belum ready. Silakan login/scan QR terlebih dahulu.", "warning")
         return redirect(url_for("whatsapp_bot.management"))
 
-    initial_password = (
-        _initial_portal_password(tutor) if tutor.portal_must_change_password else None
-    )
     message_template = (
         request.form.get("message_template") or _build_tutor_credential_whatsapp_template()
     )
-    message = _render_tutor_credential_whatsapp_message(
-        tutor, initial_password, message_template
-    ).strip()
-    if not message:
-        flash("Isi pesan WhatsApp tidak boleh kosong.", "warning")
-        return redirect(url_for("tutor_portal.admin_credentials"))
-    payload, status_code = _bot_request(
-        "POST",
-        "/messages/send",
-        {"to": contact_id, "message": message},
-        timeout=30,
-    )
-    if status_code == 200 and payload.get("ok"):
+    ok, error_message = _send_tutor_credential_whatsapp(tutor, message_template)
+    if ok:
         flash(f"Link dashboard dan credential berhasil dikirim ke WhatsApp {tutor.name}.", "success")
     else:
-        flash(f"Kirim WhatsApp gagal: {payload.get('error') or 'Bot error'}", "danger")
-    return redirect(url_for("tutor_portal.admin_credentials"))
+        flash(f"Kirim WhatsApp gagal: {error_message}", "danger")
+    return _credential_redirect()
+
+
+@tutor_portal_bp.route(
+    "/admin/credentials/<string:tutor_ref>/reset-password", methods=["POST"]
+)
+@login_required
+def admin_reset_credential_password(tutor_ref):
+    try:
+        tutor_id = decode_public_id(tutor_ref, "tutor")
+    except ValueError:
+        abort(404)
+    tutor = Tutor.query.get_or_404(tutor_id)
+    _reset_tutor_portal_password(tutor)
+    db.session.commit()
+    flash(f"Password default {tutor.name} berhasil direset.", "success")
+    return _credential_redirect()
 
 
 @tutor_portal_bp.route("/admin/requests/<string:request_ref>/<action>", methods=["POST"])

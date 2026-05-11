@@ -19,6 +19,7 @@ from app.models import (
 from app.routes.tutor_portal import (
     ATTENDANCE_TABLE_PER_PAGE,
     _ListPagination,
+    _build_schedule_request_display_rows,
     _build_tutor_attendance_calendar,
     _build_tutor_presensi_schedule_grid,
     _month_bounds,
@@ -265,6 +266,53 @@ def test_tutor_portal_attendance_pagination_limits_table_to_10_rows():
     assert third_page.has_next is False
 
 
+def test_schedule_request_payload_is_formatted_as_admin_grid_rows():
+    rows = _build_schedule_request_display_rows(
+        {
+            "mode": "weekly_grid",
+            "slots": [
+                {
+                    "weekday": 0,
+                    "day_name": "Senin",
+                    "hour": 8,
+                    "start_time": "08:00",
+                    "end_time": "09:00",
+                    "state": "enrollment",
+                    "enrollment_id": 1,
+                    "student_name": "Nadine",
+                    "subject_name": "Matematika",
+                },
+                {
+                    "weekday": 1,
+                    "day_name": "Selasa",
+                    "hour": 8,
+                    "start_time": "08:00",
+                    "end_time": "09:00",
+                    "state": "available",
+                },
+                {
+                    "weekday": 2,
+                    "day_name": "Rabu",
+                    "hour": 8,
+                    "start_time": "08:00",
+                    "end_time": "09:00",
+                    "state": "unavailable",
+                },
+            ],
+        }
+    )
+
+    first_row = rows[0]
+    assert first_row["hour"] == 8
+    assert first_row["cells"][0]["class"] == "is-enrollment"
+    assert first_row["cells"][0]["items"][0]["label"] == "Nadine - Matematika"
+    assert first_row["cells"][1]["class"] == "is-available"
+    assert first_row["cells"][1]["items"][0]["label"] == "Available"
+    assert first_row["cells"][2]["class"] == "is-unavailable"
+    assert first_row["cells"][2]["items"][0]["label"] == "Tidak Available"
+    assert first_row["cells"][3]["class"] == "is-empty"
+
+
 def test_tutor_portal_routes_and_templates_are_registered_in_source():
     init_text = (PROJECT_ROOT / "app" / "__init__.py").read_text(encoding="utf-8")
     routes_init = (PROJECT_ROOT / "app" / "routes" / "__init__.py").read_text(
@@ -332,6 +380,11 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Mode admin hanya untuk melihat dashboard tutor" in route_text
     assert "admin_credentials" in route_text
     assert "admin_send_credential_whatsapp" in route_text
+    assert "admin_send_bulk_credential_whatsapp" in route_text
+    assert "admin_reset_bulk_credential_passwords" in route_text
+    assert "admin_reset_credential_password" in route_text
+    assert "_reset_tutor_portal_password" in route_text
+    assert "_selected_credential_tutors" in route_text
     assert "\"/messages/send\"" in route_text
     assert "Cara login pertama" in route_text
     assert "Fungsi dashboard tutor" in route_text
@@ -347,6 +400,18 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
     assert "Kirim WA" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
+    ).read_text(encoding="utf-8")
+    assert "Kirim WA Terpilih" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
+    ).read_text(encoding="utf-8")
+    assert "Reset Password Terpilih" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
+    ).read_text(encoding="utf-8")
+    assert "credential-select-all" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
+    ).read_text(encoding="utf-8")
+    assert "active_filter='inactive'" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
     assert "Template Pesan WhatsApp" in (
@@ -411,6 +476,11 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Pengajuan tetap bisa dikirim" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "schedule_change.html"
     ).read_text(encoding="utf-8")
+    admin_requests_text = (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_requests.html"
+    ).read_text(encoding="utf-8")
+    assert "approval-schedule-table" in admin_requests_text
+    assert "schedule_request_rows(item.payload_json)" in admin_requests_text
     assert "setCell(currentOwner, 'available', 'Available')" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "schedule_change.html"
     ).read_text(encoding="utf-8")

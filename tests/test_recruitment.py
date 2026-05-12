@@ -42,6 +42,10 @@ def test_recruitment_crm_source_is_registered():
     assert "RECRUITMENT_BASE_URL" in route_text
     assert "LAST_EDUCATION_LEVELS" in route_text
     assert "GENDER_OPTIONS" in route_text
+    assert "UNIVERSITY_OPTIONS = list(dict.fromkeys([" in route_text
+    assert "Universitas Terbuka" in route_text
+    assert "Politeknik Negeri Bandung" in route_text
+    assert "UIN Syarif Hidayatullah Jakarta" in route_text
     assert "_teaching_option_choices" in route_text
     assert "teaching_preferences = request.form.getlist" in route_text
     assert "Pilih mapel dari daftar dropdown yang tersedia." in route_text

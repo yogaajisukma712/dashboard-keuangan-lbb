@@ -73,12 +73,12 @@
               <div class="col-md-12">
                 <label class="form-label fw-semibold">Mapel, Jenjang, dan Kurikulum</label>
                 <div class="input-group">
-                  <select class="form-select" id="teaching-option-select">
-                    <option value="">Pilih mapel, jenjang, kurikulum</option>
+                  <input class="form-control" id="teaching-option-input" list="teaching-option-list" placeholder="Cari mapel, jenjang, kurikulum">
+                  <datalist id="teaching-option-list">
                     {% for option in teaching_options %}
-                    <option value="{{ option }}">{{ option }}</option>
+                    <option value="{{ option }}"></option>
                     {% endfor %}
-                  </select>
+                  </datalist>
                   <button class="btn btn-outline-primary" type="button" id="add-teaching-option">
                     <i class="bi bi-plus-lg me-1"></i>Tambah
                   </button>
@@ -117,12 +117,12 @@
 </main>
 <script>
   (function () {
-    const select = document.getElementById("teaching-option-select");
+    const teachingInput = document.getElementById("teaching-option-input");
     const addButton = document.getElementById("add-teaching-option");
     const list = document.getElementById("selected-teaching-options");
     const form = document.getElementById("recruitment-data-form");
     const error = document.getElementById("teaching-options-error");
-    if (!select || !addButton || !list || !form || !error) return;
+    if (!teachingInput || !addButton || !list || !form || !error) return;
 
     function hasValue(value) {
       return Array.from(list.querySelectorAll("input[name='teaching_preferences']")).some(function (input) {
@@ -143,12 +143,12 @@
     }
 
     addButton.addEventListener("click", function () {
-      addItem(select.value);
-      select.value = "";
+      addItem(teachingInput.value);
+      teachingInput.value = "";
     });
-    select.addEventListener("change", function () {
-      addItem(select.value);
-      select.value = "";
+    teachingInput.addEventListener("change", function () {
+      addItem(teachingInput.value);
+      teachingInput.value = "";
     });
     list.addEventListener("click", function (event) {
       const button = event.target.closest("[data-remove-teaching]");
@@ -158,7 +158,7 @@
       if (!list.querySelector("input[name='teaching_preferences']")) {
         event.preventDefault();
         error.classList.remove("d-none");
-        select.focus();
+        teachingInput.focus();
       }
     });
   })();

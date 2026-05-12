@@ -55,21 +55,66 @@ MAX_SIGNATURE_DATA_URL_LENGTH = 500_000
 LAST_EDUCATION_LEVELS = ["Vokasi", "S1", "S2", "S3"]
 GENDER_OPTIONS = [("male", "Laki-laki"), ("female", "Perempuan")]
 UNIVERSITY_OPTIONS = [
+    "Institut Pertanian Bogor",
     "Institut Teknologi Bandung",
+    "Institut Teknologi Nasional",
     "Institut Teknologi Sepuluh Nopember",
+    "Politeknik Elektronika Negeri Surabaya",
+    "Politeknik Negeri Jakarta",
+    "Politeknik Negeri Malang",
+    "Politeknik Negeri Semarang",
+    "Politeknik Negeri Surabaya",
+    "Universitas Ahmad Dahlan",
     "Universitas Airlangga",
+    "Universitas Andalas",
+    "Universitas Atma Jaya Yogyakarta",
+    "Universitas Bina Nusantara",
     "Universitas Brawijaya",
+    "Universitas Ciputra",
+    "Universitas Dian Nuswantoro",
     "Universitas Diponegoro",
     "Universitas Gadjah Mada",
+    "Universitas Gunadarma",
+    "Universitas Hasanuddin",
     "Universitas Indonesia",
+    "Universitas Islam Indonesia",
+    "Universitas Islam Negeri Maulana Malik Ibrahim Malang",
+    "Universitas Islam Negeri Sunan Ampel Surabaya",
+    "Universitas Islam Negeri Sunan Kalijaga Yogyakarta",
+    "Universitas Jember",
+    "Universitas Katolik Parahyangan",
+    "Universitas Katolik Widya Mandala Surabaya",
+    "Universitas Kristen Petra",
+    "Universitas Lambung Mangkurat",
+    "Universitas Lampung",
+    "Universitas Muhammadiyah Malang",
+    "Universitas Muhammadiyah Surabaya",
+    "Universitas Muhammadiyah Yogyakarta",
+    "Universitas Multimedia Nusantara",
+    "Universitas Narotama",
+    "Universitas Negeri Jakarta",
     "Universitas Negeri Malang",
+    "Universitas Negeri Medan",
+    "Universitas Negeri Semarang",
     "Universitas Negeri Surabaya",
+    "Universitas Negeri Yogyakarta",
+    "Universitas Pembangunan Nasional Veteran Jawa Timur",
+    "Universitas Pembangunan Nasional Veteran Yogyakarta",
     "Universitas Padjadjaran",
+    "Universitas Pelita Harapan",
     "Universitas Pendidikan Indonesia",
+    "Universitas Riau",
+    "Universitas Sam Ratulangi",
+    "Universitas Sanata Dharma",
     "Universitas Sebelas Maret",
+    "Universitas Sriwijaya",
+    "Universitas Sumatera Utara",
     "Universitas Surabaya",
+    "Universitas Syiah Kuala",
+    "Universitas Telkom",
     "Universitas Trunojoyo Madura",
     "Universitas Udayana",
+    "Universitas Wijaya Kusuma Surabaya",
 ]
 
 
@@ -207,6 +252,20 @@ def _current_offering_amount():
 
 
 def _teaching_option_choices():
+    def add_label(collection, label):
+        key = label.lower()
+        if key not in seen:
+            collection.append(label)
+            seen.add(key)
+
+    def add_teaching_labels(collection, subject_name, level_name, curriculum_name):
+        add_label(collection, f"{subject_name} {level_name} {curriculum_name}")
+        if curriculum_name.lower().startswith("internasional"):
+            add_label(
+                collection,
+                f"{subject_name} {level_name} {curriculum_name.replace('Internasional', 'Cambridge', 1)}",
+            )
+
     rules = (
         PricingRule.query.filter_by(is_active=True)
         .join(PricingRule.subject, isouter=True)
@@ -218,16 +277,14 @@ def _teaching_option_choices():
     labels = []
     seen = set()
     for rule in rules:
-        subject_name = rule.subject.name if rule.subject else "Semua Mapel"
-        level_name = rule.level.name if rule.level else "Semua Jenjang"
-        curriculum_name = rule.curriculum.name if rule.curriculum else "Semua Kurikulum"
-        label = f"{subject_name} {level_name} {curriculum_name}"
-        key = label.lower()
-        if key not in seen:
-            labels.append(label)
-            seen.add(key)
-    if labels:
-        return labels
+        if not rule.subject or not rule.level or not rule.curriculum:
+            continue
+        add_teaching_labels(
+            labels,
+            rule.subject.name,
+            rule.level.name,
+            rule.curriculum.name,
+        )
 
     subjects = Subject.query.filter_by(is_active=True).order_by(Subject.name.asc()).all()
     levels = Level.query.filter_by(is_active=True).order_by(Level.name.asc()).all()
@@ -237,7 +294,7 @@ def _teaching_option_choices():
     for subject in subjects:
         for level in levels:
             for curriculum in curriculums:
-                labels.append(f"{subject.name} {level.name} {curriculum.name}")
+                add_teaching_labels(labels, subject.name, level.name, curriculum.name)
     return labels
 
 
@@ -411,6 +468,7 @@ def form():
         ).strip()
         candidate.university_name = (request.form.get("university_name") or "").strip()
         teaching_preferences = request.form.getlist("teaching_preferences")
+        valid_teaching_options = set(_teaching_option_choices())
         age_raw = (request.form.get("age") or "").strip()
         try:
             candidate.age = int(age_raw) if age_raw else None
@@ -433,6 +491,9 @@ def form():
                 "Lengkapi usia, jenis kelamin, pendidikan terakhir, universitas, dan minimal satu pilihan mapel.",
                 "danger",
             )
+            return redirect(url_for("recruitment.form"))
+        if any(item not in valid_teaching_options for item in candidate.teaching_preferences):
+            flash("Pilih mapel dari daftar dropdown yang tersedia.", "danger")
             return redirect(url_for("recruitment.form"))
         try:
             cv_path = _save_candidate_upload(

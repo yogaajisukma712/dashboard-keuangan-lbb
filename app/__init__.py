@@ -83,6 +83,7 @@ def create_app(config_name=None):
         """Keep the tutor portal and main dashboard separated by public host."""
         request_host = (request.host or "").split(":")[0].lower()
         tutor_host = (app.config.get("TUTOR_PORTAL_HOST") or "").lower()
+        recruitment_host = (app.config.get("RECRUITMENT_HOST") or "").lower()
         main_hosts = set(app.config.get("MAIN_APP_HOSTS") or ())
         app_base_host = urlparse(app.config.get("APP_BASE_URL") or "").hostname
         if app_base_host:
@@ -95,6 +96,26 @@ def create_app(config_name=None):
                 return None
             return redirect(url_for("tutor_portal.dashboard"))
 
+        if request_host == recruitment_host:
+            allowed_prefixes = (
+                "/recruitment/",
+                "/recruitment/verify/",
+                "/recruitment/form",
+                "/recruitment/selesai",
+                "/recruitment/contract/",
+                "/static/",
+            )
+            allowed_paths = {"/", "/favicon.ico"}
+            if request.path in allowed_paths:
+                return redirect(url_for("recruitment.start"))
+            if request.path.startswith("/recruitment/crm"):
+                app_base_url = (app.config.get("APP_BASE_URL") or "").rstrip("/")
+                if app_base_url:
+                    return redirect(f"{app_base_url}{request.full_path.rstrip('?')}")
+            if request.path.startswith(allowed_prefixes):
+                return None
+            return redirect(url_for("recruitment.start"))
+
         if (
             request_host in main_hosts
             and request.path.startswith("/tutor")
@@ -103,14 +124,34 @@ def create_app(config_name=None):
             tutor_base_url = (app.config.get("TUTOR_PORTAL_BASE_URL") or "").rstrip("/")
             if tutor_base_url:
                 return redirect(f"{tutor_base_url}{request.full_path.rstrip('?')}")
+        if (
+            request_host in main_hosts
+            and (
+                request.path == "/recruitment"
+                or request.path == "/recruitment/"
+                or request.path.startswith("/recruitment/form")
+                or request.path.startswith("/recruitment/verify/")
+                or request.path.startswith("/recruitment/selesai")
+                or request.path.startswith("/recruitment/contract/")
+            )
+        ):
+            recruitment_base_url = (
+                app.config.get("RECRUITMENT_BASE_URL") or ""
+            ).rstrip("/")
+            if recruitment_base_url:
+                return redirect(f"{recruitment_base_url}{request.full_path.rstrip('?')}")
         return None
 
     @app.route("/", methods=["GET"])
     def root():
         """Redirect the bare domain to the login flow."""
+        request_host = request.host.split(":")[0]
         tutor_host = app.config.get("TUTOR_PORTAL_HOST", "")
-        if tutor_host and request.host.split(":")[0] == tutor_host:
+        recruitment_host = app.config.get("RECRUITMENT_HOST", "")
+        if tutor_host and request_host == tutor_host:
             return redirect(url_for("tutor_portal.login"))
+        if recruitment_host and request_host == recruitment_host:
+            return redirect(url_for("recruitment.start"))
         return redirect(url_for("auth.login"))
 
     # Create shell context for flask shell

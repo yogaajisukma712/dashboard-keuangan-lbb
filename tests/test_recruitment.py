@@ -21,6 +21,8 @@ def test_recruitment_crm_source_is_registered():
     entrypoint_text = (PROJECT_ROOT / "docker" / "entrypoint.sh").read_text(
         encoding="utf-8"
     )
+    config_text = (PROJECT_ROOT / "config.py").read_text(encoding="utf-8")
+    compose_text = (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
 
     assert "recruitment_bp" in routes_text
     assert "app.register_blueprint(recruitment_bp)" in app_text
@@ -37,10 +39,19 @@ def test_recruitment_crm_source_is_registered():
     assert "def contract" in route_text
     assert "CONTRACT_TOKEN_MAX_AGE_SECONDS" in route_text
     assert "_candidate_from_contract_token" in route_text
+    assert "RECRUITMENT_BASE_URL" in route_text
     assert "candidate.status != \"contract_sent\"" in route_text
     assert "not candidate.email_verified" in route_text
     assert "_create_tutor_from_candidate" in route_text
     assert "session[\"tutor_portal_tutor_id\"] = tutor.id" in route_text
+    assert "RECRUITMENT_BASE_URL" in config_text
+    assert "RECRUITMENT_HOST" in config_text
+    assert "recruitment_web:" in compose_text
+    assert "billing_supersmart_recruitment_web" in compose_text
+    assert "${RECRUITMENT_PORT:-6006}:5000" in compose_text
+    assert "MAIL_SERVER" in compose_text
+    assert "MAIL_DEFAULT_SENDER" in compose_text
+    assert "RECRUITMENT_BASE_URL: ${RECRUITMENT_BASE_URL:-https://recruitment.supersmart.click}" in compose_text
 
 
 def test_recruitment_templates_expose_required_workflow():

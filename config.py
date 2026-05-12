@@ -73,6 +73,12 @@ class Config:
     )
     TUTOR_PORTAL_HOST = os.environ.get("TUTOR_PORTAL_HOST", "tutor.supersmart.click")
     TUTOR_PORTAL_MIN_DATE = os.environ.get("TUTOR_PORTAL_MIN_DATE", "2026-04-01")
+    RECRUITMENT_BASE_URL = os.environ.get(
+        "RECRUITMENT_BASE_URL", "https://recruitment.supersmart.click"
+    )
+    RECRUITMENT_HOST = os.environ.get(
+        "RECRUITMENT_HOST", "recruitment.supersmart.click"
+    )
     SS_MEET_API_URL = os.environ.get(
         "SS_MEET_API_URL", "https://meet-admin.supersmart.click/api/meet/create"
     )

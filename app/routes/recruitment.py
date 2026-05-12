@@ -117,11 +117,18 @@ def _candidate_from_contract_token(token):
 
 
 def _contract_url(candidate, external=False):
-    return url_for(
+    path = url_for(
         "recruitment.contract",
         token=_contract_token(candidate),
-        _external=external,
     )
+    if external:
+        recruitment_base_url = (
+            current_app.config.get("RECRUITMENT_BASE_URL") or ""
+        ).rstrip("/")
+        if recruitment_base_url:
+            return f"{recruitment_base_url}{path}"
+        return url_for("recruitment.contract", token=_contract_token(candidate), _external=True)
+    return path
 
 
 def _send_recruitment_verification_email(candidate):
@@ -132,7 +139,13 @@ def _send_recruitment_verification_email(candidate):
             "purpose": "recruitment_verify_email",
         }
     )
-    verify_url = url_for("recruitment.verify_email", token=token, _external=True)
+    verify_path = url_for("recruitment.verify_email", token=token)
+    recruitment_base_url = (current_app.config.get("RECRUITMENT_BASE_URL") or "").rstrip("/")
+    verify_url = (
+        f"{recruitment_base_url}{verify_path}"
+        if recruitment_base_url
+        else url_for("recruitment.verify_email", token=token, _external=True)
+    )
     if not current_app.config.get("MAIL_SERVER"):
         current_app.logger.warning("Recruitment verification link: %s", verify_url)
         return False

@@ -50,8 +50,17 @@ services:
       MAIN_APP_HOSTS: ${MAIN_APP_HOSTS:-billing.supersmart.click,app.supersmart.click}
       TUTOR_PORTAL_BASE_URL: ${TUTOR_PORTAL_BASE_URL:-https://tutor.supersmart.click}
       TUTOR_PORTAL_HOST: ${TUTOR_PORTAL_HOST:-tutor.supersmart.click}
+      RECRUITMENT_BASE_URL: ${RECRUITMENT_BASE_URL:-https://recruitment.supersmart.click}
+      RECRUITMENT_HOST: ${RECRUITMENT_HOST:-recruitment.supersmart.click}
       SS_MEET_API_URL: ${SS_MEET_API_URL:-https://meet-admin.supersmart.click/api/meet/create}
       SS_MEET_API_KEY: ${SS_MEET_API_KEY:-}
+      MAIL_SERVER: ${MAIL_SERVER:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_USE_TLS: ${MAIL_USE_TLS:-true}
+      MAIL_USE_SSL: ${MAIL_USE_SSL:-false}
+      MAIL_DEFAULT_SENDER: ${MAIL_DEFAULT_SENDER:-no-reply@supersmart.click}
       INSTITUTION_NAME: ${INSTITUTION_NAME:-LBB Super Smart}
       INSTITUTION_TAGLINE: ${INSTITUTION_TAGLINE:-BEING SMART FOR FUTURE}
       INSTITUTION_PHONE: ${INSTITUTION_PHONE:-0895-6359-07419}
@@ -94,6 +103,8 @@ services:
       TUTOR_PORTAL_BASE_URL: ${TUTOR_PORTAL_BASE_URL:-https://tutor.supersmart.click}
       TUTOR_PORTAL_HOST: ${TUTOR_PORTAL_HOST:-tutor.supersmart.click}
       TUTOR_PORTAL_MIN_DATE: ${TUTOR_PORTAL_MIN_DATE:-2026-04-01}
+      RECRUITMENT_BASE_URL: ${RECRUITMENT_BASE_URL:-https://recruitment.supersmart.click}
+      RECRUITMENT_HOST: ${RECRUITMENT_HOST:-recruitment.supersmart.click}
       SS_MEET_API_URL: ${SS_MEET_API_URL:-https://meet-admin.supersmart.click/api/meet/create}
       SS_MEET_API_KEY: ${SS_MEET_API_KEY:-}
       MAIL_SERVER: ${MAIL_SERVER:-}
@@ -105,6 +116,57 @@ services:
       MAIL_DEFAULT_SENDER: ${MAIL_DEFAULT_SENDER:-no-reply@supersmart.click}
     ports:
       - "${TUTOR_PORTAL_PORT:-6003}:5000"
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    networks:
+      - billing_net
+
+  recruitment_web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: billing_supersmart_recruitment_web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      FLASK_ENV: ${FLASK_ENV:-production}
+      FLASK_APP: ${FLASK_APP:-run.py}
+      FLASK_HOST: 0.0.0.0
+      FLASK_PORT: 5000
+      DEBUG: ${DEBUG:-False}
+      SECRET_KEY: ${SECRET_KEY:-change-this-secret-key-billing}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-lbb_db}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PAGINATION_PER_PAGE: ${PAGINATION_PER_PAGE:-20}
+      PYTHONUNBUFFERED: "1"
+      WHATSAPP_BOT_INTERNAL_URL: ${WHATSAPP_BOT_INTERNAL_URL:-http://whatsapp_bot:3000}
+      WHATSAPP_BOT_TOKEN: ${WHATSAPP_BOT_TOKEN:-change-this-whatsapp-bot-token}
+      APP_BASE_URL: ${APP_BASE_URL:-https://billing.supersmart.click}
+      MAIN_APP_HOSTS: ${MAIN_APP_HOSTS:-billing.supersmart.click,app.supersmart.click}
+      TUTOR_PORTAL_BASE_URL: ${TUTOR_PORTAL_BASE_URL:-https://tutor.supersmart.click}
+      TUTOR_PORTAL_HOST: ${TUTOR_PORTAL_HOST:-tutor.supersmart.click}
+      RECRUITMENT_BASE_URL: ${RECRUITMENT_BASE_URL:-https://recruitment.supersmart.click}
+      RECRUITMENT_HOST: ${RECRUITMENT_HOST:-recruitment.supersmart.click}
+      MAIL_SERVER: ${MAIL_SERVER:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_USE_TLS: ${MAIL_USE_TLS:-true}
+      MAIL_USE_SSL: ${MAIL_USE_SSL:-false}
+      MAIL_DEFAULT_SENDER: ${MAIL_DEFAULT_SENDER:-no-reply@supersmart.click}
+      INSTITUTION_NAME: ${INSTITUTION_NAME:-LBB Super Smart}
+      INSTITUTION_TAGLINE: ${INSTITUTION_TAGLINE:-BEING SMART FOR FUTURE}
+      INSTITUTION_PHONE: ${INSTITUTION_PHONE:-0895-6359-07419}
+      INSTITUTION_EMAIL: ${INSTITUTION_EMAIL:-lbbsupersmart@gmail.com}
+      INSTITUTION_ADDRESS: ${INSTITUTION_ADDRESS:-Jl. Menur Pumpungan No 63, Sukolilo}
+      INSTITUTION_CITY: ${INSTITUTION_CITY:-Surabaya}
+      INSTITUTION_CEO_NAME: ${INSTITUTION_CEO_NAME:-Yoga Aji Sukma, S.Mat., M.Stat.}
+      INSTITUTION_CEO_TITLE: ${INSTITUTION_CEO_TITLE:-CEO}
+    ports:
+      - "${RECRUITMENT_PORT:-6006}:5000"
     volumes:
       - ./logs:/app/logs
       - ./uploads:/app/uploads

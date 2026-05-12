@@ -29,6 +29,7 @@ def _valid_form_payload(**overrides):
         "last_education_level": "S1",
         "university_name": "Universitas Airlangga",
         "teaching_preferences": ["Matematika SD Nasional"],
+        "availability_0_16": "available",
     }
     payload.update(overrides)
     return payload
@@ -46,6 +47,8 @@ def _candidate():
         university_name="",
         age=None,
         teaching_preferences=[],
+        availability_slots=[],
+        availability_json=None,
         cv_file_path=None,
         photo_file_path=None,
     )
@@ -142,15 +145,21 @@ def test_recruitment_crm_source_is_registered():
     assert "RecruitmentCandidate" in models_text
     assert "__tablename__ = \"recruitment_candidates\"" in model_text
     assert "password_hash = db.Column(db.String(255))" in model_text
+    assert "availability_json = db.Column(db.Text)" in model_text
+    assert "def availability_slots" in model_text
     assert "def set_password" in model_text
     assert "def check_password" in model_text
     assert "CREATE TABLE IF NOT EXISTS recruitment_candidates" in entrypoint_text
     assert "ALTER TABLE recruitment_candidates ADD COLUMN IF NOT EXISTS password_hash" in entrypoint_text
+    assert "ALTER TABLE recruitment_candidates ADD COLUMN IF NOT EXISTS availability_json" in entrypoint_text
     assert "@recruitment_bp.route(\"/\", methods=[\"GET\", \"POST\"])" in route_text
     assert "def verify_email" in route_text
     assert "@recruitment_bp.route(\"/dashboard\", methods=[\"GET\", \"POST\"])" in route_text
     assert "@recruitment_bp.route(\"/logout\", methods=[\"POST\"])" in route_text
     assert "candidate.set_password(password)" in route_text
+    assert "_build_candidate_availability_rows" in route_text
+    assert "_candidate_availability_slots_from_form" in route_text
+    assert "candidate.availability_slots" in route_text
     assert "recruitment.dashboard" in route_text
     assert "def crm_candidates" in route_text
     assert "def crm_selected" in route_text
@@ -236,6 +245,12 @@ def test_recruitment_templates_expose_required_workflow():
     assert "Upload Foto" in form_text
     assert "Password Dashboard Recruitment" in form_text
     assert "password_confirm" in form_text
+    assert "Jadwal Waktu Luang" in form_text
+    assert "Hijau: waktu luang" in form_text
+    assert "Merah: tidak bisa" in form_text
+    assert "Klik kotak jadwal untuk mengubah warna" in form_text
+    assert "availability_grid.rows" in form_text
+    assert "schedule-cell-button" in form_text
     assert "Mapel, Jenjang, dan Kurikulum" in form_text
     assert "Mapel boleh dipilih lebih dari satu." in form_text
     assert "klik Tambah, lalu ulangi untuk mapel berikutnya" in form_text
@@ -269,6 +284,9 @@ def test_recruitment_templates_expose_required_workflow():
     assert "Tandatangani & Masuk Dashboard Tutor" in contract_text
     assert "Dashboard Recruitment" in recruitment_dashboard_text
     assert "Data Diri" in recruitment_dashboard_text
+    assert "Jadwal Waktu Luang" in recruitment_dashboard_text
+    assert "availability_grid.rows" in recruitment_dashboard_text
+    assert "availability-pill" in recruitment_dashboard_text
     assert "SK & Offering" in recruitment_dashboard_text
     assert "signature_data_url" in recruitment_dashboard_text
     assert "Tandatangani" in recruitment_dashboard_text

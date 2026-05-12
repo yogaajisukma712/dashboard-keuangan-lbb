@@ -31,6 +31,8 @@ from app.models import (
     Tutor,
 )
 from app.routes.tutor_portal import (
+    SCHEDULE_HOUR_SLOTS,
+    WEEKDAY_NAMES,
     _bot_request,
     _ensure_tutor_portal_credentials,
     _get_whatsapp_session_status,
@@ -589,6 +591,89 @@ def _create_tutor_from_candidate(candidate):
     return tutor
 
 
+def _availability_by_slot(candidate):
+    values = {}
+    for slot in candidate.availability_slots:
+        try:
+            weekday = int(slot.get("weekday"))
+            hour = int(slot.get("hour"))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        state = slot.get("state")
+        if weekday in range(7) and hour in SCHEDULE_HOUR_SLOTS and state in {
+            "available",
+            "unavailable",
+        }:
+            values[(weekday, hour)] = state
+    return values
+
+
+def _build_candidate_availability_rows(candidate):
+    selected_by_slot = _availability_by_slot(candidate)
+    rows = []
+    available_count = 0
+    unavailable_count = 0
+    for hour in SCHEDULE_HOUR_SLOTS:
+        cells = []
+        for weekday in range(7):
+            state = selected_by_slot.get(
+                (weekday, hour), "unavailable" if hour < 16 else "available"
+            )
+            if state == "available":
+                available_count += 1
+            else:
+                unavailable_count += 1
+            cells.append(
+                {
+                    "weekday": weekday,
+                    "day_name": WEEKDAY_NAMES[weekday],
+                    "hour": hour,
+                    "field_name": f"availability_{weekday}_{hour}",
+                    "state": state,
+                    "label": "Available" if state == "available" else "Tidak Available",
+                }
+            )
+        rows.append({"hour": hour, "cells": cells})
+    return {
+        "weekday_names": WEEKDAY_NAMES,
+        "hour_slots": SCHEDULE_HOUR_SLOTS,
+        "rows": rows,
+        "summary": {
+            "available_count": available_count,
+            "unavailable_count": unavailable_count,
+        },
+    }
+
+
+def _candidate_availability_slots_from_form(form):
+    slots = []
+    available_count = 0
+    unavailable_count = 0
+    for weekday in range(7):
+        for hour in SCHEDULE_HOUR_SLOTS:
+            field_name = f"availability_{weekday}_{hour}"
+            state = form.get(field_name, "unavailable")
+            if state not in {"available", "unavailable"}:
+                state = "unavailable"
+            if state == "available":
+                available_count += 1
+            else:
+                unavailable_count += 1
+            slots.append(
+                {
+                    "weekday": weekday,
+                    "day_name": WEEKDAY_NAMES[weekday],
+                    "hour": hour,
+                    "start_time": f"{hour:02d}:00",
+                    "end_time": f"{hour + 1:02d}:00",
+                    "state": state,
+                }
+            )
+    if available_count == 0:
+        raise ValueError("Pilih minimal satu waktu luang berwarna hijau.")
+    return slots
+
+
 def _sign_candidate_contract(candidate, signature):
     if candidate.status == "signed":
         flash("Kontrak sudah pernah ditandatangani.", "warning")
@@ -732,6 +817,13 @@ def form():
         if candidate.university_name not in valid_universities:
             flash("Pilih universitas dari daftar dropdown yang tersedia.", "danger")
             return redirect(url_for("recruitment.form"))
+        try:
+            candidate.availability_slots = _candidate_availability_slots_from_form(
+                request.form
+            )
+        except ValueError as exc:
+            flash(str(exc), "danger")
+            return redirect(url_for("recruitment.form"))
         password = request.form.get("password") or ""
         password_confirm = request.form.get("password_confirm") or ""
         if not candidate.password_hash or password or password_confirm:
@@ -771,6 +863,7 @@ def form():
         last_education_levels=LAST_EDUCATION_LEVELS,
         teaching_options=_teaching_option_choices(),
         university_options=UNIVERSITY_OPTIONS,
+        availability_grid=_build_candidate_availability_rows(candidate),
     )
 
 
@@ -799,6 +892,7 @@ def dashboard():
         "recruitment/dashboard.html",
         candidate=candidate,
         status_label=RECRUITMENT_STATUSES.get(candidate.status, candidate.status),
+        availability_grid=_build_candidate_availability_rows(candidate),
     )
 
 

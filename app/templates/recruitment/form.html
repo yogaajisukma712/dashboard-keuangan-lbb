@@ -5,7 +5,7 @@
 {% block body %}
 <main class="container py-5">
   <div class="row justify-content-center">
-    <div class="col-lg-8">
+    <div class="col-xl-11 col-lg-10">
       <div class="card border-0 shadow-lg">
         <div class="card-body p-4 p-md-5">
           <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
@@ -115,6 +115,48 @@
                 </ul>
                 <div class="invalid-feedback d-block d-none" id="teaching-options-error">Pilih minimal satu mapel.</div>
               </div>
+              <div class="col-md-12">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                  <label class="form-label fw-semibold mb-0">Jadwal Waktu Luang</label>
+                  <div class="d-flex flex-wrap gap-2 small">
+                    <span class="badge text-bg-success">Hijau: waktu luang</span>
+                    <span class="badge text-bg-danger">Merah: tidak bisa</span>
+                  </div>
+                </div>
+                <div class="form-text mb-2">Klik kotak jadwal untuk mengubah warna. Tandai waktu luang Anda dengan hijau dan waktu tidak bisa dengan merah.</div>
+                <div class="schedule-editor-wrap">
+                  <table class="table table-bordered align-middle schedule-editor-table mb-0">
+                    <thead>
+                      <tr>
+                        <th class="text-center schedule-editor-time">Jam</th>
+                        {% for day_name in availability_grid.weekday_names %}
+                        <th class="text-center">{{ day_name }}</th>
+                        {% endfor %}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in availability_grid.rows %}
+                      <tr>
+                        <th class="text-center schedule-editor-time">{{ "%02d.00"|format(row.hour) }}</th>
+                        {% for cell in row.cells %}
+                        <td class="schedule-editor-cell">
+                          <input type="hidden" name="{{ cell.field_name }}" value="{{ cell.state }}" class="schedule-cell-input">
+                          <button
+                            class="schedule-cell-button {{ 'is-available' if cell.state == 'available' else 'is-unavailable' }}"
+                            type="button"
+                            data-value="{{ cell.state }}"
+                          >
+                            <span class="schedule-cell-label">{{ 'Available' if cell.state == 'available' else 'Tidak Available' }}</span>
+                          </button>
+                        </td>
+                        {% endfor %}
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                <div class="invalid-feedback d-block d-none" id="availability-error">Pilih minimal satu waktu luang berwarna hijau.</div>
+              </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Password Dashboard Recruitment</label>
                 <input class="form-control" type="password" name="password" autocomplete="new-password" minlength="8" {% if not candidate.password_hash %}required{% endif %}>
@@ -170,6 +212,60 @@
     border-left: 0;
     border-right: 0;
   }
+
+  .schedule-editor-wrap {
+    overflow-x: auto;
+  }
+
+  .schedule-editor-table {
+    border-color: #94a3b8;
+    font-size: 0.78rem;
+    min-width: 920px;
+    table-layout: fixed;
+  }
+
+  .schedule-editor-table th {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #334155;
+    font-weight: 700;
+  }
+
+  .schedule-editor-time {
+    width: 72px;
+  }
+
+  .schedule-editor-cell {
+    border-color: #94a3b8;
+    height: 56px;
+    padding: 0.3rem;
+  }
+
+  .schedule-cell-button {
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    border-radius: 6px;
+    color: #0f172a;
+    cursor: pointer;
+    font-size: 0.72rem;
+    min-height: 44px;
+    padding: 0.25rem;
+    width: 100%;
+  }
+
+  .schedule-cell-button.is-available {
+    background: #86efac;
+  }
+
+  .schedule-cell-button.is-unavailable {
+    background: #fca5a5;
+  }
+
+  @media (max-width: 575.98px) {
+    .schedule-editor-table {
+      min-width: 840px;
+      font-size: 0.72rem;
+    }
+  }
 </style>
 <script>
   (function () {
@@ -181,7 +277,8 @@
     const form = document.getElementById("recruitment-data-form");
     const error = document.getElementById("teaching-options-error");
     const universityError = document.getElementById("university-error");
-    if (!teachingDropdown || !universityDropdown || !universityInput || !addButton || !list || !form || !error || !universityError) return;
+    const availabilityError = document.getElementById("availability-error");
+    if (!teachingDropdown || !universityDropdown || !universityInput || !addButton || !list || !form || !error || !universityError || !availabilityError) return;
 
     function optionValues(id) {
       const options = document.getElementById(id);
@@ -309,6 +406,20 @@
       const button = event.target.closest("[data-remove-teaching]");
       if (button) button.closest("li").remove();
     });
+
+    document.querySelectorAll(".schedule-cell-button").forEach(function (button) {
+      button.addEventListener("click", function () {
+        const input = button.closest(".schedule-editor-cell").querySelector(".schedule-cell-input");
+        const nextValue = button.dataset.value === "available" ? "unavailable" : "available";
+        button.dataset.value = nextValue;
+        button.classList.toggle("is-available", nextValue === "available");
+        button.classList.toggle("is-unavailable", nextValue === "unavailable");
+        button.querySelector(".schedule-cell-label").textContent = nextValue === "available" ? "Available" : "Tidak Available";
+        if (input) input.value = nextValue;
+        if (nextValue === "available") availabilityError.classList.add("d-none");
+      });
+    });
+
     form.addEventListener("submit", function (event) {
       if (!hasOption(universityOptions, universityInput.value)) {
         event.preventDefault();
@@ -321,6 +432,14 @@
         event.preventDefault();
         error.classList.remove("d-none");
         teachingDropdown.focus();
+        return;
+      }
+      const hasAvailableSlot = Array.from(form.querySelectorAll(".schedule-cell-input")).some(function (input) {
+        return input.value === "available";
+      });
+      if (!hasAvailableSlot) {
+        event.preventDefault();
+        availabilityError.classList.remove("d-none");
       }
     });
   })();

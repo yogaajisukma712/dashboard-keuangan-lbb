@@ -22,6 +22,7 @@ class RecruitmentCandidate(db.Model):
     address = db.Column(db.Text)
     subject_interest = db.Column(db.String(160))
     teaching_preferences_json = db.Column(db.Text)
+    availability_json = db.Column(db.Text)
     last_education_level = db.Column(db.String(40))
     university_name = db.Column(db.String(160))
     age = db.Column(db.Integer)
@@ -90,6 +91,20 @@ class RecruitmentCandidate(db.Model):
                 seen.add(key)
         self.teaching_preferences_json = json.dumps(cleaned, ensure_ascii=False)
         self.subject_interest = ", ".join(cleaned)[:160] if cleaned else None
+
+    @property
+    def availability_slots(self):
+        if not self.availability_json:
+            return []
+        try:
+            values = json.loads(self.availability_json)
+        except (TypeError, ValueError):
+            return []
+        return values if isinstance(values, list) else []
+
+    @availability_slots.setter
+    def availability_slots(self, values):
+        self.availability_json = json.dumps(values or [], ensure_ascii=False)
 
     def __repr__(self):
         return f"<RecruitmentCandidate {self.google_email} {self.status}>"

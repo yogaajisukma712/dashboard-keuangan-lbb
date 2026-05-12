@@ -37,6 +37,51 @@
     touch-action: none;
     width: 100%;
   }
+
+  .availability-table-wrap {
+    overflow-x: auto;
+  }
+
+  .availability-table {
+    border-color: #94a3b8;
+    font-size: 0.72rem;
+    min-width: 760px;
+    table-layout: fixed;
+  }
+
+  .availability-table th {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #334155;
+    font-weight: 700;
+  }
+
+  .availability-time {
+    width: 68px;
+  }
+
+  .availability-cell {
+    border-color: #94a3b8;
+    height: 38px;
+    padding: 0.2rem;
+  }
+
+  .availability-pill {
+    border-radius: 6px;
+    color: #0f172a;
+    display: block;
+    font-size: 0.68rem;
+    padding: 0.35rem 0.25rem;
+    text-align: center;
+  }
+
+  .availability-pill.is-available {
+    background: #86efac;
+  }
+
+  .availability-pill.is-unavailable {
+    background: #fca5a5;
+  }
 </style>
 {% endblock %}
 
@@ -96,12 +141,51 @@
               <div>-</div>
               {% endif %}
             </div>
+            <div>
+              <div class="summary-label">Ringkasan Waktu</div>
+              <div class="d-flex flex-wrap gap-2 mt-2">
+                <span class="badge text-bg-success">Hijau: {{ availability_grid.summary.available_count }}</span>
+                <span class="badge text-bg-danger">Merah: {{ availability_grid.summary.unavailable_count }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
     </div>
 
     <div class="col-lg-7">
+      <section class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h2 class="h5 fw-bold mb-1">Jadwal Waktu Luang</h2>
+          <div class="text-muted small mb-3">Hijau berarti waktu luang. Merah berarti tidak bisa.</div>
+          <div class="availability-table-wrap">
+            <table class="table table-bordered align-middle availability-table mb-0">
+              <thead>
+                <tr>
+                  <th class="text-center availability-time">Jam</th>
+                  {% for day_name in availability_grid.weekday_names %}
+                  <th class="text-center">{{ day_name }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in availability_grid.rows %}
+                <tr>
+                  <th class="text-center availability-time">{{ "%02d.00"|format(row.hour) }}</th>
+                  {% for cell in row.cells %}
+                  <td class="availability-cell">
+                    <span class="availability-pill {{ 'is-available' if cell.state == 'available' else 'is-unavailable' }}">
+                      {{ 'Available' if cell.state == 'available' else 'Tidak Available' }}
+                    </span>
+                  </td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
       <section class="card border-0 shadow-sm">
         <div class="card-body p-4">
           <h2 class="h5 fw-bold mb-3">SK & Offering</h2>

@@ -202,13 +202,18 @@ def test_recruitment_templates_expose_required_workflow():
     assert "teaching-option-input" in form_text
     assert "teaching-option-list" in form_text
     assert "selected-teaching-options" in form_text
+    assert "data-searchable-select" in form_text
+    assert "searchable-select-search" in form_text
+    assert "data-option-value" in form_text
+    assert "optionValues" in form_text
+    assert "<datalist" not in form_text
+    assert " list=" not in form_text
     assert 'id="recruitment-data-form"' in form_text
     assert 'name="address" rows="2" required' in form_text
     assert "Pilih minimal satu mapel." in form_text
     assert "Pendidikan Terakhir" in form_text
     assert "university-options" in form_text
     assert "university-error" in form_text
-    assert "datalistValues" in form_text
     assert "Pilih universitas dari daftar." in form_text
     assert "Jenis Kelamin" in form_text
     assert "Verifikasi email Google/Gmail terlebih dahulu" in form_text

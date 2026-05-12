@@ -59,12 +59,21 @@
               </div>
               <div class="col-md-12">
                 <label class="form-label fw-semibold">Universitas</label>
-                <input class="form-control" name="university_name" list="university-options" value="{{ candidate.university_name or '' }}" placeholder="Ketik untuk mencari universitas" required>
-                <datalist id="university-options">
-                  {% for university in university_options %}
-                  <option value="{{ university }}"></option>
-                  {% endfor %}
-                </datalist>
+                <input type="hidden" name="university_name" id="university-value" value="{{ candidate.university_name or '' }}">
+                <div class="searchable-select" data-searchable-select data-hidden-input="university-value">
+                  <button class="form-select text-start searchable-select-toggle" type="button" aria-expanded="false">
+                    <span data-selected-label>{{ candidate.university_name or 'Pilih universitas' }}</span>
+                  </button>
+                  <div class="searchable-select-menu d-none">
+                    <input class="form-control searchable-select-search" type="search" placeholder="Cari universitas" autocomplete="off">
+                    <div class="list-group searchable-select-options" id="university-options">
+                      {% for university in university_options %}
+                      <button class="list-group-item list-group-item-action" type="button" data-option-value="{{ university }}">{{ university }}</button>
+                      {% endfor %}
+                    </div>
+                    <div class="text-muted small px-3 py-2 d-none" data-empty-state>Tidak ada pilihan.</div>
+                  </div>
+                </div>
                 <div class="invalid-feedback d-block d-none" id="university-error">Pilih universitas dari daftar.</div>
               </div>
               <div class="col-md-12">
@@ -74,12 +83,20 @@
               <div class="col-md-12">
                 <label class="form-label fw-semibold">Mapel, Jenjang, dan Kurikulum</label>
                 <div class="input-group">
-                  <input class="form-control" id="teaching-option-input" list="teaching-option-list" placeholder="Cari mapel, jenjang, kurikulum">
-                  <datalist id="teaching-option-list">
-                    {% for option in teaching_options %}
-                    <option value="{{ option }}"></option>
-                    {% endfor %}
-                  </datalist>
+                  <div class="searchable-select flex-grow-1" data-searchable-select data-hidden-input="">
+                    <button class="form-select text-start searchable-select-toggle rounded-end-0" type="button" id="teaching-option-input" aria-expanded="false">
+                      <span data-selected-label>Pilih mapel</span>
+                    </button>
+                    <div class="searchable-select-menu d-none">
+                      <input class="form-control searchable-select-search" type="search" placeholder="Cari mapel, jenjang, kurikulum" autocomplete="off">
+                      <div class="list-group searchable-select-options" id="teaching-option-list">
+                        {% for option in teaching_options %}
+                        <button class="list-group-item list-group-item-action" type="button" data-option-value="{{ option }}">{{ option }}</button>
+                        {% endfor %}
+                      </div>
+                      <div class="text-muted small px-3 py-2 d-none" data-empty-state>Tidak ada pilihan.</div>
+                    </div>
+                  </div>
                   <button class="btn btn-outline-primary" type="button" id="add-teaching-option">
                     <i class="bi bi-plus-lg me-1"></i>Tambah
                   </button>
@@ -116,27 +133,58 @@
     </div>
   </div>
 </main>
+<style>
+  .searchable-select {
+    position: relative;
+  }
+
+  .searchable-select-menu {
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    border-radius: 0.5rem;
+    box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.16);
+    left: 0;
+    margin-top: 0.25rem;
+    padding: 0.5rem;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    z-index: 1050;
+  }
+
+  .searchable-select-options {
+    max-height: 16rem;
+    overflow-y: auto;
+  }
+
+  .searchable-select-options .list-group-item {
+    border-left: 0;
+    border-right: 0;
+  }
+</style>
 <script>
   (function () {
-    const teachingInput = document.getElementById("teaching-option-input");
-    const universityInput = document.querySelector("input[name='university_name']");
+    const universityInput = document.getElementById("university-value");
+    const universityDropdown = document.querySelector("[data-hidden-input='university-value'] .searchable-select-toggle");
+    const teachingDropdown = document.getElementById("teaching-option-input");
     const addButton = document.getElementById("add-teaching-option");
     const list = document.getElementById("selected-teaching-options");
     const form = document.getElementById("recruitment-data-form");
     const error = document.getElementById("teaching-options-error");
     const universityError = document.getElementById("university-error");
-    if (!teachingInput || !universityInput || !addButton || !list || !form || !error || !universityError) return;
+    if (!teachingDropdown || !universityDropdown || !universityInput || !addButton || !list || !form || !error || !universityError) return;
 
-    function datalistValues(id) {
-      const datalist = document.getElementById(id);
-      if (!datalist) return [];
-      return Array.from(datalist.querySelectorAll("option")).map(function (option) {
-        return option.value;
+    function optionValues(id) {
+      const options = document.getElementById(id);
+      if (!options) return [];
+      return Array.from(options.querySelectorAll("[data-option-value]")).map(function (option) {
+        return option.dataset.optionValue;
       });
     }
 
-    const teachingOptions = datalistValues("teaching-option-list");
-    const universityOptions = datalistValues("university-options");
+    const teachingOptions = optionValues("teaching-option-list");
+    const universityOptions = optionValues("university-options");
+    let pendingTeachingOption = "";
 
     function hasOption(options, value) {
       return options.indexOf((value || "").trim()) !== -1;
@@ -154,7 +202,7 @@
       if (!hasOption(teachingOptions, label)) {
         error.textContent = "Pilih mapel dari daftar.";
         error.classList.remove("d-none");
-        teachingInput.focus();
+        teachingDropdown.focus();
         return;
       }
       const item = document.createElement("li");
@@ -164,16 +212,90 @@
       item.querySelector("input").value = label;
       list.appendChild(item);
       error.classList.add("d-none");
+      pendingTeachingOption = "";
+      teachingDropdown.querySelector("[data-selected-label]").textContent = "Pilih mapel";
     }
 
+    function closeAllDropdowns(except) {
+      document.querySelectorAll("[data-searchable-select]").forEach(function (root) {
+        if (root === except) return;
+        const menu = root.querySelector(".searchable-select-menu");
+        const toggle = root.querySelector(".searchable-select-toggle");
+        if (menu) menu.classList.add("d-none");
+        if (toggle) toggle.setAttribute("aria-expanded", "false");
+      });
+    }
+
+    function filterOptions(root, query) {
+      const normalizedQuery = (query || "").trim().toLowerCase();
+      let visibleCount = 0;
+      root.querySelectorAll("[data-option-value]").forEach(function (option) {
+        const isVisible = option.dataset.optionValue.toLowerCase().indexOf(normalizedQuery) !== -1;
+        option.classList.toggle("d-none", !isVisible);
+        if (isVisible) visibleCount += 1;
+      });
+      const emptyState = root.querySelector("[data-empty-state]");
+      if (emptyState) emptyState.classList.toggle("d-none", visibleCount > 0);
+    }
+
+    document.querySelectorAll("[data-searchable-select]").forEach(function (root) {
+      const toggle = root.querySelector(".searchable-select-toggle");
+      const menu = root.querySelector(".searchable-select-menu");
+      const search = root.querySelector(".searchable-select-search");
+      const selectedLabel = root.querySelector("[data-selected-label]");
+      const hiddenInputId = root.dataset.hiddenInput;
+      const hiddenInput = hiddenInputId ? document.getElementById(hiddenInputId) : null;
+      if (!toggle || !menu || !search || !selectedLabel) return;
+
+      toggle.addEventListener("click", function () {
+        const shouldOpen = menu.classList.contains("d-none");
+        closeAllDropdowns(root);
+        menu.classList.toggle("d-none", !shouldOpen);
+        toggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+        if (shouldOpen) {
+          search.value = "";
+          filterOptions(root, "");
+          search.focus();
+        }
+      });
+
+      search.addEventListener("input", function () {
+        filterOptions(root, search.value);
+      });
+
+      root.addEventListener("click", function (event) {
+        const option = event.target.closest("[data-option-value]");
+        if (!option) return;
+        const value = option.dataset.optionValue;
+        selectedLabel.textContent = value;
+        if (hiddenInput) hiddenInput.value = value;
+        if (!hiddenInput) pendingTeachingOption = value;
+        menu.classList.add("d-none");
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.focus();
+        if (hiddenInput) universityError.classList.add("d-none");
+        if (!hiddenInput) error.classList.add("d-none");
+      });
+    });
+
+    document.addEventListener("click", function (event) {
+      if (!event.target.closest("[data-searchable-select]")) closeAllDropdowns();
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") closeAllDropdowns();
+    });
+
     addButton.addEventListener("click", function () {
-      addItem(teachingInput.value);
-      teachingInput.value = "";
-    });
-    teachingInput.addEventListener("change", function () {
-      addItem(teachingInput.value);
-      teachingInput.value = "";
-    });
+      if (!pendingTeachingOption) {
+        error.textContent = "Pilih mapel dari daftar.";
+        error.classList.remove("d-none");
+        teachingDropdown.focus();
+        return;
+      }
+      addItem(pendingTeachingOption);
+    }
+
     list.addEventListener("click", function (event) {
       const button = event.target.closest("[data-remove-teaching]");
       if (button) button.closest("li").remove();
@@ -182,14 +304,14 @@
       if (!hasOption(universityOptions, universityInput.value)) {
         event.preventDefault();
         universityError.classList.remove("d-none");
-        universityInput.focus();
+        universityDropdown.focus();
         return;
       }
       universityError.classList.add("d-none");
       if (!list.querySelector("input[name='teaching_preferences']")) {
         event.preventDefault();
         error.classList.remove("d-none");
-        teachingInput.focus();
+        teachingDropdown.focus();
       }
     });
   })();

@@ -24,7 +24,8 @@
           <th>Nama</th>
           <th>WhatsApp</th>
           <th>Email</th>
-          <th>Bidang</th>
+          <th>Profil</th>
+          <th>Mapel</th>
           <th>CV</th>
           <th class="text-end pe-4">Aksi</th>
         </tr>
@@ -45,7 +46,25 @@
           </td>
           <td>{{ candidate.phone }}</td>
           <td>{{ candidate.google_email }}</td>
-          <td>{{ candidate.subject_interest or '-' }}</td>
+          <td>
+            <div>{{ candidate.age or '-' }} tahun</div>
+            <div class="text-muted">
+              {% if candidate.gender == 'male' %}Laki-laki{% elif candidate.gender == 'female' %}Perempuan{% else %}-{% endif %}
+            </div>
+            <div class="text-muted">{{ candidate.last_education_level or '-' }}</div>
+            <div class="text-muted">{{ candidate.university_name or '-' }}</div>
+          </td>
+          <td>
+            {% if candidate.teaching_preferences %}
+            <ul class="mb-0 ps-3">
+              {% for item in candidate.teaching_preferences %}
+              <li>{{ item }}</li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            {{ candidate.subject_interest or '-' }}
+            {% endif %}
+          </td>
           <td>
             {% if candidate.cv_file_path %}
             <a href="{{ url_for('recruitment.uploaded_file', filename=candidate.cv_file_path) }}" target="_blank" class="btn btn-outline-primary btn-sm">

@@ -33,6 +33,16 @@
           <td class="ps-4">
             <div class="fw-semibold">{{ candidate.name }}</div>
             <div class="text-muted">{{ candidate.phone }} | {{ candidate.google_email }}</div>
+            <div class="text-muted">
+              {{ candidate.last_education_level or '-' }} | {{ candidate.university_name or '-' }}
+            </div>
+            {% if candidate.teaching_preferences %}
+            <ul class="mb-0 ps-3">
+              {% for item in candidate.teaching_preferences %}
+              <li>{{ item }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
           </td>
           <td>
             {% if candidate.meet_link %}

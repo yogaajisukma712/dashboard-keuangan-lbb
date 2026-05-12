@@ -40,18 +40,34 @@ def test_recruitment_crm_source_is_registered():
     assert "CONTRACT_TOKEN_MAX_AGE_SECONDS" in route_text
     assert "_candidate_from_contract_token" in route_text
     assert "RECRUITMENT_BASE_URL" in route_text
+    assert "LAST_EDUCATION_LEVELS" in route_text
+    assert "GENDER_OPTIONS" in route_text
+    assert "_teaching_option_choices" in route_text
+    assert "teaching_preferences = request.form.getlist" in route_text
     assert "candidate.status != \"contract_sent\"" in route_text
     assert "not candidate.email_verified" in route_text
     assert "_create_tutor_from_candidate" in route_text
     assert "session[\"tutor_portal_tutor_id\"] = tutor.id" in route_text
     assert "RECRUITMENT_BASE_URL" in config_text
     assert "RECRUITMENT_HOST" in config_text
+    assert "teaching_preferences_json" in model_text
+    assert "last_education_level" in model_text
+    assert "university_name" in model_text
+    assert "age = db.Column(db.Integer)" in model_text
+    assert "gender = db.Column" in model_text
+    assert (
+        "ALTER TABLE recruitment_candidates ADD COLUMN IF NOT EXISTS teaching_preferences_json"
+        in entrypoint_text
+    )
     assert "recruitment_web:" in compose_text
     assert "billing_supersmart_recruitment_web" in compose_text
     assert "${RECRUITMENT_PORT:-6006}:5000" in compose_text
     assert "MAIL_SERVER" in compose_text
     assert "MAIL_DEFAULT_SENDER" in compose_text
-    assert "RECRUITMENT_BASE_URL: ${RECRUITMENT_BASE_URL:-https://recruitment.supersmart.click}" in compose_text
+    assert (
+        "RECRUITMENT_BASE_URL: ${RECRUITMENT_BASE_URL:-https://recruitment.supersmart.click}"
+        in compose_text
+    )
 
 
 def test_recruitment_templates_expose_required_workflow():
@@ -83,8 +99,15 @@ def test_recruitment_templates_expose_required_workflow():
     assert "Login dengan Google" in start_text
     assert "Upload CV" in form_text
     assert "Upload Foto" in form_text
+    assert "Mapel, Jenjang, dan Kurikulum" in form_text
+    assert "selected-teaching-options" in form_text
+    assert "Pendidikan Terakhir" in form_text
+    assert "university-options" in form_text
+    assert "Jenis Kelamin" in form_text
     assert "Verifikasi email Google/Gmail terlebih dahulu" in form_text
     assert "Buka CV" in candidates_text
+    assert "candidate.teaching_preferences" in candidates_text
+    assert "candidate.university_name" in candidates_text
     assert "Lolos Berkas" in candidates_text
     assert "Pelamar Terpilih" in selected_text
     assert "Link Google Meet" in selected_text

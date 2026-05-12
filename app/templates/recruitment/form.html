@@ -35,13 +35,66 @@
                 <label class="form-label fw-semibold">Nomor WhatsApp Aktif</label>
                 <input class="form-control" name="phone" value="{{ candidate.phone or '' }}" required>
               </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Usia</label>
+                <input class="form-control" type="number" name="age" min="17" max="80" value="{{ candidate.age or '' }}" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Jenis Kelamin</label>
+                <select class="form-select" name="gender" required>
+                  <option value="">Pilih</option>
+                  {% for value, label in gender_options %}
+                  <option value="{{ value }}" {% if candidate.gender == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Pendidikan Terakhir</label>
+                <select class="form-select" name="last_education_level" required>
+                  <option value="">Pilih</option>
+                  {% for level in last_education_levels %}
+                  <option value="{{ level }}" {% if candidate.last_education_level == level %}selected{% endif %}>{{ level }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-12">
+                <label class="form-label fw-semibold">Universitas</label>
+                <input class="form-control" name="university_name" list="university-options" value="{{ candidate.university_name or '' }}" placeholder="Ketik untuk mencari universitas" required>
+                <datalist id="university-options">
+                  {% for university in university_options %}
+                  <option value="{{ university }}"></option>
+                  {% endfor %}
+                </datalist>
+              </div>
               <div class="col-md-12">
                 <label class="form-label fw-semibold">Alamat</label>
                 <textarea class="form-control" name="address" rows="2">{{ candidate.address or '' }}</textarea>
               </div>
               <div class="col-md-12">
-                <label class="form-label fw-semibold">Mapel / Bidang Mengajar</label>
-                <input class="form-control" name="subject_interest" value="{{ candidate.subject_interest or '' }}">
+                <label class="form-label fw-semibold">Mapel, Jenjang, dan Kurikulum</label>
+                <div class="input-group">
+                  <select class="form-select" id="teaching-option-select">
+                    <option value="">Pilih mapel, jenjang, kurikulum</option>
+                    {% for option in teaching_options %}
+                    <option value="{{ option }}">{{ option }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-outline-primary" type="button" id="add-teaching-option">
+                    <i class="bi bi-plus-lg me-1"></i>Tambah
+                  </button>
+                </div>
+                <div class="form-text">Contoh: Matematika SD Nasional, Matematika SMP Cambridge. Pilihan bisa lebih dari satu.</div>
+                <ul class="list-group list-group-flush border rounded mt-2" id="selected-teaching-options">
+                  {% for item in candidate.teaching_preferences %}
+                  <li class="list-group-item d-flex align-items-center justify-content-between gap-2">
+                    <span>{{ item }}</span>
+                    <button class="btn btn-outline-danger btn-sm" type="button" data-remove-teaching>
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                    <input type="hidden" name="teaching_preferences" value="{{ item }}">
+                  </li>
+                  {% endfor %}
+                </ul>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Upload CV</label>
@@ -61,4 +114,42 @@
     </div>
   </div>
 </main>
+<script>
+  (function () {
+    const select = document.getElementById("teaching-option-select");
+    const addButton = document.getElementById("add-teaching-option");
+    const list = document.getElementById("selected-teaching-options");
+    if (!select || !addButton || !list) return;
+
+    function hasValue(value) {
+      return Array.from(list.querySelectorAll("input[name='teaching_preferences']")).some(function (input) {
+        return input.value.toLowerCase() === value.toLowerCase();
+      });
+    }
+
+    function addItem(value) {
+      const label = (value || "").trim();
+      if (!label || hasValue(label)) return;
+      const item = document.createElement("li");
+      item.className = "list-group-item d-flex align-items-center justify-content-between gap-2";
+      item.innerHTML = '<span></span><button class="btn btn-outline-danger btn-sm" type="button" data-remove-teaching><i class="bi bi-x-lg"></i></button><input type="hidden" name="teaching_preferences">';
+      item.querySelector("span").textContent = label;
+      item.querySelector("input").value = label;
+      list.appendChild(item);
+    }
+
+    addButton.addEventListener("click", function () {
+      addItem(select.value);
+      select.value = "";
+    });
+    select.addEventListener("change", function () {
+      addItem(select.value);
+      select.value = "";
+    });
+    list.addEventListener("click", function (event) {
+      const button = event.target.closest("[data-remove-teaching]");
+      if (button) button.closest("li").remove();
+    });
+  })();
+</script>
 {% endblock %}

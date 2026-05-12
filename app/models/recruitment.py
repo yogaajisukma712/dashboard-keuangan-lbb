@@ -1,5 +1,6 @@
 """Recruitment CRM models."""
 
+import json
 from datetime import datetime
 
 from app import db
@@ -17,6 +18,11 @@ class RecruitmentCandidate(db.Model):
     phone = db.Column(db.String(40))
     address = db.Column(db.Text)
     subject_interest = db.Column(db.String(160))
+    teaching_preferences_json = db.Column(db.Text)
+    last_education_level = db.Column(db.String(40))
+    university_name = db.Column(db.String(160))
+    age = db.Column(db.Integer)
+    gender = db.Column(db.String(20))
     cv_file_path = db.Column(db.String(500))
     photo_file_path = db.Column(db.String(500))
     status = db.Column(db.String(30), default="draft", nullable=False, index=True)
@@ -46,6 +52,31 @@ class RecruitmentCandidate(db.Model):
     @property
     def is_signed(self):
         return bool(self.signed_at and self.signature_data_url)
+
+    @property
+    def teaching_preferences(self):
+        if not self.teaching_preferences_json:
+            return []
+        try:
+            values = json.loads(self.teaching_preferences_json)
+        except (TypeError, ValueError):
+            return []
+        if not isinstance(values, list):
+            return []
+        return [str(value).strip() for value in values if str(value).strip()]
+
+    @teaching_preferences.setter
+    def teaching_preferences(self, values):
+        cleaned = []
+        seen = set()
+        for value in values or []:
+            label = str(value).strip()
+            key = label.lower()
+            if label and key not in seen:
+                cleaned.append(label)
+                seen.add(key)
+        self.teaching_preferences_json = json.dumps(cleaned, ensure_ascii=False)
+        self.subject_interest = ", ".join(cleaned)[:160] if cleaned else None
 
     def __repr__(self):
         return f"<RecruitmentCandidate {self.google_email} {self.status}>"

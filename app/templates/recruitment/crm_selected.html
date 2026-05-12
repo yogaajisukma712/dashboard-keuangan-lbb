@@ -27,7 +27,20 @@
           <div class="flex-grow-1">
             <h5 class="fw-bold mb-1">{{ candidate.name }}</h5>
             <div class="text-muted small">{{ candidate.google_email }} | {{ candidate.phone }}</div>
+            <div class="text-muted small">
+              {{ candidate.age or '-' }} tahun |
+              {% if candidate.gender == 'male' %}Laki-laki{% elif candidate.gender == 'female' %}Perempuan{% else %}-{% endif %} |
+              {{ candidate.last_education_level or '-' }} | {{ candidate.university_name or '-' }}
+            </div>
+            {% if candidate.teaching_preferences %}
+            <ul class="small mt-2 mb-0 ps-3">
+              {% for item in candidate.teaching_preferences %}
+              <li>{{ item }}</li>
+              {% endfor %}
+            </ul>
+            {% else %}
             <div class="small mt-1">{{ candidate.subject_interest or '-' }}</div>
+            {% endif %}
           </div>
         </div>
         <form method="post" action="{{ url_for('recruitment.send_interview_invite', candidate_ref=candidate.public_id) }}" class="mt-3">

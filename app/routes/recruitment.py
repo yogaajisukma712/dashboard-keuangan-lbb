@@ -22,7 +22,14 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.utils import secure_filename
 
 from app import db
-from app.models import PricingRule, RecruitmentCandidate, Tutor
+from app.models import (
+    Curriculum,
+    Level,
+    PricingRule,
+    RecruitmentCandidate,
+    Subject,
+    Tutor,
+)
 from app.routes.tutor_portal import (
     _bot_request,
     _ensure_tutor_portal_credentials,
@@ -45,6 +52,25 @@ RECRUITMENT_STATUSES = {
 }
 CONTRACT_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 MAX_SIGNATURE_DATA_URL_LENGTH = 500_000
+LAST_EDUCATION_LEVELS = ["Vokasi", "S1", "S2", "S3"]
+GENDER_OPTIONS = [("male", "Laki-laki"), ("female", "Perempuan")]
+UNIVERSITY_OPTIONS = [
+    "Institut Teknologi Bandung",
+    "Institut Teknologi Sepuluh Nopember",
+    "Universitas Airlangga",
+    "Universitas Brawijaya",
+    "Universitas Diponegoro",
+    "Universitas Gadjah Mada",
+    "Universitas Indonesia",
+    "Universitas Negeri Malang",
+    "Universitas Negeri Surabaya",
+    "Universitas Padjadjaran",
+    "Universitas Pendidikan Indonesia",
+    "Universitas Sebelas Maret",
+    "Universitas Surabaya",
+    "Universitas Trunojoyo Madura",
+    "Universitas Udayana",
+]
 
 
 def _token_serializer():
@@ -180,14 +206,63 @@ def _current_offering_amount():
     return float(rule.tutor_rate_per_meeting) if rule else 0
 
 
+def _teaching_option_choices():
+    rules = (
+        PricingRule.query.filter_by(is_active=True)
+        .join(PricingRule.subject, isouter=True)
+        .join(PricingRule.level, isouter=True)
+        .join(PricingRule.curriculum, isouter=True)
+        .order_by(Subject.name.asc(), Level.name.asc(), Curriculum.name.asc())
+        .all()
+    )
+    labels = []
+    seen = set()
+    for rule in rules:
+        subject_name = rule.subject.name if rule.subject else "Semua Mapel"
+        level_name = rule.level.name if rule.level else "Semua Jenjang"
+        curriculum_name = rule.curriculum.name if rule.curriculum else "Semua Kurikulum"
+        label = f"{subject_name} {level_name} {curriculum_name}"
+        key = label.lower()
+        if key not in seen:
+            labels.append(label)
+            seen.add(key)
+    if labels:
+        return labels
+
+    subjects = Subject.query.filter_by(is_active=True).order_by(Subject.name.asc()).all()
+    levels = Level.query.filter_by(is_active=True).order_by(Level.name.asc()).all()
+    curriculums = (
+        Curriculum.query.filter_by(is_active=True).order_by(Curriculum.name.asc()).all()
+    )
+    for subject in subjects:
+        for level in levels:
+            for curriculum in curriculums:
+                labels.append(f"{subject.name} {level.name} {curriculum.name}")
+    return labels
+
+
+def _candidate_summary_items(candidate):
+    items = candidate.teaching_preferences
+    if items:
+        return items
+    return [candidate.subject_interest] if candidate.subject_interest else []
+
+
 def _build_contract_text(candidate):
+    teaching_items = "\n".join(
+        f"- {item}" for item in _candidate_summary_items(candidate)
+    ) or "-"
     return (
         f"KONTRAK DIGITAL TUTOR LBB SUPER SMART\n\n"
         f"Nama: {candidate.name}\n"
         f"Email: {candidate.google_email}\n"
         f"No. WhatsApp: {candidate.phone}\n"
+        f"Usia: {candidate.age or '-'}\n"
+        f"Jenis Kelamin: {dict(GENDER_OPTIONS).get(candidate.gender, candidate.gender or '-')}\n"
+        f"Pendidikan Terakhir: {candidate.last_education_level or '-'}\n"
+        f"Universitas: {candidate.university_name or '-'}\n"
         f"Alamat: {candidate.address or '-'}\n"
-        f"Bidang/Mapel: {candidate.subject_interest or '-'}\n\n"
+        f"Bidang/Mapel:\n{teaching_items}\n\n"
         "Kandidat menyatakan bersedia menjadi tutor LBB Super Smart, menjaga "
         "profesionalitas pembelajaran, mengikuti jadwal yang disetujui admin, "
         "dan mematuhi ketentuan operasional lembaga."
@@ -196,7 +271,11 @@ def _build_contract_text(candidate):
 
 def _build_offering_text(candidate):
     amount = _current_offering_amount()
-    amount_text = f"Rp {amount:,.0f}".replace(",", ".") if amount else "mengikuti database fee aktif"
+    amount_text = (
+        f"Rp {amount:,.0f}".replace(",", ".")
+        if amount
+        else "mengikuti database fee aktif"
+    )
     return (
         f"OFFERING DIGITAL TUTOR\n\n"
         f"Halo {candidate.name},\n"
@@ -277,7 +356,10 @@ def start():
         if sent:
             flash("Link verifikasi sudah dikirim ke Gmail.", "success")
         else:
-            flash("Email disimpan. Link verifikasi dicatat di log server karena SMTP belum aktif.", "warning")
+            flash(
+                "Email disimpan. Link verifikasi dicatat di log server karena SMTP belum aktif.",
+                "warning",
+            )
         return redirect(url_for("recruitment.form"))
     return render_template("recruitment/start.html")
 
@@ -323,9 +405,34 @@ def form():
         candidate.name = (request.form.get("name") or "").strip()
         candidate.phone = (request.form.get("phone") or "").strip()
         candidate.address = (request.form.get("address") or "").strip()
-        candidate.subject_interest = (request.form.get("subject_interest") or "").strip()
+        candidate.gender = (request.form.get("gender") or "").strip()
+        candidate.last_education_level = (
+            request.form.get("last_education_level") or ""
+        ).strip()
+        candidate.university_name = (request.form.get("university_name") or "").strip()
+        teaching_preferences = request.form.getlist("teaching_preferences")
+        age_raw = (request.form.get("age") or "").strip()
+        try:
+            candidate.age = int(age_raw) if age_raw else None
+        except ValueError:
+            candidate.age = None
+        candidate.teaching_preferences = teaching_preferences
         if not candidate.name or not candidate.phone:
             flash("Nama dan nomor WhatsApp aktif wajib diisi.", "danger")
+            return redirect(url_for("recruitment.form"))
+        if (
+            not candidate.age
+            or candidate.age < 17
+            or candidate.age > 80
+            or candidate.gender not in {key for key, _ in GENDER_OPTIONS}
+            or candidate.last_education_level not in LAST_EDUCATION_LEVELS
+            or not candidate.university_name
+            or not candidate.teaching_preferences
+        ):
+            flash(
+                "Lengkapi usia, jenis kelamin, pendidikan terakhir, universitas, dan minimal satu pilihan mapel.",
+                "danger",
+            )
             return redirect(url_for("recruitment.form"))
         try:
             cv_path = _save_candidate_upload(
@@ -346,7 +453,14 @@ def form():
         db.session.commit()
         flash("Data recruitment berhasil dikirim.", "success")
         return redirect(url_for("recruitment.thank_you"))
-    return render_template("recruitment/form.html", candidate=candidate)
+    return render_template(
+        "recruitment/form.html",
+        candidate=candidate,
+        gender_options=GENDER_OPTIONS,
+        last_education_levels=LAST_EDUCATION_LEVELS,
+        teaching_options=_teaching_option_choices(),
+        university_options=UNIVERSITY_OPTIONS,
+    )
 
 
 @recruitment_bp.route("/selesai")
@@ -439,7 +553,12 @@ def send_interview_invite(candidate_ref):
     )
     ok, error_message = _send_candidate_whatsapp(candidate, message)
     db.session.commit()
-    flash("Undangan interview terkirim ke WhatsApp." if ok else f"WA gagal: {error_message}", "success" if ok else "warning")
+    flash(
+        "Undangan interview terkirim ke WhatsApp."
+        if ok
+        else f"WA gagal: {error_message}",
+        "success" if ok else "warning",
+    )
     return redirect(url_for("recruitment.crm_selected"))
 
 
@@ -481,7 +600,12 @@ def send_contract(candidate_ref):
     else:
         ok, error_message = False, "WhatsApp bot belum ready"
     db.session.commit()
-    flash("Kontrak dan offering terkirim ke WhatsApp." if ok else f"Kontrak dibuat, WA gagal: {error_message}", "success" if ok else "warning")
+    flash(
+        "Kontrak dan offering terkirim ke WhatsApp."
+        if ok
+        else f"Kontrak dibuat, WA gagal: {error_message}",
+        "success" if ok else "warning",
+    )
     return redirect(url_for("recruitment.crm_interview"))
 
 

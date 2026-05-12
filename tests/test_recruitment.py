@@ -237,6 +237,8 @@ def test_recruitment_templates_expose_required_workflow():
     assert "Password Dashboard Recruitment" in form_text
     assert "password_confirm" in form_text
     assert "Mapel, Jenjang, dan Kurikulum" in form_text
+    assert "Mapel boleh dipilih lebih dari satu." in form_text
+    assert "klik Tambah, lalu ulangi untuk mapel berikutnya" in form_text
     assert "teaching-option-input" in form_text
     assert "teaching-option-list" in form_text
     assert "selected-teaching-options" in form_text

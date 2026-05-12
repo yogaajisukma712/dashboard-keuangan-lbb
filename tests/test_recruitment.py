@@ -1,7 +1,97 @@
 from pathlib import Path
+from types import SimpleNamespace
+
+from flask import get_flashed_messages
+
+from app import create_app
+from app.routes import recruitment
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _make_app():
+    app = create_app("testing")
+    app.config.update(
+        SECRET_KEY="test-secret",
+        WTF_CSRF_ENABLED=False,
+    )
+    return app
+
+
+def _valid_form_payload(**overrides):
+    payload = {
+        "name": "Candidate",
+        "phone": "08123456789",
+        "address": "Surabaya",
+        "age": "25",
+        "gender": "female",
+        "last_education_level": "S1",
+        "university_name": "Universitas Airlangga",
+        "teaching_preferences": ["Matematika SD Nasional"],
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _candidate():
+    return SimpleNamespace(
+        email_verified=True,
+        name="",
+        phone="",
+        address="",
+        gender="",
+        last_education_level="",
+        university_name="",
+        age=None,
+        teaching_preferences=[],
+        cv_file_path=None,
+        photo_file_path=None,
+    )
+
+
+def test_recruitment_form_rejects_unlisted_university(monkeypatch):
+    app = _make_app()
+    candidate = _candidate()
+    monkeypatch.setattr(recruitment, "_current_candidate", lambda: candidate)
+    monkeypatch.setattr(
+        recruitment, "_teaching_option_choices", lambda: ["Matematika SD Nasional"]
+    )
+
+    with app.test_request_context(
+        "/recruitment/form",
+        method="POST",
+        data=_valid_form_payload(university_name="Universitas Buatan Sendiri"),
+        headers={"Host": "recruitment.supersmart.click"},
+    ):
+        response = recruitment.form()
+
+        assert response.status_code == 302
+        assert "Pilih universitas dari daftar dropdown yang tersedia." in [
+            message for _, message in get_flashed_messages(with_categories=True)
+        ]
+
+
+def test_recruitment_form_rejects_unlisted_teaching_preference(monkeypatch):
+    app = _make_app()
+    candidate = _candidate()
+    monkeypatch.setattr(recruitment, "_current_candidate", lambda: candidate)
+    monkeypatch.setattr(
+        recruitment, "_teaching_option_choices", lambda: ["Matematika SD Nasional"]
+    )
+
+    with app.test_request_context(
+        "/recruitment/form",
+        method="POST",
+        data=_valid_form_payload(teaching_preferences=["Mapel Buatan"]),
+        headers={"Host": "recruitment.supersmart.click"},
+    ):
+        response = recruitment.form()
+
+        assert response.status_code == 302
+        assert "Pilih mapel dari daftar dropdown yang tersedia." in [
+            message for _, message in get_flashed_messages(with_categories=True)
+        ]
 
 
 def test_recruitment_crm_source_is_registered():
@@ -46,6 +136,7 @@ def test_recruitment_crm_source_is_registered():
     assert "Universitas Terbuka" in route_text
     assert "Politeknik Negeri Bandung" in route_text
     assert "UIN Syarif Hidayatullah Jakarta" in route_text
+    assert "Pilih universitas dari daftar dropdown yang tersedia." in route_text
     assert "_teaching_option_choices" in route_text
     assert "teaching_preferences = request.form.getlist" in route_text
     assert "Pilih mapel dari daftar dropdown yang tersedia." in route_text
@@ -116,6 +207,9 @@ def test_recruitment_templates_expose_required_workflow():
     assert "Pilih minimal satu mapel." in form_text
     assert "Pendidikan Terakhir" in form_text
     assert "university-options" in form_text
+    assert "university-error" in form_text
+    assert "datalistValues" in form_text
+    assert "Pilih universitas dari daftar." in form_text
     assert "Jenis Kelamin" in form_text
     assert "Verifikasi email Google/Gmail terlebih dahulu" in form_text
     assert "Buka CV" in candidates_text

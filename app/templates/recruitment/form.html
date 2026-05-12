@@ -65,6 +65,7 @@
                   <option value="{{ university }}"></option>
                   {% endfor %}
                 </datalist>
+                <div class="invalid-feedback d-block d-none" id="university-error">Pilih universitas dari daftar.</div>
               </div>
               <div class="col-md-12">
                 <label class="form-label fw-semibold">Alamat</label>
@@ -118,11 +119,28 @@
 <script>
   (function () {
     const teachingInput = document.getElementById("teaching-option-input");
+    const universityInput = document.querySelector("input[name='university_name']");
     const addButton = document.getElementById("add-teaching-option");
     const list = document.getElementById("selected-teaching-options");
     const form = document.getElementById("recruitment-data-form");
     const error = document.getElementById("teaching-options-error");
-    if (!teachingInput || !addButton || !list || !form || !error) return;
+    const universityError = document.getElementById("university-error");
+    if (!teachingInput || !universityInput || !addButton || !list || !form || !error || !universityError) return;
+
+    function datalistValues(id) {
+      const datalist = document.getElementById(id);
+      if (!datalist) return [];
+      return Array.from(datalist.querySelectorAll("option")).map(function (option) {
+        return option.value;
+      });
+    }
+
+    const teachingOptions = datalistValues("teaching-option-list");
+    const universityOptions = datalistValues("university-options");
+
+    function hasOption(options, value) {
+      return options.indexOf((value || "").trim()) !== -1;
+    }
 
     function hasValue(value) {
       return Array.from(list.querySelectorAll("input[name='teaching_preferences']")).some(function (input) {
@@ -133,6 +151,12 @@
     function addItem(value) {
       const label = (value || "").trim();
       if (!label || hasValue(label)) return;
+      if (!hasOption(teachingOptions, label)) {
+        error.textContent = "Pilih mapel dari daftar.";
+        error.classList.remove("d-none");
+        teachingInput.focus();
+        return;
+      }
       const item = document.createElement("li");
       item.className = "list-group-item d-flex align-items-center justify-content-between gap-2";
       item.innerHTML = '<span></span><button class="btn btn-outline-danger btn-sm" type="button" data-remove-teaching><i class="bi bi-x-lg"></i></button><input type="hidden" name="teaching_preferences">';
@@ -155,6 +179,13 @@
       if (button) button.closest("li").remove();
     });
     form.addEventListener("submit", function (event) {
+      if (!hasOption(universityOptions, universityInput.value)) {
+        event.preventDefault();
+        universityError.classList.remove("d-none");
+        universityInput.focus();
+        return;
+      }
+      universityError.classList.add("d-none");
       if (!list.querySelector("input[name='teaching_preferences']")) {
         event.preventDefault();
         error.classList.remove("d-none");

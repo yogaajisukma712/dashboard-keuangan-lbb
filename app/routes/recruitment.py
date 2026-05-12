@@ -667,6 +667,7 @@ def form():
         candidate.university_name = (request.form.get("university_name") or "").strip()
         teaching_preferences = request.form.getlist("teaching_preferences")
         valid_teaching_options = set(_teaching_option_choices())
+        valid_universities = set(UNIVERSITY_OPTIONS)
         age_raw = (request.form.get("age") or "").strip()
         try:
             candidate.age = int(age_raw) if age_raw else None
@@ -692,6 +693,9 @@ def form():
             return redirect(url_for("recruitment.form"))
         if any(item not in valid_teaching_options for item in candidate.teaching_preferences):
             flash("Pilih mapel dari daftar dropdown yang tersedia.", "danger")
+            return redirect(url_for("recruitment.form"))
+        if candidate.university_name not in valid_universities:
+            flash("Pilih universitas dari daftar dropdown yang tersedia.", "danger")
             return redirect(url_for("recruitment.form"))
         try:
             cv_path = _save_candidate_upload(

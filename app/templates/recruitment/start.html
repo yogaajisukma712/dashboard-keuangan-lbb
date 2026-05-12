@@ -9,13 +9,25 @@
       <div class="card border-0 shadow-lg">
         <div class="card-body p-4 p-md-5">
           <h1 class="h4 fw-bold mb-2">Recruitment Tutor</h1>
-          <p class="text-muted small mb-4">Masuk dengan akun Google/Gmail aktif untuk melanjutkan pendaftaran.</p>
+          <p class="text-muted small mb-4">Gunakan Gmail aktif untuk pendaftaran, lalu masuk kembali dengan password dashboard recruitment.</p>
           <form method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label class="form-label fw-semibold">Email Google/Gmail</label>
             <input class="form-control form-control-lg" type="email" name="google_email" placeholder="nama@gmail.com" required>
             <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">
-              <i class="bi bi-google me-2"></i>Login dengan Google
+              <i class="bi bi-envelope-check me-2"></i>Mulai / Verifikasi Email
+            </button>
+          </form>
+          <hr class="my-4">
+          <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="login">
+            <label class="form-label fw-semibold">Email Dashboard</label>
+            <input class="form-control" type="email" name="google_email" placeholder="nama@gmail.com" required>
+            <label class="form-label fw-semibold mt-3">Password Dashboard</label>
+            <input class="form-control" type="password" name="password" autocomplete="current-password" required>
+            <button class="btn btn-outline-primary w-100 mt-4" type="submit">
+              <i class="bi bi-box-arrow-in-right me-2"></i>Masuk Dashboard Recruitment
             </button>
           </form>
         </div>

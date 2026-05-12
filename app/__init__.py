@@ -101,6 +101,8 @@ def create_app(config_name=None):
                 "/recruitment/",
                 "/recruitment/verify/",
                 "/recruitment/form",
+                "/recruitment/dashboard",
+                "/recruitment/logout",
                 "/recruitment/selesai",
                 "/recruitment/contract/",
                 "/static/",
@@ -130,6 +132,8 @@ def create_app(config_name=None):
                 request.path == "/recruitment"
                 or request.path == "/recruitment/"
                 or request.path.startswith("/recruitment/form")
+                or request.path.startswith("/recruitment/dashboard")
+                or request.path.startswith("/recruitment/logout")
                 or request.path.startswith("/recruitment/verify/")
                 or request.path.startswith("/recruitment/selesai")
                 or request.path.startswith("/recruitment/contract/")

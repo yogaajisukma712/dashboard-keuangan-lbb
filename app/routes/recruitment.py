@@ -589,6 +589,29 @@ def _create_tutor_from_candidate(candidate):
     return tutor
 
 
+def _sign_candidate_contract(candidate, signature):
+    if candidate.status == "signed":
+        flash("Kontrak sudah pernah ditandatangani.", "warning")
+        return False
+    if candidate.status != "contract_sent":
+        flash("Kontrak belum siap ditandatangani. Tunggu undangan dari admin.", "warning")
+        return False
+    if not signature.startswith("data:image/"):
+        flash("Tanda tangan digital wajib diisi.", "danger")
+        return False
+    if len(signature) > MAX_SIGNATURE_DATA_URL_LENGTH:
+        flash("Ukuran tanda tangan terlalu besar. Hapus dan tanda tangani ulang.", "danger")
+        return False
+    candidate.signature_data_url = signature
+    candidate.signed_at = datetime.utcnow()
+    candidate.status = "signed"
+    tutor = _create_tutor_from_candidate(candidate)
+    db.session.commit()
+    session["tutor_portal_tutor_id"] = tutor.id
+    flash("Kontrak ditandatangani. Dashboard tutor sudah aktif.", "success")
+    return True
+
+
 @recruitment_bp.route("/", methods=["GET", "POST"])
 def start():
     if request.method == "POST":
@@ -596,6 +619,18 @@ def start():
         if not email.endswith("@gmail.com"):
             flash("Gunakan akun Gmail/Google aktif untuk recruitment.", "danger")
             return redirect(url_for("recruitment.start"))
+        if request.form.get("action") == "login":
+            password = request.form.get("password") or ""
+            candidate = RecruitmentCandidate.query.filter(
+                db.func.lower(RecruitmentCandidate.google_email) == email
+            ).first()
+            if not candidate or not candidate.check_password(password):
+                flash("Email atau password dashboard recruitment tidak sesuai.", "danger")
+                return redirect(url_for("recruitment.start"))
+            session["recruitment_candidate_id"] = candidate.id
+            candidate.updated_at = datetime.utcnow()
+            db.session.commit()
+            return redirect(url_for("recruitment.dashboard"))
         candidate = RecruitmentCandidate.query.filter(
             db.func.lower(RecruitmentCandidate.google_email) == email
         ).first()
@@ -697,6 +732,16 @@ def form():
         if candidate.university_name not in valid_universities:
             flash("Pilih universitas dari daftar dropdown yang tersedia.", "danger")
             return redirect(url_for("recruitment.form"))
+        password = request.form.get("password") or ""
+        password_confirm = request.form.get("password_confirm") or ""
+        if not candidate.password_hash or password or password_confirm:
+            if len(password) < 8:
+                flash("Password dashboard minimal 8 karakter.", "danger")
+                return redirect(url_for("recruitment.form"))
+            if password != password_confirm:
+                flash("Konfirmasi password dashboard tidak sama.", "danger")
+                return redirect(url_for("recruitment.form"))
+            candidate.set_password(password)
         try:
             cv_path = _save_candidate_upload(
                 request.files.get("cv_file"), candidate, "cv", {"pdf", "doc", "docx"}
@@ -718,7 +763,7 @@ def form():
         candidate.updated_at = datetime.utcnow()
         db.session.commit()
         flash("Data recruitment berhasil dikirim.", "success")
-        return redirect(url_for("recruitment.thank_you"))
+        return redirect(url_for("recruitment.dashboard"))
     return render_template(
         "recruitment/form.html",
         candidate=candidate,
@@ -731,7 +776,37 @@ def form():
 
 @recruitment_bp.route("/selesai")
 def thank_you():
+    if _current_candidate():
+        return redirect(url_for("recruitment.dashboard"))
     return render_template("recruitment/thank_you.html")
+
+
+@recruitment_bp.route("/dashboard", methods=["GET", "POST"])
+def dashboard():
+    candidate = _current_candidate()
+    if not candidate:
+        flash("Masuk ke dashboard recruitment terlebih dahulu.", "warning")
+        return redirect(url_for("recruitment.start"))
+    if candidate.contract_text is None and candidate.status in {"contract_sent", "signed"}:
+        candidate.contract_text = _build_contract_text(candidate)
+    if candidate.offering_text is None and candidate.status in {"contract_sent", "signed"}:
+        candidate.offering_text = _build_offering_text(candidate)
+    if request.method == "POST":
+        signature = request.form.get("signature_data_url") or ""
+        _sign_candidate_contract(candidate, signature)
+        return redirect(url_for("recruitment.dashboard"))
+    return render_template(
+        "recruitment/dashboard.html",
+        candidate=candidate,
+        status_label=RECRUITMENT_STATUSES.get(candidate.status, candidate.status),
+    )
+
+
+@recruitment_bp.route("/logout", methods=["POST"])
+def logout():
+    session.pop("recruitment_candidate_id", None)
+    flash("Anda sudah keluar dari dashboard recruitment.", "success")
+    return redirect(url_for("recruitment.start"))
 
 
 @recruitment_bp.route("/files/<path:filename>")
@@ -880,30 +955,14 @@ def contract(token):
     candidate = _candidate_from_contract_token(token)
     if not candidate:
         return redirect(url_for("recruitment.start"))
+    session["recruitment_candidate_id"] = candidate.id
     if not candidate.contract_text:
         candidate.contract_text = _build_contract_text(candidate)
     if not candidate.offering_text:
         candidate.offering_text = _build_offering_text(candidate)
     if request.method == "POST":
-        if candidate.status == "signed":
-            flash("Kontrak sudah pernah ditandatangani.", "warning")
-            return redirect(_contract_url(candidate))
-        if candidate.status != "contract_sent":
-            flash("Kontrak belum siap ditandatangani. Tunggu undangan dari admin.", "warning")
-            return redirect(url_for("recruitment.start"))
         signature = request.form.get("signature_data_url") or ""
-        if not signature.startswith("data:image/"):
-            flash("Tanda tangan digital wajib diisi.", "danger")
-            return redirect(_contract_url(candidate))
-        if len(signature) > MAX_SIGNATURE_DATA_URL_LENGTH:
-            flash("Ukuran tanda tangan terlalu besar. Hapus dan tanda tangani ulang.", "danger")
-            return redirect(_contract_url(candidate))
-        candidate.signature_data_url = signature
-        candidate.signed_at = datetime.utcnow()
-        candidate.status = "signed"
-        tutor = _create_tutor_from_candidate(candidate)
+        _sign_candidate_contract(candidate, signature)
+    else:
         db.session.commit()
-        session["tutor_portal_tutor_id"] = tutor.id
-        flash("Kontrak ditandatangani. Lengkapi profil dan ajukan jadwal.", "success")
-        return redirect(url_for("tutor_portal.dashboard"))
-    return render_template("recruitment/contract.html", candidate=candidate)
+    return redirect(url_for("recruitment.dashboard"))

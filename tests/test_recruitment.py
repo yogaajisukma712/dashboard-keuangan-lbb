@@ -37,6 +37,7 @@ def _valid_form_payload(**overrides):
 def _candidate():
     return SimpleNamespace(
         email_verified=True,
+        password_hash=None,
         name="",
         phone="",
         address="",
@@ -94,6 +95,28 @@ def test_recruitment_form_rejects_unlisted_teaching_preference(monkeypatch):
         ]
 
 
+def test_recruitment_form_requires_dashboard_password_confirmation(monkeypatch):
+    app = _make_app()
+    candidate = _candidate()
+    monkeypatch.setattr(recruitment, "_current_candidate", lambda: candidate)
+    monkeypatch.setattr(
+        recruitment, "_teaching_option_choices", lambda: ["Matematika SD Nasional"]
+    )
+
+    with app.test_request_context(
+        "/recruitment/form",
+        method="POST",
+        data=_valid_form_payload(password="password123", password_confirm="beda"),
+        headers={"Host": "recruitment.supersmart.click"},
+    ):
+        response = recruitment.form()
+
+        assert response.status_code == 302
+        assert "Konfirmasi password dashboard tidak sama." in [
+            message for _, message in get_flashed_messages(with_categories=True)
+        ]
+
+
 def test_recruitment_crm_source_is_registered():
     app_text = (PROJECT_ROOT / "app" / "__init__.py").read_text(encoding="utf-8")
     routes_text = (PROJECT_ROOT / "app" / "routes" / "__init__.py").read_text(
@@ -118,9 +141,17 @@ def test_recruitment_crm_source_is_registered():
     assert "app.register_blueprint(recruitment_bp)" in app_text
     assert "RecruitmentCandidate" in models_text
     assert "__tablename__ = \"recruitment_candidates\"" in model_text
+    assert "password_hash = db.Column(db.String(255))" in model_text
+    assert "def set_password" in model_text
+    assert "def check_password" in model_text
     assert "CREATE TABLE IF NOT EXISTS recruitment_candidates" in entrypoint_text
+    assert "ALTER TABLE recruitment_candidates ADD COLUMN IF NOT EXISTS password_hash" in entrypoint_text
     assert "@recruitment_bp.route(\"/\", methods=[\"GET\", \"POST\"])" in route_text
     assert "def verify_email" in route_text
+    assert "@recruitment_bp.route(\"/dashboard\", methods=[\"GET\", \"POST\"])" in route_text
+    assert "@recruitment_bp.route(\"/logout\", methods=[\"POST\"])" in route_text
+    assert "candidate.set_password(password)" in route_text
+    assert "recruitment.dashboard" in route_text
     assert "def crm_candidates" in route_text
     assert "def crm_selected" in route_text
     assert "def crm_interview" in route_text
@@ -188,6 +219,9 @@ def test_recruitment_templates_expose_required_workflow():
     contract_text = (
         PROJECT_ROOT / "app" / "templates" / "recruitment" / "contract.html"
     ).read_text(encoding="utf-8")
+    recruitment_dashboard_text = (
+        PROJECT_ROOT / "app" / "templates" / "recruitment" / "dashboard.html"
+    ).read_text(encoding="utf-8")
     dashboard_text = (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "dashboard.html"
     ).read_text(encoding="utf-8")
@@ -195,9 +229,13 @@ def test_recruitment_templates_expose_required_workflow():
         encoding="utf-8"
     )
 
-    assert "Login dengan Google" in start_text
+    assert "Mulai / Verifikasi Email" in start_text
+    assert "Masuk Dashboard Recruitment" in start_text
+    assert "Password Dashboard" in start_text
     assert "Upload CV" in form_text
     assert "Upload Foto" in form_text
+    assert "Password Dashboard Recruitment" in form_text
+    assert "password_confirm" in form_text
     assert "Mapel, Jenjang, dan Kurikulum" in form_text
     assert "teaching-option-input" in form_text
     assert "teaching-option-list" in form_text
@@ -227,5 +265,10 @@ def test_recruitment_templates_expose_required_workflow():
     assert "Kirim Kontrak & Offering" in interview_text
     assert "signature_data_url" in contract_text
     assert "Tandatangani & Masuk Dashboard Tutor" in contract_text
+    assert "Dashboard Recruitment" in recruitment_dashboard_text
+    assert "Data Diri" in recruitment_dashboard_text
+    assert "SK & Offering" in recruitment_dashboard_text
+    assert "signature_data_url" in recruitment_dashboard_text
+    assert "Tandatangani" in recruitment_dashboard_text
     assert "Kontrak & Offering" in dashboard_text
     assert "CRM Recruitment" in base_text

@@ -3,6 +3,8 @@
 import json
 from datetime import datetime
 
+from werkzeug.security import check_password_hash, generate_password_hash
+
 from app import db
 
 
@@ -14,6 +16,7 @@ class RecruitmentCandidate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     google_email = db.Column(db.String(160), nullable=False, index=True)
     email_verified = db.Column(db.Boolean, default=False, nullable=False)
+    password_hash = db.Column(db.String(255))
     name = db.Column(db.String(120))
     phone = db.Column(db.String(40))
     address = db.Column(db.Text)
@@ -52,6 +55,16 @@ class RecruitmentCandidate(db.Model):
     @property
     def is_signed(self):
         return bool(self.signed_at and self.signature_data_url)
+
+    def set_password(self, password):
+        """Hash and set the candidate dashboard password."""
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        """Check the candidate dashboard password."""
+        if not self.password_hash:
+            return False
+        return check_password_hash(self.password_hash, password)
 
     @property
     def teaching_preferences(self):

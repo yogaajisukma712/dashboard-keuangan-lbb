@@ -116,6 +116,15 @@
                 <div class="invalid-feedback d-block d-none" id="teaching-options-error">Pilih minimal satu mapel.</div>
               </div>
               <div class="col-md-6">
+                <label class="form-label fw-semibold">Password Dashboard Recruitment</label>
+                <input class="form-control" type="password" name="password" autocomplete="new-password" minlength="8" {% if not candidate.password_hash %}required{% endif %}>
+                <div class="form-text">{% if candidate.password_hash %}Kosongkan jika tidak ingin mengganti password.{% else %}Minimal 8 karakter untuk masuk dashboard recruitment setelah form dikirim.{% endif %}</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Konfirmasi Password</label>
+                <input class="form-control" type="password" name="password_confirm" autocomplete="new-password" minlength="8" {% if not candidate.password_hash %}required{% endif %}>
+              </div>
+              <div class="col-md-6">
                 <label class="form-label fw-semibold">Upload CV</label>
                 <input class="form-control" type="file" name="cv_file" accept=".pdf,.doc,.docx" {% if not candidate.cv_file_path %}required{% endif %}>
               </div>

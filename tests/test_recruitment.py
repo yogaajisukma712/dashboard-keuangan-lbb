@@ -120,6 +120,44 @@ def test_recruitment_form_requires_dashboard_password_confirmation(monkeypatch):
         ]
 
 
+def test_recruitment_form_requires_available_schedule_slot(monkeypatch):
+    app = _make_app()
+    candidate = _candidate()
+    monkeypatch.setattr(recruitment, "_current_candidate", lambda: candidate)
+    monkeypatch.setattr(
+        recruitment, "_teaching_option_choices", lambda: ["Matematika SD Nasional"]
+    )
+
+    with app.test_request_context(
+        "/recruitment/form",
+        method="POST",
+        data=_valid_form_payload(
+            password="password123",
+            password_confirm="password123",
+            availability_0_16="unavailable",
+        ),
+        headers={"Host": "recruitment.supersmart.click"},
+    ):
+        response = recruitment.form()
+
+        assert response.status_code == 302
+        assert "Pilih minimal satu waktu luang berwarna hijau." in [
+            message for _, message in get_flashed_messages(with_categories=True)
+        ]
+
+
+def test_recruitment_availability_defaults_to_unavailable():
+    grid = recruitment._build_candidate_availability_rows(_candidate())
+
+    states = [cell["state"] for row in grid["rows"] for cell in row["cells"]]
+    labels = [cell["label"] for row in grid["rows"] for cell in row["cells"]]
+
+    assert set(states) == {"unavailable"}
+    assert set(labels) == {"Tidak Bisa"}
+    assert grid["summary"]["available_count"] == 0
+    assert grid["summary"]["unavailable_count"] == len(states)
+
+
 def test_recruitment_crm_source_is_registered():
     app_text = (PROJECT_ROOT / "app" / "__init__.py").read_text(encoding="utf-8")
     routes_text = (PROJECT_ROOT / "app" / "routes" / "__init__.py").read_text(

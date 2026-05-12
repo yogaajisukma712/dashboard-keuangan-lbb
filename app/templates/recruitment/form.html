@@ -146,7 +146,7 @@
                             type="button"
                             data-value="{{ cell.state }}"
                           >
-                            <span class="schedule-cell-label">{{ 'Available' if cell.state == 'available' else 'Tidak Available' }}</span>
+                            <span class="schedule-cell-label">{{ 'Luang' if cell.state == 'available' else 'Tidak Bisa' }}</span>
                           </button>
                         </td>
                         {% endfor %}
@@ -414,7 +414,7 @@
         button.dataset.value = nextValue;
         button.classList.toggle("is-available", nextValue === "available");
         button.classList.toggle("is-unavailable", nextValue === "unavailable");
-        button.querySelector(".schedule-cell-label").textContent = nextValue === "available" ? "Available" : "Tidak Available";
+        button.querySelector(".schedule-cell-label").textContent = nextValue === "available" ? "Luang" : "Tidak Bisa";
         if (input) input.value = nextValue;
         if (nextValue === "available") availabilityError.classList.add("d-none");
       });

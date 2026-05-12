@@ -175,7 +175,7 @@
                   {% for cell in row.cells %}
                   <td class="availability-cell">
                     <span class="availability-pill {{ 'is-available' if cell.state == 'available' else 'is-unavailable' }}">
-                      {{ 'Available' if cell.state == 'available' else 'Tidak Available' }}
+                      {{ 'Luang' if cell.state == 'available' else 'Tidak Bisa' }}
                     </span>
                   </td>
                   {% endfor %}

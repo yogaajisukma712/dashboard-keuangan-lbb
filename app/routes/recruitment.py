@@ -616,9 +616,7 @@ def _build_candidate_availability_rows(candidate):
     for hour in SCHEDULE_HOUR_SLOTS:
         cells = []
         for weekday in range(7):
-            state = selected_by_slot.get(
-                (weekday, hour), "unavailable" if hour < 16 else "available"
-            )
+            state = selected_by_slot.get((weekday, hour), "unavailable")
             if state == "available":
                 available_count += 1
             else:
@@ -630,7 +628,7 @@ def _build_candidate_availability_rows(candidate):
                     "hour": hour,
                     "field_name": f"availability_{weekday}_{hour}",
                     "state": state,
-                    "label": "Available" if state == "available" else "Tidak Available",
+                    "label": "Luang" if state == "available" else "Tidak Bisa",
                 }
             )
         rows.append({"hour": hour, "cells": cells})

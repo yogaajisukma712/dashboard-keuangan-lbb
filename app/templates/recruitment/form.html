@@ -19,7 +19,7 @@
             <span class="badge text-bg-warning">Menunggu verifikasi email</span>
             {% endif %}
           </div>
-          <form method="post" enctype="multipart/form-data">
+          <form method="post" enctype="multipart/form-data" id="recruitment-data-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% if not candidate.email_verified %}
             <div class="alert alert-warning small">
@@ -68,7 +68,7 @@
               </div>
               <div class="col-md-12">
                 <label class="form-label fw-semibold">Alamat</label>
-                <textarea class="form-control" name="address" rows="2">{{ candidate.address or '' }}</textarea>
+                <textarea class="form-control" name="address" rows="2" required>{{ candidate.address or '' }}</textarea>
               </div>
               <div class="col-md-12">
                 <label class="form-label fw-semibold">Mapel, Jenjang, dan Kurikulum</label>
@@ -95,6 +95,7 @@
                   </li>
                   {% endfor %}
                 </ul>
+                <div class="invalid-feedback d-block d-none" id="teaching-options-error">Pilih minimal satu mapel.</div>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Upload CV</label>
@@ -119,7 +120,9 @@
     const select = document.getElementById("teaching-option-select");
     const addButton = document.getElementById("add-teaching-option");
     const list = document.getElementById("selected-teaching-options");
-    if (!select || !addButton || !list) return;
+    const form = document.getElementById("recruitment-data-form");
+    const error = document.getElementById("teaching-options-error");
+    if (!select || !addButton || !list || !form || !error) return;
 
     function hasValue(value) {
       return Array.from(list.querySelectorAll("input[name='teaching_preferences']")).some(function (input) {
@@ -136,6 +139,7 @@
       item.querySelector("span").textContent = label;
       item.querySelector("input").value = label;
       list.appendChild(item);
+      error.classList.add("d-none");
     }
 
     addButton.addEventListener("click", function () {
@@ -149,6 +153,13 @@
     list.addEventListener("click", function (event) {
       const button = event.target.closest("[data-remove-teaching]");
       if (button) button.closest("li").remove();
+    });
+    form.addEventListener("submit", function (event) {
+      if (!list.querySelector("input[name='teaching_preferences']")) {
+        event.preventDefault();
+        error.classList.remove("d-none");
+        select.focus();
+      }
     });
   })();
 </script>

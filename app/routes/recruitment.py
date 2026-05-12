@@ -417,8 +417,8 @@ def form():
         except ValueError:
             candidate.age = None
         candidate.teaching_preferences = teaching_preferences
-        if not candidate.name or not candidate.phone:
-            flash("Nama dan nomor WhatsApp aktif wajib diisi.", "danger")
+        if not candidate.name or not candidate.phone or not candidate.address:
+            flash("Nama, nomor WhatsApp aktif, dan alamat wajib diisi.", "danger")
             return redirect(url_for("recruitment.form"))
         if (
             not candidate.age
@@ -448,6 +448,9 @@ def form():
             candidate.cv_file_path = cv_path
         if photo_path:
             candidate.photo_file_path = photo_path
+        if not candidate.cv_file_path or not candidate.photo_file_path:
+            flash("CV dan foto wajib diunggah.", "danger")
+            return redirect(url_for("recruitment.form"))
         candidate.status = "submitted"
         candidate.updated_at = datetime.utcnow()
         db.session.commit()

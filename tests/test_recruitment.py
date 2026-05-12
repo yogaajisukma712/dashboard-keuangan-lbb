@@ -44,6 +44,8 @@ def test_recruitment_crm_source_is_registered():
     assert "GENDER_OPTIONS" in route_text
     assert "_teaching_option_choices" in route_text
     assert "teaching_preferences = request.form.getlist" in route_text
+    assert "not candidate.name or not candidate.phone or not candidate.address" in route_text
+    assert "CV dan foto wajib diunggah." in route_text
     assert "candidate.status != \"contract_sent\"" in route_text
     assert "not candidate.email_verified" in route_text
     assert "_create_tutor_from_candidate" in route_text
@@ -101,6 +103,9 @@ def test_recruitment_templates_expose_required_workflow():
     assert "Upload Foto" in form_text
     assert "Mapel, Jenjang, dan Kurikulum" in form_text
     assert "selected-teaching-options" in form_text
+    assert 'id="recruitment-data-form"' in form_text
+    assert 'name="address" rows="2" required' in form_text
+    assert "Pilih minimal satu mapel." in form_text
     assert "Pendidikan Terakhir" in form_text
     assert "university-options" in form_text
     assert "Jenis Kelamin" in form_text

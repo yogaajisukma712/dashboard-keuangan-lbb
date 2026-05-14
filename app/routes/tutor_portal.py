@@ -865,6 +865,12 @@ def _build_schedule_change_rows(tutor_id):
                 )
                 if value not in selected_by_slot[(weekday, hour)]:
                     selected_by_slot[(weekday, hour)].append(value)
+            availability = cell.get("availability")
+            if (
+                availability in {"available", "unavailable"}
+                and not selected_by_slot.get((weekday, hour))
+            ):
+                selected_by_slot[(weekday, hour)].append(availability)
 
     rows = []
     waiting_values = []

@@ -12,6 +12,7 @@ from app.models import (
     Student,
     Subject,
     Tutor,
+    TutorPortalRequest,
     WhatsAppEvaluation,
     WhatsAppGroup,
     WhatsAppMessage,
@@ -19,6 +20,7 @@ from app.models import (
 from app.routes.tutor_portal import (
     ATTENDANCE_TABLE_PER_PAGE,
     _ListPagination,
+    _build_schedule_change_rows,
     _build_schedule_request_display_rows,
     _build_tutor_attendance_calendar,
     _build_tutor_presensi_schedule_grid,
@@ -313,6 +315,42 @@ def test_schedule_request_payload_is_formatted_as_admin_grid_rows():
     assert first_row["cells"][3]["class"] == "is-empty"
 
 
+def test_schedule_change_rows_use_latest_approved_availability_snapshot():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        tutor = Tutor(tutor_code="TTR-SCHEDULE-SNAPSHOT", name="Dinda", is_active=True)
+        db.session.add(tutor)
+        db.session.flush()
+        db.session.add(
+            TutorPortalRequest(
+                tutor_id=tutor.id,
+                request_type="schedule_change",
+                status="approved",
+                reviewed_at=datetime(2026, 5, 14, 3, 31),
+                payload_json={
+                    "mode": "weekly_grid",
+                    "slots": [
+                        {"weekday": 0, "hour": 17, "state": "unavailable"},
+                        {"weekday": 1, "hour": 10, "state": "available"},
+                    ],
+                },
+            )
+        )
+        db.session.commit()
+
+        rows = _build_schedule_change_rows(tutor.id)
+        cells = {
+            (cell["weekday"], cell["hour"]): cell
+            for row in rows
+            for cell in row["cells"]
+        }
+
+        assert cells[(0, 17)]["selected"] == "unavailable"
+        assert cells[(1, 10)]["selected"] == "available"
+
+
 def test_tutor_portal_routes_and_templates_are_registered_in_source():
     init_text = (PROJECT_ROOT / "app" / "__init__.py").read_text(encoding="utf-8")
     routes_init = (PROJECT_ROOT / "app" / "routes" / "__init__.py").read_text(
@@ -363,7 +401,8 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "_build_tutor_attendance_calendar" in route_text
     assert "AttendanceSession.session_date.between(period_start, period_end)" in route_text
     assert "validation_map.get(session_item.id) == \"valid\"" in route_text
-    assert "_build_tutor_presensi_schedule_grid(tutor.id)" in route_text
+    assert "_attach_meet_links_to_schedule_grid(" in route_text
+    assert "_build_tutor_weekly_schedule_grid(tutor.id)" in route_text
     assert "Januari-Mei 2026" in route_text
     assert "TutorPortalRequest" in route_text
     assert "request_schedule_change" in route_text
@@ -452,7 +491,7 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Kalender Presensi" in dashboard_text
     assert "attendance_calendar.weeks" in dashboard_text
     assert "Bulan Sebelumnya" in dashboard_text
-    assert "Jadwal dibentuk dari pola hari presensi tervalidasi admin" in dashboard_text
+    assert "Jadwal sama dengan jadwal tutor di Dashboard Lembaga" in dashboard_text
     assert "Pilih Tutor" in base_text
     assert "Keluar Admin" in base_text
     assert "Mode Admin" in admin_select_text

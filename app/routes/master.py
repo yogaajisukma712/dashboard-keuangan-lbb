@@ -42,6 +42,7 @@ from app.models import (
     Subject,
     SubjectTutorAssignment,
     Tutor,
+    TutorPortalRequest,
     TutorPayout,
     User,
     WhatsAppTutorValidation,
@@ -225,6 +226,32 @@ def _build_tutor_weekly_schedule_grid(tutor_id: int | None):
     )
     if candidate:
         for slot in candidate.availability_slots:
+            try:
+                weekday = int(slot.get("weekday"))
+                hour = int(slot.get("hour"))
+            except (AttributeError, TypeError, ValueError):
+                continue
+            state = slot.get("state")
+            if weekday in range(7) and hour in hour_slots and state in {
+                "available",
+                "unavailable",
+            }:
+                availability_by_slot[(hour, weekday)] = state
+    latest_schedule_request = (
+        TutorPortalRequest.query.filter_by(
+            tutor_id=tutor_id,
+            request_type="schedule_change",
+            status="approved",
+        )
+        .order_by(
+            TutorPortalRequest.reviewed_at.desc(),
+            TutorPortalRequest.id.desc(),
+        )
+        .first()
+    )
+    latest_payload = latest_schedule_request.payload_json if latest_schedule_request else {}
+    if latest_payload and latest_payload.get("mode") == "weekly_grid":
+        for slot in latest_payload.get("slots", []):
             try:
                 weekday = int(slot.get("weekday"))
                 hour = int(slot.get("hour"))

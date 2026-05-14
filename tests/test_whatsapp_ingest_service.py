@@ -18,6 +18,7 @@ from app.models import (
     WhatsAppGroupParticipant,
     WhatsAppMessage,
     WhatsAppStudentGroupValidation,
+    WhatsAppTutorIdentityAlias,
     WhatsAppTutorValidation,
 )
 from app.services.whatsapp_ingest_service import (
@@ -1191,6 +1192,85 @@ def test_lid_author_matches_validated_tutor_phone_alias_by_group_and_name():
         assert evaluation.matched_enrollment_id == enrollment.id
         assert evaluation.match_status == "attendance-linked"
         assert AttendanceSession.query.count() == 1
+        alias = WhatsAppTutorIdentityAlias.query.filter_by(
+            alias_type="lid",
+            alias_value="268169235169510",
+        ).one()
+        assert alias.tutor_id == tutor.id
+        assert alias.alias_jid == "268169235169510@lid"
+
+
+def test_persisted_lid_alias_resolves_tutor_without_name_heuristic():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        tutor = Tutor(
+            tutor_code="TTR-LID-PERSIST",
+            name="Elisabeth Sabrina",
+            phone="6282265251426",
+            is_active=True,
+        )
+        phone_contact = WhatsAppContact(
+            whatsapp_contact_id="6282265251426@c.us",
+            phone_number="6282265251426",
+            display_name="Miss Sabrina_Tutor Fisika Math",
+        )
+        lid_contact = WhatsAppContact(
+            whatsapp_contact_id="208980274077712@lid",
+            phone_number="208980274077712",
+            display_name="Unknown LID",
+        )
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-sabrina@g.us",
+            name="Kelas Sabrina",
+        )
+        db.session.add_all([tutor, phone_contact, lid_contact, group])
+        db.session.flush()
+        db.session.add(
+            WhatsAppTutorValidation(
+                contact_id=phone_contact.id,
+                tutor_id=tutor.id,
+                validated_phone_number="6282265251426",
+                validated_contact_name="Miss Sabrina_Tutor Fisika Math",
+                group_memberships_json=[],
+            )
+        )
+        db.session.add(
+            WhatsAppTutorIdentityAlias(
+                tutor_id=tutor.id,
+                contact_id=lid_contact.id,
+                alias_type="lid",
+                alias_value="208980274077712",
+                alias_jid="208980274077712@lid",
+                source="manual-test",
+                confidence_score=100,
+            )
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="false_group-sabrina@g.us_ABC_208980274077712@lid",
+            group=group,
+            author_contact=lid_contact,
+            author_phone_number="208980274077712",
+            author_name="Nama Tidak Sama",
+            sent_at=datetime(2026, 5, 12, 9, 0, 0),
+            body="Evaluasi.",
+        )
+        evaluation = WhatsAppEvaluation(
+            message=message,
+            group=group,
+            attendance_date=date(2026, 5, 12),
+        )
+        db.session.add_all([message, evaluation])
+        db.session.commit()
+
+        validation = WhatsAppIngestService.find_validated_tutor_by_message_identity(
+            evaluation,
+            message.author_phone_number,
+        )
+
+        assert validation is not None
+        assert validation.tutor_id == tutor.id
 
 
 def test_scan_attendance_for_month_is_idempotent_for_existing_links():

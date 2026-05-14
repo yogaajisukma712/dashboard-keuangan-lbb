@@ -30,6 +30,7 @@ from .whatsapp import (
     WhatsAppMessage,
     WhatsAppStudentGroupValidation,
     WhatsAppStudentValidation,
+    WhatsAppTutorIdentityAlias,
     WhatsAppTutorValidation,
 )
 
@@ -53,5 +54,6 @@ __all__ = [
     'WhatsAppEvaluation',
     'WhatsAppStudentGroupValidation',
     'WhatsAppStudentValidation',
+    'WhatsAppTutorIdentityAlias',
     'WhatsAppTutorValidation',
 ]

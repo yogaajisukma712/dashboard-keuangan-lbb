@@ -241,6 +241,46 @@ class WhatsAppTutorValidation(db.Model):
     tutor = db.relationship("Tutor")
 
 
+class WhatsAppTutorIdentityAlias(db.Model):
+    __tablename__ = "whatsapp_tutor_identity_aliases"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "alias_type",
+            "alias_value",
+            name="uq_whatsapp_tutor_identity_alias",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    tutor_id = db.Column(
+        db.Integer,
+        db.ForeignKey("tutors.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    contact_id = db.Column(
+        db.Integer,
+        db.ForeignKey("whatsapp_contacts.id", ondelete="SET NULL"),
+        index=True,
+    )
+    alias_type = db.Column(db.String(32), nullable=False, index=True)
+    alias_value = db.Column(db.String(255), nullable=False, index=True)
+    alias_jid = db.Column(db.String(255), index=True)
+    display_name = db.Column(db.String(255))
+    source = db.Column(db.String(64))
+    confidence_score = db.Column(db.Integer, default=0)
+    group_evidence_json = db.Column(db.JSON)
+    first_seen_at = db.Column(db.DateTime)
+    last_seen_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    tutor = db.relationship("Tutor")
+    contact = db.relationship("WhatsAppContact")
+
+
 class WhatsAppStudentValidation(db.Model):
     __tablename__ = "whatsapp_student_validations"
     __table_args__ = (

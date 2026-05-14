@@ -27,6 +27,7 @@ from app.models import (
     WhatsAppMessage,
     WhatsAppStudentGroupValidation,
     WhatsAppStudentValidation,
+    WhatsAppTutorIdentityAlias,
     WhatsAppTutorValidation,
 )
 
@@ -1177,6 +1178,102 @@ class WhatsAppIngestService:
         return None
 
     @staticmethod
+    def get_lid_identity_from_message(
+        message: WhatsAppMessage | None,
+    ) -> tuple[str | None, str | None]:
+        if message is None:
+            return None, None
+        candidates = []
+        if message.author_contact is not None:
+            candidates.append(message.author_contact.whatsapp_contact_id)
+        if isinstance(message.raw_payload, dict):
+            candidates.append(message.raw_payload.get("author"))
+        candidates.append(message.whatsapp_message_id)
+        candidates.append(message.author_phone_number)
+        for candidate in candidates:
+            text = str(candidate or "")
+            if "@lid" not in text and not text.endswith("lid"):
+                continue
+            match = re.search(r"([0-9]+)@lid", text)
+            if match:
+                return match.group(1), match.group(0)
+            normalized = normalize_phone_number(text)
+            if normalized:
+                return normalized, f"{normalized}@lid"
+        return None, None
+
+    @staticmethod
+    def find_tutor_validation_by_alias(
+        alias_type: str,
+        alias_value: str | None,
+    ) -> WhatsAppTutorValidation | None:
+        normalized = normalize_phone_number(alias_value)
+        if not normalized:
+            return None
+        alias = WhatsAppTutorIdentityAlias.query.filter_by(
+            alias_type=alias_type,
+            alias_value=normalized,
+        ).first()
+        if alias is None:
+            return None
+        return WhatsAppTutorValidation.query.filter_by(tutor_id=alias.tutor_id).first()
+
+    @staticmethod
+    def upsert_tutor_identity_alias(
+        tutor_id: int,
+        alias_type: str,
+        alias_value: str | None,
+        *,
+        alias_jid: str | None = None,
+        contact: WhatsAppContact | None = None,
+        message: WhatsAppMessage | None = None,
+        group: WhatsAppGroup | None = None,
+        source: str = "auto",
+        confidence_score: int = 0,
+    ) -> WhatsAppTutorIdentityAlias | None:
+        normalized = normalize_phone_number(alias_value)
+        if not normalized:
+            return None
+        alias = WhatsAppTutorIdentityAlias.query.filter_by(
+            alias_type=alias_type,
+            alias_value=normalized,
+        ).first()
+        if alias is None:
+            alias = WhatsAppTutorIdentityAlias(
+                tutor_id=tutor_id,
+                alias_type=alias_type,
+                alias_value=normalized,
+                first_seen_at=message.sent_at if message is not None else datetime.utcnow(),
+            )
+            db.session.add(alias)
+        elif alias.tutor_id != tutor_id:
+            return alias
+        alias.tutor_id = tutor_id
+        alias.contact_id = contact.id if contact is not None else alias.contact_id
+        alias.alias_jid = alias_jid or alias.alias_jid
+        alias.display_name = (
+            (contact.display_name if contact is not None else None)
+            or (message.author_name if message is not None else None)
+            or alias.display_name
+        )
+        alias.source = source
+        alias.confidence_score = max(alias.confidence_score or 0, confidence_score)
+        alias.last_seen_at = message.sent_at if message is not None else datetime.utcnow()
+        alias.group_evidence_json = {
+            "group_id": group.id if group is not None else None,
+            "whatsapp_group_id": group.whatsapp_group_id if group is not None else None,
+            "group_name": group.name if group is not None else None,
+            "message_id": message.id if message is not None else None,
+            "whatsapp_message_id": (
+                message.whatsapp_message_id if message is not None else None
+            ),
+            "author_phone_number": (
+                message.author_phone_number if message is not None else None
+            ),
+        }
+        return alias
+
+    @staticmethod
     def find_validated_tutor_by_lid_alias(
         message: WhatsAppMessage | None,
         group: WhatsAppGroup | None,
@@ -1190,6 +1287,14 @@ class WhatsAppIngestService:
         """
         if message is None or group is None:
             return None
+
+        lid_value, lid_jid = WhatsAppIngestService.get_lid_identity_from_message(message)
+        validation = WhatsAppIngestService.find_tutor_validation_by_alias(
+            "lid",
+            lid_value,
+        )
+        if validation is not None:
+            return validation
 
         contact = message.author_contact
         author_identity = str(
@@ -1292,10 +1397,34 @@ class WhatsAppIngestService:
 
         unique_exact_matches = {item.id: item for item in exact_matches}
         if len(unique_exact_matches) == 1:
-            return next(iter(unique_exact_matches.values()))
+            validation = next(iter(unique_exact_matches.values()))
+            WhatsAppIngestService.upsert_tutor_identity_alias(
+                validation.tutor_id,
+                "lid",
+                lid_value,
+                alias_jid=lid_jid,
+                contact=contact,
+                message=message,
+                group=group,
+                source="lid_name_group_exact",
+                confidence_score=95,
+            )
+            return validation
         unique_loose_matches = {item.id: item for item in loose_matches}
         if not unique_exact_matches and len(unique_loose_matches) == 1:
-            return next(iter(unique_loose_matches.values()))
+            validation = next(iter(unique_loose_matches.values()))
+            WhatsAppIngestService.upsert_tutor_identity_alias(
+                validation.tutor_id,
+                "lid",
+                lid_value,
+                alias_jid=lid_jid,
+                contact=contact,
+                message=message,
+                group=group,
+                source="lid_name_group_loose",
+                confidence_score=80,
+            )
+            return validation
         return None
 
     @staticmethod
@@ -1386,6 +1515,47 @@ class WhatsAppIngestService:
         if len(unique_matches) == 1:
             return next(iter(unique_matches.values()))
         return None
+
+    @staticmethod
+    def backfill_tutor_identity_aliases(limit: int | None = None) -> dict:
+        query = (
+            WhatsAppMessage.query.filter(WhatsAppMessage.group_id.isnot(None))
+            .order_by(WhatsAppMessage.sent_at.asc(), WhatsAppMessage.id.asc())
+        )
+        if limit:
+            query = query.limit(limit)
+        checked = 0
+        lid_messages = 0
+        linked = 0
+        existing = 0
+        aliases_before = {
+            (item.alias_type, item.alias_value)
+            for item in WhatsAppTutorIdentityAlias.query.all()
+        }
+        for message in query.all():
+            checked += 1
+            lid_value, _lid_jid = WhatsAppIngestService.get_lid_identity_from_message(
+                message
+            )
+            if not lid_value:
+                continue
+            lid_messages += 1
+            if ("lid", lid_value) in aliases_before:
+                existing += 1
+            validation = WhatsAppIngestService.find_validated_tutor_by_lid_alias(
+                message,
+                message.group,
+            )
+            if validation is not None:
+                linked += 1
+        db.session.commit()
+        return {
+            "checked_messages": checked,
+            "lid_messages": lid_messages,
+            "linked_messages": linked,
+            "existing_alias_hits": existing,
+            "alias_count": WhatsAppTutorIdentityAlias.query.count(),
+        }
 
     @staticmethod
     def find_validated_student_by_group(
@@ -1481,19 +1651,6 @@ class WhatsAppIngestService:
             ]
             if tutor_owned_candidates:
                 filtered_candidates = tutor_owned_candidates
-            else:
-                return {
-                    "student": student,
-                    "tutor": tutor,
-                    "subject": subject,
-                    "enrollment": None,
-                    "confidence": 70,
-                    "status": "unmatched",
-                    "note": (
-                        "Tutor matched from validated WhatsApp identity, "
-                        "but no active enrollment in this group belongs to that tutor."
-                    ),
-                }
 
         if subject is not None:
             subject_owned_candidates = [
@@ -1507,7 +1664,7 @@ class WhatsAppIngestService:
         if len(filtered_candidates) == 1:
             selected = filtered_candidates[0]
             selected_tutor = tutor or selected.tutor
-            selected_subject = subject or selected.subject
+            selected_subject = selected.subject
             note = (
                 "Enrollment matched from validated WhatsApp group student "
                 "and sender tutor identity."
@@ -1533,7 +1690,7 @@ class WhatsAppIngestService:
             return {
                 "student": student,
                 "tutor": selected_tutor,
-                "subject": subject or selected.subject,
+                "subject": selected.subject,
                 "enrollment": selected,
                 "confidence": 65,
                 "status": "matched",
@@ -1563,9 +1720,7 @@ class WhatsAppIngestService:
         if evaluation.attendance_session is not None:
             existing_link = evaluation.attendance_session
             if (
-                existing_link.enrollment_id == enrollment.id
-                and existing_link.tutor_id == tutor_id
-                and as_date(existing_link.session_date) == evaluation.attendance_date
+                as_date(existing_link.session_date) == evaluation.attendance_date
                 and existing_link.status == "attended"
             ):
                 return existing_link

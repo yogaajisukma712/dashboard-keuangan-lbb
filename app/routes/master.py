@@ -36,6 +36,7 @@ from app.models import (
     EnrollmentSchedule,
     Level,
     PricingRule,
+    RecruitmentCandidate,
     Student,
     StudentPayment,
     Subject,
@@ -216,6 +217,25 @@ def _build_tutor_weekly_schedule_grid(tutor_id: int | None):
         .group_by(AttendanceSession.enrollment_id)
         .all()
     )
+    availability_by_slot = {}
+    candidate = (
+        RecruitmentCandidate.query.filter_by(tutor_id=tutor_id)
+        .order_by(RecruitmentCandidate.signed_at.desc(), RecruitmentCandidate.id.desc())
+        .first()
+    )
+    if candidate:
+        for slot in candidate.availability_slots:
+            try:
+                weekday = int(slot.get("weekday"))
+                hour = int(slot.get("hour"))
+            except (AttributeError, TypeError, ValueError):
+                continue
+            state = slot.get("state")
+            if weekday in range(7) and hour in hour_slots and state in {
+                "available",
+                "unavailable",
+            }:
+                availability_by_slot[(hour, weekday)] = state
 
     schedules = (
         EnrollmentSchedule.query.join(Enrollment)
@@ -299,7 +319,14 @@ def _build_tutor_weekly_schedule_grid(tutor_id: int | None):
 
     for cell in cells.values():
         cell["has_latest"] = any(item["is_latest"] for item in cell["items"])
-        cell["availability"] = "filled" if cell["items"] else "unavailable" if cell["hour"] < 16 else "available"
+        cell["availability"] = (
+            "filled"
+            if cell["items"]
+            else availability_by_slot.get(
+                (cell["hour"], cell["weekday"]),
+                "unavailable" if cell["hour"] < 16 else "available",
+            )
+        )
         cell["items"].sort(
             key=lambda item: (
                 item["student_short_name"].lower(),

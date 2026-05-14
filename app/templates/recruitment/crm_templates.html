@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Template Kontrak & Offering{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="bi bi-file-earmark-text-fill text-primary me-2"></i>Template Kontrak & Offering</h4>
+    <p class="text-muted small mb-0">Editor HTML A4 yang dipakai saat admin mengirim offering dan kontrak ke pelamar.</p>
+  </div>
+  <div class="btn-group btn-group-sm">
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_candidates') }}">Pelamar</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_selected') }}">Pelamar Terpilih</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_interview') }}">Interview</a>
+    <a class="btn btn-primary" href="{{ url_for('recruitment.crm_templates') }}">Template</a>
+  </div>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row g-4">
+    <div class="col-xl-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="fw-bold mb-2">Editor Kontrak</h5>
+          <p class="text-muted small">Isi kontrak tutor dalam HTML. Placeholder Jinja akan diisi otomatis dari data pelamar.</p>
+          <textarea class="form-control font-monospace small" name="contract_template" rows="28" required>{{ contract_template }}</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="fw-bold mb-2">Editor Offering</h5>
+          <p class="text-muted small">Isi offering. Gunakan PDF offering sebagai acuan layout dan konten.</p>
+          <textarea class="form-control font-monospace small" name="offering_template" rows="28" required>{{ offering_template }}</textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mt-4">
+    <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <div class="fw-semibold mb-1">Placeholder tersedia</div>
+        <div class="d-flex flex-wrap gap-2">
+          {% for item in placeholders %}
+          <code class="bg-light border rounded px-2 py-1">{{ "{{ " }}{{ item }}{{ " }}" }}</code>
+          {% endfor %}
+        </div>
+      </div>
+      <button class="btn btn-primary" type="submit">
+        <i class="bi bi-save me-1"></i>Simpan Template
+      </button>
+    </div>
+  </div>
+</form>
+{% endblock %}

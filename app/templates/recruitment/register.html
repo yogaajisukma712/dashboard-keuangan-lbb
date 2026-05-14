@@ -1,0 +1,32 @@
+{% extends "base_auth.html" %}
+
+{% block title %}Daftar Akun Recruitment{% endblock %}
+
+{% block body %}
+<main class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-7 col-lg-5">
+      <div class="card border-0 shadow-lg">
+        <div class="card-body p-4 p-md-5">
+          <h1 class="h4 fw-bold mb-2">Daftar Akun Recruitment</h1>
+          <p class="text-muted small mb-4">Gunakan Gmail aktif untuk membuat akun recruitment dan mengisi data pendaftaran tutor.</p>
+          <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="form-label fw-semibold">Email Google/Gmail</label>
+            <input class="form-control form-control-lg" type="email" name="google_email" value="{{ google_email or '' }}" placeholder="nama@gmail.com" required>
+            <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">
+              <i class="bi bi-envelope-check me-2"></i>Mulai / Verifikasi Email
+            </button>
+          </form>
+          <div class="text-center mt-4">
+            <div class="text-muted small mb-2">Sudah punya akun recruitment?</div>
+            <a class="btn btn-outline-primary w-100" href="{{ url_for('recruitment.start') }}">
+              <i class="bi bi-box-arrow-in-right me-2"></i>Login Dashboard Recruitment
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}

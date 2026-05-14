@@ -69,6 +69,7 @@ TABLE_WHITELIST: set = {
     "whatsapp_evaluations",
     "whatsapp_student_group_validations",
     "whatsapp_student_validations",
+    "whatsapp_tutor_identity_aliases",
     "whatsapp_tutor_validations",
     # LAINNYA
     "student_invoices",
@@ -84,6 +85,7 @@ WHATSAPP_TABLES: set = {
     "whatsapp_evaluations",
     "whatsapp_student_group_validations",
     "whatsapp_student_validations",
+    "whatsapp_tutor_identity_aliases",
     "whatsapp_tutor_validations",
 }
 
@@ -121,6 +123,7 @@ EXPORT_TABLE_ORDER: list = [
     "whatsapp_evaluations",
     "whatsapp_student_group_validations",
     "whatsapp_student_validations",
+    "whatsapp_tutor_identity_aliases",
     "whatsapp_tutor_validations",
     # Lainnya
     "student_invoices",
@@ -201,6 +204,7 @@ _LABELS: dict = {
     "whatsapp_evaluations": "Evaluasi WhatsApp",
     "whatsapp_student_group_validations": "Validasi Grup Siswa WA",
     "whatsapp_student_validations": "Validasi Siswa WA",
+    "whatsapp_tutor_identity_aliases": "Alias Identitas Tutor WA",
     "whatsapp_tutor_validations": "Validasi Tutor WA",
     "student_invoices": "Invoice Siswa",
     "student_invoice_lines": "Detail Invoice Siswa",

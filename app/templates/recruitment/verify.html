@@ -1,0 +1,45 @@
+{% extends "base_auth.html" %}
+
+{% block title %}Validasi Dokumen Recruitment{% endblock %}
+
+{% block body %}
+<main class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-lg">
+        <div class="card-body p-4 p-md-5">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center" style="width:48px;height:48px">
+              <i class="bi bi-patch-check-fill fs-4"></i>
+            </div>
+            <div>
+              <h1 class="h4 fw-bold mb-1">Dokumen Valid</h1>
+              <div class="text-muted small">LBB Super Smart Recruitment</div>
+            </div>
+          </div>
+          <p class="mb-4">
+            Berkas offering atau kontrak ini valid diterbitkan oleh Lembaga Bimbingan Belajar Super Smart.
+            QR ini hanya menyatakan dokumen berasal dari sistem recruitment resmi.
+          </p>
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Nama</dt>
+            <dd class="col-sm-8">{{ candidate.name or "-" }}</dd>
+            <dt class="col-sm-4">Email</dt>
+            <dd class="col-sm-8">{{ candidate.google_email or "-" }}</dd>
+            <dt class="col-sm-4">Status</dt>
+            <dd class="col-sm-8">{{ candidate.status or "-" }}</dd>
+            <dt class="col-sm-4">Kontrak dikirim</dt>
+            <dd class="col-sm-8">
+              {{ candidate.contract_sent_at.strftime("%d %b %Y %H:%M") if candidate.contract_sent_at else "-" }}
+            </dd>
+            <dt class="col-sm-4">Ditandatangani peserta</dt>
+            <dd class="col-sm-8">
+              {{ candidate.signed_at.strftime("%d %b %Y %H:%M") if candidate.signed_at else "Belum ditandatangani" }}
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}

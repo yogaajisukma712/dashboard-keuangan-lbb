@@ -22,6 +22,8 @@ ENV/
 .env.docker
 .env.docker.local
 .continue/.env
+client_secret*.json
+credentials*.json
 # Keep .env.example and .env.railway committed
 
 # ── Logs & uploads ───────────────────────────────────────────────────────────
@@ -78,6 +80,9 @@ instance/
 .codex-workflow/*
 !.codex-workflow/planner_state.json
 !.codex-workflow/task_memory.jsonl
+.playwright-mcp/
+.repomap.tags.cache.v1/
+.serena/
 
 # ── Agent sync snapshots (tracked) ───────────────────────────────────────────
 !state/

@@ -409,6 +409,8 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert 'methods=["GET", "POST"]' in route_text
     assert "_build_schedule_change_payload" in route_text
     assert "_apply_weekly_schedule_grid_request" in route_text
+    assert "def admin_request_detail" in route_text
+    assert "_build_request_payload_items" in route_text
     assert "_build_tutor_weekly_schedule_grid(tutor_id)" in route_text
     assert "request_availability" in route_text
     assert "request_profile_update" in route_text
@@ -518,8 +520,14 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     admin_requests_text = (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_requests.html"
     ).read_text(encoding="utf-8")
-    assert "approval-schedule-table" in admin_requests_text
-    assert "schedule_request_rows(item.payload_json)" in admin_requests_text
+    assert "tutor_portal.admin_request_detail" in admin_requests_text
+    assert "payload_items(item.payload_json)" in admin_requests_text
+    admin_request_detail_text = (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_request_detail.html"
+    ).read_text(encoding="utf-8")
+    assert "approval-schedule-table" in admin_request_detail_text
+    assert "schedule_rows" in admin_request_detail_text
+    assert "payload_items" in admin_request_detail_text
     assert "setCell(currentOwner, 'available', 'Available')" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "schedule_change.html"
     ).read_text(encoding="utf-8")

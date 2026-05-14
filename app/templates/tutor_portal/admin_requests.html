@@ -4,56 +4,21 @@
 
 {% block head %}
 <style>
-  .approval-schedule-wrap {
-    overflow-x: auto;
+  .approval-detail-list {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
   }
-  .approval-schedule-table {
-    min-width: 920px;
-    table-layout: fixed;
-    font-size: 0.72rem;
-    border-color: #94a3b8;
+  .approval-detail-list li {
+    align-items: start;
+    display: grid;
+    gap: 0.35rem;
+    grid-template-columns: minmax(110px, 0.35fr) 1fr;
   }
-  .approval-schedule-table th {
-    background: #f8fafc;
-    color: #334155;
-    font-weight: 700;
-    border-color: #94a3b8;
-  }
-  .approval-schedule-time {
-    width: 64px;
-  }
-  .approval-schedule-cell {
-    height: 48px;
-    padding: 0.25rem;
-    border-color: #94a3b8;
-    vertical-align: top;
-  }
-  .approval-schedule-pill {
-    border: 1px solid rgba(15, 23, 42, 0.14);
-    border-radius: 6px;
-    color: #0f172a;
-    line-height: 1.15;
-    min-height: 36px;
-    padding: 0.25rem 0.35rem;
-  }
-  .approval-schedule-pill.is-available {
-    background: #86efac;
-  }
-  .approval-schedule-pill.is-unavailable {
-    background: #fca5a5;
-  }
-  .approval-schedule-pill.is-enrollment {
-    background: #fdba74;
-  }
-  .approval-schedule-pill.is-empty {
-    background: #f8fafc;
+  .approval-detail-list span:first-child {
     color: #64748b;
-  }
-  .approval-schedule-pill span {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-weight: 600;
   }
 </style>
 {% endblock %}
@@ -102,41 +67,20 @@
                 <span class="badge text-bg-success">Available: {{ item.payload_json.summary.available_count }}</span>
                 <span class="badge text-bg-danger">Tidak Available: {{ item.payload_json.summary.unavailable_count }}</span>
               </div>
-              <div class="approval-schedule-wrap">
-                <table class="table table-bordered align-middle approval-schedule-table mb-0">
-                  <thead>
-                    <tr>
-                      <th class="text-center approval-schedule-time">Jam</th>
-                      {% for day_name in weekday_names %}
-                      <th class="text-center">{{ day_name }}</th>
-                      {% endfor %}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for row in schedule_request_rows(item.payload_json) %}
-                    <tr>
-                      <th class="text-center approval-schedule-time">{{ "%02d.00"|format(row.hour) }}</th>
-                      {% for cell in row.cells %}
-                      <td class="approval-schedule-cell">
-                        <div class="approval-schedule-pill {{ cell.class }}">
-                          {% if cell.items %}
-                            {% for schedule_item in cell.items %}
-                            <span class="fw-semibold">{{ schedule_item.label }}</span>
-                            {% if schedule_item.meta %}<span class="text-muted">{{ schedule_item.meta }}</span>{% endif %}
-                            {% endfor %}
-                          {% else %}
-                            <span>Tidak diisi</span>
-                          {% endif %}
-                        </div>
-                      </td>
-                      {% endfor %}
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('tutor_portal.admin_request_detail', request_ref=item.public_id) }}">
+                <i class="bi bi-eye me-1"></i>Lihat Jadwal
+              </a>
               {% else %}
-              <pre class="mb-1 small bg-light border rounded p-2" style="white-space:pre-wrap">{{ item.payload_json }}</pre>
+              {% set details = payload_items(item.payload_json) %}
+              {% if details %}
+              <ul class="approval-detail-list small">
+                {% for detail in details %}
+                <li><span>{{ detail.label }}</span><span>{{ detail.value }}</span></li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <span class="text-muted small">Tidak ada detail tambahan.</span>
+              {% endif %}
               {% endif %}
               {% if item.notes %}<div class="text-muted">{{ item.notes }}</div>{% endif %}
             </td>

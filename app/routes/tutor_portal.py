@@ -1113,6 +1113,37 @@ def _build_schedule_request_display_rows(payload):
     return rows
 
 
+def _build_request_payload_items(payload):
+    if not isinstance(payload, dict):
+        return []
+
+    labels = {
+        "phone": "Nomor WhatsApp",
+        "address": "Alamat",
+        "bank_name": "Nama Bank",
+        "bank_account_number": "Nomor Rekening",
+        "account_holder_name": "Nama Pemilik Rekening",
+        "profile_photo_path": "Foto Profil",
+        "cv_file_path": "CV",
+        "color": "Warna Jadwal",
+        "date": "Tanggal",
+        "start_time": "Jam Mulai",
+        "end_time": "Jam Selesai",
+        "requested_day": "Hari Baru",
+        "requested_start_time": "Jam Mulai Baru",
+        "requested_end_time": "Jam Selesai Baru",
+    }
+    hidden_keys = {"mode", "slots", "summary", "weekday_names", "hour_slots"}
+    items = []
+    for key, value in payload.items():
+        if key in hidden_keys or value in (None, ""):
+            continue
+        if isinstance(value, (dict, list)):
+            value = json.dumps(value, ensure_ascii=False)
+        items.append({"label": labels.get(key, key.replace("_", " ").title()), "value": value})
+    return items
+
+
 def _apply_weekly_schedule_grid_request(portal_request, payload):
     tutor_id = portal_request.tutor_id
     enrollment_ids = {
@@ -1640,6 +1671,28 @@ def admin_requests():
         status=status,
         request_type_labels=REQUEST_TYPES,
         schedule_request_rows=_build_schedule_request_display_rows,
+        payload_items=_build_request_payload_items,
+        weekday_names=WEEKDAY_NAMES,
+    )
+
+
+@tutor_portal_bp.route("/admin/requests/<string:request_ref>")
+@login_required
+def admin_request_detail(request_ref):
+    try:
+        request_id = decode_public_id(request_ref, "tutor_portal_request")
+    except ValueError:
+        abort(404)
+    portal_request = TutorPortalRequest.query.get_or_404(request_id)
+    payload = portal_request.payload_json or {}
+    return render_template(
+        "tutor_portal/admin_request_detail.html",
+        item=portal_request,
+        request_type_label=REQUEST_TYPES.get(
+            portal_request.request_type, portal_request.request_type
+        ),
+        schedule_rows=_build_schedule_request_display_rows(payload),
+        payload_items=_build_request_payload_items(payload),
         weekday_names=WEEKDAY_NAMES,
     )
 

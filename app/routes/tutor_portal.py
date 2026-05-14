@@ -716,6 +716,29 @@ def _build_tutor_presensi_schedule_grid(tutor_id):
     }
 
 
+def _attach_meet_links_to_schedule_grid(schedule_grid):
+    enrollment_ids = set()
+    for row in schedule_grid.get("rows", []):
+        for cell in row.get("cells", []):
+            for item in cell.get("items", []):
+                enrollment_id = item.get("enrollment_id")
+                if not enrollment_id and item.get("enrollment_ref"):
+                    try:
+                        enrollment_id = decode_public_id(item["enrollment_ref"], "enrollment")
+                    except ValueError:
+                        enrollment_id = None
+                if enrollment_id:
+                    item["enrollment_id"] = enrollment_id
+                    enrollment_ids.add(enrollment_id)
+
+    meet_links = _active_meet_links_for_enrollments(enrollment_ids)
+    for row in schedule_grid.get("rows", []):
+        for cell in row.get("cells", []):
+            for item in cell.get("items", []):
+                item["meet_link"] = meet_links.get(item.get("enrollment_id"))
+    return schedule_grid
+
+
 class _ListPagination:
     def __init__(self, items, page, per_page):
         self.total = len(items)
@@ -1335,7 +1358,9 @@ def dashboard():
         .order_by(EnrollmentSchedule.day_of_week.asc(), EnrollmentSchedule.start_time.asc())
         .all()
     )
-    schedule_grid = _build_tutor_presensi_schedule_grid(tutor.id)
+    schedule_grid = _attach_meet_links_to_schedule_grid(
+        _build_tutor_weekly_schedule_grid(tutor.id)
+    )
     attendance_sessions, validation_map = _validated_tutor_attendance_sessions(
         tutor.id,
         attendance_period_start,

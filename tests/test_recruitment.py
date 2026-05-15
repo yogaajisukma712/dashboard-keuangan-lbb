@@ -37,8 +37,11 @@ def _valid_form_payload(**overrides):
 
 def _candidate():
     return SimpleNamespace(
+        google_email="candidate@gmail.com",
         email_verified=True,
         password_hash=None,
+        status="draft",
+        tutor_id=None,
         name="",
         phone="",
         address="",
@@ -52,6 +55,48 @@ def _candidate():
         cv_file_path=None,
         photo_file_path=None,
     )
+
+
+def test_recruitment_form_redirects_existing_candidate_to_dashboard(monkeypatch):
+    app = _make_app()
+    candidate = _candidate()
+    candidate.status = "submitted"
+    monkeypatch.setattr(recruitment, "_current_candidate", lambda: candidate)
+    monkeypatch.setattr(recruitment, "_tutor_for_email", lambda email: None)
+
+    with app.test_request_context(
+        "/recruitment/form",
+        method="GET",
+        headers={"Host": "recruitment.supersmart.click"},
+    ):
+        response = recruitment.form()
+
+    assert response.status_code == 302
+    assert response.location.endswith("/recruitment/dashboard")
+
+
+def test_recruitment_form_allows_dashboard_edit_mode(monkeypatch):
+    app = _make_app()
+    candidate = _candidate()
+    candidate.status = "submitted"
+    monkeypatch.setattr(recruitment, "_current_candidate", lambda: candidate)
+    monkeypatch.setattr(recruitment, "_tutor_for_email", lambda email: None)
+    monkeypatch.setattr(recruitment, "_teaching_option_choices", lambda: [])
+    monkeypatch.setattr(
+        recruitment,
+        "_build_candidate_availability_rows",
+        lambda candidate: {"summary": {"available_count": 0, "unavailable_count": 0}},
+    )
+    monkeypatch.setattr(recruitment, "render_template", lambda *args, **kwargs: "FORM")
+
+    with app.test_request_context(
+        "/recruitment/form?edit=1",
+        method="GET",
+        headers={"Host": "recruitment.supersmart.click"},
+    ):
+        response = recruitment.form()
+
+    assert response == "FORM"
 
 
 def test_recruitment_form_rejects_unlisted_university(monkeypatch):

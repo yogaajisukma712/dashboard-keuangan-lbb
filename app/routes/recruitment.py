@@ -345,6 +345,44 @@ def _fetch_google_userinfo(access_token):
         return json.loads(response.read().decode("utf-8"))
 
 
+def _tutor_for_email(email):
+    email = _normalize_email(email)
+    if not email:
+        return None
+    return Tutor.query.filter(db.func.lower(Tutor.email) == email).first()
+
+
+def _candidate_has_submitted_form(candidate):
+    return bool(
+        candidate and getattr(candidate, "status", "draft") and candidate.status != "draft"
+    )
+
+
+def _sync_candidate_from_tutor(candidate, tutor):
+    if not candidate or not tutor:
+        return
+    candidate.tutor_id = candidate.tutor_id or tutor.id
+    candidate.email_verified = True
+    candidate.name = candidate.name or tutor.name
+    candidate.phone = candidate.phone or tutor.phone
+    candidate.address = candidate.address or tutor.address
+    candidate.cv_file_path = candidate.cv_file_path or tutor.cv_file_path
+    candidate.photo_file_path = candidate.photo_file_path or tutor.profile_photo_path
+    if candidate.status == "draft":
+        candidate.status = "submitted"
+    candidate.updated_at = datetime.utcnow()
+
+
+def _candidate_has_dashboard_access(candidate):
+    if not candidate:
+        return False
+    if _candidate_has_submitted_form(candidate):
+        return True
+    if getattr(candidate, "tutor_id", None):
+        return True
+    return _tutor_for_email(getattr(candidate, "google_email", "")) is not None
+
+
 def _current_candidate():
     candidate_id = session.get("recruitment_candidate_id")
     if not candidate_id:
@@ -861,15 +899,19 @@ def google_callback():
     candidate = RecruitmentCandidate.query.filter(
         db.func.lower(RecruitmentCandidate.google_email) == email
     ).first()
+    tutor = _tutor_for_email(email)
     if not candidate:
         candidate = RecruitmentCandidate(google_email=email)
         db.session.add(candidate)
         db.session.flush()
     candidate.google_email = email
     candidate.email_verified = True
+    _sync_candidate_from_tutor(candidate, tutor)
     candidate.updated_at = datetime.utcnow()
     db.session.commit()
     session["recruitment_candidate_id"] = candidate.id
+    if _candidate_has_dashboard_access(candidate):
+        return redirect(url_for("recruitment.dashboard"))
     return redirect(url_for("recruitment.form"))
 
 
@@ -907,6 +949,13 @@ def form():
     if not candidate:
         flash("Mulai dari login Google/Gmail terlebih dahulu.", "warning")
         return redirect(url_for("recruitment.start"))
+    if request.method == "GET":
+        tutor = _tutor_for_email(getattr(candidate, "google_email", ""))
+        if tutor and not getattr(candidate, "tutor_id", None):
+            _sync_candidate_from_tutor(candidate, tutor)
+            db.session.commit()
+        if request.args.get("edit") != "1" and _candidate_has_dashboard_access(candidate):
+            return redirect(url_for("recruitment.dashboard"))
     if request.method == "POST":
         if not candidate.email_verified:
             flash("Verifikasi email Google/Gmail terlebih dahulu sebelum mengirim data.", "warning")

@@ -19,6 +19,14 @@ from app.models import Enrollment, Subject
 from app.models import Tutor
 
 
+def _attendance_enrollment_label(enrollment):
+    return (
+        f"{enrollment.student.name} - "
+        f"{enrollment.subject.name} - "
+        f"{enrollment.tutor.name}"
+    )
+
+
 class AttendanceSessionForm(FlaskForm):
     """Form for recording attendance session"""
 
@@ -37,11 +45,14 @@ class AttendanceSessionForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        enrollments = Enrollment.query.filter_by(status="active").all()
+        enrollments = sorted(
+            Enrollment.query.filter_by(status="active").all(),
+            key=lambda enrollment: _attendance_enrollment_label(enrollment).casefold(),
+        )
         self.enrollment_id.choices = [
             (
                 enrollment.id,
-                f"{enrollment.student.name} - {enrollment.subject.name} - {enrollment.tutor.name}",
+                _attendance_enrollment_label(enrollment),
             )
             for enrollment in enrollments
         ]
@@ -53,7 +64,9 @@ class AttendanceSessionForm(FlaskForm):
 
         self.subject_id.choices = [(0, "-- Ikuti subject dari enrollment --")] + [
             (subject.id, subject.name)
-            for subject in Subject.query.filter_by(is_active=True).all()
+            for subject in Subject.query.filter_by(is_active=True)
+            .order_by(Subject.name.asc())
+            .all()
         ]
 
 

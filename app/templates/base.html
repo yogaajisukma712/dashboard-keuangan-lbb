@@ -1226,21 +1226,66 @@
                     return String(option.textContent || "").replace(/\s+/g, " ").trim();
                 }
 
+                function shouldSortSelectOptions(select) {
+                    if (select.dataset.sortOptions === "none") return false;
+                    if (select.dataset.sortOptions === "az") return true;
+
+                    var fieldName = String(select.name || select.id || "").toLowerCase();
+                    if (/(month|year|per_page|page_size|status|sort|method|billing_type|period|date)/.test(fieldName)) {
+                        return false;
+                    }
+
+                    return true;
+                }
+
+                function sortSelectOptions(select) {
+                    if (!shouldSortSelectOptions(select)) return;
+
+                    var selectedValue = select.value;
+                    var options = asArray(select.options);
+                    var placeholderOptions = options.filter(function (option) {
+                        return option.value === "";
+                    });
+                    var valueOptions = options.filter(function (option) {
+                        return option.value !== "";
+                    });
+
+                    valueOptions.sort(function (left, right) {
+                        return optionText(left).localeCompare(optionText(right), "id", {
+                            sensitivity: "base",
+                            numeric: true,
+                        });
+                    });
+
+                    select.replaceChildren();
+                    placeholderOptions.concat(valueOptions).forEach(function (option) {
+                        select.appendChild(option);
+                    });
+                    select.value = selectedValue;
+                }
+
                 function enhanceSearchableSelect(select) {
                     if (select.dataset.lbbSearchableReady === "1" || select.multiple) return;
+                    sortSelectOptions(select);
                     select.dataset.lbbSearchableReady = "1";
                     select.classList.add("visually-hidden");
                     select.setAttribute("tabindex", "-1");
 
                     var wrapper = document.createElement("div");
                     wrapper.className = "lbb-searchable-select";
+                    if (select.classList.contains("w-auto")) wrapper.classList.add("w-auto");
+                    if (select.style.width) wrapper.style.width = select.style.width;
+                    if (select.style.minWidth) wrapper.style.minWidth = select.style.minWidth;
 
                     var input = document.createElement("input");
                     input.type = "search";
                     input.className = "form-control";
+                    if (select.classList.contains("form-select-sm")) input.classList.add("form-control-sm");
+                    if (select.classList.contains("form-select-lg")) input.classList.add("form-control-lg");
                     input.autocomplete = "off";
                     input.placeholder = select.dataset.placeholder || "Cari...";
                     input.setAttribute("aria-label", select.dataset.label || input.placeholder);
+                    input.disabled = select.disabled;
 
                     var menu = document.createElement("div");
                     menu.className = "lbb-searchable-select-menu d-none";
@@ -1309,6 +1354,11 @@
                     select.addEventListener("change", function () {
                         input.value = selectedLabel();
                     });
+                    select.addEventListener("lbb:refresh-searchable", function () {
+                        sortSelectOptions(select);
+                        input.value = selectedLabel();
+                        renderOptions();
+                    });
                 }
 
                 function bindFilterRegions(root) {
@@ -1352,7 +1402,7 @@
                 function initLbbFilterUi(root) {
                     root = root || document;
                     asArray(root.querySelectorAll("form[data-lbb-filter-form]")).forEach(bindFilterForm);
-                    asArray(root.querySelectorAll("select[data-searchable-select]")).forEach(enhanceSearchableSelect);
+                    asArray(root.querySelectorAll("select.form-select, select[data-searchable-select]")).forEach(enhanceSearchableSelect);
                     bindFilterRegions(root);
                     bindQuickFilters(root);
                 }

@@ -55,6 +55,8 @@ set is_edit = session.session_date is defined %} {# ── Breadcrumb
                             <span class="text-danger">*</span>
                         </label>
                         {{ form.enrollment_id(class_="form-select",
+                        data_placeholder="Cari siswa, mapel, atau tutor...",
+                        data_label="Cari siswa, mapel, atau tutor",
                         id=form.enrollment_id.id, required=true) }} {% if
                         form.enrollment_id.errors %}
                         <div class="invalid-feedback d-block">
@@ -77,6 +79,7 @@ set is_edit = session.session_date is defined %} {# ── Breadcrumb
                             <span class="text-danger">*</span>
                         </label>
                         {{ form.tutor_id(class_="form-select",
+                        data_placeholder="Cari tutor...", data_label="Cari tutor",
                         id=form.tutor_id.id, required=true) }} {% if
                         form.tutor_id.errors %}
                         <div class="invalid-feedback d-block">
@@ -324,6 +327,7 @@ set is_edit = session.session_date is defined %} {# ── Breadcrumb
       const mappedTutorId = ENROLLMENT_TUTOR_MAP[String(enrollmentId)] || ENROLLMENT_TUTOR_MAP[Number(enrollmentId)];
       if (mappedTutorId) {
         elTutorSelect.value = String(mappedTutorId);
+        elTutorSelect.dispatchEvent(new Event('change', { bubbles: true }));
       }
     }
 

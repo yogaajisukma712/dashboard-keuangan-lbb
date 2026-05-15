@@ -69,6 +69,18 @@ def _generate_receipt_number(payment_date):
         next_sequence += 1
 
 
+def _payment_enrollment_label(enrollment):
+    """Return the label used in payment enrollment dropdowns."""
+    return f"{enrollment.subject.name} — {enrollment.tutor.name}"
+
+
+def _sort_payment_enrollments(enrollments):
+    return sorted(
+        enrollments,
+        key=lambda enrollment: _payment_enrollment_label(enrollment).casefold(),
+    )
+
+
 def _sync_payment_lines_from_form(payment):
     """Replace payment lines from submitted enrollment/session rows."""
     enrollment_ids = request.form.getlist("enrollment_id[]")
@@ -277,8 +289,8 @@ def add_payment():
             db.session.rollback()
             flash(f"Error: {str(e)}", "danger")
 
-    students = Student.query.filter_by(is_active=True).all()
-    enrollments = Enrollment.query.filter_by(status="active").all()
+    students = Student.query.filter_by(is_active=True).order_by(Student.name.asc()).all()
+    enrollments = _sort_payment_enrollments(Enrollment.query.filter_by(status="active").all())
 
     return render_template(
         "payments/form.html",
@@ -325,8 +337,8 @@ def edit_payment(payment_ref):
     return render_template(
         "payments/form.html",
         payment=payment,
-        students=Student.query.filter_by(is_active=True).all(),
-        enrollments=payment.student.enrollments.all(),
+        students=Student.query.filter_by(is_active=True).order_by(Student.name.asc()).all(),
+        enrollments=_sort_payment_enrollments(payment.student.enrollments.all()),
     )
 
 
@@ -402,9 +414,9 @@ def student_payment_history(student_ref):
 def get_student_enrollments(student_ref):
     """API endpoint to get student enrollments (for AJAX)"""
     student = _get_student_by_ref_or_404(student_ref)
-    enrollments = Enrollment.query.filter_by(
-        student_id=student.id, status="active"
-    ).all()
+    enrollments = _sort_payment_enrollments(
+        Enrollment.query.filter_by(student_id=student.id, status="active").all()
+    )
 
     return jsonify(
         [
@@ -412,6 +424,7 @@ def get_student_enrollments(student_ref):
                 "id": e.id,
                 "subject_name": e.subject.name,
                 "tutor_name": e.tutor.name,
+                "label": _payment_enrollment_label(e),
                 "student_rate": float(e.student_rate_per_meeting),
                 "tutor_rate": float(e.tutor_rate_per_meeting),
             }

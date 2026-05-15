@@ -53,6 +53,7 @@
             Siswa <span class="text-danger">*</span>
           </label>
           <select name="student_ref" id="student_ref" class="form-select" required
+                  {% if not payment %}data-searchable-select data-placeholder="Cari nama siswa..." data-label="Cari siswa"{% endif %}
                   {% if payment %}disabled{% endif %}>
             <option value="">-- Pilih Siswa --</option>
             {% for student in students %}
@@ -185,7 +186,8 @@
                 <tr class="line-row" data-index="{{ loop.index0 }}">
                   <td class="ps-3 text-center text-muted line-number">{{ loop.index }}</td>
                   <td>
-                    <select name="enrollment_id[]" class="form-select form-select-sm enrollment-select" required>
+                    <select name="enrollment_id[]" class="form-select form-select-sm enrollment-select" required
+                            data-searchable-select data-placeholder="Cari mapel atau tutor..." data-label="Cari enrollment">
                       <option value="">-- Pilih Enrollment --</option>
                       {% for enr in enrollments %}
                       <option value="{{ enr.id }}"
@@ -382,12 +384,20 @@
       opt.value                     = enr.id;
       opt.dataset.studentRate        = enr.student_rate;
       opt.dataset.tutorRate          = enr.tutor_rate;
-      opt.dataset.label              = enr.subject_name + ' — ' + enr.tutor_name;
-      opt.textContent = enr.subject_name + ' — ' + enr.tutor_name
+      opt.dataset.label              = enr.label || (enr.subject_name + ' — ' + enr.tutor_name);
+      opt.textContent = opt.dataset.label
                       + ' (Rp ' + Number(enr.student_rate).toLocaleString('id-ID') + '/sesi)';
       if (parseInt(currentVal) === enr.id) opt.selected = true;
       select.appendChild(opt);
     });
+    select.dispatchEvent(new Event('lbb:refresh-searchable', { bubbles: true }));
+    initDynamicSearchableSelect(select);
+  }
+
+  function initDynamicSearchableSelect(select) {
+    if (window.LbbFilterUi && typeof window.LbbFilterUi.init === 'function') {
+      window.LbbFilterUi.init(select.parentElement || document);
+    }
   }
 
   /* ── Handle enrollment select change di satu baris ─────────────────── */
@@ -426,7 +436,8 @@
     tr.innerHTML = `
       <td class="ps-3 text-center text-muted line-number"></td>
       <td>
-        <select name="enrollment_id[]" class="form-select form-select-sm enrollment-select" required>
+        <select name="enrollment_id[]" class="form-select form-select-sm enrollment-select" required
+                data-searchable-select data-placeholder="Cari mapel atau tutor..." data-label="Cari enrollment">
           <option value="">-- Pilih Enrollment --</option>
         </select>
         <div class="mt-1">

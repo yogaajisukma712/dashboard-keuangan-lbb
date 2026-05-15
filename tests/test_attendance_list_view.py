@@ -4,6 +4,7 @@ from pathlib import Path
 from flask import Flask
 
 from app import db
+from app.forms.attendance_forms import AttendanceSessionForm
 from app.models import (
     AttendanceSession,
     Curriculum,
@@ -306,6 +307,88 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert "attendance.delete_attendance" in template_text
     assert "attendance.export_attendance_csv" in template_text
     assert "Export CSV" in template_text
+
+
+def test_attendance_form_template_has_searchable_attendance_selects():
+    project_root = Path(__file__).resolve().parents[1]
+    template_text = (
+        project_root / "app" / "templates" / "attendance" / "form.html"
+    ).read_text(encoding="utf-8")
+
+    assert 'data_placeholder="Cari siswa, mapel, atau tutor..."' in template_text
+    assert 'data_label="Cari siswa, mapel, atau tutor"' in template_text
+    assert 'data_placeholder="Cari tutor..."' in template_text
+    assert 'data_label="Cari tutor"' in template_text
+
+
+def test_attendance_form_dropdown_choices_are_sorted_a_to_z():
+    app = _make_test_app()
+    app.config["WTF_CSRF_ENABLED"] = False
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        subject_z = Subject(name="Zoologi", is_active=True)
+        subject_a = Subject(name="Aljabar", is_active=True)
+        tutor_z = Tutor(tutor_code="TTR-901", name="Zaki", is_active=True)
+        tutor_a = Tutor(tutor_code="TTR-902", name="Alya", is_active=True)
+        student_z = Student(student_code="STD-901", name="Zahra")
+        student_a = Student(student_code="STD-902", name="Adit")
+        db.session.add_all(
+            [
+                curriculum,
+                level,
+                subject_z,
+                subject_a,
+                tutor_z,
+                tutor_a,
+                student_z,
+                student_a,
+            ]
+        )
+        db.session.flush()
+        db.session.add_all(
+            [
+                Enrollment(
+                    student_id=student_z.id,
+                    subject_id=subject_z.id,
+                    tutor_id=tutor_z.id,
+                    curriculum_id=curriculum.id,
+                    level_id=level.id,
+                    grade="10",
+                    student_rate_per_meeting=150000,
+                    tutor_rate_per_meeting=80000,
+                    status="active",
+                ),
+                Enrollment(
+                    student_id=student_a.id,
+                    subject_id=subject_a.id,
+                    tutor_id=tutor_a.id,
+                    curriculum_id=curriculum.id,
+                    level_id=level.id,
+                    grade="10",
+                    student_rate_per_meeting=150000,
+                    tutor_rate_per_meeting=80000,
+                    status="active",
+                ),
+            ]
+        )
+        db.session.commit()
+
+        with app.test_request_context("/attendance/add"):
+            form = AttendanceSessionForm()
+
+    assert [label for _, label in form.enrollment_id.choices] == [
+        "Adit - Aljabar - Alya",
+        "Zahra - Zoologi - Zaki",
+    ]
+    assert [label for _, label in form.tutor_id.choices] == ["Alya", "Zaki"]
+    assert [label for _, label in form.subject_id.choices] == [
+        "-- Ikuti subject dari enrollment --",
+        "Aljabar",
+        "Zoologi",
+    ]
 
 
 def test_attendance_form_template_contains_manual_tutor_selector():

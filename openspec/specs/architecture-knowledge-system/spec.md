@@ -20,6 +20,11 @@ The project SHALL document critical business flows as end-to-end integration blu
 - **THEN** the related blueprint SHALL be checked for impacted files and invariants
 - **AND** any discovered drift between blueprint and code SHALL be fixed by updating the blueprint or correcting the code
 
+#### Scenario: Auditing incomplete coverage
+- **WHEN** a global feature is only mentioned in OpenSpec or C4 but lacks an end-to-end blueprint
+- **THEN** it SHALL be tracked in `docs/architecture/blueprint-coverage-audit.md`
+- **AND** it SHALL be detailed before risky implementation in that feature area
+
 ### Requirement: Decision records for irreversible choices
 The project SHALL use ADR files for durable architecture and business-rule decisions that future agents must not casually reverse.
 

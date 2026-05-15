@@ -32,6 +32,12 @@ For small isolated UI copy changes, read only the affected file. For anything in
 | Enrollment to schedule to attendance | `docs/blueprints/enrollment-to-schedule-to-attendance.md` | Attendance loses subject, tutor, fee, or quota context. |
 | WhatsApp attendance to presensi | `docs/blueprints/whatsapp-attendance-to-presensi.md` | Bot evidence creates duplicate or incorrect attendance rows. |
 | Closing to dashboard balance | `docs/blueprints/closing-to-dashboard-balance.md` | Opening balance, payable, and profit drift across months. |
+| Recruitment to contract to tutor | `docs/blueprints/recruitment-to-contract-to-tutor.md` | Candidate status, contract signature, and tutor creation drift. |
+| Tutor dashboard to SS Meet | `docs/blueprints/tutor-dashboard-to-ss-meet.md` | Tutor-scoped schedules and external meet links break or leak scope. |
+
+Coverage audit and next detailing queue:
+
+- `docs/architecture/blueprint-coverage-audit.md`
 
 ## Maintenance Rules
 

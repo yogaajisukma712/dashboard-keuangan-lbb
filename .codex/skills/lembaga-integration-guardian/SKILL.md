@@ -40,6 +40,10 @@ Use these blueprint matches:
 - Enrollment, schedule, attendance context, bulk import order: `docs/blueprints/enrollment-to-schedule-to-attendance.md`
 - WhatsApp bot, review, attendance evidence, credentials: `docs/blueprints/whatsapp-attendance-to-presensi.md`
 - Dashboard, closing, opening balance, profit, payable: `docs/blueprints/closing-to-dashboard-balance.md`
+- Recruitment, pelamar dashboard, contract, candidate-to-tutor: `docs/blueprints/recruitment-to-contract-to-tutor.md`
+- Tutor dashboard, SS Meet links, portal requests: `docs/blueprints/tutor-dashboard-to-ss-meet.md`
+
+If no dedicated blueprint exists yet, read `docs/architecture/blueprint-coverage-audit.md` and treat the feature as a documentation gap to close before risky implementation.
 
 ## Pre-Edit Report
 
@@ -90,6 +94,8 @@ Add focused checks based on risk:
 - Payment/quota/invoice: quota and invoice tests.
 - Attendance/payroll/reconciliation: attendance and payroll tests.
 - Tutor portal: tutor portal tests and container bootstrap.
+- Recruitment/contract: recruitment route/template tests and secret-redacted mail/WhatsApp checks.
+- SS Meet: tutor portal tests plus secret-redacted SS Meet configuration checks.
 - WhatsApp: bot/session status and secret-redacted logs.
 - Docker-visible changes: rebuild/restart affected service and check status.
 

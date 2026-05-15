@@ -25,5 +25,7 @@ Every critical-flow blueprint should include:
 3. `enrollment-to-schedule-to-attendance.md`
 4. `whatsapp-attendance-to-presensi.md`
 5. `closing-to-dashboard-balance.md`
+6. `recruitment-to-contract-to-tutor.md`
+7. `tutor-dashboard-to-ss-meet.md`
 
 When a future change discovers a missing dependency, update the related blueprint before or with the code fix.

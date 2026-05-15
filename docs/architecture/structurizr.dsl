@@ -14,6 +14,10 @@ workspace "Aplikasi Lembaga LBB Super Smart" "Long-term architecture map for fin
         services = component "Services" "Business calculations and workflows under app/services."
         models = component "Models" "SQLAlchemy entities under app/models."
         templates = component "Templates" "Jinja templates under app/templates."
+        auth = component "Auth Boundary" "Admin login, logout, registration, Flask-Login session, and safe redirects."
+        dataManager = component "Data Manager" "Whitelisted table editor plus SQL export/restore admin surface."
+        imports = component "Import Services" "Bulk CSV and legacy data import paths."
+        reports = component "Reporting" "Monthly, tutor, student, reconciliation, Excel, and PDF reporting."
       }
 
       tutorWeb = container "Tutor Portal" "Tutor-facing Flask portal for login, dashboard, schedule requests, uploads, and meeting links." "Flask, Jinja"
@@ -43,6 +47,11 @@ workspace "Aplikasi Lembaga LBB Super Smart" "Long-term architecture map for fin
     routes -> templates "Renders server-side UI"
     services -> models "Calculates from canonical records"
     templates -> routes "Submits forms and follows links"
+    auth -> models "Reads/writes User records"
+    routes -> auth "Protects admin workflows"
+    dataManager -> models "Mutates whitelisted database rows"
+    imports -> models "Creates or updates canonical records"
+    reports -> services "Uses reporting and domain services"
   }
 
   views {

@@ -42,6 +42,13 @@ Use these blueprint matches:
 - Dashboard, closing, opening balance, profit, payable: `docs/blueprints/closing-to-dashboard-balance.md`
 - Recruitment, pelamar dashboard, contract, candidate-to-tutor: `docs/blueprints/recruitment-to-contract-to-tutor.md`
 - Tutor dashboard, SS Meet links, portal requests: `docs/blueprints/tutor-dashboard-to-ss-meet.md`
+- Tutor portal credentials, onboarding, request review, approved requests: `docs/blueprints/tutor-portal-credentials-and-requests.md`
+- WhatsApp management, session backup/restore, group/contact sync: `docs/blueprints/whatsapp-management-session-backup.md`
+- Data manager table editor, SQL export, SQL restore: `docs/blueprints/data-manager-export-restore-table-editor.md`
+- Bulk upload, CSV import order, legacy imports: `docs/blueprints/bulk-upload-import-order.md`
+- Auth, admin login, logout, registration, safe redirects: `docs/blueprints/auth-admin-session-security.md`
+- Income/expense cash movement: `docs/blueprints/income-expense-cash-movement.md`
+- Reports and exports: `docs/blueprints/reports-and-exports.md`
 
 If no dedicated blueprint exists yet, read `docs/architecture/blueprint-coverage-audit.md` and treat the feature as a documentation gap to close before risky implementation.
 
@@ -97,6 +104,10 @@ Add focused checks based on risk:
 - Recruitment/contract: recruitment route/template tests and secret-redacted mail/WhatsApp checks.
 - SS Meet: tutor portal tests plus secret-redacted SS Meet configuration checks.
 - WhatsApp: bot/session status and secret-redacted logs.
+- Data manager: whitelist/read-only route checks and backup-before-restore discipline.
+- Bulk import: safe sample import and downstream quota/attendance/payroll/dashboard checks.
+- Auth: safe redirect and anonymous/authenticated access checks.
+- Reports: visible report vs export comparison.
 - Docker-visible changes: rebuild/restart affected service and check status.
 
 When the user asks to push, commit and push after verification.

@@ -34,6 +34,13 @@ For small isolated UI copy changes, read only the affected file. For anything in
 | Closing to dashboard balance | `docs/blueprints/closing-to-dashboard-balance.md` | Opening balance, payable, and profit drift across months. |
 | Recruitment to contract to tutor | `docs/blueprints/recruitment-to-contract-to-tutor.md` | Candidate status, contract signature, and tutor creation drift. |
 | Tutor dashboard to SS Meet | `docs/blueprints/tutor-dashboard-to-ss-meet.md` | Tutor-scoped schedules and external meet links break or leak scope. |
+| Tutor portal credentials and requests | `docs/blueprints/tutor-portal-credentials-and-requests.md` | Credential delivery, request review, and approved schedule mutation drift. |
+| WhatsApp management and backup | `docs/blueprints/whatsapp-management-session-backup.md` | Bot session artifacts, backups, and sync leak or drift. |
+| Data manager export/restore/table editor | `docs/blueprints/data-manager-export-restore-table-editor.md` | Generic table editor or restore corrupts canonical business records. |
+| Bulk upload/import order | `docs/blueprints/bulk-upload-import-order.md` | Imports create duplicates, skip dependencies, or break totals. |
+| Auth/admin session security | `docs/blueprints/auth-admin-session-security.md` | Unsafe redirects, exposed admin routes, or weak session handling. |
+| Income/expense cash movement | `docs/blueprints/income-expense-cash-movement.md` | Cash movement diverges from dashboard, closing, and reports. |
+| Reports and exports | `docs/blueprints/reports-and-exports.md` | Visible reports and exported files diverge. |
 
 Coverage audit and next detailing queue:
 

@@ -27,5 +27,12 @@ Every critical-flow blueprint should include:
 5. `closing-to-dashboard-balance.md`
 6. `recruitment-to-contract-to-tutor.md`
 7. `tutor-dashboard-to-ss-meet.md`
+8. `tutor-portal-credentials-and-requests.md`
+9. `whatsapp-management-session-backup.md`
+10. `data-manager-export-restore-table-editor.md`
+11. `bulk-upload-import-order.md`
+12. `auth-admin-session-security.md`
+13. `income-expense-cash-movement.md`
+14. `reports-and-exports.md`
 
 When a future change discovers a missing dependency, update the related blueprint before or with the code fix.

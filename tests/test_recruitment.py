@@ -54,6 +54,11 @@ def _candidate():
         availability_json=None,
         cv_file_path=None,
         photo_file_path=None,
+        contract_text=None,
+        offering_text=None,
+        contract_sent_at=None,
+        signed_at=None,
+        signature_data_url=None,
     )
 
 
@@ -97,6 +102,103 @@ def test_recruitment_form_allows_dashboard_edit_mode(monkeypatch):
         response = recruitment.form()
 
     assert response == "FORM"
+
+
+def test_bypass_tutor_sees_profile_form(monkeypatch):
+    app = _make_app()
+    candidate = _candidate()
+    tutor = SimpleNamespace(id=7, name="Tutor Bypass")
+    captured = {}
+    monkeypatch.setattr(recruitment, "_current_candidate", lambda: candidate)
+    monkeypatch.setattr(recruitment, "_tutor_for_email", lambda email: tutor)
+    monkeypatch.setattr(
+        recruitment,
+        "_sync_candidate_from_tutor",
+        lambda c, t: setattr(c, "tutor_id", t.id),
+    )
+    monkeypatch.setattr(recruitment, "_teaching_option_choices", lambda: [])
+    monkeypatch.setattr(
+        recruitment,
+        "_build_candidate_availability_rows",
+        lambda candidate: {"rows": [], "weekday_names": []},
+    )
+
+    def fake_render_template(template, **kwargs):
+        captured.update(kwargs)
+        return "FORM"
+
+    monkeypatch.setattr(recruitment, "render_template", fake_render_template)
+
+    with app.test_request_context(
+        "/recruitment/form",
+        method="GET",
+        headers={"Host": "recruitment.supersmart.click"},
+    ):
+        response = recruitment.form()
+
+    assert response == "FORM"
+    assert captured["is_bypass_profile"] is True
+    assert captured["form_title"] == "Profile Pelamar"
+    assert captured["submit_label"] == "Kirim Profile"
+
+
+def test_bypass_tutor_profile_submit_generates_contract(monkeypatch):
+    app = _make_app()
+    candidate = _candidate()
+    candidate.name = "Tutor Bypass"
+    candidate.phone = "08123456789"
+    candidate.address = "Surabaya"
+    candidate.age = 25
+    candidate.gender = "female"
+    candidate.last_education_level = "S1"
+    candidate.university_name = "Universitas Airlangga"
+    candidate.cv_file_path = "existing/cv.pdf"
+    candidate.photo_file_path = "existing/photo.jpg"
+    candidate.tutor_id = 7
+    tutor = SimpleNamespace(
+        id=7,
+        name="Tutor Bypass",
+        phone=None,
+        email="candidate@gmail.com",
+        address=None,
+        profile_photo_path=None,
+        cv_file_path=None,
+        status="active",
+        is_active=True,
+        portal_email_verified=True,
+        portal_email_verified_at=None,
+        updated_at=None,
+    )
+    monkeypatch.setattr(recruitment, "_current_candidate", lambda: candidate)
+    monkeypatch.setattr(recruitment, "_tutor_for_email", lambda email: tutor)
+    monkeypatch.setattr(recruitment, "_bypass_tutor_for_candidate", lambda candidate: tutor)
+    monkeypatch.setattr(recruitment, "_build_offering_text", lambda candidate: "OFFERING")
+    monkeypatch.setattr(recruitment.db.session, "commit", lambda: None)
+    monkeypatch.setattr(
+        recruitment, "_teaching_option_choices", lambda: ["Matematika SD Nasional"]
+    )
+    monkeypatch.setattr(
+        recruitment,
+        "_candidate_availability_slots_from_form",
+        lambda form: [{"day": 0, "hour": 16}],
+    )
+    monkeypatch.setattr(recruitment, "_save_candidate_upload", lambda *args: None)
+
+    with app.test_request_context(
+        "/recruitment/form",
+        method="POST",
+        data=_valid_form_payload(),
+        headers={"Host": "recruitment.supersmart.click"},
+    ):
+        response = recruitment.form()
+
+    assert response.status_code == 302
+    assert response.location.endswith("/recruitment/dashboard")
+    assert candidate.status == "contract_sent"
+    assert candidate.contract_text
+    assert candidate.offering_text
+    assert candidate.contract_sent_at
+    assert candidate.tutor_id == tutor.id
 
 
 def test_recruitment_form_rejects_unlisted_university(monkeypatch):
@@ -290,9 +392,12 @@ def test_recruitment_crm_source_is_registered():
     assert "_ensure_tutor_portal_credentials(tutor)" in route_text
     assert "tutor.portal_password_hash = candidate.password_hash" in route_text
     assert "tutor.portal_must_change_password = False" in route_text
-    assert '@recruitment_bp.route("/dashboard/masuk-tutor", methods=["GET", "POST"])' in route_text
+    assert '@recruitment_bp.route("/dashboard/tutor")' in route_text
     assert "def enter_tutor_dashboard" in route_text
-    assert "return _redirect_with_legacy_session_cleanup(_tutor_portal_url(\"/\"))" in route_text
+    assert "return redirect(url_for(\"tutor_portal.dashboard\"))" in route_text
+    assert "def _is_bypass_tutor_candidate" in route_text
+    assert "Profile Pelamar" in route_text
+    assert "Kirim Profile" in route_text
     assert "RECRUITMENT_BASE_URL" in config_text
     assert "RECRUITMENT_HOST" in config_text
     assert "SESSION_COOKIE_DOMAIN" in config_text

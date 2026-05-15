@@ -385,6 +385,56 @@ def _candidate_has_dashboard_access(candidate):
     return _tutor_for_email(getattr(candidate, "google_email", "")) is not None
 
 
+def _bypass_tutor_for_candidate(candidate):
+    if not candidate:
+        return None
+    if candidate.tutor_id:
+        return db.session.get(Tutor, candidate.tutor_id)
+    return _tutor_for_email(getattr(candidate, "google_email", ""))
+
+
+def _is_bypass_tutor_candidate(candidate):
+    return bool(
+        candidate
+        and candidate.status != "signed"
+        and getattr(candidate, "tutor_id", None)
+    )
+
+
+def _candidate_profile_complete(candidate):
+    return bool(
+        candidate
+        and candidate.name
+        and candidate.phone
+        and candidate.address
+        and candidate.age
+        and candidate.gender
+        and candidate.last_education_level
+        and candidate.university_name
+        and candidate.teaching_preferences
+        and candidate.availability_slots
+        and candidate.cv_file_path
+        and candidate.photo_file_path
+    )
+
+
+def _sync_bypass_profile_to_tutor(candidate, tutor):
+    if not candidate or not tutor:
+        return
+    tutor.name = candidate.name or tutor.name
+    tutor.phone = candidate.phone or tutor.phone
+    tutor.email = _normalize_email(candidate.google_email) or tutor.email
+    tutor.address = candidate.address or tutor.address
+    tutor.profile_photo_path = candidate.photo_file_path or tutor.profile_photo_path
+    tutor.cv_file_path = candidate.cv_file_path or tutor.cv_file_path
+    tutor.status = "active"
+    tutor.is_active = True
+    tutor.portal_email_verified = True
+    tutor.portal_email_verified_at = tutor.portal_email_verified_at or datetime.utcnow()
+    tutor.updated_at = datetime.utcnow()
+    candidate.tutor_id = tutor.id
+
+
 def _candidate_applications(candidate):
     if not candidate or not candidate.google_email:
         return []
@@ -986,6 +1036,8 @@ def google_callback():
     candidate.updated_at = datetime.utcnow()
     db.session.commit()
     session["recruitment_candidate_id"] = candidate.id
+    if tutor and not _candidate_profile_complete(candidate):
+        return redirect(url_for("recruitment.form"))
     if _candidate_has_dashboard_access(candidate):
         return redirect(url_for("recruitment.dashboard"))
     return redirect(url_for("recruitment.form"))
@@ -1025,12 +1077,21 @@ def form():
     if not candidate:
         flash("Mulai dari login Google/Gmail terlebih dahulu.", "warning")
         return redirect(url_for("recruitment.start"))
+    is_bypass_profile = _is_bypass_tutor_candidate(candidate)
     if request.method == "GET":
         tutor = _tutor_for_email(getattr(candidate, "google_email", ""))
         if tutor and not getattr(candidate, "tutor_id", None):
             _sync_candidate_from_tutor(candidate, tutor)
             db.session.commit()
-        if request.args.get("edit") != "1" and _candidate_has_dashboard_access(candidate):
+        is_bypass_profile = _is_bypass_tutor_candidate(candidate)
+        needs_bypass_profile = (
+            is_bypass_profile and not _candidate_profile_complete(candidate)
+        )
+        if (
+            request.args.get("edit") != "1"
+            and _candidate_has_dashboard_access(candidate)
+            and not needs_bypass_profile
+        ):
             return redirect(url_for("recruitment.dashboard"))
     if request.method == "POST":
         if not candidate.email_verified:
@@ -1085,7 +1146,10 @@ def form():
             return redirect(url_for("recruitment.form"))
         password = request.form.get("password") or ""
         password_confirm = request.form.get("password_confirm") or ""
-        if not candidate.password_hash or password or password_confirm:
+        if (
+            not is_bypass_profile
+            and (not candidate.password_hash or password or password_confirm)
+        ) or (is_bypass_profile and (password or password_confirm)):
             if len(password) < 8:
                 flash("Password dashboard minimal 8 karakter.", "danger")
                 return redirect(url_for("recruitment.form"))
@@ -1110,14 +1174,40 @@ def form():
         if not candidate.cv_file_path or not candidate.photo_file_path:
             flash("CV dan foto wajib diunggah.", "danger")
             return redirect(url_for("recruitment.form"))
+        bypass_tutor = _bypass_tutor_for_candidate(candidate)
+        if bypass_tutor:
+            _sync_bypass_profile_to_tutor(candidate, bypass_tutor)
+            if candidate.status != "signed":
+                candidate.status = "contract_sent"
+                candidate.contract_text = _build_contract_text(candidate)
+                candidate.offering_text = _build_offering_text(candidate)
+                candidate.contract_sent_at = candidate.contract_sent_at or datetime.utcnow()
+            candidate.updated_at = datetime.utcnow()
+            db.session.commit()
+            flash("Profile pelamar berhasil dikirim. Offering dan kontrak sudah dibuat.", "success")
+            return redirect(url_for("recruitment.dashboard"))
+
         candidate.status = "submitted"
         candidate.updated_at = datetime.utcnow()
         db.session.commit()
         flash("Data recruitment berhasil dikirim.", "success")
         return redirect(url_for("recruitment.dashboard"))
+    file_flags = _candidate_file_flags(candidate)
+    form_title = "Profile Pelamar" if is_bypass_profile else (
+        "Edit Data Recruitment" if request.args.get("edit") == "1" else "Form Recruitment Tutor"
+    )
+    submit_label = "Kirim Profile" if is_bypass_profile else (
+        "Simpan Perubahan" if request.args.get("edit") == "1" else "Kirim Data Recruitment"
+    )
     return render_template(
         "recruitment/form.html",
         candidate=candidate,
+        is_edit=request.args.get("edit") == "1",
+        is_bypass_profile=is_bypass_profile,
+        form_title=form_title,
+        submit_label=submit_label,
+        cv_file_exists=file_flags["cv_exists"],
+        photo_file_exists=file_flags["photo_exists"],
         gender_options=GENDER_OPTIONS,
         last_education_levels=LAST_EDUCATION_LEVELS,
         teaching_options=_teaching_option_choices(),

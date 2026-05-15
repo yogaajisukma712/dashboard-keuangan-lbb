@@ -140,6 +140,16 @@ def _initial_portal_password(tutor):
     return f"SS-{code}-2026"
 
 
+def _next_bypass_tutor_code():
+    prefix = "TTR-BYP"
+    count = Tutor.query.filter(Tutor.tutor_code.like(f"{prefix}-%")).count() + 1
+    while True:
+        code = f"{prefix}-{count:04d}"
+        if not Tutor.query.filter_by(tutor_code=code).first():
+            return code
+        count += 1
+
+
 def _ensure_tutor_portal_credentials(tutor):
     changed = False
     if not tutor.portal_username:
@@ -2020,9 +2030,48 @@ def _send_tutor_credential_whatsapp(tutor, message_template):
     return False, f"{tutor.name}: {payload.get('error') or 'Bot error'}"
 
 
-@tutor_portal_bp.route("/admin/credentials")
+@tutor_portal_bp.route("/admin/credentials", methods=["GET", "POST"])
 @login_required
 def admin_credentials():
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        email = _normalize_email(request.form.get("email"))
+        password = request.form.get("default_password") or ""
+        if not name or not email or len(password) < 8:
+            flash("Nama, email, dan password default minimal 8 karakter wajib diisi.", "danger")
+            return _credential_redirect()
+
+        tutor = Tutor.query.filter(db.func.lower(Tutor.email) == email).first()
+        if not tutor:
+            tutor = Tutor(
+                tutor_code=_next_bypass_tutor_code(),
+                name=name,
+                email=email,
+                status="active",
+                is_active=True,
+                portal_email_verified=True,
+                portal_email_verified_at=datetime.utcnow(),
+            )
+            db.session.add(tutor)
+            flash(f"Bypass tutor baru {name} berhasil ditambahkan.", "success")
+        else:
+            tutor.name = name
+            tutor.email = email
+            tutor.status = "active"
+            tutor.is_active = True
+            tutor.portal_email_verified = True
+            tutor.portal_email_verified_at = tutor.portal_email_verified_at or datetime.utcnow()
+            flash(f"Credential bypass {name} berhasil diperbarui.", "success")
+
+        if not tutor.portal_username:
+            db.session.flush()
+            _ensure_tutor_portal_credentials(tutor)
+        tutor.set_portal_password(password)
+        tutor.portal_must_change_password = True
+        tutor.updated_at = datetime.utcnow()
+        db.session.commit()
+        return _credential_redirect()
+
     active_filter = _credential_active_filter()
     tutors = _ensure_all_tutor_portal_credentials()
     if active_filter == "active":

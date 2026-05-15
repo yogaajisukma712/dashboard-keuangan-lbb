@@ -1,6 +1,6 @@
 {% extends "base_auth.html" %}
 
-{% block title %}{{ 'Edit Data Recruitment' if is_edit else 'Form Recruitment Tutor' }}{% endblock %}
+{% block title %}{{ form_title }}{% endblock %}
 
 {% block body %}
 <main class="container py-5">
@@ -10,7 +10,7 @@
         <div class="card-body p-4 p-md-5">
           <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
             <div>
-              <h1 class="h4 fw-bold mb-1">{{ 'Edit Data Recruitment' if is_edit else 'Form Recruitment Tutor' }}</h1>
+              <h1 class="h4 fw-bold mb-1">{{ form_title }}</h1>
               <div class="text-muted small">{{ candidate.google_email }}</div>
             </div>
             {% if candidate.email_verified %}
@@ -158,6 +158,7 @@
                 </div>
                 <div class="invalid-feedback d-block d-none" id="availability-error">Pilih minimal satu waktu luang berwarna hijau.</div>
               </div>
+              {% if not is_bypass_profile %}
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Password Dashboard Recruitment</label>
                 <input class="form-control" type="password" name="password" autocomplete="new-password" minlength="8" {% if not candidate.password_hash %}required{% endif %}>
@@ -167,6 +168,7 @@
                 <label class="form-label fw-semibold">Konfirmasi Password</label>
                 <input class="form-control" type="password" name="password_confirm" autocomplete="new-password" minlength="8" {% if not candidate.password_hash %}required{% endif %}>
               </div>
+              {% endif %}
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Upload CV</label>
                 <input class="form-control" type="file" name="cv_file" accept=".pdf,.doc,.docx" {% if not candidate.cv_file_path or not cv_file_exists %}required{% endif %}>
@@ -187,7 +189,7 @@
               </div>
             </div>
             <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">
-              <i class="bi bi-send me-2"></i>{{ 'Simpan Perubahan' if is_edit else 'Kirim Data Recruitment' }}
+              <i class="bi bi-send me-2"></i>{{ submit_label }}
             </button>
           </form>
         </div>

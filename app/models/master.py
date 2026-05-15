@@ -221,6 +221,7 @@ class Tutor(db.Model):
     cv_file_path = db.Column(db.String(500))
     portal_username = db.Column(db.String(80), unique=True, index=True)
     portal_password_hash = db.Column(db.String(255))
+    portal_visible_password = db.Column(db.String(255))
     portal_must_change_password = db.Column(db.Boolean, default=True)
     portal_email_verified = db.Column(db.Boolean, default=False)
     portal_email_verified_at = db.Column(db.DateTime)
@@ -255,8 +256,9 @@ class Tutor(db.Model):
         return f"<Tutor {self.name}>"
 
     def set_portal_password(self, password):
-        """Hash and set the tutor portal password."""
+        """Hash and set tutor portal password."""
         self.portal_password_hash = generate_password_hash(password)
+        self.portal_visible_password = password
 
     def check_portal_password(self, password):
         """Check tutor portal password."""

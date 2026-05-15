@@ -6,6 +6,20 @@
   {% set schedule_copy_title = "Jadwal Tutor" %}
 {% endif %}
 
+{% macro tutor_meet_time_select(item) -%}
+  {% set selected_time = item.start_time.strftime('%H:%M') if item.start_time else '%02d:00'|format(item.hour) %}
+  <select class="form-select form-select-sm tutor-schedule-meet-link mb-1" name="meeting_time" required aria-label="Jam Meet">
+    {% for hour in range(7, 22) %}
+      {% for minute in [0, 15, 30, 45] %}
+        {% if hour < 21 or minute == 0 %}
+          {% set option_time = "%02d:%02d"|format(hour, minute) %}
+          <option value="{{ option_time }}" {% if option_time == selected_time %}selected{% endif %}>{{ option_time }}</option>
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+  </select>
+{%- endmacro %}
+
 <div
   class="tutor-schedule-copy-card"
   data-schedule-title="{{ schedule_copy_title }}"
@@ -74,7 +88,7 @@
                     </div>
                     <form class="mt-1" method="post" action="{{ url_for('tutor_portal.create_meet_link', enrollment_ref=item.enrollment_ref) }}">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <input class="form-control form-control-sm tutor-schedule-meet-link mb-1" type="time" name="meeting_time" value="{{ '%02d:00'|format(item.hour) }}" required>
+                      {{ tutor_meet_time_select(item) }}
                       <button class="btn btn-sm btn-outline-primary tutor-schedule-meet-btn w-100" type="submit">
                         Aktifkan Lagi
                       </button>
@@ -83,7 +97,7 @@
                   {% else %}
                   <form class="mt-1" method="post" action="{{ url_for('tutor_portal.create_meet_link', enrollment_ref=item.enrollment_ref) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input class="form-control form-control-sm tutor-schedule-meet-link mb-1" type="time" name="meeting_time" value="{{ '%02d:00'|format(item.hour) }}" required>
+                    {{ tutor_meet_time_select(item) }}
                     <button class="btn btn-sm btn-outline-primary tutor-schedule-meet-btn w-100" type="submit">
                       Buat Link Meet
                     </button>

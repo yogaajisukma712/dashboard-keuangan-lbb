@@ -193,15 +193,29 @@ def test_recruitment_crm_source_is_registered():
     assert "@recruitment_bp.route(\"/\", methods=[\"GET\", \"POST\"])" in route_text
     assert "def verify_email" in route_text
     assert "@recruitment_bp.route(\"/dashboard\", methods=[\"GET\", \"POST\"])" in route_text
-    assert "@recruitment_bp.route(\"/logout\", methods=[\"POST\"])" in route_text
+    assert "@recruitment_bp.route(\"/logout\", methods=[\"GET\", \"POST\"])" in route_text
+    assert "_clear_portal_sessions()" in route_text
     assert "candidate.set_password(password)" in route_text
     assert "_build_candidate_availability_rows" in route_text
     assert "_candidate_availability_slots_from_form" in route_text
     assert "candidate.availability_slots" in route_text
     assert "recruitment.dashboard" in route_text
+    assert '@recruitment_bp.route("/daftar", methods=["GET", "POST"])' in route_text
+    assert "def register" in route_text
+    assert '@recruitment_bp.route("/google/login", methods=["GET"])' in route_text
+    assert '@recruitment_bp.route("/google/callback", methods=["GET"])' in route_text
+    assert "_fetch_google_userinfo" in route_text
+    assert "RecruitmentCandidate(google_email=email)" in route_text
+    assert "return redirect(url_for(\"recruitment.form\"))" in route_text
+    assert "Akun recruitment belum ditemukan" not in route_text
     assert "def crm_candidates" in route_text
     assert "def crm_selected" in route_text
     assert "def crm_interview" in route_text
+    assert "def crm_templates" in route_text
+    assert "_read_recruitment_template" in route_text
+    assert "_write_recruitment_template" in route_text
+    assert "DEFAULT_CONTRACT_TEMPLATE" in route_text
+    assert "DEFAULT_OFFERING_TEMPLATE" in route_text
     assert "def send_interview_invite" in route_text
     assert "def send_contract" in route_text
     assert "def contract" in route_text
@@ -225,8 +239,20 @@ def test_recruitment_crm_source_is_registered():
     assert "not candidate.email_verified" in route_text
     assert "_create_tutor_from_candidate" in route_text
     assert "session[\"tutor_portal_tutor_id\"] = tutor.id" in route_text
+    assert "TUTOR_PORTAL_BASE_URL" in route_text
+    assert "def _tutor_portal_url" in route_text
+    assert "def _activate_tutor_session_from_candidate" in route_text
+    assert "_ensure_tutor_portal_credentials(tutor)" in route_text
+    assert "tutor.portal_password_hash = candidate.password_hash" in route_text
+    assert "tutor.portal_must_change_password = False" in route_text
+    assert '@recruitment_bp.route("/dashboard/masuk-tutor", methods=["GET", "POST"])' in route_text
+    assert "def enter_tutor_dashboard" in route_text
+    assert "return _redirect_with_legacy_session_cleanup(_tutor_portal_url(\"/\"))" in route_text
     assert "RECRUITMENT_BASE_URL" in config_text
     assert "RECRUITMENT_HOST" in config_text
+    assert "SESSION_COOKIE_DOMAIN" in config_text
+    assert "GOOGLE_OAUTH_CLIENT_ID" in config_text
+    assert "GOOGLE_OAUTH_CLIENT_SECRET" in config_text
     assert "teaching_preferences_json" in model_text
     assert "last_education_level" in model_text
     assert "university_name" in model_text
@@ -241,6 +267,9 @@ def test_recruitment_crm_source_is_registered():
     assert "${RECRUITMENT_PORT:-6006}:5000" in compose_text
     assert "MAIL_SERVER" in compose_text
     assert "MAIL_DEFAULT_SENDER" in compose_text
+    assert "SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-}" in compose_text
+    assert "GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}" in compose_text
+    assert "GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}" in compose_text
     assert (
         "RECRUITMENT_BASE_URL: ${RECRUITMENT_BASE_URL:-https://recruitment.supersmart.click}"
         in compose_text
@@ -254,6 +283,9 @@ def test_recruitment_templates_expose_required_workflow():
     form_text = (
         PROJECT_ROOT / "app" / "templates" / "recruitment" / "form.html"
     ).read_text(encoding="utf-8")
+    register_text = (
+        PROJECT_ROOT / "app" / "templates" / "recruitment" / "register.html"
+    ).read_text(encoding="utf-8")
     candidates_text = (
         PROJECT_ROOT / "app" / "templates" / "recruitment" / "crm_candidates.html"
     ).read_text(encoding="utf-8")
@@ -262,6 +294,9 @@ def test_recruitment_templates_expose_required_workflow():
     ).read_text(encoding="utf-8")
     interview_text = (
         PROJECT_ROOT / "app" / "templates" / "recruitment" / "crm_interview.html"
+    ).read_text(encoding="utf-8")
+    templates_text = (
+        PROJECT_ROOT / "app" / "templates" / "recruitment" / "crm_templates.html"
     ).read_text(encoding="utf-8")
     contract_text = (
         PROJECT_ROOT / "app" / "templates" / "recruitment" / "contract.html"
@@ -276,19 +311,31 @@ def test_recruitment_templates_expose_required_workflow():
         encoding="utf-8"
     )
 
-    assert "Mulai / Verifikasi Email" in start_text
-    assert "Masuk Dashboard Recruitment" in start_text
-    assert "Password Dashboard" in start_text
+    assert "Recruitment HR Dashboard Login" in start_text
+    assert "Mulai Recruitment" in start_text
+    assert "HR Tech Recruitment Suite" in start_text
+    assert "Candidate pipeline" in start_text
+    assert "Masuk dengan Google" in start_text
+    assert "recruitment.google_login" in start_text
+    assert "Daftar baru menggunakan email" in start_text
+    assert "Password dashboard diisi setelah Anda masuk ke form recruitment." in start_text
+    assert "recruitment.register" in start_text
+    assert "Mulai / Verifikasi Email" not in start_text
+    assert "Daftar Akun Recruitment" in register_text
+    assert "Mulai / Verifikasi Email" in register_text
+    assert "Login Dashboard Recruitment" in register_text
+    assert "recruitment.start" in register_text
     assert "Upload CV" in form_text
     assert "Upload Foto" in form_text
     assert "Password Dashboard Recruitment" in form_text
     assert "password_confirm" in form_text
     assert "Jadwal Waktu Luang" in form_text
-    assert "Hijau: waktu luang" in form_text
-    assert "Merah: tidak bisa" in form_text
-    assert "Klik kotak jadwal untuk mengubah warna" in form_text
+    assert "Waktu luang" in form_text
+    assert "Tidak bisa" in form_text
+    assert "Klik kotak jadwal untuk mengganti warna hijau atau merah." in form_text
     assert "availability_grid.rows" in form_text
     assert "schedule-cell-button" in form_text
+    assert "visually-hidden schedule-cell-label" in form_text
     assert "Mapel, Jenjang, dan Kurikulum" in form_text
     assert "Mapel boleh dipilih lebih dari satu." in form_text
     assert "klik Tambah, lalu ulangi untuk mapel berikutnya" in form_text
@@ -318,14 +365,29 @@ def test_recruitment_templates_expose_required_workflow():
     assert "Link Google Meet" in selected_text
     assert "Setuju Interview" in selected_text
     assert "Kirim Kontrak & Offering" in interview_text
+    assert "Template" in candidates_text
+    assert "Template" in selected_text
+    assert "Template" in interview_text
+    assert "Editor Kontrak" in templates_text
+    assert "Editor Offering" in templates_text
+    assert "contract_template" in templates_text
+    assert "offering_template" in templates_text
     assert "signature_data_url" in contract_text
     assert "Tandatangani & Masuk Dashboard Tutor" in contract_text
     assert "Dashboard Recruitment" in recruitment_dashboard_text
+    assert "container-fluid" in recruitment_dashboard_text
+    assert "Progress Lamaran" in recruitment_dashboard_text
+    assert "recruitment.enter_tutor_dashboard" in recruitment_dashboard_text
+    assert "url_for('tutor_portal.dashboard')" not in recruitment_dashboard_text
+    assert "Lolos Berkas" in recruitment_dashboard_text
+    assert "Interview" in recruitment_dashboard_text
+    assert "Offering & Kontrak" in recruitment_dashboard_text
     assert "Data Diri" in recruitment_dashboard_text
     assert "Jadwal Waktu Luang" in recruitment_dashboard_text
     assert "availability_grid.rows" in recruitment_dashboard_text
     assert "availability-pill" in recruitment_dashboard_text
-    assert "SK & Offering" in recruitment_dashboard_text
+    assert "min-width: 620px" in recruitment_dashboard_text
+    assert "Informasi Tahap Berikutnya" in recruitment_dashboard_text
     assert "signature_data_url" in recruitment_dashboard_text
     assert "Tandatangani" in recruitment_dashboard_text
     assert "Kontrak & Offering" in dashboard_text

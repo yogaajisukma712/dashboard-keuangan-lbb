@@ -5,11 +5,135 @@
 {% block head %}
 <style>
   .document-box {
-    white-space: pre-wrap;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: #eef2f7;
+    border: 1px solid #d8e0ea;
     border-radius: 8px;
     padding: 1rem;
+    overflow-x: auto;
+  }
+  .recruitment-a4-page {
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+    color: #111827;
+    font-family: Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.35;
+    margin: 0 auto 18px;
+    min-height: 297mm;
+    padding: 18mm;
+    width: 210mm;
+  }
+  .recruitment-a4-page p,
+  .recruitment-a4-page li {
+    margin-bottom: 0.25rem;
+  }
+  .recruitment-a4-page h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    margin: 0.6rem 0 0.25rem;
+  }
+  .doc-title,
+  .doc-subtitle,
+  .doc-letterhead {
+    text-align: center;
+  }
+  .doc-title {
+    font-size: 18pt;
+    font-weight: 700;
+    margin: 0;
+  }
+  .doc-subtitle {
+    font-size: 13pt;
+    font-weight: 700;
+    margin: 0 0 0.8rem;
+  }
+  .doc-letterhead {
+    margin-bottom: 1.4rem;
+  }
+  .doc-brand {
+    font-size: 13pt;
+    letter-spacing: 0;
+  }
+  .doc-date {
+    text-align: right;
+  }
+  .doc-two-columns {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: 1fr 1fr;
+  }
+  .doc-info-table {
+    border-collapse: collapse;
+    margin: 0.5rem 0 0.9rem;
+    width: 100%;
+  }
+  .doc-info-table th {
+    font-weight: 700;
+    text-align: left;
+    width: 36%;
+  }
+  .doc-info-table th,
+  .doc-info-table td {
+    padding: 0.15rem 0.35rem;
+    vertical-align: top;
+  }
+  .doc-signatures {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: 1fr 1fr;
+    margin-top: 1cm;
+    text-align: center;
+  }
+  .doc-ceo-sign {
+    margin-top: 1.3cm;
+    text-align: left;
+  }
+  .doc-signature-space {
+    align-items: center;
+    display: flex;
+    height: 76px;
+    justify-content: center;
+    margin: 0.2rem auto 0.15rem;
+    overflow: hidden;
+    width: 190px;
+  }
+  .doc-candidate-signature {
+    display: block;
+    max-height: 72px;
+    max-width: 180px;
+    object-fit: contain;
+  }
+  .doc-qr {
+    height: 92px;
+    margin: 0.35rem auto;
+    width: 92px;
+  }
+  .doc-verify-text,
+  .doc-footer {
+    font-size: 8pt;
+  }
+  .doc-footer {
+    margin-top: 1.4rem;
+    text-align: center;
+  }
+  @media (max-width: 900px) {
+    .recruitment-a4-page {
+      min-height: auto;
+      padding: 14mm;
+      width: 100%;
+    }
+  }
+  @media print {
+    .document-box {
+      background: #fff;
+      border: 0;
+      padding: 0;
+    }
+    .recruitment-a4-page {
+      box-shadow: none;
+      margin: 0;
+      page-break-after: always;
+    }
   }
   #signature-pad {
     width: 100%;
@@ -31,9 +155,9 @@
           <h1 class="h4 fw-bold mb-1">Kontrak & Offering Digital</h1>
           <div class="text-muted small mb-4">{{ candidate.name }} | {{ candidate.google_email }}</div>
           <h2 class="h6 fw-bold">Kontrak</h2>
-          <div class="document-box mb-3">{{ candidate.contract_text }}</div>
+          <div class="document-box mb-3" data-render-html-document>{{ candidate.contract_text|recruitment_document }}</div>
           <h2 class="h6 fw-bold">Offering</h2>
-          <div class="document-box mb-4">{{ candidate.offering_text }}</div>
+          <div class="document-box mb-4" data-render-html-document>{{ candidate.offering_text|recruitment_document }}</div>
 
           {% if candidate.is_signed %}
           <div class="alert alert-success">Kontrak sudah ditandatangani pada {{ candidate.signed_at.strftime('%d %b %Y %H:%M') }}.</div>
@@ -60,6 +184,15 @@
   </div>
 </main>
 <script>
+  (function () {
+    document.querySelectorAll("[data-render-html-document]").forEach((box) => {
+      const raw = (box.textContent || "").trim();
+      if (raw.startsWith("<section") || raw.startsWith("<style") || raw.startsWith("<div")) {
+        box.innerHTML = raw;
+      }
+    });
+  })();
+
   (function () {
     const canvas = document.getElementById("signature-pad");
     const form = document.getElementById("contract-sign-form");

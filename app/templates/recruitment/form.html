@@ -1,6 +1,6 @@
 {% extends "base_auth.html" %}
 
-{% block title %}Form Recruitment Tutor{% endblock %}
+{% block title %}{{ 'Edit Data Recruitment' if is_edit else 'Form Recruitment Tutor' }}{% endblock %}
 
 {% block body %}
 <main class="container py-5">
@@ -10,7 +10,7 @@
         <div class="card-body p-4 p-md-5">
           <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
             <div>
-              <h1 class="h4 fw-bold mb-1">Form Recruitment Tutor</h1>
+              <h1 class="h4 fw-bold mb-1">{{ 'Edit Data Recruitment' if is_edit else 'Form Recruitment Tutor' }}</h1>
               <div class="text-muted small">{{ candidate.google_email }}</div>
             </div>
             {% if candidate.email_verified %}
@@ -119,11 +119,11 @@
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                   <label class="form-label fw-semibold mb-0">Jadwal Waktu Luang</label>
                   <div class="d-flex flex-wrap gap-2 small">
-                    <span class="badge text-bg-success">Hijau: waktu luang</span>
-                    <span class="badge text-bg-danger">Merah: tidak bisa</span>
+                    <span class="badge text-bg-success">Waktu luang</span>
+                    <span class="badge text-bg-danger">Tidak bisa</span>
                   </div>
                 </div>
-                <div class="form-text mb-2">Klik kotak jadwal untuk mengubah warna. Tandai waktu luang Anda dengan hijau dan waktu tidak bisa dengan merah.</div>
+                <div class="form-text mb-2">Klik kotak jadwal untuk mengganti warna hijau atau merah.</div>
                 <div class="schedule-editor-wrap">
                   <table class="table table-bordered align-middle schedule-editor-table mb-0">
                     <thead>
@@ -145,8 +145,9 @@
                             class="schedule-cell-button {{ 'is-available' if cell.state == 'available' else 'is-unavailable' }}"
                             type="button"
                             data-value="{{ cell.state }}"
+                            aria-label="{{ cell.day_name }} {{ cell.start_time }} {{ 'waktu luang' if cell.state == 'available' else 'tidak bisa' }}"
                           >
-                            <span class="schedule-cell-label">{{ 'Luang' if cell.state == 'available' else 'Tidak Bisa' }}</span>
+                            <span class="visually-hidden schedule-cell-label">{{ 'Waktu luang' if cell.state == 'available' else 'Tidak bisa' }}</span>
                           </button>
                         </td>
                         {% endfor %}
@@ -168,15 +169,25 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Upload CV</label>
-                <input class="form-control" type="file" name="cv_file" accept=".pdf,.doc,.docx" {% if not candidate.cv_file_path %}required{% endif %}>
+                <input class="form-control" type="file" name="cv_file" accept=".pdf,.doc,.docx" {% if not candidate.cv_file_path or not cv_file_exists %}required{% endif %}>
+                {% if candidate.cv_file_path and cv_file_exists %}
+                <div class="form-text">CV saat ini sudah tersimpan. Upload file baru hanya jika ingin mengganti.</div>
+                {% elif candidate.cv_file_path %}
+                <div class="form-text text-danger">File CV lama belum ditemukan. Upload ulang wajib.</div>
+                {% endif %}
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Upload Foto</label>
-                <input class="form-control" type="file" name="photo_file" accept=".png,.jpg,.jpeg,.webp" {% if not candidate.photo_file_path %}required{% endif %}>
+                <input class="form-control" type="file" name="photo_file" accept=".png,.jpg,.jpeg,.webp" {% if not candidate.photo_file_path or not photo_file_exists %}required{% endif %}>
+                {% if candidate.photo_file_path and photo_file_exists %}
+                <div class="form-text">Foto saat ini sudah tersimpan. Upload file baru hanya jika ingin mengganti.</div>
+                {% elif candidate.photo_file_path %}
+                <div class="form-text text-danger">File foto lama belum ditemukan. Upload ulang wajib.</div>
+                {% endif %}
               </div>
             </div>
             <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">
-              <i class="bi bi-send me-2"></i>Kirim Data Recruitment
+              <i class="bi bi-send me-2"></i>{{ 'Simpan Perubahan' if is_edit else 'Kirim Data Recruitment' }}
             </button>
           </form>
         </div>
@@ -219,8 +230,8 @@
 
   .schedule-editor-table {
     border-color: #94a3b8;
-    font-size: 0.78rem;
-    min-width: 920px;
+    font-size: 0.74rem;
+    min-width: 760px;
     table-layout: fixed;
   }
 
@@ -232,23 +243,22 @@
   }
 
   .schedule-editor-time {
-    width: 72px;
+    width: 60px;
   }
 
   .schedule-editor-cell {
     border-color: #94a3b8;
-    height: 56px;
-    padding: 0.3rem;
+    height: 34px;
+    padding: 0.16rem;
   }
 
   .schedule-cell-button {
     border: 1px solid rgba(15, 23, 42, 0.14);
-    border-radius: 6px;
+    border-radius: 5px;
     color: #0f172a;
     cursor: pointer;
-    font-size: 0.72rem;
-    min-height: 44px;
-    padding: 0.25rem;
+    min-height: 26px;
+    padding: 0;
     width: 100%;
   }
 
@@ -262,8 +272,8 @@
 
   @media (max-width: 575.98px) {
     .schedule-editor-table {
-      min-width: 840px;
-      font-size: 0.72rem;
+      min-width: 680px;
+      font-size: 0.68rem;
     }
   }
 </style>
@@ -414,7 +424,8 @@
         button.dataset.value = nextValue;
         button.classList.toggle("is-available", nextValue === "available");
         button.classList.toggle("is-unavailable", nextValue === "unavailable");
-        button.querySelector(".schedule-cell-label").textContent = nextValue === "available" ? "Luang" : "Tidak Bisa";
+        button.setAttribute("aria-label", button.getAttribute("aria-label").replace(/(waktu luang|tidak bisa)$/i, nextValue === "available" ? "waktu luang" : "tidak bisa"));
+        button.querySelector(".schedule-cell-label").textContent = nextValue === "available" ? "Waktu luang" : "Tidak bisa";
         if (input) input.value = nextValue;
         if (nextValue === "available") availabilityError.classList.add("d-none");
       });

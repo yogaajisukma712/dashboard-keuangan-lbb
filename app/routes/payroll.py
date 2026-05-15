@@ -311,7 +311,16 @@ def _get_tutor_by_ref_or_404(tutor_ref):
     return Tutor.query.get_or_404(tutor_id)
 
 
-def _build_proof_context(proof_image):
+def _proof_download_url(file_path, *, endpoint="payroll.serve_payroll_proof"):
+    """Build the correct proof URL for admin payroll or tutor portal views."""
+    if endpoint == "tutor_portal.uploaded_file":
+        filename = (file_path or "").lstrip("/")
+    else:
+        filename = os.path.basename(file_path or "")
+    return url_for(endpoint, filename=filename)
+
+
+def _build_proof_context(proof_image, *, proof_endpoint="payroll.serve_payroll_proof"):
     """Prepare URLs and file metadata for uploaded proof files."""
     if not proof_image:
         return {
@@ -323,7 +332,7 @@ def _build_proof_context(proof_image):
 
     filename = os.path.basename(proof_image)
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    download_url = url_for("payroll.serve_payroll_proof", filename=filename)
+    download_url = _proof_download_url(proof_image, endpoint=proof_endpoint)
     return {
         "proof_download_url": download_url,
         "proof_image_url": download_url
@@ -334,14 +343,21 @@ def _build_proof_context(proof_image):
     }
 
 
-def _proof_context_from_path(file_path, notes=None, uploaded_at=None, original_filename=None):
+def _proof_context_from_path(
+    file_path,
+    notes=None,
+    uploaded_at=None,
+    original_filename=None,
+    *,
+    proof_endpoint="payroll.serve_payroll_proof",
+):
     """Prepare URLs and file metadata for one uploaded proof file path."""
     if not file_path:
         return None
 
     filename = os.path.basename(file_path)
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    download_url = url_for("payroll.serve_payroll_proof", filename=filename)
+    download_url = _proof_download_url(file_path, endpoint=proof_endpoint)
     return {
         "file_path": file_path,
         "filename": filename,
@@ -387,7 +403,7 @@ def _backfill_legacy_payout_proof(payout):
     )
 
 
-def _get_payout_proof_contexts(payout):
+def _get_payout_proof_contexts(payout, *, proof_endpoint="payroll.serve_payroll_proof"):
     """Return all proof files, including legacy single proof_image data."""
     contexts = []
     seen = set()
@@ -397,6 +413,7 @@ def _get_payout_proof_contexts(payout):
             notes=proof.notes,
             uploaded_at=proof.uploaded_at,
             original_filename=proof.original_filename,
+            proof_endpoint=proof_endpoint,
         )
         if ctx:
             contexts.append(ctx)
@@ -407,6 +424,7 @@ def _get_payout_proof_contexts(payout):
             payout.proof_image,
             notes=payout.proof_notes,
             uploaded_at=payout.updated_at or payout.created_at,
+            proof_endpoint=proof_endpoint,
         )
         if legacy_ctx and legacy_ctx["filename"] not in seen:
             contexts.append(legacy_ctx)
@@ -426,6 +444,7 @@ def _get_payout_proof_contexts(payout):
             ctx = _proof_context_from_path(
                 f"payroll_proofs/{filename}",
                 uploaded_at=datetime.fromtimestamp(os.path.getmtime(full_path)),
+                proof_endpoint=proof_endpoint,
             )
             if ctx:
                 contexts.append(ctx)
@@ -1188,7 +1207,12 @@ def _proof_image_data_uri(proof_image):
     return f"data:{mimetype};base64,{encoded}"
 
 
-def _build_fee_slip_template_context(payout, *, embed_proof=False):
+def _build_fee_slip_template_context(
+    payout,
+    *,
+    embed_proof=False,
+    proof_endpoint="payroll.serve_payroll_proof",
+):
     """Build one shared context for web, print, PDF, and WhatsApp slip output."""
     tutor = payout.tutor
     sessions = _get_sessions_for_payout(payout)
@@ -1199,8 +1223,8 @@ def _build_fee_slip_template_context(payout, *, embed_proof=False):
         payout_ref=payout.public_id,
         _external=True,
     )
-    proof_ctx = _build_proof_context(payout.proof_image)
-    proof_items = _get_payout_proof_contexts(payout)
+    proof_ctx = _build_proof_context(payout.proof_image, proof_endpoint=proof_endpoint)
+    proof_items = _get_payout_proof_contexts(payout, proof_endpoint=proof_endpoint)
     if embed_proof and proof_ctx.get("proof_image_url"):
         proof_ctx["proof_image_url"] = _proof_image_data_uri(payout.proof_image)
     if embed_proof:
@@ -1698,9 +1722,7 @@ def fee_slip_pdf(payout_ref):
                     proof_width, proof_height = _fit_image_size(
                         proof_path, 15.5 * cm, 10.2 * cm
                     )
-                    proof_image = RLImage(
-                        proof_path, width=proof_width, height=proof_height
-                    )
+                    proof_image = RLImage(proof_path, width=proof_width, height=proof_height)
                     proof_table = Table([[proof_image]], colWidths=[16.8 * cm])
                     proof_table.setStyle(
                         TableStyle(

@@ -1,38 +1,815 @@
 {% extends "base_auth.html" %}
 
-{% block title %}Recruitment Tutor{% endblock %}
+{% block title %}Recruitment HR Dashboard Login{% endblock %}
+
+{% block head %}
+<style>
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 16% 16%, rgba(91, 141, 239, 0.2), transparent 30%),
+      linear-gradient(135deg, #f8fbff 0%, #ffffff 48%, #edf6ff 100%);
+    color: #10213f;
+  }
+
+  .recruitment-login-shell {
+    width: 100vw;
+    height: 100vh;
+    height: 100svh;
+    padding: 0;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .recruitment-login-panel {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr);
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: none;
+    backdrop-filter: blur(20px);
+  }
+
+  .login-visual {
+    position: relative;
+    padding: clamp(28px, 4vw, 56px);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    background:
+      linear-gradient(145deg, rgba(9, 30, 71, 0.98), rgba(20, 75, 143, 0.92)),
+      radial-gradient(circle at top right, rgba(97, 197, 255, 0.45), transparent 36%);
+    color: #fff;
+  }
+
+  .login-visual::before,
+  .login-visual::after {
+    content: "";
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+  }
+
+  .login-visual::before {
+    width: 280px;
+    height: 280px;
+    top: -92px;
+    right: -72px;
+    background: rgba(99, 191, 255, 0.22);
+    filter: blur(3px);
+  }
+
+  .login-visual::after {
+    width: 220px;
+    height: 220px;
+    bottom: 10%;
+    left: -96px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .visual-content,
+  .visual-footer {
+    position: relative;
+    z-index: 1;
+  }
+
+  .visual-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #dcecff;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .visual-title {
+    max-width: 560px;
+    margin: 28px 0 14px;
+    font-size: clamp(2.1rem, 4vw, 4.35rem);
+    line-height: 1.02;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
+  .visual-copy {
+    max-width: 520px;
+    color: rgba(235, 246, 255, 0.78);
+    font-size: 1rem;
+    line-height: 1.8;
+  }
+
+  .analytics-card {
+    position: relative;
+    z-index: 1;
+    max-width: 520px;
+    margin-top: 34px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 48px rgba(3, 13, 34, 0.2);
+    backdrop-filter: blur(18px);
+  }
+
+  .candidate-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .candidate-avatars {
+    display: flex;
+    align-items: center;
+  }
+
+  .candidate-avatar {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    margin-left: -8px;
+    border: 2px solid rgba(255, 255, 255, 0.78);
+    border-radius: 50%;
+    background: linear-gradient(135deg, #dff4ff, #72b8ff);
+    color: #0e3470;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .candidate-avatar:first-child {
+    margin-left: 0;
+  }
+
+  .mini-chart {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    align-items: end;
+    gap: 8px;
+    height: 112px;
+    margin: 20px 0 8px;
+  }
+
+  .mini-chart span {
+    min-height: 28px;
+    border-radius: 999px 999px 10px 10px;
+    background: linear-gradient(180deg, #bce8ff, #4ea4ff);
+    box-shadow: 0 12px 24px rgba(37, 139, 255, 0.26);
+    transition: transform 180ms ease, opacity 180ms ease;
+  }
+
+  .analytics-card:hover .mini-chart span {
+    transform: translateY(-3px);
+    opacity: 0.94;
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .stat-card {
+    padding: 14px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .stat-card strong {
+    display: block;
+    color: #fff;
+    font-size: 1.3rem;
+    line-height: 1.1;
+  }
+
+  .stat-card span {
+    color: rgba(231, 244, 255, 0.72);
+    font-size: 0.72rem;
+    font-weight: 500;
+  }
+
+  .visual-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-top: 42px;
+    color: rgba(236, 247, 255, 0.74);
+    font-size: 0.82rem;
+  }
+
+  .login-form-side {
+    min-height: 0;
+    padding: clamp(24px, 5vw, 64px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.96)),
+      radial-gradient(circle at 85% 12%, rgba(64, 146, 255, 0.12), transparent 32%);
+  }
+
+  .login-form-card {
+    width: min(100%, 440px);
+    max-height: 100%;
+  }
+
+  .brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 34px;
+  }
+
+  .brand-logo {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #132f70, #4fa8ff);
+    box-shadow: 0 14px 28px rgba(31, 91, 178, 0.24);
+    color: #fff;
+    overflow: hidden;
+  }
+
+  .brand-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 8px;
+  }
+
+  .brand-text strong {
+    display: block;
+    color: #0e2347;
+    font-size: 0.98rem;
+    line-height: 1.2;
+  }
+
+  .brand-text span {
+    color: #6a7892;
+    font-size: 0.78rem;
+    font-weight: 500;
+  }
+
+  .login-heading {
+    margin-bottom: 28px;
+  }
+
+  .login-heading h1 {
+    margin: 0 0 10px;
+    color: #0e2347;
+    font-size: clamp(2rem, 4vw, 2.65rem);
+    line-height: 1.08;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
+  .login-heading p {
+    margin: 0;
+    color: #6b7890;
+    line-height: 1.7;
+  }
+
+  .form-field {
+    position: relative;
+    margin-bottom: 18px;
+  }
+
+  .form-field label {
+    display: block;
+    margin-bottom: 8px;
+    color: #22365d;
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
+
+  .input-shell {
+    position: relative;
+  }
+
+  .input-shell .input-icon {
+    position: absolute;
+    top: 50%;
+    left: 16px;
+    transform: translateY(-50%);
+    color: #7d8ca6;
+    pointer-events: none;
+  }
+
+  .login-input {
+    width: 100%;
+    min-height: 54px;
+    padding: 14px 48px;
+    border: 1px solid #dbe5f3;
+    border-radius: 16px;
+    background: #fff;
+    color: #10213f;
+    font-size: 0.94rem;
+    box-shadow: 0 1px 1px rgba(15, 31, 61, 0.03);
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .login-input:hover {
+    border-color: #b9cff0;
+  }
+
+  .login-input:focus {
+    border-color: #3f91ff;
+    box-shadow: 0 0 0 4px rgba(63, 145, 255, 0.13), 0 10px 24px rgba(33, 91, 171, 0.08);
+    outline: none;
+  }
+
+  .password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: #61728d;
+    transition: background 160ms ease, color 160ms ease;
+  }
+
+  .password-toggle:hover {
+    background: #eef5ff;
+    color: #144c98;
+  }
+
+  .login-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 4px 0 24px;
+    color: #5f6f88;
+    font-size: 0.84rem;
+  }
+
+  .remember-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .remember-check input {
+    width: 16px;
+    height: 16px;
+    border-color: #b8c7dc;
+  }
+
+  .forgot-link,
+  .signup-link {
+    color: #1455b6;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 160ms ease;
+  }
+
+  .forgot-link:hover,
+  .signup-link:hover {
+    color: #0b3475;
+  }
+
+  .primary-login-button,
+  .google-login-button {
+    width: 100%;
+    min-height: 54px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border-radius: 16px;
+    font-weight: 700;
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+
+  .primary-login-button {
+    border: 0;
+    background: linear-gradient(135deg, #102e69, #2f8fff);
+    color: #fff;
+    text-decoration: none;
+    box-shadow: 0 16px 34px rgba(36, 103, 209, 0.26);
+  }
+
+  .primary-login-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 22px 42px rgba(36, 103, 209, 0.32);
+  }
+
+  .primary-login-button.is-loading {
+    pointer-events: none;
+    opacity: 0.84;
+  }
+
+  .login-spinner {
+    display: none;
+  }
+
+  .primary-login-button.is-loading .login-spinner {
+    display: inline-block;
+  }
+
+  .primary-login-button.is-loading .login-button-icon {
+    display: none;
+  }
+
+  .divider {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 14px;
+    margin: 24px 0;
+    color: #8a98ad;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .divider::before,
+  .divider::after {
+    content: "";
+    height: 1px;
+    background: #e4ebf5;
+  }
+
+  .google-login-button {
+    border: 1px solid #dbe5f3;
+    background: #fff;
+    color: #1d2f52;
+    text-decoration: none;
+    box-shadow: 0 10px 24px rgba(17, 42, 83, 0.06);
+  }
+
+  .google-login-button:hover {
+    transform: translateY(-2px);
+    border-color: #bfd4f2;
+    background: #f9fcff;
+  }
+
+  .signup-note {
+    margin-top: 26px;
+    color: #687891;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  @media (max-width: 991.98px) {
+    .recruitment-login-panel {
+      grid-template-columns: 1fr;
+      grid-template-rows: minmax(0, 40fr) minmax(0, 60fr);
+    }
+
+    .login-visual {
+      min-height: 0;
+      padding: 24px;
+    }
+
+    .login-form-side {
+      padding: 24px;
+      align-items: center;
+    }
+
+    .visual-title {
+      max-width: 720px;
+      margin: 18px 0 8px;
+      font-size: clamp(1.7rem, 5vw, 2.7rem);
+    }
+
+    .visual-copy {
+      max-width: 720px;
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .analytics-card {
+      max-width: 720px;
+      margin-top: 18px;
+      padding: 14px;
+    }
+
+    .mini-chart {
+      height: 58px;
+      margin: 12px 0 6px;
+    }
+
+    .stat-card {
+      padding: 10px;
+    }
+
+    .visual-footer {
+      margin-top: 16px;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .recruitment-login-panel {
+      grid-template-rows: minmax(0, 30fr) minmax(0, 70fr);
+    }
+
+    .login-visual {
+      min-height: auto;
+      padding: 16px 18px;
+    }
+
+    .visual-kicker {
+      padding: 6px 10px;
+      font-size: 0.68rem;
+    }
+
+    .visual-title {
+      margin: 10px 0 0;
+      font-size: clamp(1.24rem, 6vw, 1.65rem);
+      line-height: 1.08;
+    }
+
+    .visual-copy,
+    .mini-chart,
+    .visual-footer {
+      display: none;
+    }
+
+    .analytics-card {
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 18px;
+    }
+
+    .candidate-row {
+      padding: 10px;
+      border-radius: 14px;
+    }
+
+    .candidate-avatar {
+      width: 28px;
+      height: 28px;
+      font-size: 0.64rem;
+    }
+
+    .stat-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .stat-card {
+      padding: 8px;
+      border-radius: 12px;
+    }
+
+    .stat-card strong {
+      font-size: 0.95rem;
+    }
+
+    .stat-card span {
+      font-size: 0.6rem;
+    }
+
+    .login-form-side {
+      padding: 18px;
+    }
+
+    .brand-lockup {
+      margin-bottom: 14px;
+    }
+
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+    }
+
+    .login-heading {
+      margin-bottom: 14px;
+    }
+
+    .login-heading h1 {
+      margin-bottom: 5px;
+      font-size: clamp(1.5rem, 9vw, 2rem);
+    }
+
+    .login-heading p {
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    .form-field {
+      margin-bottom: 10px;
+    }
+
+    .form-field label {
+      margin-bottom: 5px;
+      font-size: 0.78rem;
+    }
+
+    .login-input {
+      min-height: 44px;
+      padding-top: 10px;
+      padding-bottom: 10px;
+      border-radius: 14px;
+    }
+
+    .login-options {
+      gap: 10px;
+      margin: 0 0 14px;
+      font-size: 0.76rem;
+    }
+
+    .primary-login-button,
+    .google-login-button {
+      min-height: 44px;
+      border-radius: 14px;
+      font-size: 0.88rem;
+    }
+
+    .divider {
+      margin: 12px 0;
+    }
+
+    .signup-note {
+      margin-top: 12px;
+      font-size: 0.78rem;
+    }
+  }
+
+  @media (max-height: 760px) and (min-width: 992px) {
+    .login-form-side,
+    .login-visual {
+      padding: 28px;
+    }
+
+    .brand-lockup,
+    .login-heading {
+      margin-bottom: 18px;
+    }
+
+    .visual-title {
+      margin: 18px 0 10px;
+      font-size: clamp(2rem, 3.2vw, 3.4rem);
+    }
+
+    .visual-copy {
+      line-height: 1.55;
+    }
+
+    .analytics-card {
+      margin-top: 20px;
+      padding: 16px;
+    }
+
+    .mini-chart {
+      height: 78px;
+      margin: 14px 0 8px;
+    }
+
+    .form-field {
+      margin-bottom: 12px;
+    }
+
+    .login-input,
+    .primary-login-button,
+    .google-login-button {
+      min-height: 48px;
+    }
+
+    .login-options {
+      margin-bottom: 16px;
+    }
+
+    .divider {
+      margin: 16px 0;
+    }
+
+    .signup-note,
+    .visual-footer {
+      margin-top: 18px;
+    }
+  }
+</style>
+{% endblock %}
 
 {% block body %}
-<main class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-7 col-lg-5">
-      <div class="card border-0 shadow-lg">
-        <div class="card-body p-4 p-md-5">
-          <h1 class="h4 fw-bold mb-2">Recruitment Tutor</h1>
-          <p class="text-muted small mb-4">Gunakan Gmail aktif untuk pendaftaran, lalu masuk kembali dengan password dashboard recruitment.</p>
-          <form method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label class="form-label fw-semibold">Email Google/Gmail</label>
-            <input class="form-control form-control-lg" type="email" name="google_email" placeholder="nama@gmail.com" required>
-            <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">
-              <i class="bi bi-envelope-check me-2"></i>Mulai / Verifikasi Email
-            </button>
-          </form>
-          <hr class="my-4">
-          <form method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="login">
-            <label class="form-label fw-semibold">Email Dashboard</label>
-            <input class="form-control" type="email" name="google_email" placeholder="nama@gmail.com" required>
-            <label class="form-label fw-semibold mt-3">Password Dashboard</label>
-            <input class="form-control" type="password" name="password" autocomplete="current-password" required>
-            <button class="btn btn-outline-primary w-100 mt-4" type="submit">
-              <i class="bi bi-box-arrow-in-right me-2"></i>Masuk Dashboard Recruitment
-            </button>
-          </form>
+<main class="recruitment-login-shell">
+  <section class="recruitment-login-panel" aria-label="Recruitment dashboard login">
+    <aside class="login-visual">
+      <div class="visual-content">
+        <div class="visual-kicker">
+          <i class="bi bi-stars"></i>
+          HR Tech Recruitment Suite
+        </div>
+        <h1 class="visual-title">Hire smarter with a focused recruitment dashboard.</h1>
+        <p class="visual-copy">
+          Pantau kandidat, interview, offering, dan onboarding tutor dalam satu ruang kerja yang rapi dan cepat dibaca.
+        </p>
+
+        <div class="analytics-card" aria-label="Recruitment analytics preview">
+          <div class="candidate-row">
+            <div>
+              <div class="fw-semibold">Candidate pipeline</div>
+              <div class="small text-white-50">Updated this week</div>
+            </div>
+            <div class="candidate-avatars" aria-hidden="true">
+              <span class="candidate-avatar">AR</span>
+              <span class="candidate-avatar">NS</span>
+              <span class="candidate-avatar">KD</span>
+              <span class="candidate-avatar"><i class="bi bi-plus-lg"></i></span>
+            </div>
+          </div>
+
+          <div class="mini-chart" aria-hidden="true">
+            <span style="height: 46%"></span>
+            <span style="height: 66%"></span>
+            <span style="height: 52%"></span>
+            <span style="height: 82%"></span>
+            <span style="height: 70%"></span>
+            <span style="height: 94%"></span>
+            <span style="height: 76%"></span>
+          </div>
+
+          <div class="stat-grid">
+            <div class="stat-card">
+              <strong>128</strong>
+              <span>Applicants</span>
+            </div>
+            <div class="stat-card">
+              <strong>32</strong>
+              <span>Interviews</span>
+            </div>
+            <div class="stat-card">
+              <strong>18%</strong>
+              <span>Faster hiring</span>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
+
+      <div class="visual-footer">
+        <span><i class="bi bi-shield-check me-2"></i>Secure recruitment access</span>
+        <span><i class="bi bi-graph-up-arrow me-2"></i>HR analytics ready</span>
+      </div>
+    </aside>
+
+    <section class="login-form-side">
+      <div class="login-form-card">
+        <div class="brand-lockup">
+          <div class="brand-logo" aria-hidden="true">
+            {% if branding_logo_mark_data_uri %}
+            <img src="{{ branding_logo_mark_data_uri }}" alt="">
+            {% else %}
+            <i class="bi bi-building-check fs-4"></i>
+            {% endif %}
+          </div>
+          <div class="brand-text">
+            <strong>LBB Super Smart</strong>
+            <span>Recruitment Dashboard</span>
+          </div>
+        </div>
+
+        <div class="login-heading">
+          <h1>Mulai Recruitment</h1>
+          <p>Masuk dengan Google untuk langsung mengisi form recruitment, atau daftar baru menggunakan email aktif.</p>
+        </div>
+
+        <a class="primary-login-button" href="{{ url_for('recruitment.google_login') }}">
+          <i class="bi bi-google"></i>
+          Masuk dengan Google
+        </a>
+
+        <div class="divider">ATAU</div>
+
+        <div class="signup-note">
+          <a class="google-login-button" href="{{ url_for('recruitment.register') }}">
+            <i class="bi bi-envelope-plus"></i>
+            Daftar baru menggunakan email
+          </a>
+          <div class="text-muted small mt-3">Password dashboard diisi setelah Anda masuk ke form recruitment.</div>
+        </div>
+      </div>
+    </section>
+  </section>
 </main>
 {% endblock %}

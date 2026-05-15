@@ -11,6 +11,7 @@ from decimal import Decimal
 from email.message import EmailMessage
 from functools import wraps
 from urllib import error as urllib_error
+from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 from zoneinfo import ZoneInfo
 
@@ -146,6 +147,9 @@ def _ensure_tutor_portal_credentials(tutor):
     if not tutor.portal_password_hash:
         tutor.set_portal_password(_initial_portal_password(tutor))
         tutor.portal_must_change_password = True
+        changed = True
+    if tutor.portal_must_change_password and not tutor.portal_visible_password:
+        tutor.portal_visible_password = _initial_portal_password(tutor)
         changed = True
     if tutor.portal_must_change_password is None:
         tutor.portal_must_change_password = True
@@ -290,6 +294,25 @@ def _build_tutor_login_url():
     path = url_for("tutor_portal.login")
     return f"{base_url}{path}"
 
+def _build_google_callback_url():
+    base_url = current_app.config.get("TUTOR_PORTAL_BASE_URL", "").rstrip("/")
+    path = url_for("tutor_portal.google_callback")
+    return f"{base_url}{path}" if base_url else url_for(
+        "tutor_portal.google_callback", _external=True
+    )
+
+def _clear_portal_sessions():
+    session.pop("tutor_portal_tutor_id", None)
+    session.pop("tutor_portal_admin_tutor_id", None)
+
+def _fetch_google_userinfo(access_token):
+    req = urllib_request.Request(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    with urllib_request.urlopen(req, timeout=15) as response:
+        return json.loads(response.read().decode("utf-8"))
+
 
 def _bot_request(method: str, path: str, payload: dict | None = None, timeout: int = 10):
     body = None
@@ -413,7 +436,7 @@ def _build_tutor_credential_whatsapp_template():
         "Ini akses Dashboard Tutor LBB Super Smart.\n\n"
         "Link dashboard: {dashboard_url}\n"
         "Username: {username}\n"
-        "Password awal: {password}\n\n"
+        "Password: {password}\n\n"
         "Cara login pertama:\n"
         "1. Buka link dashboard tutor.\n"
         "2. Login memakai username dan password awal.\n"
@@ -431,8 +454,8 @@ def _build_tutor_credential_whatsapp_template():
     )
 
 
-def _render_tutor_credential_whatsapp_message(tutor, initial_password, template):
-    password_line = initial_password or "Password sudah diganti tutor, tidak ditampilkan ulang."
+def _render_tutor_credential_whatsapp_message(tutor, visible_password, template):
+    password_line = visible_password or "Password belum tersedia. Hubungi admin."
     values = {
         "tutor_name": tutor.name or "",
         "dashboard_url": _build_tutor_login_url(),
@@ -1215,6 +1238,98 @@ def login():
     return render_template("tutor_portal/login.html")
 
 
+@tutor_portal_bp.route("/google/login", methods=["GET"])
+def google_login():
+    client_id = current_app.config.get("GOOGLE_OAUTH_CLIENT_ID")
+    client_secret = current_app.config.get("GOOGLE_OAUTH_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        flash("Login Google tutor belum dikonfigurasi. Gunakan username dan password.", "warning")
+        return redirect(url_for("tutor_portal.login"))
+
+    state = _token_serializer().dumps({"purpose": "google_login"})
+    params = urllib_parse.urlencode(
+        {
+            "client_id": client_id,
+            "redirect_uri": _build_google_callback_url(),
+            "response_type": "code",
+            "scope": "openid email profile",
+            "state": state,
+            "prompt": "select_account",
+        }
+    )
+    return redirect(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
+
+
+@tutor_portal_bp.route("/google/callback", methods=["GET"])
+def google_callback():
+    if request.args.get("error"):
+        flash("Login Google dibatalkan atau ditolak.", "warning")
+        return redirect(url_for("tutor_portal.login"))
+
+    try:
+        payload = _token_serializer().loads(request.args.get("state", ""), max_age=600)
+    except (SignatureExpired, BadSignature):
+        flash("Sesi Login Google tidak valid. Silakan coba lagi.", "danger")
+        return redirect(url_for("tutor_portal.login"))
+    if payload.get("purpose") != "google_login":
+        flash("Sesi Login Google tidak valid. Silakan coba lagi.", "danger")
+        return redirect(url_for("tutor_portal.login"))
+
+    code = request.args.get("code")
+    if not code:
+        flash("Kode Login Google tidak ditemukan.", "danger")
+        return redirect(url_for("tutor_portal.login"))
+
+    token_payload = urllib_parse.urlencode(
+        {
+            "code": code,
+            "client_id": current_app.config.get("GOOGLE_OAUTH_CLIENT_ID"),
+            "client_secret": current_app.config.get("GOOGLE_OAUTH_CLIENT_SECRET"),
+            "redirect_uri": _build_google_callback_url(),
+            "grant_type": "authorization_code",
+        }
+    ).encode("utf-8")
+    try:
+        token_req = urllib_request.Request(
+            "https://oauth2.googleapis.com/token",
+            data=token_payload,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib_request.urlopen(token_req, timeout=15) as response:
+            token_data = json.loads(response.read().decode("utf-8"))
+        userinfo = _fetch_google_userinfo(token_data.get("access_token"))
+    except (urllib_error.URLError, ValueError, KeyError, TypeError) as exc:
+        current_app.logger.warning("Tutor Google login failed: %s", exc)
+        flash("Login Google gagal. Silakan coba lagi atau gunakan username.", "danger")
+        return redirect(url_for("tutor_portal.login"))
+
+    email = _normalize_email(userinfo.get("email"))
+    if not email or not userinfo.get("email_verified"):
+        flash("Gmail belum terverifikasi oleh Google.", "danger")
+        return redirect(url_for("tutor_portal.login"))
+
+    tutor = Tutor.query.filter(db.func.lower(Tutor.email) == email).first()
+    if not tutor or not tutor.is_active:
+        flash("Gmail belum terdaftar sebagai tutor aktif.", "danger")
+        return redirect(url_for("tutor_portal.login"))
+    if tutor.portal_must_change_password:
+        flash(
+            "Login Google aktif setelah tutor mengganti password awal.",
+            "warning",
+        )
+        return redirect(url_for("tutor_portal.login"))
+
+    _clear_portal_sessions()
+    session["tutor_portal_tutor_id"] = tutor.id
+    session.permanent = True
+    if not tutor.portal_email_verified:
+        tutor.portal_email_verified = True
+        tutor.portal_email_verified_at = datetime.utcnow()
+        db.session.commit()
+    flash("Berhasil masuk ke Dashboard Tutor dengan Google.", "success")
+    return redirect(url_for("tutor_portal.dashboard"))
+
+
 @tutor_portal_bp.route("/verify/<token>")
 def verify(token):
     try:
@@ -1748,12 +1863,12 @@ def _send_tutor_credential_whatsapp(tutor, message_template):
     if not contact_id:
         return False, f"Nomor WhatsApp {tutor.name} belum tersedia."
 
-    initial_password = (
+    visible_password = tutor.portal_visible_password or (
         _initial_portal_password(tutor) if tutor.portal_must_change_password else None
     )
     message = _render_tutor_credential_whatsapp_message(
         tutor,
-        initial_password,
+        visible_password,
         message_template or _build_tutor_credential_whatsapp_template(),
     ).strip()
     if not message:
@@ -1784,11 +1899,7 @@ def admin_credentials():
             "tutor": tutor,
             "username": tutor.portal_username,
             "whatsapp_phone": _normalize_whatsapp_phone(tutor.phone),
-            "initial_password": (
-                _initial_portal_password(tutor)
-                if tutor.portal_must_change_password
-                else None
-            ),
+            "visible_password": tutor.portal_visible_password,
             "must_change_password": tutor.portal_must_change_password,
             "email_verified": tutor.portal_email_verified,
         }

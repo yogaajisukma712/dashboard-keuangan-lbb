@@ -8,7 +8,9 @@ from app.models import (
     AttendanceSession,
     Curriculum,
     Enrollment,
+    EnrollmentSchedule,
     Level,
+    RecruitmentCandidate,
     Student,
     Subject,
     Tutor,
@@ -17,6 +19,7 @@ from app.models import (
     WhatsAppGroup,
     WhatsAppMessage,
 )
+from app.services.tutor_schedule_backfill_service import TutorScheduleBackfillService
 from app.routes.tutor_portal import (
     ATTENDANCE_TABLE_PER_PAGE,
     _ListPagination,
@@ -24,6 +27,7 @@ from app.routes.tutor_portal import (
     _build_schedule_request_display_rows,
     _build_tutor_attendance_calendar,
     _build_tutor_presensi_schedule_grid,
+    _coerce_meeting_start_time,
     _month_bounds,
     _normalize_portal_attendance_period,
     _validated_tutor_attendance_sessions,
@@ -226,12 +230,435 @@ def test_tutor_portal_attendance_calendar_uses_valid_reviews_only():
         assert all(item["review_status"] == "valid" for item in calendar_items)
 
 
-def test_tutor_portal_teaching_schedule_uses_validated_january_to_may_attendance():
+def test_tutor_schedule_backfill_persists_unique_student_schedule_from_january_to_april():
     app = _make_test_app()
 
     with app.app_context():
         db.create_all()
         seeded = _seed_tutor_portal_attendance()
+
+        result = TutorScheduleBackfillService.backfill_from_attendance()
+        schedules = EnrollmentSchedule.query.join(Enrollment).filter(
+            Enrollment.tutor_id == seeded["tutor"].id,
+            EnrollmentSchedule.is_active.is_(True),
+        ).all()
+
+        assert result["created"] == 1
+        assert len(schedules) == 1
+        assert schedules[0].enrollment_id == seeded["april"].enrollment_id
+        assert schedules[0].day_of_week == seeded["april"].session_date.weekday()
+        assert schedules[0].start_time.hour == 17
+
+        schedule_grid = _build_tutor_presensi_schedule_grid(seeded["tutor"].id)
+        schedule_items = [
+            item
+            for row in schedule_grid["rows"]
+            for cell in row["cells"]
+            for item in cell["items"]
+        ]
+        assert schedule_grid["lesson_count"] == 1
+        assert schedule_grid["has_schedule"] is True
+        assert [item["enrollment_ref"] for item in schedule_items] == [
+            seeded["april"].enrollment.public_id
+        ]
+        assert schedule_items[0]["weekday"] == seeded["april"].session_date.weekday()
+        assert schedule_items[0]["source"] == "enrollment"
+
+
+def test_tutor_schedule_backfill_uses_attended_sessions_without_whatsapp_review():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        subject = Subject(name="Matematika")
+        tutor = Tutor(tutor_code="TTR-NOREVIEW", name="Crysant", is_active=True)
+        student = Student(student_code="STD-NOREVIEW", name="Joshua")
+        db.session.add_all([curriculum, level, subject, tutor, student])
+        db.session.flush()
+        enrollment = Enrollment(
+            student_id=student.id,
+            subject_id=subject.id,
+            tutor_id=tutor.id,
+            curriculum_id=curriculum.id,
+            level_id=level.id,
+            grade="10",
+            student_rate_per_meeting=150000,
+            tutor_rate_per_meeting=80000,
+            status="active",
+        )
+        db.session.add(enrollment)
+        db.session.flush()
+        db.session.add_all(
+            [
+                AttendanceSession(
+                    enrollment_id=enrollment.id,
+                    student_id=student.id,
+                    tutor_id=tutor.id,
+                    subject_id=subject.id,
+                    session_date=date(2026, 4, 22),
+                    status="attended",
+                    student_present=True,
+                    tutor_present=True,
+                ),
+                AttendanceSession(
+                    enrollment_id=enrollment.id,
+                    student_id=student.id,
+                    tutor_id=tutor.id,
+                    subject_id=subject.id,
+                    session_date=date(2026, 4, 24),
+                    status="attended",
+                    student_present=True,
+                    tutor_present=True,
+                ),
+            ]
+        )
+        db.session.commit()
+
+        result = TutorScheduleBackfillService.backfill_from_attendance()
+        schedules = (
+            EnrollmentSchedule.query.filter_by(enrollment_id=enrollment.id)
+            .order_by(EnrollmentSchedule.day_of_week.asc())
+            .all()
+        )
+
+        assert result["created"] == 2
+        assert [schedule.day_of_week for schedule in schedules] == [
+            (date(2026, 4, 22).toordinal() - 1) % 7,
+            (date(2026, 4, 24).toordinal() - 1) % 7,
+        ]
+        assert all(schedule.start_time.hour == 17 for schedule in schedules)
+
+
+def test_tutor_schedule_backfill_uses_weekly_position_patterns():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        subject = Subject(name="Matematika")
+        tutor = Tutor(tutor_code="TTR-MULTI", name="Crysant", is_active=True)
+        student = Student(student_code="STD-MULTI", name="Joshua")
+        db.session.add_all([curriculum, level, subject, tutor, student])
+        db.session.flush()
+        enrollment = Enrollment(
+            student_id=student.id,
+            subject_id=subject.id,
+            tutor_id=tutor.id,
+            curriculum_id=curriculum.id,
+            level_id=level.id,
+            grade="10",
+            student_rate_per_meeting=150000,
+            tutor_rate_per_meeting=80000,
+            status="active",
+        )
+        db.session.add(enrollment)
+        db.session.flush()
+        session_dates = [
+            date(2026, 1, 5),
+            date(2026, 1, 7),
+            date(2026, 1, 9),
+            date(2026, 1, 12),
+            date(2026, 1, 14),
+            date(2026, 1, 17),
+            date(2026, 1, 19),
+            date(2026, 1, 21),
+            date(2026, 1, 23),
+            date(2026, 1, 26),
+            date(2026, 1, 28),
+            date(2026, 1, 30),
+        ]
+        db.session.add_all(
+            [
+                AttendanceSession(
+                    enrollment_id=enrollment.id,
+                    student_id=student.id,
+                    tutor_id=tutor.id,
+                    subject_id=subject.id,
+                    session_date=session_date,
+                    status="attended",
+                    student_present=True,
+                    tutor_present=True,
+                )
+                for session_date in session_dates
+            ]
+        )
+        db.session.commit()
+
+        result = TutorScheduleBackfillService.backfill_from_attendance()
+        schedules = (
+            EnrollmentSchedule.query.filter_by(enrollment_id=enrollment.id, is_active=True)
+            .order_by(EnrollmentSchedule.day_of_week.asc())
+            .all()
+        )
+
+        assert result["created"] == 3
+        assert [(schedule.day_name, schedule.start_time.hour) for schedule in schedules] == [
+            ("Senin", 17),
+            ("Rabu", 17),
+            ("Jumat", 17),
+        ]
+
+
+def test_tutor_schedule_backfill_deactivates_students_without_january_april_attendance():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        subject = Subject(name="Matematika")
+        tutor = Tutor(tutor_code="TTR-STALE", name="Crysant", is_active=True)
+        kept_student = Student(student_code="STD-KEPT", name="Joshua")
+        stale_student = Student(student_code="STD-STALE", name="Selvino")
+        outside_tutor = Tutor(tutor_code="TTR-NEW", name="Tutor Baru", is_active=True)
+        outside_student = Student(student_code="STD-NEW", name="Siswa Baru")
+        db.session.add_all(
+            [
+                curriculum,
+                level,
+                subject,
+                tutor,
+                kept_student,
+                stale_student,
+                outside_tutor,
+                outside_student,
+            ]
+        )
+        db.session.flush()
+        kept_enrollment = Enrollment(
+            student_id=kept_student.id,
+            subject_id=subject.id,
+            tutor_id=tutor.id,
+            curriculum_id=curriculum.id,
+            level_id=level.id,
+            grade="10",
+            student_rate_per_meeting=150000,
+            tutor_rate_per_meeting=80000,
+            status="active",
+        )
+        stale_enrollment = Enrollment(
+            student_id=stale_student.id,
+            subject_id=subject.id,
+            tutor_id=tutor.id,
+            curriculum_id=curriculum.id,
+            level_id=level.id,
+            grade="10",
+            student_rate_per_meeting=150000,
+            tutor_rate_per_meeting=80000,
+            status="active",
+        )
+        outside_enrollment = Enrollment(
+            student_id=outside_student.id,
+            subject_id=subject.id,
+            tutor_id=outside_tutor.id,
+            curriculum_id=curriculum.id,
+            level_id=level.id,
+            grade="10",
+            student_rate_per_meeting=150000,
+            tutor_rate_per_meeting=80000,
+            status="active",
+        )
+        db.session.add_all([kept_enrollment, stale_enrollment, outside_enrollment])
+        db.session.flush()
+        db.session.add_all(
+            [
+                AttendanceSession(
+                    enrollment_id=kept_enrollment.id,
+                    student_id=kept_student.id,
+                    tutor_id=tutor.id,
+                    subject_id=subject.id,
+                    session_date=date(2026, 4, 22),
+                    status="attended",
+                    student_present=True,
+                    tutor_present=True,
+                ),
+                EnrollmentSchedule(
+                    enrollment_id=stale_enrollment.id,
+                    day_of_week=1,
+                    day_name="Selasa",
+                    start_time=datetime.strptime("17:00", "%H:%M").time(),
+                    end_time=datetime.strptime("18:00", "%H:%M").time(),
+                    is_active=True,
+                ),
+                EnrollmentSchedule(
+                    enrollment_id=outside_enrollment.id,
+                    day_of_week=2,
+                    day_name="Rabu",
+                    start_time=datetime.strptime("18:00", "%H:%M").time(),
+                    end_time=datetime.strptime("19:00", "%H:%M").time(),
+                    is_active=True,
+                ),
+            ]
+        )
+        db.session.commit()
+
+        result = TutorScheduleBackfillService.backfill_from_attendance()
+
+        assert result["created"] == 1
+        assert result["deactivated_stale"] == 1
+        assert (
+            EnrollmentSchedule.query.filter_by(enrollment_id=stale_enrollment.id)
+            .one()
+            .is_active
+            is False
+        )
+        assert (
+            EnrollmentSchedule.query.filter_by(enrollment_id=outside_enrollment.id)
+            .one()
+            .is_active
+            is True
+        )
+        assert (
+            EnrollmentSchedule.query.filter_by(enrollment_id=kept_enrollment.id)
+            .one()
+            .is_active
+            is True
+        )
+
+
+def test_tutor_schedule_backfill_deactivates_schedule_when_last_attendance_before_2026():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        subject = Subject(name="Matematika")
+        tutor = Tutor(tutor_code="TTR-OLD", name="Tutor Lama", is_active=True)
+        student = Student(student_code="STD-OLD", name="Siswa Lama")
+        db.session.add_all([curriculum, level, subject, tutor, student])
+        db.session.flush()
+        enrollment = Enrollment(
+            student_id=student.id,
+            subject_id=subject.id,
+            tutor_id=tutor.id,
+            curriculum_id=curriculum.id,
+            level_id=level.id,
+            grade="10",
+            student_rate_per_meeting=150000,
+            tutor_rate_per_meeting=80000,
+            status="active",
+        )
+        db.session.add(enrollment)
+        db.session.flush()
+        db.session.add_all(
+            [
+                AttendanceSession(
+                    enrollment_id=enrollment.id,
+                    student_id=student.id,
+                    tutor_id=tutor.id,
+                    subject_id=subject.id,
+                    session_date=date(2025, 12, 20),
+                    status="attended",
+                    student_present=True,
+                    tutor_present=True,
+                ),
+                EnrollmentSchedule(
+                    enrollment_id=enrollment.id,
+                    day_of_week=0,
+                    day_name="Senin",
+                    start_time=datetime.strptime("17:00", "%H:%M").time(),
+                    end_time=datetime.strptime("18:00", "%H:%M").time(),
+                    is_active=True,
+                ),
+            ]
+        )
+        db.session.commit()
+
+        result = TutorScheduleBackfillService.backfill_from_attendance()
+        schedule = EnrollmentSchedule.query.filter_by(enrollment_id=enrollment.id).one()
+
+        assert result["deactivated_stale"] == 1
+        assert schedule.is_active is False
+
+
+def test_tutor_schedule_backfill_ignores_attendance_after_student_moves_to_other_tutor():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        subject = Subject(name="Matematika")
+        old_tutor = Tutor(tutor_code="TTR-OLD-TUTOR", name="Crysant", is_active=True)
+        new_tutor = Tutor(tutor_code="TTR-NEW-TUTOR", name="Rendi", is_active=True)
+        student = Student(student_code="STD-MOVED", name="Rafael Auristo")
+        db.session.add_all([curriculum, level, subject, old_tutor, new_tutor, student])
+        db.session.flush()
+        enrollment = Enrollment(
+            student_id=student.id,
+            subject_id=subject.id,
+            tutor_id=old_tutor.id,
+            curriculum_id=curriculum.id,
+            level_id=level.id,
+            grade="10",
+            student_rate_per_meeting=150000,
+            tutor_rate_per_meeting=80000,
+            status="active",
+        )
+        db.session.add(enrollment)
+        db.session.flush()
+        db.session.add_all(
+            [
+                AttendanceSession(
+                    enrollment_id=enrollment.id,
+                    student_id=student.id,
+                    tutor_id=old_tutor.id,
+                    subject_id=subject.id,
+                    session_date=date(2025, 12, 29),
+                    status="attended",
+                    student_present=True,
+                    tutor_present=True,
+                ),
+                AttendanceSession(
+                    enrollment_id=enrollment.id,
+                    student_id=student.id,
+                    tutor_id=new_tutor.id,
+                    subject_id=subject.id,
+                    session_date=date(2026, 4, 21),
+                    status="attended",
+                    student_present=True,
+                    tutor_present=True,
+                ),
+                EnrollmentSchedule(
+                    enrollment_id=enrollment.id,
+                    day_of_week=1,
+                    day_name="Selasa",
+                    start_time=datetime.strptime("18:00", "%H:%M").time(),
+                    end_time=datetime.strptime("19:00", "%H:%M").time(),
+                    is_active=True,
+                ),
+            ]
+        )
+        db.session.commit()
+
+        result = TutorScheduleBackfillService.backfill_from_attendance()
+        schedule = EnrollmentSchedule.query.filter_by(enrollment_id=enrollment.id).one()
+
+        assert result["created"] == 0
+        assert result["deactivated_stale"] == 1
+        assert schedule.is_active is False
+
+
+def test_tutor_portal_schedule_uses_persisted_enrollment_schedule():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        seeded = _seed_tutor_portal_attendance()
+        schedule = EnrollmentSchedule(
+            enrollment_id=seeded["april"].enrollment_id,
+            day_of_week=2,
+            day_name="Rabu",
+            start_time=datetime.strptime("18:00", "%H:%M").time(),
+            end_time=datetime.strptime("19:00", "%H:%M").time(),
+            is_active=True,
+        )
+        db.session.add(schedule)
+        db.session.commit()
 
         schedule_grid = _build_tutor_presensi_schedule_grid(seeded["tutor"].id)
         schedule_items = [
@@ -241,13 +668,70 @@ def test_tutor_portal_teaching_schedule_uses_validated_january_to_may_attendance
             for item in cell["items"]
         ]
 
-        assert schedule_grid["source_period_label"] == "Januari-Mei 2026"
-        assert schedule_grid["lesson_count"] == 1
-        assert [item["enrollment_ref"] for item in schedule_items] == [
-            seeded["valid_may"].enrollment.public_id
+        assert schedule_grid["has_schedule"] is True
+        assert schedule_grid["source_type"] == "enrollment_schedule"
+        assert schedule_items[0]["weekday"] == 2
+        assert schedule_items[0]["hour"] == 18
+
+
+def test_tutor_portal_schedule_falls_back_to_recruitment_availability_for_new_tutor():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        tutor = Tutor(tutor_code="TTR-NEW-RECRUIT", name="Tutor Baru", is_active=True)
+        candidate = RecruitmentCandidate(
+            google_email="new.tutor@gmail.com",
+            email_verified=True,
+            name="Tutor Baru",
+            status="signed",
+            tutor=tutor,
+        )
+        candidate.availability_slots = [
+            {
+                "weekday": 0,
+                "day_name": "Senin",
+                "hour": 16,
+                "start_time": "16:00",
+                "end_time": "17:00",
+                "state": "available",
+            },
+            {
+                "weekday": 1,
+                "day_name": "Selasa",
+                "hour": 16,
+                "start_time": "16:00",
+                "end_time": "17:00",
+                "state": "unavailable",
+            },
         ]
-        assert schedule_items[0]["weekday"] == seeded["april"].session_date.weekday()
-        assert schedule_items[0]["source"] == "validated_attendance"
+        db.session.add_all([tutor, candidate])
+        db.session.commit()
+
+        schedule_grid = _build_tutor_presensi_schedule_grid(tutor.id)
+        monday_16 = schedule_grid["rows"][8]["cells"][0]
+        tuesday_16 = schedule_grid["rows"][8]["cells"][1]
+
+        assert schedule_grid["has_schedule"] is True
+        assert schedule_grid["lesson_count"] == 0
+        assert schedule_grid["source_type"] == "candidate_availability"
+        assert monday_16["availability"] == "available"
+        assert tuesday_16["availability"] == "unavailable"
+
+
+def test_meet_link_time_options_are_24_hour_15_minute_slots():
+    assert _coerce_meeting_start_time("07:00", 19).strftime("%H:%M") == "07:00"
+    assert _coerce_meeting_start_time("18:45", 19).strftime("%H:%M") == "18:45"
+    assert _coerce_meeting_start_time("21:00", 19).strftime("%H:%M") == "21:00"
+    assert _coerce_meeting_start_time("", 18).strftime("%H:%M") == "18:00"
+
+    invalid_values = ["06:45", "07:10", "21:15", "09:00 AM", "22:00"]
+    for value in invalid_values:
+        try:
+            _coerce_meeting_start_time(value, 19)
+        except ValueError:
+            continue
+        raise AssertionError(f"{value} should be rejected")
 
 
 def test_tutor_portal_attendance_pagination_limits_table_to_10_rows():
@@ -382,6 +866,7 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "URLSafeTimedSerializer" in route_text
     assert "portal_username" in model_text
     assert "set_portal_password" in model_text
+    assert "self.portal_visible_password = password" in model_text
     assert "check_portal_password" in route_text
     assert "portal_must_change_password" in route_text
     assert "login_method == \"email\"" not in route_text
@@ -392,6 +877,16 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Admin perlu cek koneksi SMTP" in route_text
     assert "verify_email" in route_text
     assert "email.endswith(\"@gmail.com\")" in route_text
+    assert '@tutor_portal_bp.route("/google/login", methods=["GET"])' in route_text
+    assert '@tutor_portal_bp.route("/google/callback", methods=["GET"])' in route_text
+    assert "def _fetch_google_userinfo" in route_text
+    assert "tutor.portal_must_change_password" in route_text
+    assert "Login Google aktif setelah tutor mengganti password awal" in route_text
+    assert "session[\"tutor_portal_tutor_id\"] = tutor.id" in route_text
+    assert "def _clear_portal_sessions" in route_text
+    assert "recruitment_candidate_id" in route_text
+    assert "def _default_meeting_hour_for_enrollment" in route_text
+    assert "_default_meeting_hour_for_enrollment(enrollment.id)" in route_text
     assert "TUTOR_PORTAL_MIN_DATE" in route_text
     assert "_normalize_portal_attendance_period" in route_text
     assert "_validated_tutor_attendance_sessions" in route_text
@@ -404,6 +899,18 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "_attach_meet_links_to_schedule_grid(" in route_text
     assert "_build_tutor_weekly_schedule_grid(tutor.id)" in route_text
     assert "Januari-Mei 2026" in route_text
+    assert "TutorScheduleBackfillService" in (
+        PROJECT_ROOT / "app" / "services" / "tutor_schedule_backfill_service.py"
+    ).read_text(encoding="utf-8")
+    assert "has_schedule" in (
+        PROJECT_ROOT / "app" / "routes" / "master.py"
+    ).read_text(encoding="utf-8")
+    assert "TutorMeetLink.query.filter" in (
+        PROJECT_ROOT / "app" / "routes" / "master.py"
+    ).read_text(encoding="utf-8")
+    assert '"meet_link": meet_links.get(enrollment.id)' in (
+        PROJECT_ROOT / "app" / "routes" / "master.py"
+    ).read_text(encoding="utf-8")
     assert "TutorPortalRequest" in route_text
     assert "request_schedule_change" in route_text
     assert 'methods=["GET", "POST"]' in route_text
@@ -417,7 +924,15 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "def admin_dashboard_select" in route_text
     assert "tutor_portal_admin_tutor_id" in route_text
     assert "_current_user_can_view_tutor_dashboard" in route_text
+    assert '@tutor_portal_bp.route("/payouts/<string:payout_ref>", methods=["GET"])' in route_text
+    assert "def payout_detail" in route_text
+    assert "_build_fee_slip_template_context" in route_text
+    assert '"payroll/fee_slip.html"' in route_text
+    assert "tutor_portal_mode=True" in route_text
+    assert 'proof_endpoint="tutor_portal.uploaded_file"' in route_text
+    assert "payout.tutor_id != tutor.id" in route_text
     assert '"tutor_portal.uploaded_file"' in route_text
+    assert '"tutor_portal.payout_detail"' in route_text
     assert "Mode admin hanya untuk melihat dashboard tutor" in route_text
     assert "admin_credentials" in route_text
     assert "admin_send_credential_whatsapp" in route_text
@@ -461,6 +976,9 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "whatsapp_message_template" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
+    assert "row.visible_password" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
+    ).read_text(encoding="utf-8")
     assert "formaction" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
@@ -477,6 +995,12 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "login.html"
     ).read_text(encoding="utf-8")
     assert "Login Admin" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "login.html"
+    ).read_text(encoding="utf-8")
+    assert "Login dengan Google" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "login.html"
+    ).read_text(encoding="utf-8")
+    assert "tutor_portal.google_login" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "login.html"
     ).read_text(encoding="utf-8")
     assert "tutor_portal.admin_dashboard_select" in (
@@ -499,6 +1023,17 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Mode Admin" in admin_select_text
     assert "Lihat Dashboard Tutor" in admin_select_text
     assert "Slip Gaji" in dashboard_text
+    assert "tutor_portal.payout_detail" in dashboard_text
+    fee_slip_text = (
+        PROJECT_ROOT / "app" / "templates" / "payroll" / "fee_slip.html"
+    ).read_text(encoding="utf-8")
+    assert (
+        '{% extends "tutor_portal/base.html" if tutor_portal_mode|default(false) else "base.html" %}'
+        in fee_slip_text
+    )
+    assert "tutor_portal_mode" in fee_slip_text
+    assert "Dashboard Tutor" in fee_slip_text
+    assert "{% block scripts %}{% endblock %}" in base_text
     assert "Ajukan Jadwal Merah/Hijau" not in dashboard_text
     assert "master/_tutor_schedule_grid.html" in dashboard_text
     assert "Perubahan Jadwal" in dashboard_text
@@ -545,6 +1080,8 @@ def test_tutor_portal_docker_service_and_mail_config_exist():
     assert "${TUTOR_PORTAL_PORT:-6003}:5000" in compose_text
     assert "TUTOR_PORTAL_BASE_URL" in compose_text
     assert "TUTOR_PORTAL_BASE_URL: ${TUTOR_PORTAL_BASE_URL:-https://tutor.supersmart.click}" in compose_text
+    assert "GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}" in compose_text
+    assert "GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}" in compose_text
     assert "MAIL_SERVER" in compose_text
     if env_text:
         assert "TUTOR_PORTAL_PORT=6003" in env_text

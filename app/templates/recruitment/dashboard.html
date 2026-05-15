@@ -5,11 +5,172 @@
 {% block head %}
 <style>
   .document-box {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: #eef2f7;
+    border: 1px solid #d8e0ea;
     border-radius: 8px;
     padding: 1rem;
-    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+
+  .document-frame {
+    background: #eef2f7;
+    border: 1px solid #d8e0ea;
+    border-radius: 8px;
+    display: block;
+    min-height: 78vh;
+    width: 100%;
+  }
+
+  .dashboard-heading,
+  .dashboard-heading .text-muted {
+    color: #fff !important;
+  }
+
+  .recruitment-a4-page {
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+    color: #111827;
+    font-family: Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.35;
+    margin: 0 auto 18px;
+    min-height: 297mm;
+    padding: 18mm;
+    width: 210mm;
+  }
+
+  .recruitment-a4-page p,
+  .recruitment-a4-page li {
+    margin-bottom: 0.25rem;
+  }
+
+  .recruitment-a4-page h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    margin: 0.6rem 0 0.25rem;
+  }
+
+  .doc-title,
+  .doc-subtitle,
+  .doc-letterhead {
+    text-align: center;
+  }
+
+  .doc-title {
+    font-size: 18pt;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .doc-subtitle {
+    font-size: 13pt;
+    font-weight: 700;
+    margin: 0 0 0.8rem;
+  }
+
+  .doc-letterhead {
+    margin-bottom: 1.4rem;
+  }
+
+  .doc-brand {
+    font-size: 13pt;
+    letter-spacing: 0;
+  }
+
+  .doc-date {
+    text-align: right;
+  }
+
+  .doc-two-columns {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .doc-info-table {
+    border-collapse: collapse;
+    margin: 0.5rem 0 0.9rem;
+    width: 100%;
+  }
+
+  .doc-info-table th {
+    font-weight: 700;
+    text-align: left;
+    width: 36%;
+  }
+
+  .doc-info-table th,
+  .doc-info-table td {
+    padding: 0.15rem 0.35rem;
+    vertical-align: top;
+  }
+
+  .doc-signatures {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: 1fr 1fr;
+    margin-top: 1cm;
+    text-align: center;
+  }
+
+  .doc-ceo-sign {
+    margin-top: 1.3cm;
+    text-align: left;
+  }
+
+  .doc-signature-space {
+    align-items: center;
+    display: flex;
+    height: 76px;
+    justify-content: center;
+    margin: 0.2rem auto 0.15rem;
+    overflow: hidden;
+    width: 190px;
+  }
+
+  .doc-candidate-signature {
+    display: block;
+    max-height: 72px;
+    max-width: 180px;
+    object-fit: contain;
+  }
+
+  .doc-qr {
+    height: 92px;
+    margin: 0.35rem auto;
+    width: 92px;
+  }
+
+  .doc-verify-text,
+  .doc-footer {
+    font-size: 8pt;
+  }
+
+  .doc-footer {
+    margin-top: 1.4rem;
+    text-align: center;
+  }
+
+  @media (max-width: 900px) {
+    .recruitment-a4-page {
+      min-height: auto;
+      padding: 14mm;
+      width: 100%;
+    }
+  }
+
+  @media print {
+    .document-box {
+      background: #fff;
+      border: 0;
+      padding: 0;
+    }
+
+    .recruitment-a4-page {
+      box-shadow: none;
+      margin: 0;
+      page-break-after: always;
+    }
   }
 
   .summary-list {
@@ -17,9 +178,62 @@
     gap: 0.75rem;
   }
 
+  .profile-photo-preview {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    height: 132px;
+    object-fit: cover;
+    width: 132px;
+  }
+
+  .profile-photo-placeholder {
+    align-items: center;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    color: #64748b;
+    display: inline-flex;
+    height: 132px;
+    justify-content: center;
+    width: 132px;
+  }
+
   .summary-item {
     border-bottom: 1px solid #e2e8f0;
     padding-bottom: 0.75rem;
+  }
+
+  .progress-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .progress-step {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.9rem;
+    background: #fff;
+  }
+
+  .progress-step.is-active {
+    border-color: #60a5fa;
+    background: #eff6ff;
+  }
+
+  .progress-step.is-done {
+    border-color: #86efac;
+    background: #f0fdf4;
+  }
+
+  .progress-step-icon {
+    width: 30px;
+    height: 30px;
+    align-items: center;
+    border-radius: 50%;
+    display: inline-flex;
+    justify-content: center;
+    margin-bottom: 0.5rem;
   }
 
   .summary-label {
@@ -44,8 +258,8 @@
 
   .availability-table {
     border-color: #94a3b8;
-    font-size: 0.72rem;
-    min-width: 760px;
+    font-size: 0.68rem;
+    min-width: 620px;
     table-layout: fixed;
   }
 
@@ -57,21 +271,21 @@
   }
 
   .availability-time {
-    width: 68px;
+    width: 56px;
   }
 
   .availability-cell {
     border-color: #94a3b8;
-    height: 38px;
-    padding: 0.2rem;
+    height: 26px;
+    padding: 0.12rem;
   }
 
   .availability-pill {
-    border-radius: 6px;
+    border-radius: 4px;
     color: #0f172a;
     display: block;
-    font-size: 0.68rem;
-    padding: 0.35rem 0.25rem;
+    min-height: 20px;
+    padding: 0;
     text-align: center;
   }
 
@@ -82,33 +296,188 @@
   .availability-pill.is-unavailable {
     background: #fca5a5;
   }
+
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+  }
 </style>
 {% endblock %}
 
 {% block body %}
-<main class="container py-5">
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+<main class="container-fluid px-3 px-lg-4 py-4">
+  {% set progress_index = 0 if candidate.status in ['submitted', 'draft'] else 1 if candidate.status in ['selected', 'interview'] else 2 %}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 dashboard-heading">
     <div>
       <h1 class="h3 fw-bold mb-1">Dashboard Recruitment</h1>
       <div class="text-muted">{{ candidate.google_email }}</div>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex flex-wrap align-items-center gap-2 no-print">
       <span class="badge text-bg-primary">{{ status_label }}</span>
+      <a class="btn btn-light btn-sm" href="{{ url_for('recruitment.form') }}">
+        <i class="bi bi-pencil-square me-1"></i>Edit Data
+      </a>
+      <form method="post" action="{{ url_for('recruitment.new_application') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-warning btn-sm" type="submit">
+          <i class="bi bi-plus-lg me-1"></i>Ajukan Lamaran Baru
+        </button>
+      </form>
       <form method="post" action="{{ url_for('recruitment.logout') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-outline-secondary btn-sm" type="submit">
+        <button class="btn btn-outline-light btn-sm" type="submit">
           <i class="bi bi-box-arrow-right me-1"></i>Keluar
         </button>
       </form>
     </div>
   </div>
 
+  <section class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <h2 class="h5 fw-bold mb-3">Progress Lamaran</h2>
+      <div class="progress-steps">
+        <div class="progress-step {{ 'is-done' if progress_index > 0 else 'is-active' }}">
+          <span class="progress-step-icon {{ 'bg-success text-white' if progress_index > 0 else 'bg-primary text-white' }}">
+            <i class="bi bi-file-earmark-check"></i>
+          </span>
+          <div class="fw-semibold">Lolos Berkas</div>
+          <div class="text-muted small">Admin meninjau data dan CV.</div>
+        </div>
+        <div class="progress-step {{ 'is-done' if progress_index > 1 else 'is-active' if progress_index == 1 else '' }}">
+          <span class="progress-step-icon {{ 'bg-success text-white' if progress_index > 1 else 'bg-primary text-white' if progress_index == 1 else 'bg-light text-muted border' }}">
+            <i class="bi bi-camera-video"></i>
+          </span>
+          <div class="fw-semibold">Interview</div>
+          <div class="text-muted small">Tahap interview dan keputusan admin.</div>
+        </div>
+        <div class="progress-step {{ 'is-active' if progress_index == 2 else '' }}">
+          <span class="progress-step-icon {{ 'bg-primary text-white' if progress_index == 2 else 'bg-light text-muted border' }}">
+            <i class="bi bi-file-earmark-text"></i>
+          </span>
+          <div class="fw-semibold">Offering & Kontrak</div>
+          <div class="text-muted small">Muncul setelah admin mengirim offering.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+          <h2 class="h5 fw-bold mb-1">Riwayat Lamaran</h2>
+          <div class="text-muted small">Semua lamaran yang diajukan dengan email ini.</div>
+        </div>
+        <form method="post" action="{{ url_for('recruitment.new_application') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-primary btn-sm" type="submit">
+            <i class="bi bi-plus-lg me-1"></i>Lamaran Baru
+          </button>
+        </form>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Jenis Lamaran</th>
+              <th>Tanggal Pengajuan</th>
+              <th>Status</th>
+              <th class="text-end">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in applications %}
+            <tr class="{{ 'table-primary' if item.id == candidate.id else '' }}">
+              <td>{{ application_kind(item) }}</td>
+              <td>{{ item.created_at.strftime('%d %b %Y %H:%M') if item.created_at else '-' }}</td>
+              <td>
+                <span class="badge text-bg-light border text-dark">
+                  {{ status_labels.get(item.status, item.status) }}
+                </span>
+              </td>
+              <td class="text-end">
+                {% if item.id == candidate.id %}
+                <span class="badge text-bg-primary">Aktif</span>
+                {% else %}
+                <form method="post" action="{{ url_for('recruitment.open_application', candidate_ref=item.public_id) }}" class="d-inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline-primary btn-sm" type="submit">Buka</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">Belum ada lamaran.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
   <div class="row g-4">
-    <div class="col-lg-5">
+    <div class="col-xl-4 col-lg-5">
       <section class="card border-0 shadow-sm">
         <div class="card-body p-4">
-          <h2 class="h5 fw-bold mb-3">Data Diri</h2>
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <h2 class="h5 fw-bold mb-0">Data Diri</h2>
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('recruitment.form') }}">
+              <i class="bi bi-pencil-square me-1"></i>Edit Data
+            </a>
+          </div>
           <div class="summary-list">
+            <div class="summary-item">
+              <div class="summary-label">Foto Profil</div>
+              <div class="mt-2">
+                {% if candidate.photo_file_path and candidate_files.photo_exists %}
+                <img
+                  class="profile-photo-preview"
+                  src="{{ url_for('recruitment.dashboard_file', kind='photo') }}"
+                  alt="Foto profil {{ candidate.name or 'pelamar' }}"
+                >
+                <div class="mt-2">
+                  <a class="btn btn-outline-primary btn-sm" href="{{ url_for('recruitment.form') }}">
+                    <i class="bi bi-arrow-repeat me-1"></i>Ganti Foto
+                  </a>
+                </div>
+                {% else %}
+                <div class="profile-photo-placeholder">
+                  <i class="bi bi-person fs-2"></i>
+                </div>
+                <div class="form-text mt-2">
+                  {% if candidate.photo_file_path %}
+                  File foto lama belum ditemukan. Upload ulang lewat Edit Data.
+                  {% else %}
+                  Belum upload foto.
+                  {% endif %}
+                </div>
+                {% endif %}
+              </div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">CV</div>
+              <div class="mt-2">
+                {% if candidate.cv_file_path and candidate_files.cv_exists %}
+                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('recruitment.dashboard_file', kind='cv') }}" target="_blank">
+                  <i class="bi bi-file-earmark-person me-1"></i>Lihat CV
+                </a>
+                <a class="btn btn-outline-secondary btn-sm ms-2" href="{{ url_for('recruitment.form') }}">
+                  <i class="bi bi-arrow-repeat me-1"></i>Ganti CV
+                </a>
+                {% else %}
+                <span class="text-muted">
+                  {% if candidate.cv_file_path %}
+                  File CV lama belum ditemukan. Upload ulang lewat Edit Data.
+                  {% else %}
+                  Belum upload CV
+                  {% endif %}
+                </span>
+                {% endif %}
+              </div>
+            </div>
             <div class="summary-item">
               <div class="summary-label">Nama</div>
               <div>{{ candidate.name or '-' }}</div>
@@ -153,7 +522,7 @@
       </section>
     </div>
 
-    <div class="col-lg-7">
+    <div class="col-xl-8 col-lg-7">
       <section class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
           <h2 class="h5 fw-bold mb-1">Jadwal Waktu Luang</h2>
@@ -175,7 +544,7 @@
                   {% for cell in row.cells %}
                   <td class="availability-cell">
                     <span class="availability-pill {{ 'is-available' if cell.state == 'available' else 'is-unavailable' }}">
-                      {{ 'Luang' if cell.state == 'available' else 'Tidak Bisa' }}
+                      <span class="visually-hidden">{{ 'Waktu luang' if cell.state == 'available' else 'Tidak bisa' }}</span>
                     </span>
                   </td>
                   {% endfor %}
@@ -188,12 +557,26 @@
       </section>
       <section class="card border-0 shadow-sm">
         <div class="card-body p-4">
-          <h2 class="h5 fw-bold mb-3">SK & Offering</h2>
           {% if candidate.status in ['contract_sent', 'signed'] %}
-            <h3 class="h6 fw-bold">Surat Kerja / Kontrak</h3>
-            <div class="document-box mb-3">{{ candidate.contract_text }}</div>
+            <h2 class="h5 fw-bold mb-3">Offering & Kontrak</h2>
             <h3 class="h6 fw-bold">Offering</h3>
-            <div class="document-box mb-4">{{ candidate.offering_text }}</div>
+            <iframe
+              class="document-frame mb-3"
+              title="Offering"
+              src="{{ url_for('recruitment.dashboard_document', kind='offering') }}"
+            ></iframe>
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <h3 class="h6 fw-bold mb-0">Surat Kerja / Kontrak</h3>
+              <button class="btn btn-outline-primary btn-sm no-print" type="button" id="print-contract">
+                <i class="bi bi-printer me-1"></i>Print PDF Kontrak
+              </button>
+            </div>
+            <iframe
+              class="document-frame my-3"
+              id="contract-document-frame"
+              title="Surat Kerja / Kontrak"
+              src="{{ url_for('recruitment.dashboard_document', kind='contract') }}"
+            ></iframe>
 
             {% if candidate.is_signed %}
             <div class="alert alert-success">Dokumen sudah ditandatangani pada {{ candidate.signed_at.strftime('%d %b %Y %H:%M') }}.</div>
@@ -201,7 +584,7 @@
               <img src="{{ candidate.signature_data_url }}" class="border rounded bg-white p-2" style="max-width:280px" alt="Tanda tangan">
               {% endif %}
               {% if candidate.tutor_id %}
-              <a class="btn btn-primary mt-3" href="{{ url_for('tutor_portal.dashboard') }}">
+              <a class="btn btn-primary mt-3" href="{{ url_for('recruitment.enter_tutor_dashboard') }}">
                 <i class="bi bi-speedometer2 me-1"></i>Masuk Dashboard Tutor
               </a>
               {% endif %}
@@ -220,9 +603,8 @@
             </form>
             {% endif %}
           {% else %}
-          <div class="alert alert-info mb-0">
-            Data lamaran sudah tersimpan. SK dan offering akan muncul di dashboard ini setelah dikirim oleh admin.
-          </div>
+          <h2 class="h5 fw-bold mb-3">Informasi Tahap Berikutnya</h2>
+          <div class="alert alert-info mb-0">Data lamaran sudah tersimpan. Dokumen offering dan kontrak akan muncul setelah admin mengirimkannya.</div>
           {% endif %}
         </div>
       </section>
@@ -231,6 +613,26 @@
 </main>
 
 <script>
+  (function () {
+    const printButton = document.getElementById("print-contract");
+    const contractFrame = document.getElementById("contract-document-frame");
+    if (printButton && contractFrame) {
+      printButton.addEventListener("click", function () {
+        contractFrame.contentWindow.focus();
+        contractFrame.contentWindow.print();
+      });
+    }
+  })();
+
+  (function () {
+    document.querySelectorAll("[data-render-html-document]").forEach((box) => {
+      const raw = (box.textContent || "").trim();
+      if (raw.startsWith("<section") || raw.startsWith("<style") || raw.startsWith("<div")) {
+        box.innerHTML = raw;
+      }
+    });
+  })();
+
   (function () {
     const canvas = document.getElementById("signature-pad");
     const form = document.getElementById("contract-sign-form");

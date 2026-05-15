@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "tutor_portal/base.html" if tutor_portal_mode|default(false) else "base.html" %}
 
 {% block title %}Fee Slip #{{ payout.id }} — {{ tutor.name }}{% endblock %}
 
@@ -10,6 +10,12 @@
 {# ── Action bar (hanya muncul di layar, disembunyikan saat print) ────────── #}
 <div class="no-print d-flex justify-content-between align-items-center mb-3">
   <div>
+    {% if tutor_portal_mode|default(false) %}
+    <a href="{{ url_for('tutor_portal.dashboard') }}"
+       class="btn btn-outline-secondary btn-sm me-1">
+      <i class="bi bi-arrow-left"></i> Dashboard Tutor
+    </a>
+    {% else %}
     <a href="{{ url_for('payroll.payout_detail', payout_ref=payout.public_id) }}"
        class="btn btn-outline-secondary btn-sm me-1">
       <i class="bi bi-arrow-left"></i> Kembali
@@ -18,18 +24,22 @@
        class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-people"></i> Payroll
     </a>
+    {% endif %}
   </div>
   <div class="d-flex gap-2">
     <button onclick="window.print()" class="btn btn-primary btn-sm">
       <i class="bi bi-printer me-1"></i> Print
     </button>
+    {% if not tutor_portal_mode|default(false) %}
     <a href="{{ url_for('payroll.fee_slip_pdf', payout_ref=payout.public_id) }}"
        class="btn btn-success btn-sm">
       <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
     </a>
+    {% endif %}
   </div>
 </div>
 
+{% if not tutor_portal_mode|default(false) %}
 <div class="no-print card border-0 shadow-sm mb-3">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
@@ -114,6 +124,7 @@
     {% endif %}
   </div>
 </div>
+{% endif %}
 
 {# ═══════════════════════════════════════════════════════════════════════════ #}
 {# ── FEE SLIP DOCUMENT ────────────────────────────────────────────────────── #}

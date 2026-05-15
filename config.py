@@ -26,6 +26,7 @@ class Config:
     SESSION_COOKIE_SECURE = (
         os.environ.get("SESSION_COOKIE_SECURE", "False").lower() == "true"
     )
+    SESSION_COOKIE_DOMAIN = os.environ.get("SESSION_COOKIE_DOMAIN") or None
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
 
@@ -79,6 +80,8 @@ class Config:
     RECRUITMENT_HOST = os.environ.get(
         "RECRUITMENT_HOST", "recruitment.supersmart.click"
     )
+    GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
+    GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
     SS_MEET_API_URL = os.environ.get(
         "SS_MEET_API_URL", "https://meet-admin.supersmart.click/api/meet/create"
     )

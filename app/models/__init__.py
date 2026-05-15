@@ -19,8 +19,8 @@ from .payment import StudentPayment, StudentPaymentLine
 from .income import OtherIncome
 from .expense import Expense
 from .payroll import TutorPayout, TutorPayoutLine, TutorPayoutProof
-from .recruitment import RecruitmentCandidate
 from .tutor_portal import TutorMeetLink, TutorPortalRequest
+from .recruitment import RecruitmentCandidate
 from .closing import MonthlyClosing
 from .whatsapp import (
     WhatsAppContact,
@@ -44,8 +44,8 @@ __all__ = [
     'OtherIncome',
     'Expense',
     'TutorPayout', 'TutorPayoutLine', 'TutorPayoutProof',
-    'RecruitmentCandidate',
     'TutorPortalRequest', 'TutorMeetLink',
+    'RecruitmentCandidate',
     'MonthlyClosing',
     'WhatsAppGroup',
     'WhatsAppContact',

@@ -82,6 +82,15 @@ def _apply_schema_patches():
         # Tutor is_active
         "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
         "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'",
+        "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS profile_photo_path VARCHAR(500)",
+        "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS cv_file_path VARCHAR(500)",
+        "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS portal_username VARCHAR(80)",
+        "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS portal_password_hash VARCHAR(255)",
+        "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS portal_visible_password VARCHAR(255)",
+        "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS portal_must_change_password BOOLEAN DEFAULT TRUE",
+        "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS portal_email_verified BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE tutors ADD COLUMN IF NOT EXISTS portal_email_verified_at TIMESTAMP",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_tutors_portal_username ON tutors(portal_username) WHERE portal_username IS NOT NULL",
         """
         CREATE TABLE IF NOT EXISTS tutor_meet_links (
             id SERIAL PRIMARY KEY,
@@ -96,6 +105,7 @@ def _apply_schema_patches():
             status VARCHAR(20) NOT NULL DEFAULT 'active',
             max_joins INTEGER NOT NULL DEFAULT 1,
             source VARCHAR(40) DEFAULT 'tutor_portal',
+            valid_from TIMESTAMP,
             expires_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
@@ -104,6 +114,7 @@ def _apply_schema_patches():
         "CREATE INDEX IF NOT EXISTS ix_tutor_meet_links_enrollment_id ON tutor_meet_links(enrollment_id)",
         "CREATE INDEX IF NOT EXISTS ix_tutor_meet_links_tutor_id ON tutor_meet_links(tutor_id)",
         "CREATE INDEX IF NOT EXISTS ix_tutor_meet_links_student_id ON tutor_meet_links(student_id)",
+        "ALTER TABLE tutor_meet_links ADD COLUMN IF NOT EXISTS valid_from TIMESTAMP",
         "ALTER TABLE tutor_meet_links ALTER COLUMN join_url TYPE TEXT",
         "ALTER TABLE tutor_meet_links ALTER COLUMN jitsi_url TYPE TEXT",
         "CREATE INDEX IF NOT EXISTS ix_tutor_meet_links_status ON tutor_meet_links(status)",

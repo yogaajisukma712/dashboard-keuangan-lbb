@@ -1,5 +1,6 @@
 import logging
 import os
+from html import unescape
 from logging.handlers import RotatingFileHandler
 from urllib.parse import urlparse
 
@@ -99,6 +100,7 @@ def create_app(config_name=None):
         if request_host == recruitment_host:
             allowed_prefixes = (
                 "/recruitment/",
+                "/recruitment/document/verify/",
                 "/recruitment/verify/",
                 "/recruitment/form",
                 "/recruitment/dashboard",
@@ -134,6 +136,7 @@ def create_app(config_name=None):
                 or request.path.startswith("/recruitment/form")
                 or request.path.startswith("/recruitment/dashboard")
                 or request.path.startswith("/recruitment/logout")
+                or request.path.startswith("/recruitment/document/verify/")
                 or request.path.startswith("/recruitment/verify/")
                 or request.path.startswith("/recruitment/selesai")
                 or request.path.startswith("/recruitment/contract/")
@@ -219,6 +222,19 @@ def register_template_filters(app):
         if value is None:
             return ""
         return Markup("<br>".join(str(escape(value)).splitlines()))
+
+    @app.template_filter("recruitment_document")
+    def recruitment_document(value):
+        """Render stored recruitment documents as HTML, including escaped legacy rows."""
+        if value is None:
+            return ""
+        rendered = str(value)
+        for _ in range(2):
+            unescaped = unescape(rendered)
+            if unescaped == rendered:
+                break
+            rendered = unescaped
+        return Markup(rendered)
 
 
 def register_blueprints(app):

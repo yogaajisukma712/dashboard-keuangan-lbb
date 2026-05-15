@@ -41,7 +41,7 @@ def test_tutor_detail_template_does_not_use_textual_order_by():
     assert "Jadwal Mengajar" in template_text
     assert "08.00-21.00" in template_text
     assert "{% block title %}{{ tutor.name }}{% endblock %}" in template_text
-    assert "schedule_grid.lesson_count" in template_text
+    assert "schedule_grid.has_schedule" in template_text
     assert 'include "master/_tutor_schedule_grid.html"' in template_text
     assert "Mapel yang Diajarkan" in template_text
     assert "Enrollment aktif" in template_text
@@ -71,8 +71,15 @@ def test_tutor_weekly_schedule_route_and_templates_exist():
     assert "def _build_tutor_weekly_schedule_grid(tutor_id: int | None):" in route_text
     assert "hour_slots = list(range(8, 22))" in route_text
     assert "EnrollmentSchedule.query.join(Enrollment)" in route_text
-    assert "used_slots = {weekday: 17 for weekday in range(7)}" in route_text
+    assert "TutorMeetLink.query.filter" in route_text
+    assert "RecruitmentCandidate.query.filter" in route_text
+    assert '"source_type": source_type' in route_text
+    assert '"candidate_availability"' in route_text
+    assert '"meet_link": meet_links.get(enrollment.id)' in route_text
+    assert '"schedule_id": schedule.id' in route_text
+    assert "used_slots = {weekday: 17 for weekday in range(7)}" not in route_text
     assert 'cell["availability"] = "filled" if cell["items"] else "unavailable" if cell["hour"] < 16 else "available"' in route_text
+    assert 'source_type = "enrollment_schedule"' in route_text
     assert "student_short_name" in route_text
     assert '@master_bp.route("/tutors/schedule", methods=["GET"])' in route_text
     assert "def tutor_schedule_view():" in route_text
@@ -83,6 +90,11 @@ def test_tutor_weekly_schedule_route_and_templates_exist():
     assert "schedule_grid.rows" in grid_template
     assert "cell['items']" in grid_template
     assert "cell.items" not in grid_template
+    assert 'type="time"' not in grid_template
+    assert "tutor_meet_time_select(item)" in grid_template
+    assert 'name="meeting_time"' in grid_template
+    assert "range(7, 22)" in grid_template
+    assert "[0, 15, 30, 45]" in grid_template
     assert "tutor-schedule-cell-latest" in grid_template
     assert "tutor-schedule-cell-available" in grid_template
     assert "tutor-schedule-cell-unavailable" in grid_template

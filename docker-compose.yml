@@ -39,6 +39,7 @@ services:
       FLASK_PORT: 5000
       DEBUG: ${DEBUG:-False}
       SECRET_KEY: ${SECRET_KEY:-change-this-secret-key-billing}
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-lbb_db}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PAGINATION_PER_PAGE: ${PAGINATION_PER_PAGE:-20}
@@ -94,6 +95,7 @@ services:
       FLASK_PORT: 5000
       DEBUG: ${DEBUG:-False}
       SECRET_KEY: ${SECRET_KEY:-change-this-secret-key-billing}
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-lbb_db}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PAGINATION_PER_PAGE: ${PAGINATION_PER_PAGE:-20}
@@ -105,6 +107,8 @@ services:
       TUTOR_PORTAL_MIN_DATE: ${TUTOR_PORTAL_MIN_DATE:-2026-04-01}
       RECRUITMENT_BASE_URL: ${RECRUITMENT_BASE_URL:-https://recruitment.supersmart.click}
       RECRUITMENT_HOST: ${RECRUITMENT_HOST:-recruitment.supersmart.click}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
       SS_MEET_API_URL: ${SS_MEET_API_URL:-https://meet-admin.supersmart.click/api/meet/create}
       SS_MEET_API_KEY: ${SS_MEET_API_KEY:-}
       MAIL_SERVER: ${MAIL_SERVER:-}
@@ -138,6 +142,7 @@ services:
       FLASK_PORT: 5000
       DEBUG: ${DEBUG:-False}
       SECRET_KEY: ${SECRET_KEY:-change-this-secret-key-billing}
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-lbb_db}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PAGINATION_PER_PAGE: ${PAGINATION_PER_PAGE:-20}
@@ -150,6 +155,8 @@ services:
       TUTOR_PORTAL_HOST: ${TUTOR_PORTAL_HOST:-tutor.supersmart.click}
       RECRUITMENT_BASE_URL: ${RECRUITMENT_BASE_URL:-https://recruitment.supersmart.click}
       RECRUITMENT_HOST: ${RECRUITMENT_HOST:-recruitment.supersmart.click}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
       MAIL_SERVER: ${MAIL_SERVER:-}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}

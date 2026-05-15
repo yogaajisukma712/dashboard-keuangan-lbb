@@ -42,6 +42,7 @@ from app.models import (
     Subject,
     SubjectTutorAssignment,
     Tutor,
+    TutorMeetLink,
     TutorPortalRequest,
     TutorPayout,
     User,
@@ -201,6 +202,8 @@ def _build_tutor_weekly_schedule_grid(tutor_id: int | None):
                 for hour in hour_slots
             ],
             "lesson_count": 0,
+            "has_schedule": False,
+            "source_type": "empty",
             "latest_session_date": None,
         }
 
@@ -281,6 +284,20 @@ def _build_tutor_weekly_schedule_grid(tutor_id: int | None):
     )
 
     items = []
+    source_type = "empty"
+    meet_links = {}
+    enrollment_ids = [schedule.enrollment_id for schedule in schedules]
+    if enrollment_ids:
+        active_links = (
+            TutorMeetLink.query.filter(
+                TutorMeetLink.enrollment_id.in_(enrollment_ids),
+                TutorMeetLink.status == "active",
+            )
+            .order_by(TutorMeetLink.created_at.desc(), TutorMeetLink.id.desc())
+            .all()
+        )
+        for link in active_links:
+            meet_links.setdefault(link.enrollment_id, link)
     for schedule in schedules:
         enrollment = schedule.enrollment
         if not enrollment or not enrollment.student or not enrollment.subject:
@@ -297,63 +314,27 @@ def _build_tutor_weekly_schedule_grid(tutor_id: int | None):
                 "student_short_name": _short_person_name(enrollment.student.name),
                 "subject_name": enrollment.subject.name,
                 "enrollment_ref": enrollment.public_id,
+                "enrollment_id": enrollment.id,
+                "schedule_id": schedule.id,
+                "meet_link": meet_links.get(enrollment.id),
                 "latest_session_date": last_seen,
                 "is_latest": bool(last_seen and last_seen == latest_session_date),
                 "source": "enrollment",
             }
         )
-
-    if not items:
-        attendance_rows = (
-            AttendanceSession.query.join(AttendanceSession.enrollment)
-            .filter(AttendanceSession.tutor_id == tutor_id)
-            .order_by(
-                AttendanceSession.session_date.desc(),
-                AttendanceSession.id.desc(),
-            )
-            .all()
-        )
-        used_slots = {weekday: 17 for weekday in range(7)}
-        seen_enrollments = set()
-        for session in attendance_rows:
-            enrollment = session.enrollment
-            if not enrollment or not enrollment.student or not enrollment.subject:
-                continue
-            if enrollment.id in seen_enrollments:
-                continue
-            seen_enrollments.add(enrollment.id)
-            weekday = session.session_date.weekday()
-            hour = used_slots.get(weekday, 17)
-            if hour not in hour_slots:
-                continue
-            used_slots[weekday] = hour + 1
-            items.append(
-                {
-                    "weekday": weekday,
-                    "hour": hour,
-                    "student_name": enrollment.student.name,
-                    "student_short_name": _short_person_name(enrollment.student.name),
-                    "subject_name": enrollment.subject.name,
-                    "enrollment_ref": enrollment.public_id,
-                    "latest_session_date": session.session_date,
-                    "is_latest": bool(session.session_date == latest_session_date),
-                    "source": "attendance",
-                }
-            )
+    if items:
+        source_type = "enrollment_schedule"
+    elif availability_by_slot:
+        source_type = "candidate_availability"
 
     for item in items:
         cells[(item["hour"], item["weekday"])]["items"].append(item)
 
     for cell in cells.values():
         cell["has_latest"] = any(item["is_latest"] for item in cell["items"])
-        cell["availability"] = (
-            "filled"
-            if cell["items"]
-            else availability_by_slot.get(
-                (cell["hour"], cell["weekday"]),
-                "unavailable" if cell["hour"] < 16 else "available",
-            )
-        )
+        cell["availability"] = "filled" if cell["items"] else "unavailable" if cell["hour"] < 16 else "available"
+        if not cell["items"] and (cell["hour"], cell["weekday"]) in availability_by_slot:
+            cell["availability"] = availability_by_slot[(cell["hour"], cell["weekday"])]
         cell["items"].sort(
             key=lambda item: (
                 item["student_short_name"].lower(),
@@ -369,6 +350,8 @@ def _build_tutor_weekly_schedule_grid(tutor_id: int | None):
             for hour in hour_slots
         ],
         "lesson_count": len(items),
+        "has_schedule": bool(items or availability_by_slot),
+        "source_type": source_type,
         "latest_session_date": latest_session_date,
     }
 

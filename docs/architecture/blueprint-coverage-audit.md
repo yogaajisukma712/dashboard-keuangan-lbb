@@ -37,6 +37,8 @@ This audit compares global project surfaces against the detailed integration blu
 3. The guardian skill now routes recruitment, contract, SS Meet, tutor portal credentials/requests, WhatsApp management, data manager, bulk import, auth, income/expense, and reports explicitly.
 4. RepoMapper currently cannot generate a usable repository map for this project, so Serena and context-mode remain the reliable mapping tools.
 5. Audit question suite exists at `docs/architecture/audit-question-suite.md`; initial run found and fixed a bulk-import mapping omission around `_normalize_name`, `_find_student`, and `_find_tutor`.
+6. Manual drills for `AQ-011` and `AQ-012` are complete. Auth drill found only intended public QR verification routes without login. WhatsApp drill clarified that invalid manual review marks evidence for correction and does not auto-delete attendance.
+7. Code-fix drills for `AQ-013`, `AQ-014`, and `AQ-015` are complete. They restored SS Meet time validation, explicit tutor schedule-grid source metadata, tutor portal payout slip access, Docker bootstrap DDL for `tutor_portal_requests`, and a literal-newline DDL warning in the `attendance_period_locks` bootstrap.
 
 ## Next Detailing Queue
 

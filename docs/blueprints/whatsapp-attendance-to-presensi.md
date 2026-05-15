@@ -41,12 +41,14 @@ Keep WhatsApp evidence, contact/group validation, manual review, and attendance 
 - Linked evidence must not create duplicate attendance rows.
 - Deleting attendance must handle linked WhatsApp evaluations deliberately.
 - Secrets, tokens, passwords, and session files must not be printed.
+- Marking WhatsApp review status `invalid` means the linked attendance needs manual correction; it does not automatically delete or unlink the attendance row.
 
 ## Known Fragility
 
 - Phone numbers, group names, and student/tutor names can be ambiguous.
 - Bot session state is operationally critical and must be backed up.
 - Manual review status must remain visible so uncertain evidence is not forgotten.
+- If multiple active enrollments share the same WhatsApp group, the ingestion service can link the first candidate so admins can manually review/correct it. This can affect attendance/payroll until corrected, so UI and tests must keep that review state visible.
 
 ## Required Checks
 

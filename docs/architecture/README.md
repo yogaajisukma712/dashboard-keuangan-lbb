@@ -2,6 +2,8 @@
 
 This folder is the architecture map for long-term maintenance. OpenSpec is the global contract, while these docs make the critical wiring explicit enough for future changes to start from the right place.
 
+For a new AI agent, new PC, or new developer, start at the repository root `PROJECT_MAP.md` first, then return here for the detailed architecture index.
+
 ## Six-Stack Model
 
 1. OpenSpec requirements: global contracts and safety rules in `openspec/specs/`.

@@ -2,6 +2,8 @@
 
 Sistem pembukuan dan dashboard keuangan terintegrasi untuk Lembaga Bimbingan Belajar (LBB) Super Smart.
 
+> Untuk agen AI, developer baru, atau setup di PC baru: mulai dari [`PROJECT_MAP.md`](PROJECT_MAP.md). File itu adalah peta utama project dan menunjuk ke OpenSpec, blueprint integrasi, audit coverage, audit question suite, dan ADR sebelum melakukan perubahan.
+
 ## 📋 Daftar Isi
 
 - [Deskripsi Proyek](#deskripsi-proyek)

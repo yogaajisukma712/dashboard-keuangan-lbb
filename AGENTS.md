@@ -1,5 +1,19 @@
 # LBB Web App Agent Setup
 
+## Primary Project Map
+
+Before changing this project, read `PROJECT_MAP.md`.
+
+`PROJECT_MAP.md` is the canonical handoff for agents and developers. It points to the OpenSpec requirements, detailed integration blueprints, architecture coverage audit, audit question suite, ADRs, and guardrails needed to understand the project without the user re-explaining it.
+
+For any non-trivial change, do not start from route files alone. Start from:
+
+1. `PROJECT_MAP.md`
+2. `docs/architecture/README.md`
+3. `docs/architecture/blueprint-coverage-audit.md`
+4. relevant `openspec/specs/*/spec.md`
+5. relevant `docs/blueprints/*.md`
+
 ## MCP Roles
 
 - `context-mode`: primary broad project context, project understanding, large-output analysis, planning, logs, test output, and repo-wide scans.

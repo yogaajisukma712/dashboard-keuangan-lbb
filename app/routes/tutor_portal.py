@@ -74,6 +74,7 @@ REQUEST_TYPES = {
     "profile_update": "Perbaikan Data Diri",
 }
 JAKARTA_TZ = ZoneInfo("Asia/Jakarta")
+PAYOUT_DETAIL_ENDPOINT = "tutor_portal.payout_detail"
 
 
 def _token_serializer():
@@ -117,6 +118,15 @@ def _current_tutor():
     if not tutor_id:
         return None
     return Tutor.query.get(tutor_id)
+
+
+def _recruitment_candidate_id_for_tutor(tutor_id):
+    candidate = (
+        RecruitmentCandidate.query.filter_by(tutor_id=tutor_id)
+        .order_by(RecruitmentCandidate.signed_at.desc(), RecruitmentCandidate.id.desc())
+        .first()
+    )
+    return candidate.id if candidate else None
 
 
 def _portal_username_base(tutor):
@@ -402,12 +412,38 @@ def _active_meet_links_for_enrollments(enrollment_ids):
     return result
 
 
+def _coerce_meeting_start_time(raw_value, default_hour):
+    raw = (raw_value or "").strip()
+    if not raw:
+        return time(int(default_hour or 19), 0)
+    try:
+        start_time = datetime.strptime(raw, "%H:%M").time()
+    except ValueError as exc:
+        raise ValueError("Jam meet tidak valid. Gunakan format HH:MM.") from exc
+    if start_time.minute not in {0, 15, 30, 45}:
+        raise ValueError("Jam meet harus menggunakan kelipatan 15 menit.")
+    if start_time < time(7, 0) or start_time > time(21, 0):
+        raise ValueError("Jam meet harus antara 07:00 sampai 21:00.")
+    return start_time
+
+
+def _default_meeting_hour_for_enrollment(enrollment_id):
+    schedule = (
+        EnrollmentSchedule.query.filter_by(
+            enrollment_id=enrollment_id,
+            is_active=True,
+        )
+        .order_by(EnrollmentSchedule.start_time.asc(), EnrollmentSchedule.id.asc())
+        .first()
+    )
+    if schedule and schedule.start_time and 7 <= schedule.start_time.hour <= 21:
+        return schedule.start_time.hour
+    return 19
+
+
 def _meeting_window_from_form(default_hour):
     raw = (request.form.get("meeting_time") or "").strip()
-    try:
-        start_time = datetime.strptime(raw, "%H:%M").time() if raw else time(int(default_hour or 19), 0)
-    except ValueError:
-        raise ValueError("Jam meet tidak valid. Gunakan format HH:MM.")
+    start_time = _coerce_meeting_start_time(raw, default_hour)
     now = datetime.now(JAKARTA_TZ)
     start_at = datetime.combine(now.date(), start_time, tzinfo=JAKARTA_TZ)
     valid_from = start_at - timedelta(minutes=10)
@@ -662,8 +698,31 @@ def _build_tutor_presensi_schedule_grid(tutor_id):
     for session_item in valid_sessions:
         if session_item.enrollment_id:
             sessions_by_enrollment[session_item.enrollment_id].append(session_item)
+    latest_by_enrollment = {
+        enrollment_id: max(session.session_date for session in sessions)
+        for enrollment_id, sessions in sessions_by_enrollment.items()
+    }
 
-    schedule_hours = {}
+    availability_by_slot = {}
+    candidate = (
+        RecruitmentCandidate.query.filter_by(tutor_id=tutor_id)
+        .order_by(RecruitmentCandidate.signed_at.desc(), RecruitmentCandidate.id.desc())
+        .first()
+    )
+    if candidate:
+        for slot in candidate.availability_slots:
+            try:
+                weekday = int(slot.get("weekday"))
+                hour = int(slot.get("hour"))
+            except (AttributeError, TypeError, ValueError):
+                continue
+            state = slot.get("state")
+            if weekday in range(7) and hour in SCHEDULE_HOUR_SLOTS and state in {
+                "available",
+                "unavailable",
+            }:
+                availability_by_slot[(hour, weekday)] = state
+
     active_schedules = (
         EnrollmentSchedule.query.join(Enrollment)
         .filter(
@@ -672,30 +731,36 @@ def _build_tutor_presensi_schedule_grid(tutor_id):
             Enrollment.is_active.is_(True),
             EnrollmentSchedule.is_active.is_(True),
         )
-        .order_by(EnrollmentSchedule.start_time.asc(), EnrollmentSchedule.id.asc())
+        .order_by(
+            EnrollmentSchedule.day_of_week.asc(),
+            EnrollmentSchedule.start_time.asc(),
+            Enrollment.id.asc(),
+        )
         .all()
     )
-    for schedule in active_schedules:
-        if schedule.start_time and schedule.start_time.hour in SCHEDULE_HOUR_SLOTS:
-            schedule_hours.setdefault(schedule.enrollment_id, schedule.start_time.hour)
 
     latest_session_date = max(
         (session_item.session_date for session_item in valid_sessions),
         default=None,
     )
     items = []
-    meet_links = _active_meet_links_for_enrollments(sessions_by_enrollment.keys())
-    for enrollment_id, sessions in sessions_by_enrollment.items():
-        enrollment = sessions[-1].enrollment
+    source_type = "empty"
+    scheduled_enrollment_ids = [schedule.enrollment_id for schedule in active_schedules]
+    meet_links = _active_meet_links_for_enrollments(
+        scheduled_enrollment_ids or sessions_by_enrollment.keys()
+    )
+    for schedule in active_schedules:
+        enrollment = schedule.enrollment
         if not enrollment or not enrollment.student or not enrollment.subject:
             continue
-        meet_link = meet_links.get(enrollment_id)
-        weekday = _dominant_attendance_weekday(sessions)
-        hour = schedule_hours.get(enrollment_id, 17)
-        latest_for_enrollment = max(session_item.session_date for session_item in sessions)
+        hour = schedule.start_time.hour if schedule.start_time else None
+        if hour not in SCHEDULE_HOUR_SLOTS:
+            continue
+        latest_for_enrollment = latest_by_enrollment.get(enrollment.id)
+        meet_link = meet_links.get(enrollment.id)
         items.append(
             {
-                "weekday": weekday,
+                "weekday": schedule.day_of_week,
                 "hour": hour,
                 "student_name": enrollment.student.name,
                 "student_short_name": _short_person_name(enrollment.student.name),
@@ -707,9 +772,43 @@ def _build_tutor_presensi_schedule_grid(tutor_id):
                 "is_latest": bool(
                     latest_session_date and latest_for_enrollment == latest_session_date
                 ),
-                "source": "validated_attendance",
+                "source": "enrollment",
             }
         )
+    if items:
+        source_type = "enrollment_schedule"
+
+    if not items:
+        meet_links = _active_meet_links_for_enrollments(sessions_by_enrollment.keys())
+        for enrollment_id, sessions in sessions_by_enrollment.items():
+            enrollment = sessions[-1].enrollment
+            if not enrollment or not enrollment.student or not enrollment.subject:
+                continue
+            meet_link = meet_links.get(enrollment_id)
+            weekday = _dominant_attendance_weekday(sessions)
+            hour = 17
+            latest_for_enrollment = latest_by_enrollment.get(enrollment_id)
+            items.append(
+                {
+                    "weekday": weekday,
+                    "hour": hour,
+                    "student_name": enrollment.student.name,
+                    "student_short_name": _short_person_name(enrollment.student.name),
+                    "subject_name": enrollment.subject.name,
+                    "enrollment_ref": enrollment.public_id,
+                    "enrollment_id": enrollment.id,
+                    "meet_link": meet_link,
+                    "latest_session_date": latest_for_enrollment,
+                    "is_latest": bool(
+                        latest_session_date and latest_for_enrollment == latest_session_date
+                    ),
+                    "source": "validated_attendance",
+                }
+            )
+        if items:
+            source_type = "validated_attendance"
+    if not items and availability_by_slot:
+        source_type = "candidate_availability"
 
     for item in items:
         cells[(item["hour"], item["weekday"])]["items"].append(item)
@@ -717,7 +816,12 @@ def _build_tutor_presensi_schedule_grid(tutor_id):
     for cell in cells.values():
         cell["has_latest"] = any(item["is_latest"] for item in cell["items"])
         cell["availability"] = (
-            "filled" if cell["items"] else "unavailable" if cell["hour"] < 16 else "available"
+            "filled"
+            if cell["items"]
+            else availability_by_slot.get(
+                (cell["hour"], cell["weekday"]),
+                "unavailable" if cell["hour"] < 16 else "available",
+            )
         )
         cell["items"].sort(
             key=lambda item: (
@@ -734,6 +838,8 @@ def _build_tutor_presensi_schedule_grid(tutor_id):
             for hour in SCHEDULE_HOUR_SLOTS
         ],
         "lesson_count": len(items),
+        "has_schedule": bool(items or availability_by_slot),
+        "source_type": source_type,
         "latest_session_date": latest_session_date,
         "source_period_label": "Januari-Mei 2026",
     }
@@ -1476,6 +1582,29 @@ def uploaded_file(filename):
     return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)
 
 
+@tutor_portal_bp.route("/payouts/<string:payout_ref>", methods=["GET"])
+@tutor_login_required
+def payout_detail(payout_ref):
+    tutor = _current_tutor()
+    try:
+        payout_id = decode_public_id(payout_ref, "tutor_payout")
+    except ValueError:
+        abort(404)
+    payout = TutorPayout.query.get_or_404(payout_id)
+    if payout.tutor_id != tutor.id:
+        abort(403)
+    from app.routes.payroll import _build_fee_slip_template_context
+
+    return render_template(
+        "payroll/fee_slip.html",
+        **_build_fee_slip_template_context(
+            payout,
+            proof_endpoint="tutor_portal.uploaded_file",
+        ),
+        tutor_portal_mode=True,
+    )
+
+
 @tutor_portal_bp.route("/")
 @tutor_login_required
 def dashboard():
@@ -1593,7 +1722,7 @@ def create_meet_link(enrollment_ref):
 
     try:
         start_at, valid_from, expires_at_dt = _meeting_window_from_form(
-            getattr(enrollment, "schedule_hour", None) or 19
+            _default_meeting_hour_for_enrollment(enrollment.id)
         )
     except ValueError as exc:
         flash(str(exc), "danger")
@@ -1687,6 +1816,9 @@ def request_schedule_change():
     except ValueError as exc:
         flash(str(exc), "danger")
         return redirect(url_for("tutor_portal.request_schedule_change"))
+    recruitment_candidate_id = _recruitment_candidate_id_for_tutor(tutor.id)
+    if recruitment_candidate_id:
+        payload["recruitment_candidate_id"] = recruitment_candidate_id
 
     db.session.add(
         TutorPortalRequest(
@@ -1709,6 +1841,7 @@ def request_availability():
     if color not in {"red", "green"}:
         flash("Pilih status jadwal merah atau hijau.", "danger")
         return redirect(url_for("tutor_portal.dashboard"))
+    recruitment_candidate_id = _recruitment_candidate_id_for_tutor(tutor.id)
     db.session.add(
         TutorPortalRequest(
             tutor_id=tutor.id,
@@ -1718,6 +1851,7 @@ def request_availability():
                 "date": request.form.get("date"),
                 "start_time": request.form.get("start_time"),
                 "end_time": request.form.get("end_time"),
+                "recruitment_candidate_id": recruitment_candidate_id,
             },
             notes=request.form.get("notes"),
         )
@@ -1756,6 +1890,7 @@ def request_profile_update():
         "account_holder_name": request.form.get("account_holder_name"),
         "profile_photo_path": profile_photo,
         "cv_file_path": cv_file,
+        "recruitment_candidate_id": _recruitment_candidate_id_for_tutor(tutor.id),
     }
     db.session.add(
         TutorPortalRequest(

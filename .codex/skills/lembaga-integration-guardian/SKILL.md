@@ -19,11 +19,12 @@ Start from repo root:
 
 Read these first:
 
-1. `openspec/specs/`
-2. `docs/architecture/README.md`
-3. Matching `docs/blueprints/*.md`
-4. Relevant `docs/adr/*.md`
-5. Current git state
+1. `PROJECT_MAP.md`
+2. `openspec/specs/`
+3. `docs/architecture/README.md`
+4. Matching `docs/blueprints/*.md`
+5. Relevant `docs/adr/*.md`
+6. Current git state
 
 Use MCP:
 

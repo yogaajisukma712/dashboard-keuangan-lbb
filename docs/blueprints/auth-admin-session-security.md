@@ -40,6 +40,7 @@ Map admin authentication, registration, logout, session safety, and redirect han
 - Passwords must never be stored or logged in plaintext.
 - Redirect targets must be local/safe.
 - Auth-gated routes must not expose sensitive data to anonymous users.
+- Public verification routes may exist for QR/barcode scans, but they must render verification-only pages and must not expose admin actions.
 - Registration behavior must remain deliberate and not accidentally open privileged access.
 - Secret/session values must not be printed during debugging.
 
@@ -48,6 +49,7 @@ Map admin authentication, registration, logout, session safety, and redirect han
 - Open redirects can appear in login `next` handling.
 - Auth gating can hide template/runtime errors by redirecting during verification.
 - Registration rules affect who can access high-risk admin surfaces.
+- Public QR verification pages can look suspicious in route audits because they intentionally skip login.
 
 ## Required Checks
 

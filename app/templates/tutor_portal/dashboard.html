@@ -356,7 +356,15 @@
             <table class="table table-sm mb-0 small">
               <tbody>
               {% for payout in payouts %}
-              <tr><td>{{ payout.payout_date.strftime('%d %b %Y') if payout.payout_date else '—' }}</td><td class="text-end">Rp {{ "{:,.0f}".format(payout.amount | float) }}</td><td>{{ payout.status|title }}</td></tr>
+              <tr>
+                <td>
+                  <a href="{{ url_for('tutor_portal.payout_detail', payout_ref=payout.public_id) }}" class="text-decoration-none">
+                    {{ payout.payout_date.strftime('%d %b %Y') if payout.payout_date else '—' }}
+                  </a>
+                </td>
+                <td class="text-end">Rp {{ "{:,.0f}".format(payout.amount | float) }}</td>
+                <td>{{ payout.status|title }}</td>
+              </tr>
               {% else %}
               <tr><td class="text-muted p-3">Belum ada slip gaji sejak {{ min_date.strftime('%d %b %Y') }}.</td></tr>
               {% endfor %}

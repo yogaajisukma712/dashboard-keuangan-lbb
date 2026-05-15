@@ -7,6 +7,7 @@ Map tutor portal credential generation, onboarding, WhatsApp credential delivery
 ## Source Of Truth
 
 - Tutor identity and portal credential fields: `Tutor` in `app/models/master.py`
+- Recruitment link metadata: `RecruitmentCandidate` rows tied to `Tutor`
 - Portal requests: `TutorPortalRequest` in `app/models/tutor_portal.py`
 - Tutor session and admin-selected tutor view: session keys managed in `app/routes/tutor_portal.py`
 - WhatsApp credential delivery: `_send_tutor_credential_whatsapp` via `_bot_request`
@@ -18,6 +19,7 @@ Map tutor portal credential generation, onboarding, WhatsApp credential delivery
 - Login/onboarding: `login`, `verify`, `verify_email`, `onboarding`, `logout`
 - Admin credential pages/actions: `admin_credentials`, `admin_send_bulk_credential_whatsapp`, `admin_reset_bulk_credential_passwords`, `admin_send_credential_whatsapp`, `admin_reset_credential_password`
 - Tutor requests: `request_schedule_change`, `request_availability`, `request_profile_update`
+- Recruitment trace helper: `_recruitment_candidate_id_for_tutor`
 - Admin review: `admin_requests`, `admin_request_detail`, `review_request`, `_apply_approved_request`
 
 ## Route And Service Path
@@ -25,7 +27,7 @@ Map tutor portal credential generation, onboarding, WhatsApp credential delivery
 1. Admin or login flow ensures tutor portal credentials exist.
 2. Credentials can be sent through WhatsApp using a rendered credential template and bot request.
 3. Tutor logs in, verifies email when needed, completes onboarding, and accesses dashboard.
-4. Tutor submits schedule, availability, or profile requests.
+4. Tutor submits schedule, availability, or profile requests; when the tutor came from recruitment, request payloads carry `recruitment_candidate_id` metadata for traceability.
 5. Admin reviews request detail and accepts or rejects.
 6. Approved request payload is applied through `_apply_approved_request`, while rejected/pending requests do not mutate operational data.
 
@@ -46,12 +48,14 @@ Map tutor portal credential generation, onboarding, WhatsApp credential delivery
 - Tutor requests must remain pending until admin approval.
 - Admin view mode must not allow unauthorized tutor-scope mutation.
 - Approved schedule changes must preserve enrollment/tutor context.
+- Request payloads may carry `recruitment_candidate_id` as trace metadata; approval must still validate the current tutor/enrollment state before mutation.
 
 ## Known Fragility
 
 - Credential reset and WhatsApp send are separate actions; failure in one should not imply success in the other.
 - Schedule request payloads can become stale if enrollments change before approval.
 - Admin-selected tutor dashboard mode overlaps with normal tutor session behavior and must stay constrained.
+- Recruitment trace metadata is not an authorization boundary; it only helps audit the recruitment-to-tutor lineage.
 
 ## Required Checks
 

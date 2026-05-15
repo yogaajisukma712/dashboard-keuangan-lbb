@@ -36,6 +36,7 @@ This audit compares global project surfaces against the detailed integration blu
 2. Tutor dashboard and SS Meet were present in C4 and OpenSpec, but the route/service/model pipe was not explicit. They now have a first-pass integration blueprint.
 3. The guardian skill now routes recruitment, contract, SS Meet, tutor portal credentials/requests, WhatsApp management, data manager, bulk import, auth, income/expense, and reports explicitly.
 4. RepoMapper currently cannot generate a usable repository map for this project, so Serena and context-mode remain the reliable mapping tools.
+5. Audit question suite exists at `docs/architecture/audit-question-suite.md`; initial run found and fixed a bulk-import mapping omission around `_normalize_name`, `_find_student`, and `_find_tutor`.
 
 ## Next Detailing Queue
 

@@ -45,6 +45,7 @@ For small isolated UI copy changes, read only the affected file. For anything in
 Coverage audit and next detailing queue:
 
 - `docs/architecture/blueprint-coverage-audit.md`
+- `docs/architecture/audit-question-suite.md`
 
 ## Maintenance Rules
 

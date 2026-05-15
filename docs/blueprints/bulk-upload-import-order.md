@@ -16,6 +16,7 @@ Map current CSV bulk import and legacy import paths so imported data preserves d
 
 - `app/routes/master.py`: `bulk_upload`, `download_bulk_template`
 - `BulkImportService.import_dataset`
+- Matching and normalization helpers: `_normalize_name`, `_find_student`, `_find_tutor`, `_get_or_create_student`, `_get_or_create_tutor`
 - Dataset import methods: `_import_students`, `_import_tutors`, `_import_pricing_rates`, `_import_tutor_fees`, `_import_enrollments`, `_import_attendance`, `_import_payments`, `_import_incomes`, `_import_expenses`, `_import_tutor_payouts`
 - Legacy path: `LegacyAlldataImportService.import_directory`
 
@@ -42,6 +43,7 @@ Map current CSV bulk import and legacy import paths so imported data preserves d
 - Imported attendance must preserve tutor, student, subject, date, status, and fee context.
 - Legacy import cleanup rules must not affect current CSV import unexpectedly.
 - Warnings and skipped rows must remain visible to the admin.
+- Duplicate prevention depends on `_normalize_name`, `_find_student`, and `_find_tutor`; changes to those helpers require duplicate-focused import tests.
 
 ## Known Fragility
 

@@ -3,6 +3,7 @@
 import json
 import os
 import smtplib
+import html
 from datetime import datetime
 from email.message import EmailMessage
 from urllib import error as urllib_error
@@ -20,6 +21,7 @@ from flask import (
     send_from_directory,
     session,
     url_for,
+    Response,
 )
 from flask_login import login_required
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
@@ -381,6 +383,80 @@ def _candidate_has_dashboard_access(candidate):
     if getattr(candidate, "tutor_id", None):
         return True
     return _tutor_for_email(getattr(candidate, "google_email", "")) is not None
+
+
+def _candidate_applications(candidate):
+    if not candidate or not candidate.google_email:
+        return []
+    return (
+        RecruitmentCandidate.query.filter(
+            db.func.lower(RecruitmentCandidate.google_email)
+            == _normalize_email(candidate.google_email)
+        )
+        .order_by(RecruitmentCandidate.created_at.desc(), RecruitmentCandidate.id.desc())
+        .all()
+    )
+
+
+def _application_kind(candidate):
+    if candidate.tutor_id:
+        return "Tutor aktif"
+    if candidate.status in {"contract_sent", "signed"}:
+        return "Offering tutor"
+    return "Lamaran tutor"
+
+
+def _candidate_file_flags(candidate):
+    upload_root = current_app.config["UPLOAD_FOLDER"]
+
+    def exists(relative_path):
+        if not relative_path:
+            return False
+        target = os.path.abspath(os.path.join(upload_root, relative_path))
+        root = os.path.abspath(upload_root)
+        return target.startswith(root + os.sep) and os.path.isfile(target)
+
+    return {
+        "cv_exists": exists(candidate.cv_file_path),
+        "photo_exists": exists(candidate.photo_file_path),
+    }
+
+
+def _dashboard_document_response(title, content):
+    escaped_title = html.escape(title)
+    escaped_content = html.escape(content or "-")
+    document = f"""<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {{
+      color: #111827;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0;
+      padding: 24px;
+      background: #ffffff;
+    }}
+    h1 {{
+      font-size: 18px;
+      margin: 0 0 16px;
+    }}
+    pre {{
+      font-family: Arial, sans-serif;
+      margin: 0;
+      white-space: pre-wrap;
+    }}
+  </style>
+</head>
+<body>
+  <h1>{escaped_title}</h1>
+  <pre>{escaped_content}</pre>
+</body>
+</html>"""
+    return Response(document, mimetype="text/html")
 
 
 def _current_candidate():
@@ -1075,8 +1151,105 @@ def dashboard():
         "recruitment/dashboard.html",
         candidate=candidate,
         status_label=RECRUITMENT_STATUSES.get(candidate.status, candidate.status),
+        status_labels=RECRUITMENT_STATUSES,
+        applications=_candidate_applications(candidate),
+        application_kind=_application_kind,
+        candidate_files=_candidate_file_flags(candidate),
         availability_grid=_build_candidate_availability_rows(candidate),
     )
+
+
+@recruitment_bp.route("/dashboard/lamaran-baru", methods=["POST"])
+def new_application():
+    current = _current_candidate()
+    if not current:
+        flash("Masuk ke dashboard recruitment terlebih dahulu.", "warning")
+        return redirect(url_for("recruitment.start"))
+    candidate = RecruitmentCandidate(
+        google_email=current.google_email,
+        email_verified=True,
+    )
+    db.session.add(candidate)
+    db.session.flush()
+    tutor = _tutor_for_email(candidate.google_email)
+    if tutor:
+        _sync_candidate_from_tutor(candidate, tutor)
+    db.session.commit()
+    session["recruitment_candidate_id"] = candidate.id
+    flash("Lamaran baru dibuat. Silakan lengkapi atau perbarui data.", "success")
+    return redirect(url_for("recruitment.form", edit=1))
+
+
+@recruitment_bp.route("/dashboard/lamaran/<candidate_ref>/buka", methods=["POST"])
+def open_application(candidate_ref):
+    current = _current_candidate()
+    if not current:
+        flash("Masuk ke dashboard recruitment terlebih dahulu.", "warning")
+        return redirect(url_for("recruitment.start"))
+    candidate = _candidate_from_ref(candidate_ref)
+    if _normalize_email(candidate.google_email) != _normalize_email(current.google_email):
+        abort(404)
+    session["recruitment_candidate_id"] = candidate.id
+    return redirect(url_for("recruitment.dashboard"))
+
+
+@recruitment_bp.route("/dashboard/file/<kind>")
+def dashboard_file(kind):
+    candidate = _current_candidate()
+    if not candidate:
+        flash("Masuk ke dashboard recruitment terlebih dahulu.", "warning")
+        return redirect(url_for("recruitment.start"))
+    file_map = {
+        "cv": candidate.cv_file_path,
+        "photo": candidate.photo_file_path,
+    }
+    relative_path = file_map.get(kind)
+    if not relative_path:
+        abort(404)
+    root = os.path.abspath(current_app.config["UPLOAD_FOLDER"])
+    target = os.path.abspath(os.path.join(root, relative_path))
+    if not target.startswith(root + os.sep) or not os.path.isfile(target):
+        abort(404)
+    return send_from_directory(root, relative_path)
+
+
+@recruitment_bp.route("/dashboard/document/<kind>")
+def dashboard_document(kind):
+    candidate = _current_candidate()
+    if not candidate:
+        flash("Masuk ke dashboard recruitment terlebih dahulu.", "warning")
+        return redirect(url_for("recruitment.start"))
+    if candidate.status not in {"contract_sent", "signed"}:
+        abort(404)
+    if kind == "offering":
+        if not candidate.offering_text:
+            candidate.offering_text = _build_offering_text(candidate)
+            db.session.commit()
+        return _dashboard_document_response("Offering", candidate.offering_text)
+    if kind == "contract":
+        if not candidate.contract_text:
+            candidate.contract_text = _build_contract_text(candidate)
+            db.session.commit()
+        return _dashboard_document_response(
+            "Surat Kerja / Kontrak",
+            candidate.contract_text,
+        )
+    abort(404)
+
+
+@recruitment_bp.route("/dashboard/tutor")
+def enter_tutor_dashboard():
+    candidate = _current_candidate()
+    if not candidate or not candidate.tutor_id or candidate.status != "signed":
+        abort(404)
+    tutor = db.session.get(Tutor, candidate.tutor_id)
+    if not tutor or not tutor.is_active:
+        abort(404)
+    _ensure_tutor_portal_credentials(tutor)
+    session["tutor_portal_tutor_id"] = tutor.id
+    session.pop("tutor_portal_admin_tutor_id", None)
+    db.session.commit()
+    return redirect(url_for("tutor_portal.dashboard"))
 
 
 @recruitment_bp.route("/logout", methods=["POST"])

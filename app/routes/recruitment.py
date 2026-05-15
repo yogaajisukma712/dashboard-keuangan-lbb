@@ -1,9 +1,13 @@
 """Recruitment form and CRM workflow."""
 
+import json
 import os
 import smtplib
 from datetime import datetime
 from email.message import EmailMessage
+from urllib import error as urllib_error
+from urllib import parse as urllib_parse
+from urllib import request as urllib_request
 
 from flask import (
     Blueprint,
@@ -322,6 +326,23 @@ def _token_serializer():
     return URLSafeTimedSerializer(
         current_app.config["SECRET_KEY"], salt="lbb-recruitment"
     )
+
+
+def _build_google_callback_url():
+    base_url = (current_app.config.get("RECRUITMENT_BASE_URL") or "").rstrip("/")
+    path = url_for("recruitment.google_callback")
+    return f"{base_url}{path}" if base_url else url_for(
+        "recruitment.google_callback", _external=True
+    )
+
+
+def _fetch_google_userinfo(access_token):
+    req = urllib_request.Request(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    with urllib_request.urlopen(req, timeout=15) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
 def _current_candidate():
@@ -735,6 +756,121 @@ def start():
             )
         return redirect(url_for("recruitment.form"))
     return render_template("recruitment/start.html")
+
+
+@recruitment_bp.route("/daftar", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        email = _normalize_email(request.form.get("google_email"))
+        if not email.endswith("@gmail.com"):
+            flash("Gunakan akun Gmail/Google aktif untuk recruitment.", "danger")
+            return render_template("recruitment/register.html", google_email=email)
+        candidate = RecruitmentCandidate.query.filter(
+            db.func.lower(RecruitmentCandidate.google_email) == email
+        ).first()
+        if not candidate:
+            candidate = RecruitmentCandidate(google_email=email)
+            db.session.add(candidate)
+            db.session.flush()
+        candidate.google_email = email
+        candidate.updated_at = datetime.utcnow()
+        db.session.commit()
+        sent = _send_recruitment_verification_email(candidate)
+        session["recruitment_candidate_id"] = candidate.id
+        if sent:
+            flash("Link verifikasi sudah dikirim ke Gmail.", "success")
+        else:
+            flash(
+                "Email disimpan. Link verifikasi dicatat di log server karena SMTP belum aktif.",
+                "warning",
+            )
+        return redirect(url_for("recruitment.form"))
+    return render_template("recruitment/register.html", google_email="")
+
+
+@recruitment_bp.route("/google/login", methods=["GET"])
+def google_login():
+    client_id = current_app.config.get("GOOGLE_OAUTH_CLIENT_ID")
+    client_secret = current_app.config.get("GOOGLE_OAUTH_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        flash("Login Google recruitment belum dikonfigurasi. Daftar memakai Gmail aktif.", "warning")
+        return redirect(url_for("recruitment.register"))
+
+    state = _token_serializer().dumps({"purpose": "recruitment_google_login"})
+    params = urllib_parse.urlencode(
+        {
+            "client_id": client_id,
+            "redirect_uri": _build_google_callback_url(),
+            "response_type": "code",
+            "scope": "openid email profile",
+            "state": state,
+            "prompt": "select_account",
+        }
+    )
+    return redirect(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
+
+
+@recruitment_bp.route("/google/callback", methods=["GET"])
+def google_callback():
+    if request.args.get("error"):
+        flash("Login Google dibatalkan atau ditolak.", "warning")
+        return redirect(url_for("recruitment.start"))
+
+    try:
+        payload = _token_serializer().loads(request.args.get("state", ""), max_age=600)
+    except (SignatureExpired, BadSignature):
+        flash("Sesi Login Google tidak valid. Silakan coba lagi.", "danger")
+        return redirect(url_for("recruitment.start"))
+    if payload.get("purpose") != "recruitment_google_login":
+        flash("Sesi Login Google tidak valid. Silakan coba lagi.", "danger")
+        return redirect(url_for("recruitment.start"))
+
+    code = request.args.get("code")
+    if not code:
+        flash("Kode Login Google tidak ditemukan.", "danger")
+        return redirect(url_for("recruitment.start"))
+
+    token_payload = urllib_parse.urlencode(
+        {
+            "code": code,
+            "client_id": current_app.config.get("GOOGLE_OAUTH_CLIENT_ID"),
+            "client_secret": current_app.config.get("GOOGLE_OAUTH_CLIENT_SECRET"),
+            "redirect_uri": _build_google_callback_url(),
+            "grant_type": "authorization_code",
+        }
+    ).encode("utf-8")
+    try:
+        token_req = urllib_request.Request(
+            "https://oauth2.googleapis.com/token",
+            data=token_payload,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib_request.urlopen(token_req, timeout=15) as response:
+            token_data = json.loads(response.read().decode("utf-8"))
+        userinfo = _fetch_google_userinfo(token_data.get("access_token"))
+    except (urllib_error.URLError, ValueError, KeyError, TypeError) as exc:
+        current_app.logger.warning("Recruitment Google login failed: %s", exc)
+        flash("Login Google gagal. Silakan coba lagi atau daftar memakai Gmail.", "danger")
+        return redirect(url_for("recruitment.start"))
+
+    email = _normalize_email(userinfo.get("email"))
+    if not email or not userinfo.get("email_verified"):
+        flash("Gmail belum terverifikasi oleh Google.", "danger")
+        return redirect(url_for("recruitment.start"))
+
+    candidate = RecruitmentCandidate.query.filter(
+        db.func.lower(RecruitmentCandidate.google_email) == email
+    ).first()
+    if not candidate:
+        candidate = RecruitmentCandidate(google_email=email)
+        db.session.add(candidate)
+        db.session.flush()
+    candidate.google_email = email
+    candidate.email_verified = True
+    candidate.updated_at = datetime.utcnow()
+    db.session.commit()
+    session["recruitment_candidate_id"] = candidate.id
+    return redirect(url_for("recruitment.form"))
 
 
 @recruitment_bp.route("/verify/<token>")

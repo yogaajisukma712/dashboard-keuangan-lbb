@@ -380,6 +380,12 @@ def test_recruitment_crm_source_is_registered():
     assert "_write_recruitment_template" in route_text
     assert "DEFAULT_CONTRACT_TEMPLATE" in route_text
     assert "DEFAULT_OFFERING_TEMPLATE" in route_text
+    assert "KONTRAK KERJA" in route_text
+    assert "FREELANCE PENGAJAR PRIVATE" in route_text
+    assert "Surat Penawaran Kerja Pengajar Privat Online" in route_text
+    assert "Penawaran Gaji" in route_text
+    assert "company_qr_data_url" in route_text
+    assert "document_date_text" in route_text
     assert "def send_interview_invite" in route_text
     assert "def send_contract" in route_text
     assert "def contract" in route_text

@@ -17,7 +17,6 @@ from flask import (
     flash,
     redirect,
     render_template,
-    render_template_string,
     request,
     send_from_directory,
     session,
@@ -67,29 +66,181 @@ MAX_SIGNATURE_DATA_URL_LENGTH = 500_000
 RECRUITMENT_TEMPLATE_DIR = "recruitment_templates"
 CONTRACT_TEMPLATE_FILE = "contract.html"
 OFFERING_TEMPLATE_FILE = "offering.html"
+COMPANY_QR_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMwAAADMAQAAAAAXWXFfAAACZklEQVR4nL2YMa4kOQxDnxqdUzeo+x/LN6BOwA3cu8miJ/gzGqMiG7BLEinSrvBlzOvbCvxwaapqCiiGmqnpnqmqn274felNGHn+m7CYdpg/f9aLKebpflJPIWAEUz/f8Ot4A+igJo0aEPqtn/8+bBxZJIAdK7GxF3KoMOeBGWJ68ICyEFe5wf+bbvjzcZEkEQSILWMpSRZyOMP0cRpRzcEM9CxgHvNBRhQLWYokL2CD2J8T4ySxLII2znIigOSGgxxsaaFeaiZSpodzwNB64KzUy5LtOEESipQsYf7WLLKdmFhoqV5w+eUkIo6C0AK/cGQkrNixbSeYBWxgOXZiBUuKHEkbOXyDBk2LoTVUKsD0BuZnRD0AMo4bhpEWMJ8LwjiSMTa3FW9gHssQWXZuM5TISr3cdHqQp6/6u35jw1+dNZC5poYMKk2R6YUe9RIe5KK6h24fh8Er3gZiKU6IdftTvFOvTOGnsFyINDRseBvsSEquOtvoatpK75VtJAKXX9cJLPDrjWlwU1hu8YB4zkoOgyMRSzaOdZ3wilZaEBF0P4K00qMcga80WzbAkhe95EokSx92KWjDR2HsfLBoO0QBbdxTMMmNyZdlXIFe41dC0PVS12Vv9KgX8IgSxo2eBk7Ds6HLCjZGjpw4juyNHL6YDuQx9KGGoodnJS6TjyWUwUYG2OFXEoO4JkMRIt7w86+pKpwT2wOMc5V6pffGuddJ55NQsqIp/75vXGfI1S6DN+7mAJyOJAyEBwkt6NcLYNA0o1Yzcxi7e6tejkwIkqWwoylvCixot4cDnDaVhfeN+ovvov8ACck01PrYKv4AAAAASUVORK5CYII="
 DEFAULT_CONTRACT_TEMPLATE = """\
-<h1 style="text-align:center;">KONTRAK DIGITAL TUTOR LBB SUPER SMART</h1>
-<p>Yang bertanda tangan di bawah ini:</p>
-<table>
-  <tr><td><strong>Nama</strong></td><td>: {{ candidate.name }}</td></tr>
-  <tr><td><strong>Email</strong></td><td>: {{ candidate.google_email }}</td></tr>
-  <tr><td><strong>No. WhatsApp</strong></td><td>: {{ candidate.phone or '-' }}</td></tr>
-  <tr><td><strong>Pendidikan</strong></td><td>: {{ candidate.last_education_level or '-' }}</td></tr>
-  <tr><td><strong>Universitas</strong></td><td>: {{ candidate.university_name or '-' }}</td></tr>
-</table>
-<p>Dengan ini menyatakan bersedia menjadi tutor LBB Super Smart, menjaga profesionalitas pembelajaran, mengikuti jadwal yang disetujui admin, dan mematuhi ketentuan operasional lembaga.</p>
-<p><strong>Bidang/Mapel:</strong></p>
-<ul>
-{% for item in teaching_items %}
-  <li>{{ item }}</li>
-{% endfor %}
-</ul>
+<section class="recruitment-a4-page">
+  <h1 class="doc-title">KONTRAK KERJA</h1>
+  <h2 class="doc-subtitle"><em>FREELANCE PENGAJAR PRIVATE</em></h2>
+
+  <p><strong>Antara:</strong></p>
+  <p><strong>Lembaga Bimbingan Belajar Super Smart</strong><br>
+    Alamat: Jl. Menur Pumpungan No.63, Sukolilo, Surabaya, Jawa Timur
+  </p>
+
+  <p><strong>Dan:</strong></p>
+  <p><strong>{{ candidate.name }}</strong><br>Alamat: {{ candidate.address or '-' }}</p>
+
+  <h3>1. Deskripsi Pekerjaan</h3>
+  <p>Mengajar siswa di LBB Super Smart secara daring (online).</p>
+
+  <h3>2. Tugas dan Tanggung Jawab</h3>
+  <ol>
+    <li>Menyediakan dan menyiapkan materi pelajaran sesuai kebutuhan siswa.</li>
+    <li>Melakukan penilaian terhadap kemajuan siswa secara berkala dan memberikan umpan balik konstruktif.</li>
+    <li>Mengisi presensi setelah setiap sesi pembelajaran.</li>
+    <li>Wajib memiliki <strong>Digital Graphic Drawing Pen Tablet</strong> sebagai sarana penunjang.</li>
+    <li>Menyiapkan media pembelajaran (Zoom/Google Meet) minimal 60 menit sebelum sesi dimulai.</li>
+    <li>Wajib mengikuti akun Instagram LBB Super Smart sebagai bentuk keterlibatan lembaga.</li>
+    <li>Mengirimkan hasil pembelajaran ke grup WhatsApp dalam format PDF, PPT, atau Word.</li>
+    <li>Mengirim dokumentasi dalam bentuk tangkapan layar (screenshot) atau video pendek.</li>
+    <li>Dilarang mengubah jadwal tanpa pemberitahuan kepada lembaga dan persetujuan siswa/wali; pelanggaran tidak dihitung dalam honorarium.</li>
+  </ol>
+
+  <h3>3. Honorarium</h3>
+  <p>{{ candidate.name }} setuju menerima pembayaran berdasarkan kurikulum dan jenjang sebagai berikut:</p>
+
+  <div class="doc-two-columns">
+    <div>
+      <strong>Kurikulum Nasional:</strong>
+      <ul>
+        <li>SD: Rp30.000,- per sesi 60 Menit</li>
+        <li>SMP: Rp30.000,- per sesi 60 Menit</li>
+        <li>SMA: Rp40.000,- per sesi 60 Menit</li>
+      </ul>
+      <strong>Kurikulum Nasional Plus:</strong>
+      <ul>
+        <li>SD: Rp35.000,- per sesi 60 Menit</li>
+        <li>SMP: Rp40.000,- per sesi 60 Menit</li>
+        <li>SMA: Rp45.000,- per sesi 60 Menit</li>
+      </ul>
+      <strong>Persiapan Olimpiade Nasional:</strong>
+      <ul>
+        <li>SD: Rp40.000,- per sesi 60 Menit</li>
+        <li>SMP: Rp45.000,- per sesi 60 Menit</li>
+        <li>SMA: Rp50.000,- per sesi 60 Menit</li>
+      </ul>
+    </div>
+    <div>
+      <strong>Kurikulum Internasional:</strong>
+      <ul>
+        <li>SD: Rp40.000,- per sesi 60 Menit</li>
+        <li>SMP: Rp45.000,- per sesi 60 Menit</li>
+        <li>SMA: Rp50.000,- per sesi 60 Menit</li>
+      </ul>
+      <strong>Persiapan Masuk PTN/PTS:</strong>
+      <ul>
+        <li>UTBK: Rp50.000,- per sesi 60 Menit</li>
+        <li>UM: Rp50.000,- per sesi 60 Menit</li>
+        <li>UMUM: Rp50.000,- per sesi 60 Menit</li>
+      </ul>
+    </div>
+  </div>
+
+  <p>Besarnya pembayaran dihitung dari akumulasi jam mengajar yang divalidasi oleh admin lembaga setelah tugas selesai. Perubahan waktu atau durasi boleh dilakukan jika sudah mendapat persetujuan admin lembaga. Jika perubahan waktu atau durasi dilakukan tanpa persetujuan admin lembaga, fee dihitung berdasarkan fee pada kontrak dengan waktu default yaitu 60 menit.</p>
+
+  <h3>4. Jadwal Pembayaran</h3>
+  <p>Pembayaran dilakukan setiap tanggal 2-5 setiap bulan kerja.</p>
+
+  <h3>5. Kewajiban LBB Super Smart</h3>
+  <ol>
+    <li>Memberikan dukungan teknis yang diperlukan.</li>
+    <li>Mengatur jadwal kelas dan menginformasikan kepada {{ candidate.name }} tepat waktu.</li>
+  </ol>
+
+  <h3>6. Kebijakan dan Etika</h3>
+  <ol>
+    <li>{{ candidate.name }} wajib mematuhi semua kebijakan dan peraturan yang ditetapkan oleh LBB Super Smart.</li>
+    <li>Menjaga etika profesional dalam semua interaksi dengan siswa dan staf.</li>
+  </ol>
+
+  <h3>7. Pengakhiran Kontrak</h3>
+  <ol>
+    <li>Kontrak dapat diakhiri oleh kedua belah pihak dengan pemberitahuan tertulis 30 hari sebelumnya.</li>
+    <li>Jika {{ candidate.name }} tidak memenuhi tugas dan tanggung jawab, LBB Super Smart berhak mengakhiri kontrak dengan pemberitahuan tertulis 7 hari sebelumnya.</li>
+  </ol>
+
+  <h3>8. Kerahasiaan</h3>
+  <p>{{ candidate.name }} wajib menjaga kerahasiaan semua informasi terkait siswa dan materi pembelajaran.</p>
+
+  <h3>9. Persetujuan</h3>
+  <p>Kedua belah pihak menyetujui semua syarat di atas dan bertanda tangan di bawah ini:</p>
+
+  <div class="doc-signatures">
+    <div>
+      <p><strong>Untuk LBB Super Smart,</strong></p>
+      <img class="doc-qr" src="{{ company_qr_data_url }}" alt="QR validasi dokumen">
+      <p class="doc-verify-text">Scan untuk verifikasi dokumen ini.</p>
+      <p><strong>Yoga Aji Sukma, S.Mat., M.Stat.</strong></p>
+      <p>CEO</p>
+    </div>
+    <div>
+      <p><strong>Untuk {{ candidate.name }},</strong></p>
+      <div class="doc-signature-space">
+        {% if candidate.signature_data_url %}
+        <img class="doc-candidate-signature" src="{{ candidate.signature_data_url }}" alt="Tanda tangan pelamar">
+        {% endif %}
+      </div>
+      <p><strong>{{ candidate.name }}</strong></p>
+    </div>
+  </div>
+</section>
 """
 DEFAULT_OFFERING_TEMPLATE = """\
-<h1 style="text-align:center;">OFFERING DIGITAL TUTOR</h1>
-<p>Halo <strong>{{ candidate.name }}</strong>,</p>
-<p>Offering fee tutor per sesi saat ini adalah <strong>{{ offering_amount_text }}</strong>.</p>
-<p>Nominal final mengikuti aturan tarif aktif, mata pelajaran, jenjang, dan enrollment yang ditetapkan admin.</p>
+<section class="recruitment-a4-page">
+  <div class="doc-letterhead">
+    <div class="doc-brand">LEMBAGA BIMBINGAN BELAJAR<br><strong>SUPER SMART</strong></div>
+    <div>JL. Menur Pumpungan No 63, Sukolilo, Surabaya, Jawa Timur</div>
+    <div>Email: lbbsupersmart@gmail.com</div>
+    <div>Handphone: 0895-6359-07419</div>
+  </div>
+
+  <p>Perihal: Surat Penawaran Kerja Pengajar Privat Online<br>Lampiran: 1 lembar</p>
+  <p class="doc-date">{{ document_date_text }}</p>
+  <p>Yth. {{ candidate.name }}</p>
+
+  <p>Selamat kepada Ms/Mr {{ candidate.name }}. Anda lolos tahap akhir perekrutan posisi Pengajar di LBB Super Smart. Kami dengan senang hati menyambut Anda untuk bergabung dengan lembaga kami @lbbsupersmart. Kami terkesan dengan kualifikasi Anda dan kami yakin Anda berkontribusi lebih untuk lembaga kami.</p>
+  <p>Berikut kami sampaikan terkait dengan posisi tersebut sebagai berikut:</p>
+
+  <table class="doc-info-table">
+    <tr><th>Nama</th><td>{{ candidate.name }}</td></tr>
+    <tr><th>Posisi</th><td>Pengajar Privat</td></tr>
+    <tr><th>Status</th><td>Paruh waktu</td></tr>
+    <tr><th>Waktu Kerja</th><td>Senin-Minggu (waktu sesuai kesepakatan bersama)</td></tr>
+    <tr><th>Deskripsi Pekerjaan</th><td>Mengajar siswa secara privat online</td></tr>
+    <tr><th>Gaji</th><td>Terlampir</td></tr>
+    <tr><th>Mulai Bekerja</th><td>{{ start_work_month_text }}</td></tr>
+  </table>
+
+  <p>Apabila Ms/Mr {{ candidate.name }} bersedia menerima tawaran kami, silakan mengirimkan jadwal yang terlampir maksimal tanggal {{ offering_deadline_text }} pukul 09.00 WIB. Apabila ada pertanyaan lebih lanjut terkait penawaran pekerjaan ini, silakan menghubungi contact person kami melalui WhatsApp.</p>
+  <p>Terima kasih atas perhatiannya.</p>
+
+  <div class="doc-ceo-sign">
+    <p>Hormat kami.</p>
+    <img class="doc-qr" src="{{ company_qr_data_url }}" alt="QR validasi dokumen">
+    <p class="doc-verify-text">Scan untuk verifikasi dokumen ini.</p>
+    <p><strong>Yoga Aji Sukma, S.Mat., M.Stat.</strong><br>CEO</p>
+  </div>
+  <div class="doc-footer">Being Smart for Future</div>
+</section>
+
+<section class="recruitment-a4-page">
+  <div class="doc-letterhead">
+    <div class="doc-brand">LEMBAGA BIMBINGAN BELAJAR<br><strong>SUPER SMART</strong></div>
+    <div>JL. Menur Pumpungan No 63, Sukolilo, Surabaya, Jawa Timur</div>
+    <div>Email: lbbsupersmart@gmail.com</div>
+    <div>Handphone: 0895-6359-07419</div>
+  </div>
+  <p><strong>Lampiran 1.</strong></p>
+  <p><strong>Penawaran Gaji:</strong></p>
+  <div class="doc-rate-list">
+    <p><strong>Kurikulum Nasional:</strong><br>SD: 30.000/jam<br>SMP: 30.000/jam<br>SMA: 40.000/jam</p>
+    <p><strong>Kurikulum Nasional Plus:</strong><br>SD: 35.000/jam<br>SMP: 35.000/jam<br>SMA: 45.000/jam</p>
+    <p><strong>Kurikulum Internasional:</strong><br>SD: 40.000/jam<br>SMP: 40.000/jam<br>SMA: 50.000/jam</p>
+    <p><strong>Persiapan masuk PTN/PTS:</strong><br>UTBK: 50.000/jam<br>UM: 50.000/jam</p>
+    <p><strong>Persiapan Olimpiade Nasional:</strong><br>SD: 40.000/jam<br>SMP: 40.000/jam<br>SMA: 50.000/jam</p>
+  </div>
+  <div class="doc-footer">Being Smart for Future</div>
+</section>
 """
 RECRUITMENT_TEMPLATE_PLACEHOLDERS = [
     "candidate.name",
@@ -102,6 +253,10 @@ RECRUITMENT_TEMPLATE_PLACEHOLDERS = [
     "candidate.university_name",
     "teaching_items",
     "offering_amount_text",
+    "document_date_text",
+    "start_work_month_text",
+    "offering_deadline_text",
+    "company_qr_data_url",
 ]
 LAST_EDUCATION_LEVELS = ["Vokasi", "S1", "S2", "S3"]
 GENDER_OPTIONS = [("male", "Laki-laki"), ("female", "Perempuan")]
@@ -714,12 +869,51 @@ def _offering_amount_text():
     )
 
 
+def _indonesian_month_name(month):
+    names = [
+        "",
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+    ]
+    return names[month]
+
+
+def _document_date_text(moment=None):
+    moment = moment or datetime.utcnow()
+    return f"Surabaya, {moment.day} {_indonesian_month_name(moment.month)} {moment.year}"
+
+
+def _start_work_month_text(moment=None):
+    moment = moment or datetime.utcnow()
+    return f"{_indonesian_month_name(moment.month)} {moment.year}"
+
+
+def _offering_deadline_text(moment=None):
+    moment = moment or datetime.utcnow()
+    return f"15 {_indonesian_month_name(moment.month)} {moment.year}"
+
+
 def _recruitment_document_context(candidate):
+    document_moment = getattr(candidate, "contract_sent_at", None) or datetime.utcnow()
     return {
         "candidate": candidate,
         "teaching_items": _candidate_summary_items(candidate) or ["-"],
         "offering_amount": _current_offering_amount(),
         "offering_amount_text": _offering_amount_text(),
+        "document_date_text": _document_date_text(document_moment),
+        "start_work_month_text": _start_work_month_text(document_moment),
+        "offering_deadline_text": _offering_deadline_text(document_moment),
+        "company_qr_data_url": COMPANY_QR_DATA_URL,
         "gender_label": dict(GENDER_OPTIONS).get(
             candidate.gender,
             candidate.gender or "-",
@@ -728,10 +922,8 @@ def _recruitment_document_context(candidate):
 
 
 def _render_recruitment_template(template_text, candidate):
-    return render_template_string(
-        template_text,
-        **_recruitment_document_context(candidate),
-    )
+    template = current_app.jinja_env.from_string(template_text)
+    return template.render(**_recruitment_document_context(candidate))
 
 
 def _teaching_option_choices():

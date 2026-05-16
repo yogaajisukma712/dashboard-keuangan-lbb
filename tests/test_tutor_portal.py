@@ -30,6 +30,7 @@ from app.routes.tutor_portal import (
     _build_tutor_presensi_schedule_grid,
     _coerce_meeting_start_time,
     _delete_tutor_credential,
+    _ensure_tutor_portal_credentials,
     _month_bounds,
     _normalize_portal_attendance_period,
     _validated_tutor_attendance_sessions,
@@ -923,6 +924,48 @@ def test_delete_tutor_credential_removes_tutor_and_dependent_records():
         assert db.session.get(RecruitmentCandidate, unrelated_candidate_id) is not None
         assert invoice_count == 0
         assert invoice_line_count == 0
+
+
+def test_tutor_portal_username_uses_monthly_date_sequence():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        existing_same_month = Tutor(
+            tutor_code="TTR-USERNAME-OLD",
+            name="Tutor Lama",
+            portal_username="260501001",
+            created_at=datetime(2026, 5, 1, 8, 0),
+        )
+        existing_same_day = Tutor(
+            tutor_code="TTR-USERNAME-SAME",
+            name="Tutor Sama",
+            portal_username="260516002",
+            created_at=datetime(2026, 5, 16, 9, 0),
+        )
+        existing_other_month = Tutor(
+            tutor_code="TTR-USERNAME-JUNE",
+            name="Tutor Juni",
+            portal_username="260601001",
+            created_at=datetime(2026, 6, 1, 8, 0),
+        )
+        new_tutor = Tutor(
+            tutor_code="TTR-USERNAME-NEW",
+            name="Tutor Baru",
+            created_at=datetime(2026, 5, 16, 10, 0),
+        )
+        db.session.add_all(
+            [existing_same_month, existing_same_day, existing_other_month, new_tutor]
+        )
+        db.session.flush()
+
+        changed = _ensure_tutor_portal_credentials(new_tutor)
+
+        assert changed is True
+        assert new_tutor.portal_username == "260516003"
+        assert existing_same_month.portal_username == "260501001"
+        assert existing_same_day.portal_username == "260516002"
+        assert existing_other_month.portal_username == "260601001"
 
 
 def test_meet_link_time_options_are_24_hour_15_minute_slots():

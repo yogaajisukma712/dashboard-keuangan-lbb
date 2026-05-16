@@ -132,10 +132,33 @@ def _recruitment_candidate_id_for_tutor(tutor_id):
     return candidate.id if candidate else None
 
 
-def _portal_username_base(tutor):
-    raw = tutor.tutor_code or tutor.name or f"tutor{tutor.id}"
-    username = re.sub(r"[^a-z0-9]+", "", raw.lower())
-    return username or f"tutor{tutor.id}"
+def _portal_username_date(tutor):
+    return (tutor.created_at or datetime.utcnow()).strftime("%y%m%d")
+
+
+def _next_portal_username(tutor):
+    date_prefix = _portal_username_date(tutor)
+    month_prefix = date_prefix[:4]
+    existing_usernames = [
+        username
+        for (username,) in Tutor.query.with_entities(Tutor.portal_username)
+        .filter(Tutor.portal_username.like(f"{month_prefix}%"))
+        .all()
+        if username
+    ]
+    used_sequences = set()
+    for username in existing_usernames:
+        if len(username) == 9 and username.isdigit() and username[:4] == month_prefix:
+            used_sequences.add(int(username[-3:]))
+    sequence = 1
+    while True:
+        username = f"{date_prefix}{sequence:03d}"
+        if sequence not in used_sequences and not Tutor.query.filter(
+            Tutor.portal_username == username,
+            Tutor.id != tutor.id,
+        ).first():
+            return username
+        sequence += 1
 
 
 def _initial_portal_password(tutor):
@@ -156,16 +179,7 @@ def _next_bypass_tutor_code():
 def _ensure_tutor_portal_credentials(tutor):
     changed = False
     if not tutor.portal_username:
-        base = _portal_username_base(tutor)
-        username = base
-        suffix = 2
-        while Tutor.query.filter(
-            Tutor.portal_username == username,
-            Tutor.id != tutor.id,
-        ).first():
-            username = f"{base}{suffix}"
-            suffix += 1
-        tutor.portal_username = username
+        tutor.portal_username = _next_portal_username(tutor)
         changed = True
     if not tutor.portal_password_hash:
         tutor.set_portal_password(_initial_portal_password(tutor))

@@ -186,7 +186,8 @@ def _ensure_all_tutor_portal_credentials():
     rows = Tutor.query.order_by(Tutor.name.asc(), Tutor.id.asc()).all()
     changed = False
     for tutor in rows:
-        changed = _ensure_tutor_portal_credentials(tutor) or changed
+        if tutor.is_active:
+            changed = _ensure_tutor_portal_credentials(tutor) or changed
     if changed:
         db.session.commit()
     return rows
@@ -2202,7 +2203,15 @@ def _delete_tutor_credential(tutor):
     WhatsAppTutorValidation.query.filter_by(tutor_id=tutor.id).delete(
         synchronize_session=False
     )
-    db.session.delete(tutor)
+    tutor.portal_username = None
+    tutor.portal_password_hash = None
+    tutor.portal_visible_password = None
+    tutor.portal_must_change_password = True
+    tutor.portal_email_verified = False
+    tutor.portal_email_verified_at = None
+    tutor.status = "inactive"
+    tutor.is_active = False
+    tutor.updated_at = datetime.utcnow()
     db.session.commit()
 
 
@@ -2218,7 +2227,7 @@ def admin_delete_credential_tutor(tutor_ref):
     tutor = Tutor.query.get_or_404(tutor_id)
     name = tutor.name
     _delete_tutor_credential(tutor)
-    flash(f"Akun tutor {name} berhasil dihapus.", "success")
+    flash(f"Akun login tutor {name} berhasil dinonaktifkan.", "success")
     return _credential_redirect()
 
 

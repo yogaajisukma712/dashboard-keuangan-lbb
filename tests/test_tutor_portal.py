@@ -721,7 +721,7 @@ def test_tutor_portal_schedule_falls_back_to_recruitment_availability_for_new_tu
         assert tuesday_16["availability"] == "unavailable"
 
 
-def test_delete_tutor_credential_removes_meet_links_before_tutor():
+def test_delete_tutor_credential_revokes_login_without_removing_history():
     app = _make_test_app()
 
     with app.app_context():
@@ -758,24 +758,68 @@ def test_delete_tutor_credential_removes_meet_links_before_tutor():
             join_url="https://meet.example/delete-link",
             status="active",
         )
+        attendance_session = AttendanceSession(
+            enrollment_id=enrollment.id,
+            student_id=student.id,
+            tutor_id=tutor.id,
+            subject_id=subject.id,
+            session_date=date(2026, 5, 16),
+            status="attended",
+            student_present=True,
+            tutor_present=True,
+            tutor_fee_amount=80000,
+        )
         request = TutorPortalRequest(
             tutor_id=tutor.id,
             request_type="schedule_change",
             status="pending",
             payload_json={},
         )
-        db.session.add_all([meet_link, request])
+        group = WhatsAppGroup(whatsapp_group_id="group-delete-link", name="Kelas Hapus")
+        db.session.add_all([meet_link, attendance_session, request, group])
+        db.session.flush()
+        message = WhatsAppMessage(
+            whatsapp_message_id="delete-link-message",
+            group_id=group.id,
+            sent_at=datetime(2026, 5, 16, 8, 0),
+            body="Presensi",
+        )
+        db.session.add(message)
+        db.session.flush()
+        evaluation = WhatsAppEvaluation(
+            message_id=message.id,
+            group_id=group.id,
+            attendance_date=attendance_session.session_date,
+            matched_tutor_id=tutor.id,
+            matched_enrollment_id=enrollment.id,
+            attendance_session_id=attendance_session.id,
+            manual_review_status="valid",
+        )
+        db.session.add(evaluation)
         db.session.commit()
 
         tutor_id = tutor.id
         meet_link_id = meet_link.id
         request_id = request.id
+        evaluation_id = evaluation.id
+        enrollment_id = enrollment.id
+        attendance_session_id = attendance_session.id
 
         _delete_tutor_credential(tutor)
 
-        assert db.session.get(Tutor, tutor_id) is None
+        revoked_tutor = db.session.get(Tutor, tutor_id)
+        assert revoked_tutor is not None
+        assert revoked_tutor.is_active is False
+        assert revoked_tutor.status == "inactive"
+        assert revoked_tutor.portal_username is None
+        assert revoked_tutor.portal_password_hash is None
+        assert revoked_tutor.portal_visible_password is None
+        assert revoked_tutor.portal_email_verified is False
         assert db.session.get(TutorMeetLink, meet_link_id) is None
         assert db.session.get(TutorPortalRequest, request_id) is None
+        assert db.session.get(Enrollment, enrollment_id) is not None
+        assert db.session.get(AttendanceSession, attendance_session_id) is not None
+        assert db.session.get(WhatsAppEvaluation, evaluation_id) is not None
 
 
 def test_meet_link_time_options_are_24_hour_15_minute_slots():
@@ -1034,10 +1078,10 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Reset Password Terpilih" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
-    assert "Hapus Akun" in (
+    assert "Hapus Akun Login" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
-    assert "Data terkait tutor seperti enrollment, presensi, dan payroll juga akan terhapus." in (
+    assert "Enrollment, presensi, invoice, dan payroll tetap disimpan." in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
     assert "credential-select-all" in (

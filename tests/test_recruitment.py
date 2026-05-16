@@ -155,6 +155,9 @@ def test_bypass_tutor_profile_submit_generates_contract(monkeypatch):
     candidate.cv_file_path = "existing/cv.pdf"
     candidate.photo_file_path = "existing/photo.jpg"
     candidate.tutor_id = 7
+    candidate.plain_password = None
+    candidate.set_password = lambda password: setattr(candidate, "plain_password", password)
+    candidate.check_password = lambda password: candidate.plain_password == password
     tutor = SimpleNamespace(
         id=7,
         name="Tutor Bypass",
@@ -167,8 +170,11 @@ def test_bypass_tutor_profile_submit_generates_contract(monkeypatch):
         is_active=True,
         portal_email_verified=True,
         portal_email_verified_at=None,
+        portal_must_change_password=True,
+        portal_password=None,
         updated_at=None,
     )
+    tutor.set_portal_password = lambda password: setattr(tutor, "portal_password", password)
     monkeypatch.setattr(recruitment, "_current_candidate", lambda: candidate)
     monkeypatch.setattr(recruitment, "_tutor_for_email", lambda email: tutor)
     monkeypatch.setattr(recruitment, "_bypass_tutor_for_candidate", lambda candidate: tutor)
@@ -187,7 +193,10 @@ def test_bypass_tutor_profile_submit_generates_contract(monkeypatch):
     with app.test_request_context(
         "/recruitment/form",
         method="POST",
-        data=_valid_form_payload(),
+        data=_valid_form_payload(
+            password="password123",
+            password_confirm="password123",
+        ),
         headers={"Host": "recruitment.supersmart.click"},
     ):
         response = recruitment.form()
@@ -199,6 +208,9 @@ def test_bypass_tutor_profile_submit_generates_contract(monkeypatch):
     assert candidate.offering_text
     assert candidate.contract_sent_at
     assert candidate.tutor_id == tutor.id
+    assert candidate.check_password("password123")
+    assert tutor.portal_password == "password123"
+    assert tutor.portal_must_change_password is False
 
 
 def test_recruitment_form_rejects_unlisted_university(monkeypatch):
@@ -478,6 +490,8 @@ def test_recruitment_templates_expose_required_workflow():
     assert "Upload CV" in form_text
     assert "Upload Foto" in form_text
     assert "Password Dashboard Recruitment" in form_text
+    assert "Password Pelamar / Dashboard Tutor" in form_text
+    assert "Password ini dipakai juga untuk login Dashboard Tutor." in form_text
     assert "password_confirm" in form_text
     assert "Jadwal Waktu Luang" in form_text
     assert "Waktu luang" in form_text

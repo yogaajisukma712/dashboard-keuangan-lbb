@@ -158,17 +158,23 @@
                 </div>
                 <div class="invalid-feedback d-block d-none" id="availability-error">Pilih minimal satu waktu luang berwarna hijau.</div>
               </div>
-              {% if not is_bypass_profile %}
               <div class="col-md-6">
-                <label class="form-label fw-semibold">Password Dashboard Recruitment</label>
+                <label class="form-label fw-semibold">{{ 'Password Pelamar / Dashboard Tutor' if is_bypass_profile else 'Password Dashboard Recruitment' }}</label>
                 <input class="form-control" type="password" name="password" autocomplete="new-password" minlength="8" {% if not candidate.password_hash %}required{% endif %}>
-                <div class="form-text">{% if candidate.password_hash %}Kosongkan jika tidak ingin mengganti password.{% else %}Minimal 8 karakter untuk masuk dashboard recruitment setelah form dikirim.{% endif %}</div>
+                <div class="form-text">
+                  {% if candidate.password_hash %}
+                    Kosongkan jika tidak ingin mengganti password.
+                  {% elif is_bypass_profile %}
+                    Minimal 8 karakter. Password ini dipakai juga untuk login Dashboard Tutor.
+                  {% else %}
+                    Minimal 8 karakter untuk masuk dashboard recruitment setelah form dikirim.
+                  {% endif %}
+                </div>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Konfirmasi Password</label>
                 <input class="form-control" type="password" name="password_confirm" autocomplete="new-password" minlength="8" {% if not candidate.password_hash %}required{% endif %}>
               </div>
-              {% endif %}
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Upload CV</label>
                 <input class="form-control" type="file" name="cv_file" accept=".pdf,.doc,.docx" {% if not candidate.cv_file_path or not cv_file_exists %}required{% endif %}>

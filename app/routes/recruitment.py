@@ -418,7 +418,7 @@ def _candidate_profile_complete(candidate):
     )
 
 
-def _sync_bypass_profile_to_tutor(candidate, tutor):
+def _sync_bypass_profile_to_tutor(candidate, tutor, password=None):
     if not candidate or not tutor:
         return
     tutor.name = candidate.name or tutor.name
@@ -431,6 +431,9 @@ def _sync_bypass_profile_to_tutor(candidate, tutor):
     tutor.is_active = True
     tutor.portal_email_verified = True
     tutor.portal_email_verified_at = tutor.portal_email_verified_at or datetime.utcnow()
+    if password:
+        tutor.set_portal_password(password)
+        tutor.portal_must_change_password = False
     tutor.updated_at = datetime.utcnow()
     candidate.tutor_id = tutor.id
 
@@ -1146,10 +1149,7 @@ def form():
             return redirect(url_for("recruitment.form"))
         password = request.form.get("password") or ""
         password_confirm = request.form.get("password_confirm") or ""
-        if (
-            not is_bypass_profile
-            and (not candidate.password_hash or password or password_confirm)
-        ) or (is_bypass_profile and (password or password_confirm)):
+        if not candidate.password_hash or password or password_confirm:
             if len(password) < 8:
                 flash("Password dashboard minimal 8 karakter.", "danger")
                 return redirect(url_for("recruitment.form"))
@@ -1176,7 +1176,11 @@ def form():
             return redirect(url_for("recruitment.form"))
         bypass_tutor = _bypass_tutor_for_candidate(candidate)
         if bypass_tutor:
-            _sync_bypass_profile_to_tutor(candidate, bypass_tutor)
+            _sync_bypass_profile_to_tutor(
+                candidate,
+                bypass_tutor,
+                password=password if password else None,
+            )
             if candidate.status != "signed":
                 candidate.status = "contract_sent"
                 candidate.contract_text = _build_contract_text(candidate)

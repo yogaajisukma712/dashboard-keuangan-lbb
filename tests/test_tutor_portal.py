@@ -939,6 +939,8 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "admin_send_bulk_credential_whatsapp" in route_text
     assert "admin_reset_bulk_credential_passwords" in route_text
     assert "admin_reset_credential_password" in route_text
+    assert "admin_delete_credential_tutor" in route_text
+    assert '"/admin/credentials/<string:tutor_ref>/delete"' in route_text
     assert "_reset_tutor_portal_password" in route_text
     assert "_next_bypass_tutor_code" in route_text
     assert "Bypass tutor baru" in route_text
@@ -971,6 +973,12 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
     assert "Reset Password Terpilih" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
+    ).read_text(encoding="utf-8")
+    assert "Hapus Akun" in (
+        PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
+    ).read_text(encoding="utf-8")
+    assert "Data terkait tutor seperti enrollment, presensi, dan payroll juga akan terhapus." in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
     assert "credential-select-all" in (

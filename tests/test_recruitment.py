@@ -366,19 +366,20 @@ def test_recruitment_crm_source_is_registered():
     assert "recruitment_bp" in routes_text
     assert "app.register_blueprint(recruitment_bp)" in app_text
     assert "RecruitmentCandidate" in models_text
+    assert "RecruitmentTeachingOption" in models_text
     assert "__tablename__ = \"recruitment_candidates\"" in model_text
+    assert "__tablename__ = \"recruitment_teaching_options\"" in model_text
+    assert "uq_recruitment_teaching_option_combo" in model_text
     assert "password_hash = db.Column(db.String(255))" in model_text
     assert "availability_json = db.Column(db.Text)" in model_text
     assert "def availability_slots" in model_text
     assert "def set_password" in model_text
     assert "def check_password" in model_text
-    assert "CREATE TABLE IF NOT EXISTS recruitment_candidates" in entrypoint_text
-    assert "ALTER TABLE recruitment_candidates ADD COLUMN IF NOT EXISTS password_hash" in entrypoint_text
-    assert "ALTER TABLE recruitment_candidates ADD COLUMN IF NOT EXISTS availability_json" in entrypoint_text
+    assert "db.create_all()" in entrypoint_text
     assert "@recruitment_bp.route(\"/\", methods=[\"GET\", \"POST\"])" in route_text
     assert "def verify_email" in route_text
     assert "@recruitment_bp.route(\"/dashboard\", methods=[\"GET\", \"POST\"])" in route_text
-    assert "@recruitment_bp.route(\"/logout\", methods=[\"GET\", \"POST\"])" in route_text
+    assert "@recruitment_bp.route(\"/logout\", methods=[\"POST\"])" in route_text
     assert "_clear_portal_sessions()" in route_text
     assert "candidate.set_password(password)" in route_text
     assert "_build_candidate_availability_rows" in route_text
@@ -398,6 +399,9 @@ def test_recruitment_crm_source_is_registered():
     assert "def crm_interview" in route_text
     assert "def crm_rejected" in route_text
     assert "def crm_templates" in route_text
+    assert "def crm_teaching_options" in route_text
+    assert "RecruitmentTeachingOption.query.filter_by(is_active=True)" in route_text
+    assert "recruitment.crm_teaching_options" in route_text
     assert "def reject_candidate" in route_text
     assert "def delete_candidate" in route_text
     assert "candidate.status = \"rejected\"" in route_text
@@ -428,7 +432,6 @@ def test_recruitment_crm_source_is_registered():
     assert "_teaching_option_choices" in route_text
     assert "teaching_preferences = request.form.getlist" in route_text
     assert "Pilih mapel dari daftar dropdown yang tersedia." in route_text
-    assert "Cambridge" in route_text
     assert "not candidate.name or not candidate.phone or not candidate.address" in route_text
     assert "CV dan foto wajib diunggah." in route_text
     assert "candidate.status != \"contract_sent\"" in route_text
@@ -457,10 +460,7 @@ def test_recruitment_crm_source_is_registered():
     assert "university_name" in model_text
     assert "age = db.Column(db.Integer)" in model_text
     assert "gender = db.Column" in model_text
-    assert (
-        "ALTER TABLE recruitment_candidates ADD COLUMN IF NOT EXISTS teaching_preferences_json"
-        in entrypoint_text
-    )
+    assert "db.create_all()" in entrypoint_text
     assert "recruitment_web:" in compose_text
     assert "billing_supersmart_recruitment_web" in compose_text
     assert "${RECRUITMENT_PORT:-6006}:5000" in compose_text
@@ -499,6 +499,9 @@ def test_recruitment_templates_expose_required_workflow():
     ).read_text(encoding="utf-8")
     templates_text = (
         PROJECT_ROOT / "app" / "templates" / "recruitment" / "crm_templates.html"
+    ).read_text(encoding="utf-8")
+    teaching_options_text = (
+        PROJECT_ROOT / "app" / "templates" / "recruitment" / "crm_teaching_options.html"
     ).read_text(encoding="utf-8")
     contract_text = (
         PROJECT_ROOT / "app" / "templates" / "recruitment" / "contract.html"
@@ -579,6 +582,18 @@ def test_recruitment_templates_expose_required_workflow():
     assert "Pelamar Tertolak" in templates_text
     assert "Pelamar Tertolak" in rejected_text
     assert "recruitment.delete_candidate" in rejected_text
+    assert "Mapel" in candidates_text
+    assert "Mapel" in selected_text
+    assert "Mapel" in interview_text
+    assert "Mapel" in rejected_text
+    assert "Mapel" in templates_text
+    assert "Dropdown Mapel Recruitment" in teaching_options_text
+    assert "subject_ref" in teaching_options_text
+    assert "level_ref" in teaching_options_text
+    assert "curriculum_ref" in teaching_options_text
+    assert "recruitment.toggle_teaching_option" in teaching_options_text
+    assert "recruitment.delete_teaching_option" in teaching_options_text
+    assert "Hanya kombinasi aktif yang muncul" in teaching_options_text
     assert "Template" in candidates_text
     assert "Template" in selected_text
     assert "Template" in interview_text

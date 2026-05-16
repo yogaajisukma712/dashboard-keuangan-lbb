@@ -34,6 +34,7 @@ from app.models import (
     Level,
     PricingRule,
     RecruitmentCandidate,
+    RecruitmentTeachingOption,
     Subject,
     Tutor,
 )
@@ -1076,42 +1077,35 @@ def _teaching_option_choices():
 
     def add_teaching_labels(collection, subject_name, level_name, curriculum_name):
         add_label(collection, f"{subject_name} {level_name} {curriculum_name}")
-        if curriculum_name.lower().startswith("internasional"):
-            add_label(
-                collection,
-                f"{subject_name} {level_name} {curriculum_name.replace('Internasional', 'Cambridge', 1)}",
-            )
 
-    rules = (
-        PricingRule.query.filter_by(is_active=True)
-        .join(PricingRule.subject, isouter=True)
-        .join(PricingRule.level, isouter=True)
-        .join(PricingRule.curriculum, isouter=True)
+    options = (
+        RecruitmentTeachingOption.query.filter_by(is_active=True)
+        .join(RecruitmentTeachingOption.subject)
+        .join(RecruitmentTeachingOption.level)
+        .join(RecruitmentTeachingOption.curriculum)
         .order_by(Subject.name.asc(), Level.name.asc(), Curriculum.name.asc())
         .all()
     )
     labels = []
     seen = set()
-    for rule in rules:
-        if not rule.subject or not rule.level or not rule.curriculum:
+    for option in options:
+        if not option.subject or not option.level or not option.curriculum:
             continue
         add_teaching_labels(
             labels,
-            rule.subject.name,
-            rule.level.name,
-            rule.curriculum.name,
+            option.subject.name,
+            option.level.name,
+            option.curriculum.name,
         )
-
-    subjects = Subject.query.filter_by(is_active=True).order_by(Subject.name.asc()).all()
-    levels = Level.query.filter_by(is_active=True).order_by(Level.name.asc()).all()
-    curriculums = (
-        Curriculum.query.filter_by(is_active=True).order_by(Curriculum.name.asc()).all()
-    )
-    for subject in subjects:
-        for level in levels:
-            for curriculum in curriculums:
-                add_teaching_labels(labels, subject.name, level.name, curriculum.name)
     return labels
+
+
+def _teaching_option_from_ref(option_ref):
+    try:
+        option_id = decode_public_id(option_ref, "recruitment_teaching_option")
+    except ValueError:
+        abort(404)
+    return RecruitmentTeachingOption.query.get_or_404(option_id)
 
 
 def _candidate_summary_items(candidate):
@@ -1814,6 +1808,121 @@ def crm_templates():
         ),
         placeholders=RECRUITMENT_TEMPLATE_PLACEHOLDERS,
     )
+
+
+@recruitment_bp.route("/crm/teaching-options", methods=["GET", "POST"])
+@login_required
+def crm_teaching_options():
+    if request.method == "POST":
+        try:
+            subject_id = decode_public_id(
+                request.form.get("subject_ref") or "",
+                "subject",
+            )
+            level_id = decode_public_id(
+                request.form.get("level_ref") or "",
+                "level",
+            )
+            curriculum_id = decode_public_id(
+                request.form.get("curriculum_ref") or "",
+                "curriculum",
+            )
+        except ValueError:
+            flash("Pilih Mapel, Jenjang, dan Kurikulum dari daftar.", "danger")
+            return redirect(url_for("recruitment.crm_teaching_options"))
+
+        subject = Subject.query.filter_by(id=subject_id, is_active=True).first()
+        level = Level.query.filter_by(id=level_id, is_active=True).first()
+        curriculum = Curriculum.query.filter_by(
+            id=curriculum_id,
+            is_active=True,
+        ).first()
+        if not subject or not level or not curriculum:
+            flash("Kombinasi tidak valid atau sudah nonaktif di master.", "danger")
+            return redirect(url_for("recruitment.crm_teaching_options"))
+
+        option = RecruitmentTeachingOption.query.filter_by(
+            subject_id=subject.id,
+            level_id=level.id,
+            curriculum_id=curriculum.id,
+        ).first()
+        if option:
+            if option.is_active:
+                flash("Kombinasi tersebut sudah ada di list dropdown.", "warning")
+            else:
+                option.is_active = True
+                option.updated_at = datetime.utcnow()
+                db.session.commit()
+                flash("Kombinasi diaktifkan kembali.", "success")
+            return redirect(url_for("recruitment.crm_teaching_options"))
+
+        option = RecruitmentTeachingOption(
+            subject_id=subject.id,
+            level_id=level.id,
+            curriculum_id=curriculum.id,
+        )
+        db.session.add(option)
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            flash("Gagal menyimpan kombinasi dropdown.", "danger")
+        else:
+            flash(
+                "Kombinasi Mapel, Jenjang, dan Kurikulum berhasil ditambahkan.",
+                "success",
+            )
+        return redirect(url_for("recruitment.crm_teaching_options"))
+
+    options = (
+        RecruitmentTeachingOption.query.join(RecruitmentTeachingOption.subject)
+        .join(RecruitmentTeachingOption.level)
+        .join(RecruitmentTeachingOption.curriculum)
+        .order_by(
+            RecruitmentTeachingOption.is_active.desc(),
+            Subject.name.asc(),
+            Level.name.asc(),
+            Curriculum.name.asc(),
+        )
+        .all()
+    )
+    subjects = (
+        Subject.query.filter_by(is_active=True).order_by(Subject.name.asc()).all()
+    )
+    levels = Level.query.filter_by(is_active=True).order_by(Level.name.asc()).all()
+    curriculums = (
+        Curriculum.query.filter_by(is_active=True).order_by(Curriculum.name.asc()).all()
+    )
+    return render_template(
+        "recruitment/crm_teaching_options.html",
+        options=options,
+        subjects=subjects,
+        levels=levels,
+        curriculums=curriculums,
+    )
+
+
+@recruitment_bp.route("/crm/teaching-options/<option_ref>/toggle", methods=["POST"])
+@login_required
+def toggle_teaching_option(option_ref):
+    option = _teaching_option_from_ref(option_ref)
+    option.is_active = not option.is_active
+    option.updated_at = datetime.utcnow()
+    db.session.commit()
+    state = "diaktifkan" if option.is_active else "dinonaktifkan"
+    flash(f"Kombinasi {option.label} berhasil {state}.", "success")
+    return redirect(url_for("recruitment.crm_teaching_options"))
+
+
+@recruitment_bp.route("/crm/teaching-options/<option_ref>/delete", methods=["POST"])
+@login_required
+def delete_teaching_option(option_ref):
+    option = _teaching_option_from_ref(option_ref)
+    label = option.label
+    db.session.delete(option)
+    db.session.commit()
+    flash(f"Kombinasi {label} dihapus dari list dropdown.", "success")
+    return redirect(url_for("recruitment.crm_teaching_options"))
 
 
 @recruitment_bp.route("/crm/selected")

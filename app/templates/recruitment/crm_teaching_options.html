@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Dropdown Mapel Recruitment{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="bi bi-ui-checks-grid text-primary me-2"></i>Dropdown Mapel Recruitment</h4>
+    <p class="text-muted small mb-0">Kelola kombinasi Mapel, Jenjang, dan Kurikulum yang muncul di form pelamar.</p>
+  </div>
+  <div class="btn-group btn-group-sm">
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_candidates') }}">Pelamar</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_selected') }}">Pelamar Terpilih</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_interview') }}">Interview</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_rejected') }}">Pelamar Tertolak</a>
+    <a class="btn btn-primary" href="{{ url_for('recruitment.crm_teaching_options') }}">Mapel</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_templates') }}">Template</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h5 class="fw-bold mb-3">Tambah Kombinasi</h5>
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Mapel</label>
+            <select class="form-select" name="subject_ref" required>
+              <option value="">Pilih mapel</option>
+              {% for subject in subjects %}
+              <option value="{{ subject.public_id }}">{{ subject.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Jenjang</label>
+            <select class="form-select" name="level_ref" required>
+              <option value="">Pilih jenjang</option>
+              {% for level in levels %}
+              <option value="{{ level.public_id }}">{{ level.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Kurikulum</label>
+            <select class="form-select" name="curriculum_ref" required>
+              <option value="">Pilih kurikulum</option>
+              {% for curriculum in curriculums %}
+              <option value="{{ curriculum.public_id }}">{{ curriculum.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="btn btn-primary w-100" type="submit">
+            <i class="bi bi-plus-lg me-1"></i>Simpan ke List
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body border-bottom">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <div>
+            <h5 class="fw-bold mb-1">List Dropdown Aktif</h5>
+            <p class="text-muted small mb-0">Hanya kombinasi aktif yang muncul di dropdown form pelamar dan profile pelamar.</p>
+          </div>
+          <span class="badge text-bg-light">{{ options|length }} kombinasi</span>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-4">Mapel</th>
+              <th>Jenjang</th>
+              <th>Kurikulum</th>
+              <th>Status</th>
+              <th class="text-end pe-4">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for option in options %}
+            <tr>
+              <td class="ps-4 fw-semibold">{{ option.subject.name if option.subject else '-' }}</td>
+              <td>{{ option.level.name if option.level else '-' }}</td>
+              <td>{{ option.curriculum.name if option.curriculum else '-' }}</td>
+              <td>
+                {% if option.is_active %}
+                <span class="badge text-bg-success">Aktif</span>
+                {% else %}
+                <span class="badge text-bg-secondary">Nonaktif</span>
+                {% endif %}
+              </td>
+              <td class="text-end pe-4">
+                <div class="d-inline-flex flex-wrap justify-content-end gap-2">
+                  <form method="post" action="{{ url_for('recruitment.toggle_teaching_option', option_ref=option.public_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-outline-secondary btn-sm" type="submit">
+                      {% if option.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %}
+                    </button>
+                  </form>
+                  <form method="post" action="{{ url_for('recruitment.delete_teaching_option', option_ref=option.public_id) }}" onsubmit="return confirm('Hapus kombinasi ini dari list dropdown?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-outline-danger btn-sm" type="submit">
+                      <i class="bi bi-trash me-1"></i>Hapus
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td class="text-center text-muted py-5" colspan="5">
+                Belum ada kombinasi. Tambahkan Mapel, Jenjang, dan Kurikulum dari form di samping.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

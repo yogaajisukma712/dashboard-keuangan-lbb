@@ -8,6 +8,52 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app import db
 
 
+class RecruitmentTeachingOption(db.Model):
+    """Allowed subject, level, and curriculum combination for applicant forms."""
+
+    __tablename__ = "recruitment_teaching_options"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "subject_id",
+            "level_id",
+            "curriculum_id",
+            name="uq_recruitment_teaching_option_combo",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey("subjects.id"), nullable=False)
+    level_id = db.Column(db.Integer, db.ForeignKey("levels.id"), nullable=False)
+    curriculum_id = db.Column(
+        db.Integer, db.ForeignKey("curriculums.id"), nullable=False
+    )
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    subject = db.relationship("Subject")
+    level = db.relationship("Level")
+    curriculum = db.relationship("Curriculum")
+
+    @property
+    def public_id(self):
+        from app.utils import encode_public_id
+
+        return encode_public_id("recruitment_teaching_option", self.id)
+
+    @property
+    def label(self):
+        parts = [self.subject, self.level, self.curriculum]
+        if not all(parts):
+            return "-"
+        return f"{self.subject.name} {self.level.name} {self.curriculum.name}"
+
+    def __repr__(self):
+        return f"<RecruitmentTeachingOption {self.label}>"
+
+
 class RecruitmentCandidate(db.Model):
     """Tutor applicant captured from the recruitment form."""
 

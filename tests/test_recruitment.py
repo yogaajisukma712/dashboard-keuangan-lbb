@@ -228,6 +228,12 @@ def test_dashboard_document_response_renders_html_document():
     assert "<pre>" not in html
 
 
+def test_default_offering_uses_left_ceo_qr_without_verify_text():
+    assert "doc-ceo-qr" in recruitment.DEFAULT_OFFERING_TEMPLATE
+    assert "Tanda tangan CEO" in recruitment.DEFAULT_OFFERING_TEMPLATE
+    assert "Scan untuk verifikasi dokumen ini." not in recruitment.DEFAULT_OFFERING_TEMPLATE
+
+
 def test_recruitment_form_rejects_unlisted_university(monkeypatch):
     app = _make_app()
     candidate = _candidate()

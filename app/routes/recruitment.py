@@ -216,8 +216,7 @@ DEFAULT_OFFERING_TEMPLATE = """\
 
   <div class="doc-ceo-sign">
     <p>Hormat kami.</p>
-    <img class="doc-qr" src="{{ company_qr_data_url }}" alt="QR validasi dokumen">
-    <p class="doc-verify-text">Scan untuk verifikasi dokumen ini.</p>
+    <img class="doc-qr doc-ceo-qr" src="{{ company_qr_data_url }}" alt="Tanda tangan CEO">
     <p><strong>Yoga Aji Sukma, S.Mat., M.Stat.</strong><br>CEO</p>
   </div>
   <div class="doc-footer">Being Smart for Future</div>
@@ -799,6 +798,10 @@ def _dashboard_document_response(title, content):
       height: 92px;
       margin: 0.35rem auto;
       width: 92px;
+    }}
+    .doc-ceo-sign .doc-ceo-qr {{
+      margin-left: 0;
+      margin-right: auto;
     }}
     .doc-verify-text,
     .doc-footer {{

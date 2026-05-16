@@ -17,6 +17,7 @@ from flask import (
     flash,
     redirect,
     render_template,
+    render_template_string,
     request,
     send_from_directory,
     session,
@@ -25,6 +26,7 @@ from flask import (
 )
 from flask_login import login_required
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 
 from app import db
@@ -60,6 +62,45 @@ RECRUITMENT_STATUSES = {
 }
 CONTRACT_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 MAX_SIGNATURE_DATA_URL_LENGTH = 500_000
+RECRUITMENT_TEMPLATE_DIR = "recruitment_templates"
+CONTRACT_TEMPLATE_FILE = "contract.html"
+OFFERING_TEMPLATE_FILE = "offering.html"
+DEFAULT_CONTRACT_TEMPLATE = """\
+<h1 style="text-align:center;">KONTRAK DIGITAL TUTOR LBB SUPER SMART</h1>
+<p>Yang bertanda tangan di bawah ini:</p>
+<table>
+  <tr><td><strong>Nama</strong></td><td>: {{ candidate.name }}</td></tr>
+  <tr><td><strong>Email</strong></td><td>: {{ candidate.google_email }}</td></tr>
+  <tr><td><strong>No. WhatsApp</strong></td><td>: {{ candidate.phone or '-' }}</td></tr>
+  <tr><td><strong>Pendidikan</strong></td><td>: {{ candidate.last_education_level or '-' }}</td></tr>
+  <tr><td><strong>Universitas</strong></td><td>: {{ candidate.university_name or '-' }}</td></tr>
+</table>
+<p>Dengan ini menyatakan bersedia menjadi tutor LBB Super Smart, menjaga profesionalitas pembelajaran, mengikuti jadwal yang disetujui admin, dan mematuhi ketentuan operasional lembaga.</p>
+<p><strong>Bidang/Mapel:</strong></p>
+<ul>
+{% for item in teaching_items %}
+  <li>{{ item }}</li>
+{% endfor %}
+</ul>
+"""
+DEFAULT_OFFERING_TEMPLATE = """\
+<h1 style="text-align:center;">OFFERING DIGITAL TUTOR</h1>
+<p>Halo <strong>{{ candidate.name }}</strong>,</p>
+<p>Offering fee tutor per sesi saat ini adalah <strong>{{ offering_amount_text }}</strong>.</p>
+<p>Nominal final mengikuti aturan tarif aktif, mata pelajaran, jenjang, dan enrollment yang ditetapkan admin.</p>
+"""
+RECRUITMENT_TEMPLATE_PLACEHOLDERS = [
+    "candidate.name",
+    "candidate.google_email",
+    "candidate.phone",
+    "candidate.address",
+    "candidate.age",
+    "candidate.gender",
+    "candidate.last_education_level",
+    "candidate.university_name",
+    "teaching_items",
+    "offering_amount_text",
+]
 LAST_EDUCATION_LEVELS = ["Vokasi", "S1", "S2", "S3"]
 GENDER_OPTIONS = [("male", "Laki-laki"), ("female", "Perempuan")]
 UNIVERSITY_OPTIONS = list(dict.fromkeys([
@@ -631,12 +672,64 @@ def _send_recruitment_verification_email(candidate):
 
 
 def _current_offering_amount():
-    rule = (
-        PricingRule.query.filter_by(is_active=True)
-        .order_by(PricingRule.tutor_rate_per_meeting.desc(), PricingRule.id.desc())
-        .first()
-    )
+    try:
+        rule = (
+            PricingRule.query.filter_by(is_active=True)
+            .order_by(PricingRule.tutor_rate_per_meeting.desc(), PricingRule.id.desc())
+            .first()
+        )
+    except SQLAlchemyError:
+        return 0
     return float(rule.tutor_rate_per_meeting) if rule else 0
+
+
+def _recruitment_template_path(filename):
+    template_dir = os.path.join(current_app.instance_path, RECRUITMENT_TEMPLATE_DIR)
+    return os.path.join(template_dir, filename)
+
+
+def _read_recruitment_template(filename, default):
+    path = _recruitment_template_path(filename)
+    if not os.path.exists(path):
+        return default
+    with open(path, "r", encoding="utf-8") as handle:
+        return handle.read()
+
+
+def _write_recruitment_template(filename, content):
+    path = _recruitment_template_path(filename)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(content)
+
+
+def _offering_amount_text():
+    amount = _current_offering_amount()
+    return (
+        f"Rp {amount:,.0f}".replace(",", ".")
+        if amount
+        else "mengikuti database fee aktif"
+    )
+
+
+def _recruitment_document_context(candidate):
+    return {
+        "candidate": candidate,
+        "teaching_items": _candidate_summary_items(candidate) or ["-"],
+        "offering_amount": _current_offering_amount(),
+        "offering_amount_text": _offering_amount_text(),
+        "gender_label": dict(GENDER_OPTIONS).get(
+            candidate.gender,
+            candidate.gender or "-",
+        ),
+    }
+
+
+def _render_recruitment_template(template_text, candidate):
+    return render_template_string(
+        template_text,
+        **_recruitment_document_context(candidate),
+    )
 
 
 def _teaching_option_choices():
@@ -694,40 +787,30 @@ def _candidate_summary_items(candidate):
 
 
 def _build_contract_text(candidate):
-    teaching_items = "\n".join(
-        f"- {item}" for item in _candidate_summary_items(candidate)
-    ) or "-"
-    return (
-        f"KONTRAK DIGITAL TUTOR LBB SUPER SMART\n\n"
-        f"Nama: {candidate.name}\n"
-        f"Email: {candidate.google_email}\n"
-        f"No. WhatsApp: {candidate.phone}\n"
-        f"Usia: {candidate.age or '-'}\n"
-        f"Jenis Kelamin: {dict(GENDER_OPTIONS).get(candidate.gender, candidate.gender or '-')}\n"
-        f"Pendidikan Terakhir: {candidate.last_education_level or '-'}\n"
-        f"Universitas: {candidate.university_name or '-'}\n"
-        f"Alamat: {candidate.address or '-'}\n"
-        f"Bidang/Mapel:\n{teaching_items}\n\n"
-        "Kandidat menyatakan bersedia menjadi tutor LBB Super Smart, menjaga "
-        "profesionalitas pembelajaran, mengikuti jadwal yang disetujui admin, "
-        "dan mematuhi ketentuan operasional lembaga."
+    template = _read_recruitment_template(
+        CONTRACT_TEMPLATE_FILE,
+        DEFAULT_CONTRACT_TEMPLATE,
     )
+    return _render_recruitment_template(template, candidate)
 
 
 def _build_offering_text(candidate):
-    amount = _current_offering_amount()
-    amount_text = (
-        f"Rp {amount:,.0f}".replace(",", ".")
-        if amount
-        else "mengikuti database fee aktif"
+    template = _read_recruitment_template(
+        OFFERING_TEMPLATE_FILE,
+        DEFAULT_OFFERING_TEMPLATE,
     )
-    return (
-        f"OFFERING DIGITAL TUTOR\n\n"
-        f"Halo {candidate.name},\n"
-        f"Offering fee tutor per sesi saat ini: {amount_text}.\n"
-        "Nominal final mengikuti aturan tarif aktif, mata pelajaran, jenjang, "
-        "dan enrollment yang ditetapkan admin."
-    )
+    return _render_recruitment_template(template, candidate)
+
+
+def _sync_candidate_documents(candidate, force=False):
+    if getattr(candidate, "is_signed", False) and not force:
+        return False
+    if force or not candidate.contract_text:
+        candidate.contract_text = _build_contract_text(candidate)
+    if force or not candidate.offering_text:
+        candidate.offering_text = _build_offering_text(candidate)
+    candidate.updated_at = datetime.utcnow()
+    return True
 
 
 def _send_candidate_whatsapp(candidate, message):
@@ -1183,8 +1266,7 @@ def form():
             )
             if candidate.status != "signed":
                 candidate.status = "contract_sent"
-                candidate.contract_text = _build_contract_text(candidate)
-                candidate.offering_text = _build_offering_text(candidate)
+                _sync_candidate_documents(candidate, force=True)
                 candidate.contract_sent_at = candidate.contract_sent_at or datetime.utcnow()
             candidate.updated_at = datetime.utcnow()
             db.session.commit()
@@ -1233,10 +1315,10 @@ def dashboard():
     if not candidate:
         flash("Masuk ke dashboard recruitment terlebih dahulu.", "warning")
         return redirect(url_for("recruitment.start"))
-    if candidate.contract_text is None and candidate.status in {"contract_sent", "signed"}:
-        candidate.contract_text = _build_contract_text(candidate)
-    if candidate.offering_text is None and candidate.status in {"contract_sent", "signed"}:
-        candidate.offering_text = _build_offering_text(candidate)
+    if candidate.status == "contract_sent":
+        _sync_candidate_documents(candidate, force=True)
+    elif candidate.status == "signed":
+        _sync_candidate_documents(candidate)
     if request.method == "POST":
         signature = request.form.get("signature_data_url") or ""
         _sign_candidate_contract(candidate, signature)
@@ -1315,6 +1397,9 @@ def dashboard_document(kind):
         return redirect(url_for("recruitment.start"))
     if candidate.status not in {"contract_sent", "signed"}:
         abort(404)
+    if candidate.status == "contract_sent":
+        _sync_candidate_documents(candidate, force=True)
+        db.session.commit()
     if kind == "offering":
         if not candidate.offering_text:
             candidate.offering_text = _build_offering_text(candidate)
@@ -1371,6 +1456,34 @@ def crm_candidates():
         "recruitment/crm_candidates.html",
         candidates=candidates,
         title="Kandidat Pelamar",
+    )
+
+
+@recruitment_bp.route("/crm/templates", methods=["GET", "POST"])
+@login_required
+def crm_templates():
+    if request.method == "POST":
+        _write_recruitment_template(
+            CONTRACT_TEMPLATE_FILE,
+            request.form.get("contract_template") or DEFAULT_CONTRACT_TEMPLATE,
+        )
+        _write_recruitment_template(
+            OFFERING_TEMPLATE_FILE,
+            request.form.get("offering_template") or DEFAULT_OFFERING_TEMPLATE,
+        )
+        flash("Template kontrak dan offering berhasil disimpan.", "success")
+        return redirect(url_for("recruitment.crm_templates"))
+    return render_template(
+        "recruitment/crm_templates.html",
+        contract_template=_read_recruitment_template(
+            CONTRACT_TEMPLATE_FILE,
+            DEFAULT_CONTRACT_TEMPLATE,
+        ),
+        offering_template=_read_recruitment_template(
+            OFFERING_TEMPLATE_FILE,
+            DEFAULT_OFFERING_TEMPLATE,
+        ),
+        placeholders=RECRUITMENT_TEMPLATE_PLACEHOLDERS,
     )
 
 
@@ -1469,8 +1582,7 @@ def send_contract(candidate_ref):
     if candidate.status not in {"interview", "contract_sent"}:
         flash("Kontrak hanya bisa dikirim dari tahap interview.", "warning")
         return redirect(url_for("recruitment.crm_interview"))
-    candidate.contract_text = _build_contract_text(candidate)
-    candidate.offering_text = _build_offering_text(candidate)
+    _sync_candidate_documents(candidate, force=True)
     candidate.status = "contract_sent"
     candidate.contract_sent_at = datetime.utcnow()
     candidate.updated_at = datetime.utcnow()
@@ -1500,10 +1612,10 @@ def contract(token):
     if not candidate:
         return redirect(url_for("recruitment.start"))
     session["recruitment_candidate_id"] = candidate.id
-    if not candidate.contract_text:
-        candidate.contract_text = _build_contract_text(candidate)
-    if not candidate.offering_text:
-        candidate.offering_text = _build_offering_text(candidate)
+    if candidate.status == "contract_sent":
+        _sync_candidate_documents(candidate, force=True)
+    else:
+        _sync_candidate_documents(candidate)
     if request.method == "POST":
         signature = request.form.get("signature_data_url") or ""
         _sign_candidate_contract(candidate, signature)

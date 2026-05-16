@@ -2193,6 +2193,7 @@ def admin_reset_credential_password(tutor_ref):
 
 
 def _delete_tutor_credential(tutor):
+    normalized_tutor_email = _normalize_email(tutor.email)
     enrollment_ids = [
         enrollment_id
         for (enrollment_id,) in Enrollment.query.with_entities(Enrollment.id)
@@ -2240,9 +2241,13 @@ def _delete_tutor_credential(tutor):
         synchronize_session=False
     )
 
-    RecruitmentCandidate.query.filter_by(tutor_id=tutor.id).update(
-        {RecruitmentCandidate.tutor_id: None},
-        synchronize_session=False,
+    candidate_filters = [RecruitmentCandidate.tutor_id == tutor.id]
+    if normalized_tutor_email:
+        candidate_filters.append(
+            db.func.lower(RecruitmentCandidate.google_email) == normalized_tutor_email
+        )
+    RecruitmentCandidate.query.filter(db.or_(*candidate_filters)).delete(
+        synchronize_session=False
     )
     _delete_student_invoices(invoice_ids, enrollment_ids)
     _delete_student_payment_lines(enrollment_ids, payment_ids)

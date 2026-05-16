@@ -767,7 +767,12 @@ def test_delete_tutor_credential_removes_tutor_and_dependent_records():
         curriculum = Curriculum(name="K13")
         level = Level(name="SMA")
         subject = Subject(name="Matematika")
-        tutor = Tutor(tutor_code="TTR-DELETE-LINK", name="Tutor Delete", is_active=True)
+        tutor = Tutor(
+            tutor_code="TTR-DELETE-LINK",
+            name="Tutor Delete",
+            email="delete.tutor@example.com",
+            is_active=True,
+        )
         other_tutor = Tutor(tutor_code="TTR-SESSION-OTHER", name="Tutor Session")
         student = Student(student_code="STD-DELETE-LINK", name="Siswa Delete")
         db.session.add_all([curriculum, level, subject, tutor, other_tutor, student])
@@ -848,6 +853,20 @@ def test_delete_tutor_credential_removes_tutor_and_dependent_records():
             manual_review_status="valid",
         )
         db.session.add(evaluation)
+        linked_candidate = RecruitmentCandidate(
+            google_email="linked.candidate@example.com",
+            tutor_id=tutor.id,
+            status="contract_sent",
+        )
+        email_candidate = RecruitmentCandidate(
+            google_email="DELETE.TUTOR@example.com",
+            status="contract_sent",
+        )
+        unrelated_candidate = RecruitmentCandidate(
+            google_email="unrelated@example.com",
+            status="contract_sent",
+        )
+        db.session.add_all([linked_candidate, email_candidate, unrelated_candidate])
         db.session.execute(
             db.text(
                 """
@@ -880,6 +899,9 @@ def test_delete_tutor_credential_removes_tutor_and_dependent_records():
         enrollment_id = enrollment.id
         attendance_session_id = attendance_session.id
         moved_attendance_session_id = moved_attendance_session.id
+        linked_candidate_id = linked_candidate.id
+        email_candidate_id = email_candidate.id
+        unrelated_candidate_id = unrelated_candidate.id
 
         _delete_tutor_credential(tutor)
 
@@ -896,6 +918,9 @@ def test_delete_tutor_credential_removes_tutor_and_dependent_records():
         assert db.session.get(AttendanceSession, attendance_session_id) is None
         assert db.session.get(AttendanceSession, moved_attendance_session_id) is None
         assert db.session.get(WhatsAppEvaluation, evaluation_id) is None
+        assert db.session.get(RecruitmentCandidate, linked_candidate_id) is None
+        assert db.session.get(RecruitmentCandidate, email_candidate_id) is None
+        assert db.session.get(RecruitmentCandidate, unrelated_candidate_id) is not None
         assert invoice_count == 0
         assert invoice_line_count == 0
 

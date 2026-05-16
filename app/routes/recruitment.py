@@ -169,7 +169,6 @@ DEFAULT_CONTRACT_TEMPLATE = """\
     <div>
       <p><strong>Untuk LBB Super Smart,</strong></p>
       <img class="doc-qr" src="{{ company_qr_data_url }}" alt="QR validasi dokumen">
-      <p class="doc-verify-text">Scan untuk verifikasi dokumen ini.</p>
       <p><strong>Yoga Aji Sukma, S.Mat., M.Stat.</strong></p>
       <p>CEO</p>
     </div>

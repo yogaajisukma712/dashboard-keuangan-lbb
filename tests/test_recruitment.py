@@ -234,6 +234,11 @@ def test_default_offering_uses_left_ceo_qr_without_verify_text():
     assert "Scan untuk verifikasi dokumen ini." not in recruitment.DEFAULT_OFFERING_TEMPLATE
 
 
+def test_default_contract_omits_verify_text_below_qr():
+    assert "QR validasi dokumen" in recruitment.DEFAULT_CONTRACT_TEMPLATE
+    assert "Scan untuk verifikasi dokumen ini." not in recruitment.DEFAULT_CONTRACT_TEMPLATE
+
+
 def test_recruitment_form_rejects_unlisted_university(monkeypatch):
     app = _make_app()
     candidate = _candidate()

@@ -675,7 +675,7 @@ def _candidate_file_flags(candidate):
 
 def _dashboard_document_response(title, content):
     escaped_title = html.escape(title)
-    escaped_content = html.escape(content or "-")
+    content_html = content or "<p>-</p>"
     document = f"""<!doctype html>
 <html lang="id">
 <head>
@@ -695,16 +695,155 @@ def _dashboard_document_response(title, content):
       font-size: 18px;
       margin: 0 0 16px;
     }}
-    pre {{
+    .document-shell {{
+      background: #eef2f7;
+      border: 1px solid #d8e0ea;
+      border-radius: 8px;
+      overflow-x: auto;
+      padding: 16px;
+    }}
+    .recruitment-a4-page {{
+      background: #fff;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+      color: #111827;
       font-family: Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.35;
+      margin: 0 auto 18px;
+      min-height: 297mm;
+      padding: 18mm;
+      width: 210mm;
+    }}
+    .recruitment-a4-page p,
+    .recruitment-a4-page li {{
+      margin-bottom: 0.25rem;
+    }}
+    .recruitment-a4-page h3 {{
+      font-size: 11pt;
+      font-weight: 700;
+      margin: 0.6rem 0 0.25rem;
+    }}
+    .doc-title,
+    .doc-subtitle,
+    .doc-letterhead {{
+      text-align: center;
+    }}
+    .doc-title {{
+      font-size: 18pt;
+      font-weight: 700;
       margin: 0;
-      white-space: pre-wrap;
+    }}
+    .doc-subtitle {{
+      font-size: 13pt;
+      font-weight: 700;
+      margin: 0 0 0.8rem;
+    }}
+    .doc-letterhead {{
+      margin-bottom: 1.4rem;
+    }}
+    .doc-brand {{
+      font-size: 13pt;
+      letter-spacing: 0;
+    }}
+    .doc-date {{
+      text-align: right;
+    }}
+    .doc-two-columns {{
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: 1fr 1fr;
+    }}
+    .doc-info-table {{
+      border-collapse: collapse;
+      margin: 0.5rem 0 0.9rem;
+      width: 100%;
+    }}
+    .doc-info-table th {{
+      font-weight: 700;
+      text-align: left;
+      width: 36%;
+    }}
+    .doc-info-table th,
+    .doc-info-table td {{
+      padding: 0.15rem 0.35rem;
+      vertical-align: top;
+    }}
+    .doc-signatures {{
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: 1fr 1fr;
+      margin-top: 1cm;
+      text-align: center;
+    }}
+    .doc-ceo-sign {{
+      margin-top: 1.3cm;
+      text-align: left;
+    }}
+    .doc-signature-space {{
+      align-items: center;
+      display: flex;
+      height: 76px;
+      justify-content: center;
+      margin: 0.2rem auto 0.15rem;
+      overflow: hidden;
+      width: 190px;
+    }}
+    .doc-candidate-signature {{
+      display: block;
+      max-height: 72px;
+      max-width: 180px;
+      object-fit: contain;
+    }}
+    .doc-qr {{
+      display: block;
+      height: 92px;
+      margin: 0.35rem auto;
+      width: 92px;
+    }}
+    .doc-verify-text,
+    .doc-footer {{
+      font-size: 8pt;
+    }}
+    .doc-footer {{
+      margin-top: 1.4rem;
+      text-align: center;
+    }}
+    @media (max-width: 900px) {{
+      body {{
+        padding: 12px;
+      }}
+      .document-shell {{
+        padding: 10px;
+      }}
+      .recruitment-a4-page {{
+        min-height: auto;
+        padding: 14mm;
+        width: 100%;
+      }}
+    }}
+    @media print {{
+      body {{
+        padding: 0;
+      }}
+      h1 {{
+        display: none;
+      }}
+      .document-shell {{
+        background: #fff;
+        border: 0;
+        padding: 0;
+      }}
+      .recruitment-a4-page {{
+        box-shadow: none;
+        margin: 0;
+        page-break-after: always;
+      }}
     }}
   </style>
 </head>
 <body>
   <h1>{escaped_title}</h1>
-  <pre>{escaped_content}</pre>
+  <div class="document-shell">{content_html}</div>
 </body>
 </html>"""
     return Response(document, mimetype="text/html")

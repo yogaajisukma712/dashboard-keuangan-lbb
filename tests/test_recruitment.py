@@ -213,6 +213,21 @@ def test_bypass_tutor_profile_submit_generates_contract(monkeypatch):
     assert tutor.portal_must_change_password is False
 
 
+def test_dashboard_document_response_renders_html_document():
+    app = _make_app()
+
+    with app.app_context():
+        response = recruitment._dashboard_document_response(
+            "Surat Kerja / Kontrak",
+            '<section class="recruitment-a4-page"><h1>KONTRAK KERJA</h1></section>',
+        )
+
+    html = response.get_data(as_text=True)
+    assert '<section class="recruitment-a4-page">' in html
+    assert "&lt;section" not in html
+    assert "<pre>" not in html
+
+
 def test_recruitment_form_rejects_unlisted_university(monkeypatch):
     app = _make_app()
     candidate = _candidate()

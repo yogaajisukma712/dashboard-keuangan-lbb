@@ -2191,17 +2191,7 @@ def admin_reset_credential_password(tutor_ref):
     return _credential_redirect()
 
 
-@tutor_portal_bp.route(
-    "/admin/credentials/<string:tutor_ref>/delete", methods=["POST"]
-)
-@login_required
-def admin_delete_credential_tutor(tutor_ref):
-    try:
-        tutor_id = decode_public_id(tutor_ref, "tutor")
-    except ValueError:
-        abort(404)
-    tutor = Tutor.query.get_or_404(tutor_id)
-    name = tutor.name
+def _delete_tutor_credential(tutor):
     TutorMeetLink.query.filter_by(tutor_id=tutor.id).delete(synchronize_session=False)
     TutorPortalRequest.query.filter_by(tutor_id=tutor.id).delete(
         synchronize_session=False
@@ -2214,6 +2204,20 @@ def admin_delete_credential_tutor(tutor_ref):
     )
     db.session.delete(tutor)
     db.session.commit()
+
+
+@tutor_portal_bp.route(
+    "/admin/credentials/<string:tutor_ref>/delete", methods=["POST"]
+)
+@login_required
+def admin_delete_credential_tutor(tutor_ref):
+    try:
+        tutor_id = decode_public_id(tutor_ref, "tutor")
+    except ValueError:
+        abort(404)
+    tutor = Tutor.query.get_or_404(tutor_id)
+    name = tutor.name
+    _delete_tutor_credential(tutor)
     flash(f"Akun tutor {name} berhasil dihapus.", "success")
     return _credential_redirect()
 

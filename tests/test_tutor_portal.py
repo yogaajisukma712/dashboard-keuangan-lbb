@@ -14,6 +14,7 @@ from app.models import (
     Student,
     Subject,
     Tutor,
+    TutorMeetLink,
     TutorPortalRequest,
     WhatsAppEvaluation,
     WhatsAppGroup,
@@ -28,6 +29,7 @@ from app.routes.tutor_portal import (
     _build_tutor_attendance_calendar,
     _build_tutor_presensi_schedule_grid,
     _coerce_meeting_start_time,
+    _delete_tutor_credential,
     _month_bounds,
     _normalize_portal_attendance_period,
     _validated_tutor_attendance_sessions,
@@ -717,6 +719,63 @@ def test_tutor_portal_schedule_falls_back_to_recruitment_availability_for_new_tu
         assert schedule_grid["source_type"] == "candidate_availability"
         assert monday_16["availability"] == "available"
         assert tuesday_16["availability"] == "unavailable"
+
+
+def test_delete_tutor_credential_removes_meet_links_before_tutor():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        subject = Subject(name="Matematika")
+        tutor = Tutor(tutor_code="TTR-DELETE-LINK", name="Tutor Delete", is_active=True)
+        student = Student(student_code="STD-DELETE-LINK", name="Siswa Delete")
+        db.session.add_all([curriculum, level, subject, tutor, student])
+        db.session.flush()
+
+        enrollment = Enrollment(
+            student_id=student.id,
+            subject_id=subject.id,
+            tutor_id=tutor.id,
+            curriculum_id=curriculum.id,
+            level_id=level.id,
+            grade="10",
+            student_rate_per_meeting=150000,
+            tutor_rate_per_meeting=80000,
+            status="active",
+        )
+        db.session.add(enrollment)
+        db.session.flush()
+
+        meet_link = TutorMeetLink(
+            enrollment_id=enrollment.id,
+            tutor_id=tutor.id,
+            student_id=student.id,
+            subject_id=subject.id,
+            token="delete-link-token",
+            room="ss-meet-delete-link",
+            join_url="https://meet.example/delete-link",
+            status="active",
+        )
+        request = TutorPortalRequest(
+            tutor_id=tutor.id,
+            request_type="schedule_change",
+            status="pending",
+            payload_json={},
+        )
+        db.session.add_all([meet_link, request])
+        db.session.commit()
+
+        tutor_id = tutor.id
+        meet_link_id = meet_link.id
+        request_id = request.id
+
+        _delete_tutor_credential(tutor)
+
+        assert db.session.get(Tutor, tutor_id) is None
+        assert db.session.get(TutorMeetLink, meet_link_id) is None
+        assert db.session.get(TutorPortalRequest, request_id) is None
 
 
 def test_meet_link_time_options_are_24_hour_15_minute_slots():

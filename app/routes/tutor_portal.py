@@ -42,6 +42,8 @@ from app.models import (
     TutorPayout,
     TutorPortalRequest,
     WhatsAppEvaluation,
+    WhatsAppTutorIdentityAlias,
+    WhatsAppTutorValidation,
 )
 from app.routes.master import _build_tutor_weekly_schedule_grid, _short_person_name
 from app.utils import decode_public_id
@@ -2200,6 +2202,16 @@ def admin_delete_credential_tutor(tutor_ref):
         abort(404)
     tutor = Tutor.query.get_or_404(tutor_id)
     name = tutor.name
+    TutorMeetLink.query.filter_by(tutor_id=tutor.id).delete(synchronize_session=False)
+    TutorPortalRequest.query.filter_by(tutor_id=tutor.id).delete(
+        synchronize_session=False
+    )
+    WhatsAppTutorIdentityAlias.query.filter_by(tutor_id=tutor.id).delete(
+        synchronize_session=False
+    )
+    WhatsAppTutorValidation.query.filter_by(tutor_id=tutor.id).delete(
+        synchronize_session=False
+    )
     db.session.delete(tutor)
     db.session.commit()
     flash(f"Akun tutor {name} berhasil dihapus.", "success")

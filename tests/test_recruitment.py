@@ -370,7 +370,12 @@ def test_recruitment_crm_source_is_registered():
     assert "def crm_candidates" in route_text
     assert "def crm_selected" in route_text
     assert "def crm_interview" in route_text
+    assert "def crm_rejected" in route_text
     assert "def crm_templates" in route_text
+    assert "def reject_candidate" in route_text
+    assert "def delete_candidate" in route_text
+    assert "candidate.status = \"rejected\"" in route_text
+    assert "db.session.delete(candidate)" in route_text
     assert "_read_recruitment_template" in route_text
     assert "_write_recruitment_template" in route_text
     assert "DEFAULT_CONTRACT_TEMPLATE" in route_text
@@ -457,6 +462,9 @@ def test_recruitment_templates_expose_required_workflow():
     interview_text = (
         PROJECT_ROOT / "app" / "templates" / "recruitment" / "crm_interview.html"
     ).read_text(encoding="utf-8")
+    rejected_text = (
+        PROJECT_ROOT / "app" / "templates" / "recruitment" / "crm_rejected.html"
+    ).read_text(encoding="utf-8")
     templates_text = (
         PROJECT_ROOT / "app" / "templates" / "recruitment" / "crm_templates.html"
     ).read_text(encoding="utf-8")
@@ -525,10 +533,20 @@ def test_recruitment_templates_expose_required_workflow():
     assert "candidate.teaching_preferences" in candidates_text
     assert "candidate.university_name" in candidates_text
     assert "Lolos Berkas" in candidates_text
+    assert "recruitment.reject_candidate" in candidates_text
+    assert "Tolak" in candidates_text
+    assert "recruitment.delete_candidate" in candidates_text
+    assert "Hapus" in candidates_text
+    assert "Pelamar Tertolak" in candidates_text
     assert "Pelamar Terpilih" in selected_text
     assert "Link Google Meet" in selected_text
     assert "Setuju Interview" in selected_text
+    assert "Pelamar Tertolak" in selected_text
     assert "Kirim Kontrak & Offering" in interview_text
+    assert "Pelamar Tertolak" in interview_text
+    assert "Pelamar Tertolak" in templates_text
+    assert "Pelamar Tertolak" in rejected_text
+    assert "recruitment.delete_candidate" in rejected_text
     assert "Template" in candidates_text
     assert "Template" in selected_text
     assert "Template" in interview_text

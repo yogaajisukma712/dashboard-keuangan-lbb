@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Pelamar Tertolak{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="bi bi-person-x-fill text-danger me-2"></i>Pelamar Tertolak</h4>
+    <p class="text-muted small mb-0">Daftar pelamar yang sudah ditolak dari proses recruitment.</p>
+  </div>
+  <div class="btn-group btn-group-sm">
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_candidates') }}">Pelamar</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_selected') }}">Pelamar Terpilih</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_interview') }}">Interview</a>
+    <a class="btn btn-primary" href="{{ url_for('recruitment.crm_rejected') }}">Pelamar Tertolak</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_templates') }}">Template</a>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 small">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">Nama</th>
+          <th>WhatsApp</th>
+          <th>Email</th>
+          <th>Mapel</th>
+          <th>Tanggal</th>
+          <th class="text-end pe-4">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for candidate in candidates %}
+        <tr>
+          <td class="ps-4">
+            <div class="fw-semibold">{{ candidate.name or '-' }}</div>
+            <div class="text-muted">{{ candidate.last_education_level or '-' }} | {{ candidate.university_name or '-' }}</div>
+          </td>
+          <td>{{ candidate.phone or '-' }}</td>
+          <td>{{ candidate.google_email }}</td>
+          <td>
+            {% if candidate.teaching_preferences %}
+            <ul class="mb-0 ps-3">
+              {% for item in candidate.teaching_preferences %}
+              <li>{{ item }}</li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            {{ candidate.subject_interest or '-' }}
+            {% endif %}
+          </td>
+          <td>{{ candidate.updated_at.strftime('%d %b %Y') }}</td>
+          <td class="text-end pe-4">
+            <form method="post" action="{{ url_for('recruitment.delete_candidate', candidate_ref=candidate.public_id) }}" class="d-inline" onsubmit="return confirm('Hapus permanen data pelamar tertolak ini?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline-danger btn-sm" type="submit">Hapus</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-5">Belum ada pelamar tertolak.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

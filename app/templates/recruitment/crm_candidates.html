@@ -12,6 +12,7 @@
     <a class="btn btn-primary" href="{{ url_for('recruitment.crm_candidates') }}">Pelamar</a>
     <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_selected') }}">Pelamar Terpilih</a>
     <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_interview') }}">Interview</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_rejected') }}">Pelamar Tertolak</a>
     <a class="btn btn-outline-secondary" href="{{ url_for('recruitment.crm_templates') }}">Template</a>
   </div>
 </div>
@@ -76,14 +77,22 @@
             {% endif %}
           </td>
           <td class="text-end pe-4">
-            <form method="post" action="{{ url_for('recruitment.shortlist', candidate_ref=candidate.public_id) }}">
+            <form method="post" action="{{ url_for('recruitment.shortlist', candidate_ref=candidate.public_id) }}" class="d-inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-success btn-sm" type="submit">Lolos Berkas</button>
+            </form>
+            <form method="post" action="{{ url_for('recruitment.reject_candidate', candidate_ref=candidate.public_id) }}" class="d-inline" onsubmit="return confirm('Tolak pelamar ini dan pindahkan ke tab Pelamar Tertolak?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-warning btn-sm" type="submit">Tolak</button>
+            </form>
+            <form method="post" action="{{ url_for('recruitment.delete_candidate', candidate_ref=candidate.public_id) }}" class="d-inline" onsubmit="return confirm('Hapus permanen data pelamar ini?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline-danger btn-sm" type="submit">Hapus</button>
             </form>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" class="text-center text-muted py-5">Belum ada pelamar.</td></tr>
+        <tr><td colspan="8" class="text-center text-muted py-5">Belum ada pelamar.</td></tr>
         {% endfor %}
       </tbody>
     </table>

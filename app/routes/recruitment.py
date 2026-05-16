@@ -59,6 +59,7 @@ RECRUITMENT_STATUSES = {
     "interview": "Interview",
     "contract_sent": "Kontrak Dikirim",
     "signed": "Kontrak Ditandatangani",
+    "rejected": "Pelamar Tertolak",
 }
 CONTRACT_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 MAX_SIGNATURE_DATA_URL_LENGTH = 500_000
@@ -1511,6 +1512,17 @@ def crm_interview():
     return render_template("recruitment/crm_interview.html", candidates=candidates)
 
 
+@recruitment_bp.route("/crm/rejected")
+@login_required
+def crm_rejected():
+    candidates = (
+        RecruitmentCandidate.query.filter_by(status="rejected")
+        .order_by(RecruitmentCandidate.updated_at.desc(), RecruitmentCandidate.id.desc())
+        .all()
+    )
+    return render_template("recruitment/crm_rejected.html", candidates=candidates)
+
+
 @recruitment_bp.route("/crm/candidates/<candidate_ref>/shortlist", methods=["POST"])
 @login_required
 def shortlist(candidate_ref):
@@ -1522,6 +1534,31 @@ def shortlist(candidate_ref):
     candidate.updated_at = datetime.utcnow()
     db.session.commit()
     flash(f"{candidate.name} masuk ke Pelamar Terpilih.", "success")
+    return redirect(url_for("recruitment.crm_candidates"))
+
+
+@recruitment_bp.route("/crm/candidates/<candidate_ref>/reject", methods=["POST"])
+@login_required
+def reject_candidate(candidate_ref):
+    candidate = _candidate_from_ref(candidate_ref)
+    if candidate.status == "signed":
+        flash("Pelamar yang sudah menandatangani kontrak tidak bisa ditolak.", "warning")
+        return redirect(url_for("recruitment.crm_interview"))
+    candidate.status = "rejected"
+    candidate.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash(f"{candidate.name or candidate.google_email} masuk ke Pelamar Tertolak.", "success")
+    return redirect(url_for("recruitment.crm_candidates"))
+
+
+@recruitment_bp.route("/crm/candidates/<candidate_ref>/delete", methods=["POST"])
+@login_required
+def delete_candidate(candidate_ref):
+    candidate = _candidate_from_ref(candidate_ref)
+    candidate_name = candidate.name or candidate.google_email
+    db.session.delete(candidate)
+    db.session.commit()
+    flash(f"Data pelamar {candidate_name} sudah dihapus permanen.", "success")
     return redirect(url_for("recruitment.crm_candidates"))
 
 

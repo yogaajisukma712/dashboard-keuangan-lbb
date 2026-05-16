@@ -29,6 +29,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from sqlalchemy import bindparam
 from werkzeug.utils import secure_filename
 
 from app import db
@@ -186,8 +187,7 @@ def _ensure_all_tutor_portal_credentials():
     rows = Tutor.query.order_by(Tutor.name.asc(), Tutor.id.asc()).all()
     changed = False
     for tutor in rows:
-        if tutor.is_active:
-            changed = _ensure_tutor_portal_credentials(tutor) or changed
+        changed = _ensure_tutor_portal_credentials(tutor) or changed
     if changed:
         db.session.commit()
     return rows
@@ -2193,6 +2193,42 @@ def admin_reset_credential_password(tutor_ref):
 
 
 def _delete_tutor_credential(tutor):
+    enrollment_ids = [
+        enrollment_id
+        for (enrollment_id,) in Enrollment.query.with_entities(Enrollment.id)
+        .filter_by(tutor_id=tutor.id)
+        .all()
+    ]
+    attendance_session_ids = [
+        session_id
+        for (session_id,) in AttendanceSession.query.with_entities(AttendanceSession.id)
+        .filter(
+            (AttendanceSession.tutor_id == tutor.id)
+            | (AttendanceSession.enrollment_id.in_(enrollment_ids))
+        )
+        .all()
+    ]
+    payout_ids = [
+        payout_id
+        for (payout_id,) in TutorPayout.query.with_entities(TutorPayout.id)
+        .filter_by(tutor_id=tutor.id)
+        .all()
+    ]
+    invoice_ids = _student_invoice_ids_for_enrollments(enrollment_ids)
+    payment_ids = _student_payment_ids_for_enrollments(enrollment_ids)
+
+    if attendance_session_ids:
+        WhatsAppEvaluation.query.filter(
+            WhatsAppEvaluation.attendance_session_id.in_(attendance_session_ids)
+        ).delete(synchronize_session=False)
+    if enrollment_ids:
+        WhatsAppEvaluation.query.filter(
+            WhatsAppEvaluation.matched_enrollment_id.in_(enrollment_ids)
+        ).delete(synchronize_session=False)
+    WhatsAppEvaluation.query.filter_by(matched_tutor_id=tutor.id).delete(
+        synchronize_session=False
+    )
+
     TutorMeetLink.query.filter_by(tutor_id=tutor.id).delete(synchronize_session=False)
     TutorPortalRequest.query.filter_by(tutor_id=tutor.id).delete(
         synchronize_session=False
@@ -2203,16 +2239,119 @@ def _delete_tutor_credential(tutor):
     WhatsAppTutorValidation.query.filter_by(tutor_id=tutor.id).delete(
         synchronize_session=False
     )
-    tutor.portal_username = None
-    tutor.portal_password_hash = None
-    tutor.portal_visible_password = None
-    tutor.portal_must_change_password = True
-    tutor.portal_email_verified = False
-    tutor.portal_email_verified_at = None
-    tutor.status = "inactive"
-    tutor.is_active = False
-    tutor.updated_at = datetime.utcnow()
+
+    RecruitmentCandidate.query.filter_by(tutor_id=tutor.id).update(
+        {RecruitmentCandidate.tutor_id: None},
+        synchronize_session=False,
+    )
+    _delete_student_invoices(invoice_ids, enrollment_ids)
+    _delete_student_payment_lines(enrollment_ids, payment_ids)
+    _delete_tutor_payouts(payout_ids)
+
+    if attendance_session_ids:
+        AttendanceSession.query.filter(AttendanceSession.id.in_(attendance_session_ids)).delete(
+            synchronize_session=False
+        )
+    if enrollment_ids:
+        EnrollmentSchedule.query.filter(
+            EnrollmentSchedule.enrollment_id.in_(enrollment_ids)
+        ).delete(synchronize_session=False)
+        Enrollment.query.filter(Enrollment.id.in_(enrollment_ids)).delete(
+            synchronize_session=False
+        )
+
+    db.session.delete(tutor)
     db.session.commit()
+
+
+def _execute_ids(sql, ids, param_name="ids"):
+    if not ids:
+        return None
+    return db.session.execute(
+        db.text(sql).bindparams(bindparam(param_name, expanding=True)),
+        {param_name: ids},
+    )
+
+
+def _student_invoice_ids_for_enrollments(enrollment_ids):
+    result = _execute_ids(
+        """
+        SELECT id
+        FROM student_invoices
+        WHERE enrollment_id IN :ids
+        UNION
+        SELECT invoice_id
+        FROM student_invoice_lines
+        WHERE enrollment_id IN :ids
+        """,
+        enrollment_ids,
+    )
+    return [row[0] for row in result] if result is not None else []
+
+
+def _student_payment_ids_for_enrollments(enrollment_ids):
+    result = _execute_ids(
+        """
+        SELECT DISTINCT student_payment_id
+        FROM student_payment_lines
+        WHERE enrollment_id IN :ids
+        """,
+        enrollment_ids,
+    )
+    return [row[0] for row in result] if result is not None else []
+
+
+def _delete_student_invoices(invoice_ids, enrollment_ids):
+    _execute_ids("DELETE FROM student_invoice_lines WHERE invoice_id IN :ids", invoice_ids)
+    _execute_ids(
+        "DELETE FROM student_invoice_lines WHERE enrollment_id IN :ids",
+        enrollment_ids,
+    )
+    _execute_ids("DELETE FROM student_invoices WHERE id IN :ids", invoice_ids)
+    _execute_ids(
+        "DELETE FROM student_invoices WHERE enrollment_id IN :ids",
+        enrollment_ids,
+    )
+
+
+def _delete_student_payment_lines(enrollment_ids, payment_ids):
+    _execute_ids(
+        "DELETE FROM student_payment_lines WHERE enrollment_id IN :ids",
+        enrollment_ids,
+    )
+    _execute_ids(
+        """
+        UPDATE student_payments AS p
+        SET total_amount = totals.total_amount,
+            updated_at = NOW()
+        FROM (
+            SELECT student_payment_id, COALESCE(SUM(nominal_amount), 0) AS total_amount
+            FROM student_payment_lines
+            WHERE student_payment_id IN :ids
+            GROUP BY student_payment_id
+        ) AS totals
+        WHERE p.id = totals.student_payment_id
+        """,
+        payment_ids,
+    )
+    _execute_ids(
+        """
+        DELETE FROM student_payments AS p
+        WHERE p.id IN :ids
+          AND NOT EXISTS (
+              SELECT 1
+              FROM student_payment_lines AS l
+              WHERE l.student_payment_id = p.id
+          )
+        """,
+        payment_ids,
+    )
+
+
+def _delete_tutor_payouts(payout_ids):
+    _execute_ids("DELETE FROM tutor_payout_proofs WHERE tutor_payout_id IN :ids", payout_ids)
+    _execute_ids("DELETE FROM tutor_payout_lines WHERE tutor_payout_id IN :ids", payout_ids)
+    _execute_ids("DELETE FROM tutor_payouts WHERE id IN :ids", payout_ids)
 
 
 @tutor_portal_bp.route(
@@ -2227,7 +2366,7 @@ def admin_delete_credential_tutor(tutor_ref):
     tutor = Tutor.query.get_or_404(tutor_id)
     name = tutor.name
     _delete_tutor_credential(tutor)
-    flash(f"Akun login tutor {name} berhasil dinonaktifkan.", "success")
+    flash(f"Akun tutor {name} berhasil dihapus permanen.", "success")
     return _credential_redirect()
 
 

@@ -721,17 +721,56 @@ def test_tutor_portal_schedule_falls_back_to_recruitment_availability_for_new_tu
         assert tuesday_16["availability"] == "unavailable"
 
 
-def test_delete_tutor_credential_revokes_login_without_removing_history():
+def test_delete_tutor_credential_removes_tutor_and_dependent_records():
     app = _make_test_app()
 
     with app.app_context():
         db.create_all()
+        db.session.execute(
+            db.text(
+                """
+                CREATE TABLE student_invoices (
+                    id INTEGER PRIMARY KEY,
+                    student_id INTEGER NOT NULL,
+                    enrollment_id INTEGER NOT NULL,
+                    service_month DATE,
+                    amount NUMERIC,
+                    billing_type VARCHAR(20),
+                    status VARCHAR(20),
+                    notes TEXT,
+                    completed_payment_id INTEGER,
+                    created_at DATETIME,
+                    updated_at DATETIME
+                )
+                """
+            )
+        )
+        db.session.execute(
+            db.text(
+                """
+                CREATE TABLE student_invoice_lines (
+                    id INTEGER PRIMARY KEY,
+                    invoice_id INTEGER NOT NULL,
+                    enrollment_id INTEGER NOT NULL,
+                    service_month DATE,
+                    billing_type VARCHAR(20),
+                    meeting_count INTEGER,
+                    student_rate_per_meeting NUMERIC,
+                    tutor_rate_per_meeting NUMERIC,
+                    nominal_amount NUMERIC,
+                    tutor_payable_amount NUMERIC,
+                    margin_amount NUMERIC
+                )
+                """
+            )
+        )
         curriculum = Curriculum(name="K13")
         level = Level(name="SMA")
         subject = Subject(name="Matematika")
         tutor = Tutor(tutor_code="TTR-DELETE-LINK", name="Tutor Delete", is_active=True)
+        other_tutor = Tutor(tutor_code="TTR-SESSION-OTHER", name="Tutor Session")
         student = Student(student_code="STD-DELETE-LINK", name="Siswa Delete")
-        db.session.add_all([curriculum, level, subject, tutor, student])
+        db.session.add_all([curriculum, level, subject, tutor, other_tutor, student])
         db.session.flush()
 
         enrollment = Enrollment(
@@ -769,6 +808,17 @@ def test_delete_tutor_credential_revokes_login_without_removing_history():
             tutor_present=True,
             tutor_fee_amount=80000,
         )
+        moved_attendance_session = AttendanceSession(
+            enrollment_id=enrollment.id,
+            student_id=student.id,
+            tutor_id=other_tutor.id,
+            subject_id=subject.id,
+            session_date=date(2026, 5, 17),
+            status="attended",
+            student_present=True,
+            tutor_present=True,
+            tutor_fee_amount=80000,
+        )
         request = TutorPortalRequest(
             tutor_id=tutor.id,
             request_type="schedule_change",
@@ -776,7 +826,9 @@ def test_delete_tutor_credential_revokes_login_without_removing_history():
             payload_json={},
         )
         group = WhatsAppGroup(whatsapp_group_id="group-delete-link", name="Kelas Hapus")
-        db.session.add_all([meet_link, attendance_session, request, group])
+        db.session.add_all(
+            [meet_link, attendance_session, moved_attendance_session, request, group]
+        )
         db.session.flush()
         message = WhatsAppMessage(
             whatsapp_message_id="delete-link-message",
@@ -796,6 +848,29 @@ def test_delete_tutor_credential_revokes_login_without_removing_history():
             manual_review_status="valid",
         )
         db.session.add(evaluation)
+        db.session.execute(
+            db.text(
+                """
+                INSERT INTO student_invoices
+                    (id, student_id, enrollment_id, service_month, amount, status)
+                VALUES
+                    (1, :student_id, :enrollment_id, '2026-05-01', 150000, 'draft')
+                """
+            ),
+            {"student_id": student.id, "enrollment_id": enrollment.id},
+        )
+        db.session.execute(
+            db.text(
+                """
+                INSERT INTO student_invoice_lines
+                    (id, invoice_id, enrollment_id, service_month, meeting_count,
+                     nominal_amount)
+                VALUES
+                    (1, 1, :enrollment_id, '2026-05-01', 1, 150000)
+                """
+            ),
+            {"enrollment_id": enrollment.id},
+        )
         db.session.commit()
 
         tutor_id = tutor.id
@@ -804,22 +879,25 @@ def test_delete_tutor_credential_revokes_login_without_removing_history():
         evaluation_id = evaluation.id
         enrollment_id = enrollment.id
         attendance_session_id = attendance_session.id
+        moved_attendance_session_id = moved_attendance_session.id
 
         _delete_tutor_credential(tutor)
 
-        revoked_tutor = db.session.get(Tutor, tutor_id)
-        assert revoked_tutor is not None
-        assert revoked_tutor.is_active is False
-        assert revoked_tutor.status == "inactive"
-        assert revoked_tutor.portal_username is None
-        assert revoked_tutor.portal_password_hash is None
-        assert revoked_tutor.portal_visible_password is None
-        assert revoked_tutor.portal_email_verified is False
+        invoice_count = db.session.execute(
+            db.text("SELECT COUNT(*) FROM student_invoices")
+        ).scalar()
+        invoice_line_count = db.session.execute(
+            db.text("SELECT COUNT(*) FROM student_invoice_lines")
+        ).scalar()
+        assert db.session.get(Tutor, tutor_id) is None
         assert db.session.get(TutorMeetLink, meet_link_id) is None
         assert db.session.get(TutorPortalRequest, request_id) is None
-        assert db.session.get(Enrollment, enrollment_id) is not None
-        assert db.session.get(AttendanceSession, attendance_session_id) is not None
-        assert db.session.get(WhatsAppEvaluation, evaluation_id) is not None
+        assert db.session.get(Enrollment, enrollment_id) is None
+        assert db.session.get(AttendanceSession, attendance_session_id) is None
+        assert db.session.get(AttendanceSession, moved_attendance_session_id) is None
+        assert db.session.get(WhatsAppEvaluation, evaluation_id) is None
+        assert invoice_count == 0
+        assert invoice_line_count == 0
 
 
 def test_meet_link_time_options_are_24_hour_15_minute_slots():
@@ -1078,10 +1156,10 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "Reset Password Terpilih" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
-    assert "Hapus Akun Login" in (
+    assert "Hapus Permanen" in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
-    assert "Enrollment, presensi, invoice, dan payroll tetap disimpan." in (
+    assert "Data terkait tutor seperti enrollment, presensi, invoice, payroll, dan SS Meet juga akan terhapus." in (
         PROJECT_ROOT / "app" / "templates" / "tutor_portal" / "admin_credentials.html"
     ).read_text(encoding="utf-8")
     assert "credential-select-all" in (

@@ -44,6 +44,7 @@ from app.routes.tutor_portal import (
     _bot_request,
     _ensure_tutor_portal_credentials,
     _get_whatsapp_session_status,
+    _next_tutor_portal_identity,
     _normalize_email,
     _normalize_whatsapp_phone,
 )
@@ -829,21 +830,14 @@ def _send_candidate_whatsapp(candidate, message):
     return False, payload.get("error") or "Bot error"
 
 
-def _next_tutor_code():
-    prefix = "TTR-REC"
-    count = Tutor.query.filter(Tutor.tutor_code.like(f"{prefix}%")).count() + 1
-    while True:
-        code = f"{prefix}-{count:04d}"
-        if not Tutor.query.filter_by(tutor_code=code).first():
-            return code
-        count += 1
-
-
 def _create_tutor_from_candidate(candidate):
     if candidate.tutor:
         return candidate.tutor
+    created_at = datetime.utcnow()
+    tutor_identity = _next_tutor_portal_identity(created_at=created_at)
     tutor = Tutor(
-        tutor_code=_next_tutor_code(),
+        tutor_code=tutor_identity,
+        portal_username=tutor_identity,
         name=candidate.name,
         phone=candidate.phone,
         email=_normalize_email(candidate.google_email),
@@ -852,6 +846,7 @@ def _create_tutor_from_candidate(candidate):
         cv_file_path=candidate.cv_file_path,
         status="active",
         is_active=True,
+        created_at=created_at,
         portal_email_verified=True,
         portal_email_verified_at=datetime.utcnow(),
         portal_must_change_password=True,

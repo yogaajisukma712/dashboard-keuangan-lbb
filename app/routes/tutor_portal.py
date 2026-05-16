@@ -132,33 +132,57 @@ def _recruitment_candidate_id_for_tutor(tutor_id):
     return candidate.id if candidate else None
 
 
-def _portal_username_date(tutor):
-    return (tutor.created_at or datetime.utcnow()).strftime("%y%m%d")
+def _portal_identity_date(created_at=None):
+    return (created_at or datetime.utcnow()).strftime("%y%m%d")
 
 
-def _next_portal_username(tutor):
-    date_prefix = _portal_username_date(tutor)
-    month_prefix = date_prefix[:4]
-    existing_usernames = [
+def _collect_used_portal_identity_sequences(month_prefix):
+    used_sequences = set()
+    values = []
+    values.extend(
         username
         for (username,) in Tutor.query.with_entities(Tutor.portal_username)
         .filter(Tutor.portal_username.like(f"{month_prefix}%"))
         .all()
         if username
-    ]
-    used_sequences = set()
-    for username in existing_usernames:
-        if len(username) == 9 and username.isdigit() and username[:4] == month_prefix:
-            used_sequences.add(int(username[-3:]))
+    )
+    values.extend(
+        tutor_code
+        for (tutor_code,) in Tutor.query.with_entities(Tutor.tutor_code)
+        .filter(Tutor.tutor_code.like(f"{month_prefix}%"))
+        .all()
+        if tutor_code
+    )
+    for value in values:
+        if len(value) == 9 and value.isdigit() and value[:4] == month_prefix:
+            used_sequences.add(int(value[-3:]))
+    return used_sequences
+
+
+def _next_tutor_portal_identity(created_at=None, tutor_id=None):
+    date_prefix = _portal_identity_date(created_at)
+    month_prefix = date_prefix[:4]
+    used_sequences = _collect_used_portal_identity_sequences(month_prefix)
     sequence = 1
     while True:
-        username = f"{date_prefix}{sequence:03d}"
-        if sequence not in used_sequences and not Tutor.query.filter(
-            Tutor.portal_username == username,
-            Tutor.id != tutor.id,
-        ).first():
-            return username
+        identity = f"{date_prefix}{sequence:03d}"
+        existing = Tutor.query.filter(
+            db.or_(
+                Tutor.portal_username == identity,
+                Tutor.tutor_code == identity,
+            ),
+            Tutor.id != tutor_id,
+        ).first()
+        if sequence not in used_sequences and not existing:
+            return identity
         sequence += 1
+
+
+def _next_portal_username(tutor):
+    return _next_tutor_portal_identity(
+        created_at=tutor.created_at,
+        tutor_id=tutor.id,
+    )
 
 
 def _initial_portal_password(tutor):
@@ -166,20 +190,20 @@ def _initial_portal_password(tutor):
     return f"SS-{code}-2026"
 
 
-def _next_bypass_tutor_code():
-    prefix = "TTR-BYP"
-    count = Tutor.query.filter(Tutor.tutor_code.like(f"{prefix}-%")).count() + 1
-    while True:
-        code = f"{prefix}-{count:04d}"
-        if not Tutor.query.filter_by(tutor_code=code).first():
-            return code
-        count += 1
-
-
 def _ensure_tutor_portal_credentials(tutor):
     changed = False
     if not tutor.portal_username:
         tutor.portal_username = _next_portal_username(tutor)
+        changed = True
+    if (
+        tutor.portal_username
+        and (
+            not tutor.tutor_code
+            or tutor.tutor_code.startswith("TTR-BYP")
+            or tutor.tutor_code.startswith("TTR-REC")
+        )
+    ):
+        tutor.tutor_code = tutor.portal_username
         changed = True
     if not tutor.portal_password_hash:
         tutor.set_portal_password(_initial_portal_password(tutor))
@@ -2060,12 +2084,16 @@ def admin_credentials():
 
         tutor = Tutor.query.filter(db.func.lower(Tutor.email) == email).first()
         if not tutor:
+            created_at = datetime.utcnow()
+            tutor_identity = _next_tutor_portal_identity(created_at=created_at)
             tutor = Tutor(
-                tutor_code=_next_bypass_tutor_code(),
+                tutor_code=tutor_identity,
+                portal_username=tutor_identity,
                 name=name,
                 email=email,
                 status="active",
                 is_active=True,
+                created_at=created_at,
                 portal_email_verified=True,
                 portal_email_verified_at=datetime.utcnow(),
             )

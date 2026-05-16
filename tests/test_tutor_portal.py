@@ -32,6 +32,7 @@ from app.routes.tutor_portal import (
     _delete_tutor_credential,
     _ensure_tutor_portal_credentials,
     _month_bounds,
+    _next_tutor_portal_identity,
     _normalize_portal_attendance_period,
     _validated_tutor_attendance_sessions,
 )
@@ -963,9 +964,30 @@ def test_tutor_portal_username_uses_monthly_date_sequence():
 
         assert changed is True
         assert new_tutor.portal_username == "260516003"
+        assert _next_tutor_portal_identity(datetime(2026, 5, 17, 8, 0)) == "260517004"
         assert existing_same_month.portal_username == "260501001"
         assert existing_same_day.portal_username == "260516002"
         assert existing_other_month.portal_username == "260601001"
+
+
+def test_generated_tutor_code_matches_portal_username_for_bypass_codes():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        tutor = Tutor(
+            tutor_code="TTR-BYP-0001",
+            name="Tutor Bypass",
+            portal_username="260516001",
+            created_at=datetime(2026, 5, 16, 10, 0),
+        )
+        db.session.add(tutor)
+        db.session.flush()
+
+        changed = _ensure_tutor_portal_credentials(tutor)
+
+        assert changed is True
+        assert tutor.tutor_code == tutor.portal_username == "260516001"
 
 
 def test_meet_link_time_options_are_24_hour_15_minute_slots():
@@ -1191,7 +1213,7 @@ def test_tutor_portal_routes_and_templates_are_registered_in_source():
     assert "admin_delete_credential_tutor" in route_text
     assert '"/admin/credentials/<string:tutor_ref>/delete"' in route_text
     assert "_reset_tutor_portal_password" in route_text
-    assert "_next_bypass_tutor_code" in route_text
+    assert "_next_tutor_portal_identity" in route_text
     assert "Bypass tutor baru" in route_text
     assert "default_password" in route_text
     assert "_selected_credential_tutors" in route_text

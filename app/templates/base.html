@@ -1283,7 +1283,7 @@
                     if (select.classList.contains("form-select-sm")) input.classList.add("form-control-sm");
                     if (select.classList.contains("form-select-lg")) input.classList.add("form-control-lg");
                     input.autocomplete = "off";
-                    input.placeholder = select.dataset.placeholder || "Cari...";
+                    input.placeholder = select.hasAttribute("data-placeholder") ? select.dataset.placeholder : "Cari...";
                     input.setAttribute("aria-label", select.dataset.label || input.placeholder);
                     input.disabled = select.disabled;
 
@@ -1307,6 +1307,7 @@
                         var keyword = input.value.toLowerCase().trim();
                         menu.innerHTML = "";
                         var matches = asArray(select.options).filter(function (option) {
+                            if (option.disabled || option.hidden) return false;
                             return !keyword || optionText(option).toLowerCase().includes(keyword);
                         });
 

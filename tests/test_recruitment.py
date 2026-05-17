@@ -594,6 +594,12 @@ def test_recruitment_templates_expose_required_workflow():
     assert '<option value="">Pilih mapel</option>' not in teaching_options_text
     assert '<option value="">Pilih jenjang</option>' not in teaching_options_text
     assert '<option value="">Pilih kurikulum</option>' not in teaching_options_text
+    assert teaching_options_text.count('<option value="" selected disabled hidden></option>') == 3
+    assert 'name="subject_ref" data-placeholder="" data-label="Mapel"' in teaching_options_text
+    assert 'name="level_ref" data-placeholder="" data-label="Jenjang"' in teaching_options_text
+    assert 'name="curriculum_ref" data-placeholder="" data-label="Kurikulum"' in teaching_options_text
+    assert 'select.hasAttribute("data-placeholder") ? select.dataset.placeholder : "Cari..."' in base_text
+    assert "if (option.disabled || option.hidden) return false;" in base_text
     assert "recruitment.toggle_teaching_option" in teaching_options_text
     assert "recruitment.delete_teaching_option" in teaching_options_text
     assert "Hanya kombinasi aktif yang muncul" in teaching_options_text

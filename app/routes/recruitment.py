@@ -70,7 +70,14 @@ MAX_SIGNATURE_DATA_URL_LENGTH = 500_000
 RECRUITMENT_TEMPLATE_DIR = "recruitment_templates"
 CONTRACT_TEMPLATE_FILE = "contract.html"
 OFFERING_TEMPLATE_FILE = "offering.html"
+CONTRACT_MESSAGE_TEMPLATE_FILE = "contract_message.txt"
 COMPANY_QR_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMwAAADMAQAAAAAXWXFfAAACZklEQVR4nL2YMa4kOQxDnxqdUzeo+x/LN6BOwA3cu8miJ/gzGqMiG7BLEinSrvBlzOvbCvxwaapqCiiGmqnpnqmqn274felNGHn+m7CYdpg/f9aLKebpflJPIWAEUz/f8Ot4A+igJo0aEPqtn/8+bBxZJIAdK7GxF3KoMOeBGWJ68ICyEFe5wf+bbvjzcZEkEQSILWMpSRZyOMP0cRpRzcEM9CxgHvNBRhQLWYokL2CD2J8T4ySxLII2znIigOSGgxxsaaFeaiZSpodzwNB64KzUy5LtOEESipQsYf7WLLKdmFhoqV5w+eUkIo6C0AK/cGQkrNixbSeYBWxgOXZiBUuKHEkbOXyDBk2LoTVUKsD0BuZnRD0AMo4bhpEWMJ8LwjiSMTa3FW9gHssQWXZuM5TISr3cdHqQp6/6u35jw1+dNZC5poYMKk2R6YUe9RIe5KK6h24fh8Er3gZiKU6IdftTvFOvTOGnsFyINDRseBvsSEquOtvoatpK75VtJAKXX9cJLPDrjWlwU1hu8YB4zkoOgyMRSzaOdZ3wilZaEBF0P4K00qMcga80WzbAkhe95EokSx92KWjDR2HsfLBoO0QBbdxTMMmNyZdlXIFe41dC0PVS12Vv9KgX8IgSxo2eBk7Ds6HLCjZGjpw4juyNHL6YDuQx9KGGoodnJS6TjyWUwUYG2OFXEoO4JkMRIt7w86+pKpwT2wOMc5V6pffGuddJ55NQsqIp/75vXGfI1S6DN+7mAJyOJAyEBwkt6NcLYNA0o1Yzcxi7e6tejkwIkqWwoylvCixot4cDnDaVhfeN+ovvov8ACck01PrYKv4AAAAASUVORK5CYII="
+DEFAULT_CONTRACT_MESSAGE_TEMPLATE = """\
+Halo {{ candidate.name }}, berikut kontrak dan offering digital LBB Super Smart:
+{{ contract_url }}
+
+Silakan baca dan tanda tangani langsung di web.
+"""
 DEFAULT_CONTRACT_TEMPLATE = """\
 <section class="recruitment-a4-page">
   <h1 class="doc-title">KONTRAK KERJA</h1>
@@ -258,6 +265,7 @@ RECRUITMENT_TEMPLATE_PLACEHOLDERS = [
     "document_date_text",
     "start_work_month_text",
     "offering_deadline_text",
+    "contract_url",
     "company_qr_data_url",
 ]
 LAST_EDUCATION_LEVELS = ["Vokasi", "S1", "S2", "S3"]
@@ -1110,6 +1118,16 @@ def _render_recruitment_template(template_text, candidate):
     return template.render(**_recruitment_document_context(candidate))
 
 
+def _build_contract_message(candidate, contract_url):
+    template = _read_recruitment_template(
+        CONTRACT_MESSAGE_TEMPLATE_FILE,
+        DEFAULT_CONTRACT_MESSAGE_TEMPLATE,
+    )
+    context = _recruitment_document_context(candidate)
+    context["contract_url"] = contract_url
+    return current_app.jinja_env.from_string(template).render(**context).strip()
+
+
 def _teaching_option_choices():
     def add_label(collection, label):
         key = label.lower()
@@ -1859,7 +1877,12 @@ def crm_templates():
             OFFERING_TEMPLATE_FILE,
             request.form.get("offering_template") or DEFAULT_OFFERING_TEMPLATE,
         )
-        flash("Template kontrak dan offering berhasil disimpan.", "success")
+        _write_recruitment_template(
+            CONTRACT_MESSAGE_TEMPLATE_FILE,
+            request.form.get("contract_message_template")
+            or DEFAULT_CONTRACT_MESSAGE_TEMPLATE,
+        )
+        flash("Template kontrak, offering, dan pesan berhasil disimpan.", "success")
         return redirect(url_for("recruitment.crm_templates"))
     return render_template(
         "recruitment/crm_templates.html",
@@ -1870,6 +1893,10 @@ def crm_templates():
         offering_template=_read_recruitment_template(
             OFFERING_TEMPLATE_FILE,
             DEFAULT_OFFERING_TEMPLATE,
+        ),
+        contract_message_template=_read_recruitment_template(
+            CONTRACT_MESSAGE_TEMPLATE_FILE,
+            DEFAULT_CONTRACT_MESSAGE_TEMPLATE,
         ),
         placeholders=RECRUITMENT_TEMPLATE_PLACEHOLDERS,
     )
@@ -2169,10 +2196,7 @@ def send_contract(candidate_ref):
     candidate.contract_sent_at = datetime.utcnow()
     candidate.updated_at = datetime.utcnow()
     contract_url = _contract_url(candidate, external=True)
-    message = (
-        f"Halo {candidate.name}, berikut kontrak dan offering digital LBB Super Smart:\n"
-        f"{contract_url}\n\nSilakan baca dan tanda tangani langsung di web."
-    )
+    message = _build_contract_message(candidate, contract_url)
     session_status = _get_whatsapp_session_status()
     if session_status["ready"]:
         ok, error_message = _send_candidate_whatsapp(candidate, message)

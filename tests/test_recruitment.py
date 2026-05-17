@@ -440,6 +440,10 @@ def test_recruitment_crm_source_is_registered():
     assert "_write_recruitment_template" in route_text
     assert "DEFAULT_CONTRACT_TEMPLATE" in route_text
     assert "DEFAULT_OFFERING_TEMPLATE" in route_text
+    assert "DEFAULT_CONTRACT_MESSAGE_TEMPLATE" in route_text
+    assert "CONTRACT_MESSAGE_TEMPLATE_FILE" in route_text
+    assert "def _build_contract_message" in route_text
+    assert "message = _build_contract_message(candidate, contract_url)" in route_text
     assert "KONTRAK KERJA" in route_text
     assert "FREELANCE PENGAJAR PRIVATE" in route_text
     assert "Surat Penawaran Kerja Pengajar Privat Online" in route_text
@@ -643,8 +647,10 @@ def test_recruitment_templates_expose_required_workflow():
     assert "Template" in interview_text
     assert "Editor Kontrak" in templates_text
     assert "Editor Offering" in templates_text
+    assert "Template Pesan Kontrak & Offering" in templates_text
     assert "contract_template" in templates_text
     assert "offering_template" in templates_text
+    assert "contract_message_template" in templates_text
     assert "signature_data_url" in contract_text
     assert "align-items: flex-end" in contract_text
     assert "max-height: 56px" in contract_text

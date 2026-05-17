@@ -366,6 +366,32 @@ def test_signature_data_url_is_cropped_to_ink_bounds():
     assert cropped_image.getchannel("A").getbbox() is not None
 
 
+def test_contract_message_uses_gender_based_call():
+    app = _make_app()
+    candidate = _candidate()
+    candidate.name = "Andini"
+    candidate.gender = "female"
+    candidate.subject_interest = ""
+
+    with app.app_context():
+        message = recruitment._build_contract_message(
+            candidate,
+            "https://recruitment.example/contract",
+        )
+
+    assert "Halo Miss Andini" in message
+    assert "https://recruitment.example/contract" in message
+
+    candidate.gender = "male"
+    with app.app_context():
+        message = recruitment._build_contract_message(
+            candidate,
+            "https://recruitment.example/contract",
+        )
+
+    assert "Halo Mr Andini" in message
+
+
 def test_recruitment_crm_source_is_registered():
     app_text = (PROJECT_ROOT / "app" / "__init__.py").read_text(encoding="utf-8")
     routes_text = (PROJECT_ROOT / "app" / "routes" / "__init__.py").read_text(
@@ -442,6 +468,8 @@ def test_recruitment_crm_source_is_registered():
     assert "DEFAULT_OFFERING_TEMPLATE" in route_text
     assert "DEFAULT_CONTRACT_MESSAGE_TEMPLATE" in route_text
     assert "CONTRACT_MESSAGE_TEMPLATE_FILE" in route_text
+    assert "def _candidate_call" in route_text
+    assert "\"candidate_call\": _candidate_call(candidate)" in route_text
     assert "def _build_contract_message" in route_text
     assert "message = _build_contract_message(candidate, contract_url)" in route_text
     assert "KONTRAK KERJA" in route_text

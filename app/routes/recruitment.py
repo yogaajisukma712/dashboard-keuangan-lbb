@@ -73,7 +73,7 @@ OFFERING_TEMPLATE_FILE = "offering.html"
 CONTRACT_MESSAGE_TEMPLATE_FILE = "contract_message.txt"
 COMPANY_QR_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMwAAADMAQAAAAAXWXFfAAACZklEQVR4nL2YMa4kOQxDnxqdUzeo+x/LN6BOwA3cu8miJ/gzGqMiG7BLEinSrvBlzOvbCvxwaapqCiiGmqnpnqmqn274felNGHn+m7CYdpg/f9aLKebpflJPIWAEUz/f8Ot4A+igJo0aEPqtn/8+bBxZJIAdK7GxF3KoMOeBGWJ68ICyEFe5wf+bbvjzcZEkEQSILWMpSRZyOMP0cRpRzcEM9CxgHvNBRhQLWYokL2CD2J8T4ySxLII2znIigOSGgxxsaaFeaiZSpodzwNB64KzUy5LtOEESipQsYf7WLLKdmFhoqV5w+eUkIo6C0AK/cGQkrNixbSeYBWxgOXZiBUuKHEkbOXyDBk2LoTVUKsD0BuZnRD0AMo4bhpEWMJ8LwjiSMTa3FW9gHssQWXZuM5TISr3cdHqQp6/6u35jw1+dNZC5poYMKk2R6YUe9RIe5KK6h24fh8Er3gZiKU6IdftTvFOvTOGnsFyINDRseBvsSEquOtvoatpK75VtJAKXX9cJLPDrjWlwU1hu8YB4zkoOgyMRSzaOdZ3wilZaEBF0P4K00qMcga80WzbAkhe95EokSx92KWjDR2HsfLBoO0QBbdxTMMmNyZdlXIFe41dC0PVS12Vv9KgX8IgSxo2eBk7Ds6HLCjZGjpw4juyNHL6YDuQx9KGGoodnJS6TjyWUwUYG2OFXEoO4JkMRIt7w86+pKpwT2wOMc5V6pffGuddJ55NQsqIp/75vXGfI1S6DN+7mAJyOJAyEBwkt6NcLYNA0o1Yzcxi7e6tejkwIkqWwoylvCixot4cDnDaVhfeN+ovvov8ACck01PrYKv4AAAAASUVORK5CYII="
 DEFAULT_CONTRACT_MESSAGE_TEMPLATE = """\
-Halo {{ candidate.name }}, berikut kontrak dan offering digital LBB Super Smart:
+Halo {{ candidate_call }} {{ candidate.name }}, berikut kontrak dan offering digital LBB Super Smart:
 {{ contract_url }}
 
 Silakan baca dan tanda tangani langsung di web.
@@ -265,6 +265,7 @@ RECRUITMENT_TEMPLATE_PLACEHOLDERS = [
     "document_date_text",
     "start_work_month_text",
     "offering_deadline_text",
+    "candidate_call",
     "contract_url",
     "company_qr_data_url",
 ]
@@ -1091,6 +1092,15 @@ def _crop_signature_data_url(signature):
     return f"{header},{base64.b64encode(buffer.getvalue()).decode('ascii')}"
 
 
+def _candidate_call(candidate):
+    gender = (getattr(candidate, "gender", "") or "").lower()
+    if gender == "male":
+        return "Mr"
+    if gender == "female":
+        return "Miss"
+    return "Mr/Miss"
+
+
 def _recruitment_document_context(candidate):
     document_moment = getattr(candidate, "contract_sent_at", None) or datetime.utcnow()
     candidate_signature_data_url = _crop_signature_data_url(
@@ -1105,6 +1115,7 @@ def _recruitment_document_context(candidate):
         "document_date_text": _document_date_text(document_moment),
         "start_work_month_text": _start_work_month_text(document_moment),
         "offering_deadline_text": _offering_deadline_text(document_moment),
+        "candidate_call": _candidate_call(candidate),
         "company_qr_data_url": COMPANY_QR_DATA_URL,
         "gender_label": dict(GENDER_OPTIONS).get(
             candidate.gender,

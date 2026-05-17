@@ -1,7 +1,10 @@
+import base64
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 
 from flask import get_flashed_messages
+from PIL import Image, ImageDraw
 
 from app import create_app
 from app.routes import recruitment
@@ -343,6 +346,26 @@ def test_recruitment_availability_defaults_to_unavailable():
     assert grid["summary"]["unavailable_count"] == len(states)
 
 
+def test_signature_data_url_is_cropped_to_ink_bounds():
+    image = Image.new("RGBA", (220, 120), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(image)
+    draw.line((82, 60, 140, 64), fill=(15, 23, 42, 255), width=5)
+
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    original = f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode('ascii')}"
+
+    cropped = recruitment._crop_signature_data_url(original)
+    cropped_image = Image.open(
+        BytesIO(base64.b64decode(cropped.partition(",")[2]))
+    ).convert("RGBA")
+
+    assert cropped.startswith("data:image/png;base64,")
+    assert cropped_image.width < image.width
+    assert cropped_image.height < image.height
+    assert cropped_image.getchannel("A").getbbox() is not None
+
+
 def test_recruitment_crm_source_is_registered():
     app_text = (PROJECT_ROOT / "app" / "__init__.py").read_text(encoding="utf-8")
     routes_text = (PROJECT_ROOT / "app" / "routes" / "__init__.py").read_text(
@@ -401,6 +424,10 @@ def test_recruitment_crm_source_is_registered():
     assert "def crm_teaching_options" in route_text
     assert "RecruitmentTeachingOption.query.filter_by(is_active=True)" in route_text
     assert "recruitment.crm_teaching_options" in route_text
+    assert "def _crop_signature_data_url" in route_text
+    assert "def _ensure_signed_contract_signature" in route_text
+    assert "candidate_signature_data_url" in route_text
+    assert "_sync_candidate_documents(candidate, force=True)" in route_text
     assert "def bulk_teaching_options" in route_text
     assert "@recruitment_bp.route(\"/crm/teaching-options/bulk\", methods=[\"POST\"])" in route_text
     assert "request.form.getlist(\"option_refs\")" in route_text
@@ -619,6 +646,8 @@ def test_recruitment_templates_expose_required_workflow():
     assert "contract_template" in templates_text
     assert "offering_template" in templates_text
     assert "signature_data_url" in contract_text
+    assert "align-items: flex-end" in contract_text
+    assert "max-height: 56px" in contract_text
     assert "Tandatangani & Masuk Dashboard Tutor" in contract_text
     assert "Dashboard Recruitment" in recruitment_dashboard_text
     assert "container-fluid" in recruitment_dashboard_text
@@ -629,6 +658,8 @@ def test_recruitment_templates_expose_required_workflow():
     assert "Interview" in recruitment_dashboard_text
     assert "Offering & Kontrak" in recruitment_dashboard_text
     assert "Data Diri" in recruitment_dashboard_text
+    assert "align-items: flex-end" in recruitment_dashboard_text
+    assert "max-height: 56px" in recruitment_dashboard_text
     assert "Jadwal Waktu Luang" in recruitment_dashboard_text
     assert "availability_grid.rows" in recruitment_dashboard_text
     assert "availability-pill" in recruitment_dashboard_text

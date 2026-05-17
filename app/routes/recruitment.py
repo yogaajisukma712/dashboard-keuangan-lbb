@@ -1,11 +1,13 @@
 """Recruitment form and CRM workflow."""
 
+import base64
 import json
 import os
 import smtplib
 import html
 from datetime import datetime
 from email.message import EmailMessage
+from io import BytesIO
 from urllib import error as urllib_error
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
@@ -25,6 +27,7 @@ from flask import (
 )
 from flask_login import login_required
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from PIL import Image, ImageChops, UnidentifiedImageError
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 
@@ -176,8 +179,8 @@ DEFAULT_CONTRACT_TEMPLATE = """\
     <div>
       <p><strong>Untuk {{ candidate.name }},</strong></p>
       <div class="doc-signature-space">
-        {% if candidate.signature_data_url %}
-        <img class="doc-candidate-signature" src="{{ candidate.signature_data_url }}" alt="Tanda tangan pelamar">
+        {% if candidate_signature_data_url %}
+        <img class="doc-candidate-signature" src="{{ candidate_signature_data_url }}" alt="Tanda tangan pelamar">
         {% endif %}
       </div>
       <p><strong>{{ candidate.name }}</strong></p>
@@ -779,17 +782,17 @@ def _dashboard_document_response(title, content):
       text-align: left;
     }}
     .doc-signature-space {{
-      align-items: center;
+      align-items: flex-end;
       display: flex;
-      height: 76px;
+      height: 58px;
       justify-content: center;
-      margin: 0.2rem auto 0.15rem;
+      margin: 0.35rem auto 0.05rem;
       overflow: hidden;
       width: 190px;
     }}
     .doc-candidate-signature {{
       display: block;
-      max-height: 72px;
+      max-height: 56px;
       max-width: 180px;
       object-fit: contain;
     }}
@@ -1045,10 +1048,49 @@ def _offering_deadline_text(moment=None):
     return f"15 {_indonesian_month_name(moment.month)} {moment.year}"
 
 
+def _crop_signature_data_url(signature):
+    if not signature or not signature.startswith("data:image/"):
+        return signature
+    header, separator, payload = signature.partition(",")
+    if not separator or not payload:
+        return signature
+
+    try:
+        raw = base64.b64decode(payload, validate=True)
+        image = Image.open(BytesIO(raw)).convert("RGBA")
+    except (ValueError, UnidentifiedImageError, OSError):
+        return signature
+
+    alpha_bbox = image.getchannel("A").getbbox()
+    bbox = alpha_bbox
+    if alpha_bbox == (0, 0, image.width, image.height):
+        white = Image.new("RGB", image.size, (255, 255, 255))
+        diff = ImageChops.difference(image.convert("RGB"), white).convert("L")
+        ink_mask = diff.point(lambda value: 255 if value > 24 else 0)
+        bbox = ink_mask.getbbox()
+    if not bbox:
+        return signature
+
+    padding = 12
+    left = max(bbox[0] - padding, 0)
+    top = max(bbox[1] - padding, 0)
+    right = min(bbox[2] + padding, image.width)
+    bottom = min(bbox[3] + padding, image.height)
+    cropped = image.crop((left, top, right, bottom))
+
+    buffer = BytesIO()
+    cropped.save(buffer, format="PNG", optimize=True)
+    return f"{header},{base64.b64encode(buffer.getvalue()).decode('ascii')}"
+
+
 def _recruitment_document_context(candidate):
     document_moment = getattr(candidate, "contract_sent_at", None) or datetime.utcnow()
+    candidate_signature_data_url = _crop_signature_data_url(
+        getattr(candidate, "signature_data_url", "") or ""
+    )
     return {
         "candidate": candidate,
+        "candidate_signature_data_url": candidate_signature_data_url,
         "teaching_items": _candidate_summary_items(candidate) or ["-"],
         "offering_amount": _current_offering_amount(),
         "offering_amount_text": _offering_amount_text(),
@@ -1140,6 +1182,24 @@ def _sync_candidate_documents(candidate, force=False):
         candidate.offering_text = _build_offering_text(candidate)
     candidate.updated_at = datetime.utcnow()
     return True
+
+
+def _ensure_signed_contract_signature(candidate):
+    if candidate.status != "signed" or not candidate.signature_data_url:
+        return False
+    cropped_signature = _crop_signature_data_url(candidate.signature_data_url)
+    changed = cropped_signature != candidate.signature_data_url
+    needs_contract_refresh = (
+        not candidate.contract_text
+        or "doc-candidate-signature" not in candidate.contract_text
+        or cropped_signature not in candidate.contract_text
+    )
+    if changed:
+        candidate.signature_data_url = cropped_signature
+    if changed or needs_contract_refresh:
+        _sync_candidate_documents(candidate, force=True)
+        return True
+    return False
 
 
 def _send_candidate_whatsapp(candidate, message):
@@ -1276,6 +1336,7 @@ def _sign_candidate_contract(candidate, signature):
     if not signature.startswith("data:image/"):
         flash("Tanda tangan digital wajib diisi.", "danger")
         return False
+    signature = _crop_signature_data_url(signature)
     if len(signature) > MAX_SIGNATURE_DATA_URL_LENGTH:
         flash("Ukuran tanda tangan terlalu besar. Hapus dan tanda tangani ulang.", "danger")
         return False
@@ -1283,6 +1344,7 @@ def _sign_candidate_contract(candidate, signature):
     candidate.signed_at = datetime.utcnow()
     candidate.status = "signed"
     tutor = _create_tutor_from_candidate(candidate)
+    _sync_candidate_documents(candidate, force=True)
     db.session.commit()
     session["tutor_portal_tutor_id"] = tutor.id
     flash("Kontrak ditandatangani. Dashboard tutor sudah aktif.", "success")
@@ -1641,7 +1703,8 @@ def dashboard():
     if candidate.status == "contract_sent":
         _sync_candidate_documents(candidate, force=True)
     elif candidate.status == "signed":
-        _sync_candidate_documents(candidate)
+        if _ensure_signed_contract_signature(candidate):
+            db.session.commit()
     if request.method == "POST":
         signature = request.form.get("signature_data_url") or ""
         _sign_candidate_contract(candidate, signature)
@@ -1722,6 +1785,8 @@ def dashboard_document(kind):
         abort(404)
     if candidate.status == "contract_sent":
         _sync_candidate_documents(candidate, force=True)
+        db.session.commit()
+    elif candidate.status == "signed" and _ensure_signed_contract_signature(candidate):
         db.session.commit()
     if kind == "offering":
         if not candidate.offering_text:
@@ -2132,7 +2197,7 @@ def contract(token):
     if candidate.status == "contract_sent":
         _sync_candidate_documents(candidate, force=True)
     else:
-        _sync_candidate_documents(candidate)
+        _ensure_signed_contract_signature(candidate)
     if request.method == "POST":
         signature = request.form.get("signature_data_url") or ""
         _sign_candidate_contract(candidate, signature)

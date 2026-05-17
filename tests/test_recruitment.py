@@ -597,7 +597,9 @@ def test_recruitment_templates_expose_required_workflow():
     assert 'name="subject_ref" data-placeholder="" data-label="Mapel"' in teaching_options_text
     assert 'name="level_ref" data-placeholder="" data-label="Jenjang"' in teaching_options_text
     assert 'name="curriculum_ref" data-placeholder="" data-label="Kurikulum"' in teaching_options_text
-    assert 'select.hasAttribute("data-placeholder") ? select.dataset.placeholder : "Cari..."' in base_text
+    assert 'input.placeholder = "";' in base_text
+    assert "var hasExplicitSelection = asArray(select.options).some" in base_text
+    assert "select.selectedIndex = -1;" in base_text
     assert "if (option.disabled || option.hidden) return false;" in base_text
     assert "recruitment.toggle_teaching_option" in teaching_options_text
     assert "recruitment.delete_teaching_option" in teaching_options_text

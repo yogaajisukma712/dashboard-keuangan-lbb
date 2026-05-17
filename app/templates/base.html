@@ -1266,7 +1266,16 @@
 
                 function enhanceSearchableSelect(select) {
                     if (select.dataset.lbbSearchableReady === "1" || select.multiple) return;
+                    var hasExplicitSelection = asArray(select.options).some(function (option) {
+                        return option.defaultSelected && option.value !== "";
+                    });
                     sortSelectOptions(select);
+                    if (!hasExplicitSelection) {
+                        var selected = select.options[select.selectedIndex];
+                        if (selected && selected.value !== "") {
+                            select.selectedIndex = -1;
+                        }
+                    }
                     select.dataset.lbbSearchableReady = "1";
                     select.classList.add("visually-hidden");
                     select.setAttribute("tabindex", "-1");
@@ -1283,8 +1292,8 @@
                     if (select.classList.contains("form-select-sm")) input.classList.add("form-control-sm");
                     if (select.classList.contains("form-select-lg")) input.classList.add("form-control-lg");
                     input.autocomplete = "off";
-                    input.placeholder = select.hasAttribute("data-placeholder") ? select.dataset.placeholder : "Cari...";
-                    input.setAttribute("aria-label", select.dataset.label || input.placeholder);
+                    input.placeholder = "";
+                    input.setAttribute("aria-label", select.dataset.label || "Cari pilihan");
                     input.disabled = select.disabled;
 
                     var menu = document.createElement("div");

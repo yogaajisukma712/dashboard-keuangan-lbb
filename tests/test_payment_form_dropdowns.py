@@ -24,8 +24,8 @@ def test_payment_form_template_uses_searchable_selects():
         project_root / "app" / "templates" / "payments" / "form.html"
     ).read_text(encoding="utf-8")
 
-    assert 'data-placeholder="Cari nama siswa..."' in template_text
-    assert 'data-placeholder="Cari mapel atau tutor..."' in template_text
+    assert 'data-placeholder="" data-label="Cari siswa"' in template_text
+    assert 'data-placeholder="" data-label="Cari enrollment"' in template_text
     assert "initDynamicSearchableSelect(select)" in template_text
     assert "window.LbbFilterUi.init" in template_text
 

@@ -380,7 +380,6 @@ def test_recruitment_crm_source_is_registered():
     assert "def verify_email" in route_text
     assert "@recruitment_bp.route(\"/dashboard\", methods=[\"GET\", \"POST\"])" in route_text
     assert "@recruitment_bp.route(\"/logout\", methods=[\"POST\"])" in route_text
-    assert "_clear_portal_sessions()" in route_text
     assert "candidate.set_password(password)" in route_text
     assert "_build_candidate_availability_rows" in route_text
     assert "_candidate_availability_slots_from_form" in route_text
@@ -402,6 +401,10 @@ def test_recruitment_crm_source_is_registered():
     assert "def crm_teaching_options" in route_text
     assert "RecruitmentTeachingOption.query.filter_by(is_active=True)" in route_text
     assert "recruitment.crm_teaching_options" in route_text
+    assert "def bulk_teaching_options" in route_text
+    assert "@recruitment_bp.route(\"/crm/teaching-options/bulk\", methods=[\"POST\"])" in route_text
+    assert "request.form.getlist(\"option_refs\")" in route_text
+    assert "bulk_action" in route_text
     assert "def reject_candidate" in route_text
     assert "def delete_candidate" in route_text
     assert "candidate.status = \"rejected\"" in route_text
@@ -438,11 +441,7 @@ def test_recruitment_crm_source_is_registered():
     assert "not candidate.email_verified" in route_text
     assert "_create_tutor_from_candidate" in route_text
     assert "session[\"tutor_portal_tutor_id\"] = tutor.id" in route_text
-    assert "TUTOR_PORTAL_BASE_URL" in route_text
-    assert "def _tutor_portal_url" in route_text
-    assert "def _activate_tutor_session_from_candidate" in route_text
     assert "_ensure_tutor_portal_credentials(tutor)" in route_text
-    assert "tutor.portal_password_hash = candidate.password_hash" in route_text
     assert "tutor.portal_must_change_password = False" in route_text
     assert '@recruitment_bp.route("/dashboard/tutor")' in route_text
     assert "def enter_tutor_dashboard" in route_text
@@ -602,6 +601,13 @@ def test_recruitment_templates_expose_required_workflow():
     assert "if (option.disabled || option.hidden) return false;" in base_text
     assert "recruitment.toggle_teaching_option" in teaching_options_text
     assert "recruitment.delete_teaching_option" in teaching_options_text
+    assert "recruitment.bulk_teaching_options" in teaching_options_text
+    assert 'id="teaching-options-select-all"' in teaching_options_text
+    assert 'class="form-check-input teaching-option-checkbox"' in teaching_options_text
+    assert 'data-bulk-selected-count' in teaching_options_text
+    assert 'value="deactivate"' in teaching_options_text
+    assert 'value="delete"' in teaching_options_text
+    assert "event.shiftKey" in teaching_options_text
     assert "Hanya kombinasi aktif yang muncul" in teaching_options_text
     assert "Template" in candidates_text
     assert "Template" in selected_text

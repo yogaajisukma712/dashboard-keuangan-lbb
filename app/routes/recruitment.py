@@ -1914,6 +1914,49 @@ def toggle_teaching_option(option_ref):
     return redirect(url_for("recruitment.crm_teaching_options"))
 
 
+@recruitment_bp.route("/crm/teaching-options/bulk", methods=["POST"])
+@login_required
+def bulk_teaching_options():
+    action = request.form.get("bulk_action")
+    option_ids = []
+    seen_ids = set()
+    for option_ref in request.form.getlist("option_refs"):
+        try:
+            option_id = decode_public_id(option_ref, "recruitment_teaching_option")
+        except ValueError:
+            continue
+        if option_id not in seen_ids:
+            seen_ids.add(option_id)
+            option_ids.append(option_id)
+
+    if not option_ids:
+        flash("Pilih minimal satu kombinasi dropdown terlebih dahulu.", "warning")
+        return redirect(url_for("recruitment.crm_teaching_options"))
+
+    options = RecruitmentTeachingOption.query.filter(
+        RecruitmentTeachingOption.id.in_(option_ids)
+    ).all()
+    if not options:
+        flash("Kombinasi yang dipilih tidak ditemukan.", "danger")
+        return redirect(url_for("recruitment.crm_teaching_options"))
+
+    if action == "deactivate":
+        for option in options:
+            option.is_active = False
+            option.updated_at = datetime.utcnow()
+        db.session.commit()
+        flash(f"{len(options)} kombinasi berhasil dinonaktifkan.", "success")
+    elif action == "delete":
+        for option in options:
+            db.session.delete(option)
+        db.session.commit()
+        flash(f"{len(options)} kombinasi berhasil dihapus dari list dropdown.", "success")
+    else:
+        flash("Aksi bulk tidak valid.", "danger")
+
+    return redirect(url_for("recruitment.crm_teaching_options"))
+
+
 @recruitment_bp.route("/crm/teaching-options/<option_ref>/delete", methods=["POST"])
 @login_required
 def delete_teaching_option(option_ref):

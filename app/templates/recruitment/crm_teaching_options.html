@@ -69,12 +69,27 @@
           </div>
           <span class="badge text-bg-light">{{ options|length }} kombinasi</span>
         </div>
+        <form id="teaching-options-bulk-form" method="post" action="{{ url_for('recruitment.bulk_teaching_options') }}" class="mt-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="text-muted small" data-bulk-selected-count>0 dipilih</span>
+            <button class="btn btn-outline-secondary btn-sm" type="submit" name="bulk_action" value="deactivate" data-bulk-action disabled>
+              Nonaktifkan Terpilih
+            </button>
+            <button class="btn btn-outline-danger btn-sm" type="submit" name="bulk_action" value="delete" data-bulk-action data-confirm-bulk-delete disabled>
+              <i class="bi bi-trash me-1"></i>Hapus Terpilih
+            </button>
+          </div>
+        </form>
       </div>
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 small">
           <thead class="table-light">
             <tr>
-              <th class="ps-4">Mapel</th>
+              <th class="ps-4" style="width: 44px;">
+                <input class="form-check-input" type="checkbox" id="teaching-options-select-all" aria-label="Pilih semua kombinasi">
+              </th>
+              <th>Mapel</th>
               <th>Jenjang</th>
               <th>Kurikulum</th>
               <th>Status</th>
@@ -84,7 +99,10 @@
           <tbody>
             {% for option in options %}
             <tr>
-              <td class="ps-4 fw-semibold">{{ option.subject.name if option.subject else '-' }}</td>
+              <td class="ps-4">
+                <input class="form-check-input teaching-option-checkbox" type="checkbox" name="option_refs" value="{{ option.public_id }}" form="teaching-options-bulk-form" aria-label="Pilih {{ option.label }}">
+              </td>
+              <td class="fw-semibold">{{ option.subject.name if option.subject else '-' }}</td>
               <td>{{ option.level.name if option.level else '-' }}</td>
               <td>{{ option.curriculum.name if option.curriculum else '-' }}</td>
               <td>
@@ -113,7 +131,7 @@
             </tr>
             {% else %}
             <tr>
-              <td class="text-center text-muted py-5" colspan="5">
+              <td class="text-center text-muted py-5" colspan="6">
                 Belum ada kombinasi. Tambahkan Mapel, Jenjang, dan Kurikulum dari form di samping.
               </td>
             </tr>
@@ -124,4 +142,77 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var bulkForm = document.getElementById("teaching-options-bulk-form");
+    if (!bulkForm) return;
+
+    var checkboxes = Array.prototype.slice.call(document.querySelectorAll(".teaching-option-checkbox"));
+    var selectAll = document.getElementById("teaching-options-select-all");
+    var selectedCount = document.querySelector("[data-bulk-selected-count]");
+    var actionButtons = Array.prototype.slice.call(document.querySelectorAll("[data-bulk-action]"));
+    var lastChecked = null;
+
+    function updateBulkState() {
+      var checkedCount = checkboxes.filter(function (checkbox) {
+        return checkbox.checked;
+      }).length;
+      if (selectedCount) selectedCount.textContent = checkedCount + " dipilih";
+      actionButtons.forEach(function (button) {
+        button.disabled = checkedCount === 0;
+      });
+      if (selectAll) {
+        selectAll.checked = checkedCount > 0 && checkedCount === checkboxes.length;
+        selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+      }
+    }
+
+    checkboxes.forEach(function (checkbox) {
+      checkbox.addEventListener("click", function (event) {
+        if (event.shiftKey && lastChecked && lastChecked !== checkbox) {
+          var start = checkboxes.indexOf(lastChecked);
+          var end = checkboxes.indexOf(checkbox);
+          var bounds = [Math.min(start, end), Math.max(start, end)];
+          checkboxes.slice(bounds[0], bounds[1] + 1).forEach(function (rangeCheckbox) {
+            rangeCheckbox.checked = checkbox.checked;
+          });
+        }
+        lastChecked = checkbox;
+        updateBulkState();
+      });
+    });
+
+    if (selectAll) {
+      selectAll.addEventListener("change", function () {
+        checkboxes.forEach(function (checkbox) {
+          checkbox.checked = selectAll.checked;
+        });
+        lastChecked = null;
+        updateBulkState();
+      });
+    }
+
+    bulkForm.addEventListener("submit", function (event) {
+      var checkedCount = checkboxes.filter(function (checkbox) {
+        return checkbox.checked;
+      }).length;
+      if (!checkedCount) {
+        event.preventDefault();
+        return;
+      }
+      if (
+        event.submitter &&
+        event.submitter.matches("[data-confirm-bulk-delete]") &&
+        !window.confirm("Hapus kombinasi yang dipilih dari list dropdown?")
+      ) {
+        event.preventDefault();
+      }
+    });
+
+    updateBulkState();
+  });
+</script>
 {% endblock %}

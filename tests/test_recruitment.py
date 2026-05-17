@@ -591,6 +591,9 @@ def test_recruitment_templates_expose_required_workflow():
     assert "subject_ref" in teaching_options_text
     assert "level_ref" in teaching_options_text
     assert "curriculum_ref" in teaching_options_text
+    assert '<option value="">Pilih mapel</option>' not in teaching_options_text
+    assert '<option value="">Pilih jenjang</option>' not in teaching_options_text
+    assert '<option value="">Pilih kurikulum</option>' not in teaching_options_text
     assert "recruitment.toggle_teaching_option" in teaching_options_text
     assert "recruitment.delete_teaching_option" in teaching_options_text
     assert "Hanya kombinasi aktif yang muncul" in teaching_options_text

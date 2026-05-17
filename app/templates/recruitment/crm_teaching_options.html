@@ -28,7 +28,6 @@
           <div class="mb-3">
             <label class="form-label fw-semibold">Mapel</label>
             <select class="form-select" name="subject_ref" required>
-              <option value="">Pilih mapel</option>
               {% for subject in subjects %}
               <option value="{{ subject.public_id }}">{{ subject.name }}</option>
               {% endfor %}
@@ -37,7 +36,6 @@
           <div class="mb-3">
             <label class="form-label fw-semibold">Jenjang</label>
             <select class="form-select" name="level_ref" required>
-              <option value="">Pilih jenjang</option>
               {% for level in levels %}
               <option value="{{ level.public_id }}">{{ level.name }}</option>
               {% endfor %}
@@ -46,7 +44,6 @@
           <div class="mb-3">
             <label class="form-label fw-semibold">Kurikulum</label>
             <select class="form-select" name="curriculum_ref" required>
-              <option value="">Pilih kurikulum</option>
               {% for curriculum in curriculums %}
               <option value="{{ curriculum.public_id }}">{{ curriculum.name }}</option>
               {% endfor %}

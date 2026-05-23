@@ -527,6 +527,23 @@
       <button type="submit" name="review_status" value="pending" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Validasi
       </button>
+      <button
+        type="submit"
+        formaction="{{ url_for('attendance.bulk_delete_attendance',
+                              page=request.args.get('page', 1),
+                              student_ref=selected_student_ref or '',
+                              tutor_ref=selected_tutor_refs or [],
+                              month=selected_month or '',
+                              year=selected_year or '',
+                              date_from=selected_date_from or '',
+                              date_to=selected_date_to or '',
+                              sort=selected_sort or 'date_desc') }}"
+        formmethod="POST"
+        id="attendanceBulkDeleteButton"
+        class="btn btn-outline-danger btn-sm"
+      >
+        <i class="bi bi-trash me-1"></i>Hapus Terpilih
+      </button>
     </div>
   </div>
 </form>
@@ -1322,6 +1339,7 @@ const attendanceTableBody = document.getElementById("attendanceTableBody");
 const selectAllAttendanceReviews = document.getElementById("selectAllAttendanceReviews");
 const attendanceBulkReviewCheckboxes = Array.from(document.querySelectorAll(".attendance-bulk-review-checkbox"));
 const attendanceBulkReviewForm = document.getElementById("attendanceBulkReviewForm");
+const attendanceBulkDeleteButton = document.getElementById("attendanceBulkDeleteButton");
 const attendanceSelectedCount = document.getElementById("attendanceSelectedCount");
 const attendanceSelectedFeeTotal = document.getElementById("attendanceSelectedFeeTotal");
 const attendanceFeeFormatter = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 });
@@ -1429,7 +1447,14 @@ if (attendanceBulkReviewForm) {
     }).length;
     if (!selectedCount) {
       event.preventDefault();
-      alert("Pilih minimal satu presensi WhatsApp terlebih dahulu.");
+      alert("Pilih minimal satu presensi terlebih dahulu.");
+      return;
+    }
+    if (
+      event.submitter === attendanceBulkDeleteButton &&
+      !confirm(`Hapus ${selectedCount} presensi terpilih?`)
+    ) {
+      event.preventDefault();
     }
   });
 }

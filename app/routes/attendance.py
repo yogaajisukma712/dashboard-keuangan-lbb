@@ -660,6 +660,56 @@ def _unlink_whatsapp_evaluations_before_attendance_delete(
     return len(linked_evaluations)
 
 
+def _resolve_attendance_sessions_from_refs(session_refs: list[str]) -> list[AttendanceSession]:
+    session_ids = []
+    seen_ids = set()
+    for session_ref in session_refs:
+        try:
+            session_id = decode_public_id(session_ref, "attendance_session")
+        except ValueError:
+            continue
+        if session_id in seen_ids:
+            continue
+        session_ids.append(session_id)
+        seen_ids.add(session_id)
+
+    if not session_ids:
+        return []
+    return AttendanceSession.query.filter(AttendanceSession.id.in_(session_ids)).all()
+
+
+def _delete_attendance_sessions_from_refs(session_refs: list[str]) -> dict[str, int]:
+    if not session_refs:
+        raise ValueError("Pilih minimal satu presensi terlebih dahulu.")
+
+    sessions_to_delete = _resolve_attendance_sessions_from_refs(session_refs)
+    if not sessions_to_delete:
+        raise ValueError("Tidak ada presensi valid yang dipilih.")
+
+    locked_session = next(
+        (
+            attendance_session
+            for attendance_session in sessions_to_delete
+            if _get_attendance_lock_for_date(attendance_session.session_date)
+        ),
+        None,
+    )
+    if locked_session:
+        raise ValueError(_attendance_locked_message(locked_session.session_date))
+
+    unlinked_count = 0
+    for attendance_session in sessions_to_delete:
+        unlinked_count += _unlink_whatsapp_evaluations_before_attendance_delete(
+            attendance_session
+        )
+        db.session.delete(attendance_session)
+
+    return {
+        "deleted_count": len(sessions_to_delete),
+        "unlinked_count": unlinked_count,
+    }
+
+
 def _build_tutor_enrollment_map(enrollments: list[Enrollment]) -> dict[int, int]:
     mapping = {}
     for enrollment in enrollments:
@@ -1206,6 +1256,39 @@ def bulk_review_whatsapp_attendance():
     return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
 
 
+@attendance_bp.route("/bulk-delete", methods=["POST"])
+@login_required
+def bulk_delete_attendance():
+    """Delete selected attendance sessions from the list page."""
+    try:
+        result = _delete_attendance_sessions_from_refs(
+            request.form.getlist("attendance_refs")
+        )
+        db.session.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "warning")
+        return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Hapus bulk presensi gagal: {exc}", "danger")
+        return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
+
+    deleted_count = result["deleted_count"]
+    unlinked_count = result["unlinked_count"]
+    if unlinked_count:
+        flash(
+            (
+                f"{deleted_count} presensi berhasil dihapus. "
+                f"{unlinked_count} evaluasi WhatsApp tetap disimpan dan dilepas dari presensi."
+            ),
+            "success",
+        )
+    else:
+        flash(f"{deleted_count} presensi berhasil dihapus.", "success")
+    return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
+
+
 @attendance_bp.route("/calendar", methods=["GET"])
 @login_required
 def calendar_view():
@@ -1348,15 +1431,10 @@ def edit_attendance(session_ref):
 @login_required
 def delete_attendance(session_ref):
     """Delete attendance session"""
-    session = _get_session_by_ref_or_404(session_ref)
-    if _get_attendance_lock_for_date(session.session_date):
-        flash(_attendance_locked_message(session.session_date), "danger")
-        return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
-
     try:
-        unlinked_count = _unlink_whatsapp_evaluations_before_attendance_delete(session)
-        db.session.delete(session)
+        result = _delete_attendance_sessions_from_refs([session_ref])
         db.session.commit()
+        unlinked_count = result["unlinked_count"]
         if unlinked_count:
             flash(
                 (
@@ -1367,6 +1445,9 @@ def delete_attendance(session_ref):
             )
         else:
             flash("Presensi berhasil dihapus", "success")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "warning")
     except Exception as e:
         db.session.rollback()
         flash(f"Error: {str(e)}", "danger")

@@ -23,6 +23,7 @@ from app.routes.attendance import (
     _attendance_csv_row,
     _build_attendance_list_query,
     _build_whatsapp_review_map,
+    _delete_attendance_sessions_from_refs,
     _set_whatsapp_attendance_manual_review,
     _sync_linked_whatsapp_evaluations,
     _unlink_whatsapp_evaluations_before_attendance_delete,
@@ -287,8 +288,12 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert 'name="review_status" value="valid"' in template_text
     assert 'name="review_status" value="invalid"' in template_text
     assert 'name="review_status" value="pending"' in template_text
+    assert "attendance.bulk_delete_attendance" in template_text
+    assert 'id="attendanceBulkDeleteButton"' in template_text
+    assert "Hapus Terpilih" in template_text
+    assert "Hapus ${selectedCount} presensi terpilih?" in template_text
     assert "updateAttendanceSelectAllState" in template_text
-    assert "Pilih minimal satu presensi WhatsApp terlebih dahulu." in template_text
+    assert "Pilih minimal satu presensi terlebih dahulu." in template_text
     assert 'class="js-wa-review-form"' in template_text
     assert "spinner-border spinner-border-sm" in template_text
     assert '"X-Requested-With": "XMLHttpRequest"' in template_text
@@ -431,10 +436,13 @@ def test_attendance_routes_support_public_ref_filters_in_source():
     assert 'decode_public_id(session_ref, "attendance_session")' in route_text
     assert "AttendanceSession.id.in_(session_ids)" in route_text
     assert "_set_whatsapp_attendance_manual_review" in route_text
+    assert "def _delete_attendance_sessions_from_refs" in route_text
+    assert "def bulk_delete_attendance():" in route_text
+    assert '@attendance_bp.route("/bulk-delete", methods=["POST"])' in route_text
     assert "_wants_json_response()" in route_text
     assert "_whatsapp_review_response_payload" in route_text
     assert 'return jsonify({"ok": False, "error": str(exc)}), 400' in route_text
-    assert "_unlink_whatsapp_evaluations_before_attendance_delete(session)" in route_text
+    assert "_unlink_whatsapp_evaluations_before_attendance_delete(" in route_text
     assert 'ATTENDANCE_LIST_STATE_SESSION_KEY = "attendance_list_state"' in route_text
     assert "def _restore_attendance_list_state_if_needed():" in route_text
     assert 'request.args.get("reset_filters") == "1"' in route_text
@@ -611,6 +619,55 @@ def test_delete_attendance_unlinks_whatsapp_evaluations_before_session_delete():
 
         assert unlinked_count == 1
         assert AttendanceSession.query.get(session_id) is None
+        assert evaluation.attendance_session_id is None
+        assert evaluation.match_status == "manual-unlinked"
+        assert "Presensi terkait dihapus manual" in evaluation.notes
+
+
+def test_bulk_delete_attendance_removes_selected_sessions_and_preserves_whatsapp_evaluations():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        seeded = _seed_attendance_sessions()
+        april_id = seeded["april_session"].id
+        may_id = seeded["may_session"].id
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-bulk-delete-review@g.us",
+            name="Bulk Delete Ratih",
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-bulk-delete-review",
+            group=group,
+            author_phone_number="081234567890",
+            author_name="Tutor",
+            sent_at=seeded["may_session"].created_at,
+            body="Evaluasi",
+        )
+        evaluation = WhatsAppEvaluation(
+            message=message,
+            group=group,
+            student_name="Ratih",
+            attendance_date=seeded["may_session"].session_date,
+            attendance_session_id=may_id,
+            match_status="attendance-linked",
+            notes="Linked from WhatsApp scan.",
+        )
+        db.session.add_all([group, message, evaluation])
+        db.session.flush()
+
+        result = _delete_attendance_sessions_from_refs(
+            [
+                seeded["april_session"].public_id,
+                seeded["may_session"].public_id,
+                seeded["may_session"].public_id,
+            ]
+        )
+        db.session.commit()
+
+        assert result == {"deleted_count": 2, "unlinked_count": 1}
+        assert AttendanceSession.query.get(april_id) is None
+        assert AttendanceSession.query.get(may_id) is None
         assert evaluation.attendance_session_id is None
         assert evaluation.match_status == "manual-unlinked"
         assert "Presensi terkait dihapus manual" in evaluation.notes

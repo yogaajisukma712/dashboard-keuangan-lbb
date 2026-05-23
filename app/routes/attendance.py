@@ -17,6 +17,7 @@ from app.forms import AttendanceSessionForm, BulkAttendanceForm
 from app.models import (
     AttendancePeriodLock,
     AttendanceSession,
+    DeletedAttendanceSession,
     Enrollment,
     EnrollmentSchedule,
     Student,
@@ -660,6 +661,72 @@ def _unlink_whatsapp_evaluations_before_attendance_delete(
     return len(linked_evaluations)
 
 
+def _serialize_datetime(value):
+    return value.isoformat() if value else None
+
+
+def _parse_snapshot_date(value):
+    return date.fromisoformat(value) if value else None
+
+
+def _parse_snapshot_datetime(value):
+    return datetime.fromisoformat(value) if value else None
+
+
+def _attendance_session_delete_snapshot(session: AttendanceSession) -> dict:
+    linked_evaluation_ids = [
+        evaluation_id
+        for (evaluation_id,) in WhatsAppEvaluation.query.with_entities(
+            WhatsAppEvaluation.id
+        )
+        .filter_by(attendance_session_id=session.id)
+        .all()
+    ]
+    return {
+        "id": session.id,
+        "enrollment_id": session.enrollment_id,
+        "student_id": session.student_id,
+        "tutor_id": session.tutor_id,
+        "subject_id": session.subject_id,
+        "session_date": _serialize_datetime(session.session_date),
+        "status": session.status,
+        "student_present": bool(session.student_present),
+        "tutor_present": bool(session.tutor_present),
+        "tutor_fee_amount": float(session.tutor_fee_amount or 0),
+        "notes": session.notes,
+        "created_at": _serialize_datetime(session.created_at),
+        "updated_at": _serialize_datetime(session.updated_at),
+        "student_name": session.student.name if session.student else "",
+        "tutor_name": session.tutor.name if session.tutor else "",
+        "subject_name": session.subject.name if session.subject else "",
+        "curriculum_name": (
+            session.enrollment.curriculum.name
+            if session.enrollment and session.enrollment.curriculum
+            else ""
+        ),
+        "level_name": (
+            session.enrollment.level.name
+            if session.enrollment and session.enrollment.level
+            else ""
+        ),
+        "whatsapp_evaluation_ids": linked_evaluation_ids,
+    }
+
+
+def _create_deleted_attendance_record(
+    session: AttendanceSession,
+    *,
+    deleted_by_id: int | None = None,
+) -> DeletedAttendanceSession:
+    deleted_record = DeletedAttendanceSession(
+        original_session_id=session.id,
+        payload_json=_attendance_session_delete_snapshot(session),
+        deleted_by=deleted_by_id,
+    )
+    db.session.add(deleted_record)
+    return deleted_record
+
+
 def _resolve_attendance_sessions_from_refs(session_refs: list[str]) -> list[AttendanceSession]:
     session_ids = []
     seen_ids = set()
@@ -678,7 +745,11 @@ def _resolve_attendance_sessions_from_refs(session_refs: list[str]) -> list[Atte
     return AttendanceSession.query.filter(AttendanceSession.id.in_(session_ids)).all()
 
 
-def _delete_attendance_sessions_from_refs(session_refs: list[str]) -> dict[str, int]:
+def _delete_attendance_sessions_from_refs(
+    session_refs: list[str],
+    *,
+    deleted_by_id: int | None = None,
+) -> dict[str, int]:
     if not session_refs:
         raise ValueError("Pilih minimal satu presensi terlebih dahulu.")
 
@@ -699,6 +770,10 @@ def _delete_attendance_sessions_from_refs(session_refs: list[str]) -> dict[str, 
 
     unlinked_count = 0
     for attendance_session in sessions_to_delete:
+        _create_deleted_attendance_record(
+            attendance_session,
+            deleted_by_id=deleted_by_id,
+        )
         unlinked_count += _unlink_whatsapp_evaluations_before_attendance_delete(
             attendance_session
         )
@@ -708,6 +783,61 @@ def _delete_attendance_sessions_from_refs(session_refs: list[str]) -> dict[str, 
         "deleted_count": len(sessions_to_delete),
         "unlinked_count": unlinked_count,
     }
+
+
+def _get_deleted_attendance_by_ref_or_404(deleted_ref: str) -> DeletedAttendanceSession:
+    try:
+        deleted_id = decode_public_id(deleted_ref, "deleted_attendance_session")
+    except ValueError:
+        abort(404)
+    return DeletedAttendanceSession.query.get_or_404(deleted_id)
+
+
+def _restore_attendance_session_from_trash(
+    deleted_record: DeletedAttendanceSession,
+    *,
+    restored_by_id: int | None = None,
+) -> AttendanceSession:
+    if deleted_record.restored_at:
+        raise ValueError("Presensi ini sudah pernah direstore.")
+
+    payload = deleted_record.payload_json or {}
+    original_session_id = payload.get("id") or deleted_record.original_session_id
+    restored_session = AttendanceSession(
+        enrollment_id=payload["enrollment_id"],
+        student_id=payload["student_id"],
+        tutor_id=payload["tutor_id"],
+        subject_id=payload.get("subject_id"),
+        session_date=_parse_snapshot_date(payload.get("session_date")),
+        status=payload.get("status") or "scheduled",
+        student_present=bool(payload.get("student_present")),
+        tutor_present=bool(payload.get("tutor_present")),
+        tutor_fee_amount=payload.get("tutor_fee_amount") or 0,
+        notes=payload.get("notes"),
+        created_at=_parse_snapshot_datetime(payload.get("created_at")) or datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    if original_session_id and db.session.get(AttendanceSession, original_session_id) is None:
+        restored_session.id = original_session_id
+
+    db.session.add(restored_session)
+    db.session.flush()
+
+    evaluation_ids = payload.get("whatsapp_evaluation_ids") or []
+    if evaluation_ids:
+        WhatsAppEvaluation.query.filter(WhatsAppEvaluation.id.in_(evaluation_ids)).update(
+            {
+                WhatsAppEvaluation.attendance_session_id: restored_session.id,
+                WhatsAppEvaluation.match_status: "attendance-linked",
+                WhatsAppEvaluation.updated_at: datetime.utcnow(),
+            },
+            synchronize_session=False,
+        )
+
+    deleted_record.restored_session_id = restored_session.id
+    deleted_record.restored_by = restored_by_id
+    deleted_record.restored_at = datetime.utcnow()
+    return restored_session
 
 
 def _build_tutor_enrollment_map(enrollments: list[Enrollment]) -> dict[int, int]:
@@ -852,6 +982,9 @@ def list_attendance():
     tutors = Tutor.query.filter_by(is_active=True).order_by(Tutor.name.asc()).all()
     selected_tutors = [tutor for tutor in tutors if tutor.id in tutor_ids]
     year_options = _build_attendance_year_options()
+    deleted_attendance_count = DeletedAttendanceSession.query.filter(
+        DeletedAttendanceSession.restored_at.is_(None)
+    ).count()
     lock_month = month or date.today().month
     lock_year = year or date.today().year
     attendance_period_lock = _get_attendance_period_lock(lock_month, lock_year)
@@ -900,6 +1033,7 @@ def list_attendance():
         locked_period_keys=locked_period_keys,
         whatsapp_review_map=whatsapp_review_map,
         whatsapp_review_start_date=WHATSAPP_REVIEW_START_DATE,
+        deleted_attendance_count=deleted_attendance_count,
     )
 
 
@@ -1262,7 +1396,8 @@ def bulk_delete_attendance():
     """Delete selected attendance sessions from the list page."""
     try:
         result = _delete_attendance_sessions_from_refs(
-            request.form.getlist("attendance_refs")
+            request.form.getlist("attendance_refs"),
+            deleted_by_id=getattr(current_user, "id", None),
         )
         db.session.commit()
     except ValueError as exc:
@@ -1279,14 +1414,57 @@ def bulk_delete_attendance():
     if unlinked_count:
         flash(
             (
-                f"{deleted_count} presensi berhasil dihapus. "
+                f"{deleted_count} presensi dipindahkan ke tempat sampah. "
                 f"{unlinked_count} evaluasi WhatsApp tetap disimpan dan dilepas dari presensi."
             ),
             "success",
         )
     else:
-        flash(f"{deleted_count} presensi berhasil dihapus.", "success")
+        flash(f"{deleted_count} presensi dipindahkan ke tempat sampah.", "success")
     return redirect(url_for("attendance.list_attendance", **_attendance_redirect_filters()))
+
+
+@attendance_bp.route("/trash", methods=["GET"])
+@login_required
+def attendance_trash():
+    """List deleted attendance sessions that can still be restored."""
+    page = request.args.get("page", 1, type=int)
+    deleted_sessions = (
+        DeletedAttendanceSession.query.filter(DeletedAttendanceSession.restored_at.is_(None))
+        .order_by(DeletedAttendanceSession.deleted_at.desc(), DeletedAttendanceSession.id.desc())
+        .paginate(page=page, per_page=25)
+    )
+    return render_template(
+        "attendance/trash.html",
+        deleted_sessions=deleted_sessions,
+    )
+
+
+@attendance_bp.route("/trash/<string:deleted_ref>/restore", methods=["POST"])
+@login_required
+def restore_deleted_attendance(deleted_ref):
+    """Restore one deleted attendance session from the temporary trash."""
+    deleted_record = _get_deleted_attendance_by_ref_or_404(deleted_ref)
+    try:
+        restored_session = _restore_attendance_session_from_trash(
+            deleted_record,
+            restored_by_id=getattr(current_user, "id", None),
+        )
+        db.session.commit()
+        flash(
+            (
+                "Presensi berhasil direstore untuk "
+                f"{restored_session.session_date.strftime('%d %b %Y')}."
+            ),
+            "success",
+        )
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "warning")
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Restore presensi gagal: {exc}", "danger")
+    return redirect(url_for("attendance.attendance_trash"))
 
 
 @attendance_bp.route("/calendar", methods=["GET"])
@@ -1432,19 +1610,22 @@ def edit_attendance(session_ref):
 def delete_attendance(session_ref):
     """Delete attendance session"""
     try:
-        result = _delete_attendance_sessions_from_refs([session_ref])
+        result = _delete_attendance_sessions_from_refs(
+            [session_ref],
+            deleted_by_id=getattr(current_user, "id", None),
+        )
         db.session.commit()
         unlinked_count = result["unlinked_count"]
         if unlinked_count:
             flash(
                 (
-                    "Presensi berhasil dihapus. "
+                    "Presensi dipindahkan ke tempat sampah. "
                     f"{unlinked_count} evaluasi WhatsApp tetap disimpan dan dilepas dari presensi ini."
                 ),
                 "success",
             )
         else:
-            flash("Presensi berhasil dihapus", "success")
+            flash("Presensi dipindahkan ke tempat sampah", "success")
     except ValueError as exc:
         db.session.rollback()
         flash(str(exc), "warning")

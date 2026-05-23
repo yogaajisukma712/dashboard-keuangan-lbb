@@ -464,6 +464,13 @@
            class="btn btn-outline-success btn-sm flex-shrink-0">
           <i class="bi bi-filetype-csv me-1"></i>Export CSV
         </a>
+        <a href="{{ url_for('attendance.attendance_trash') }}"
+           class="btn btn-outline-danger btn-sm flex-shrink-0">
+          <i class="bi bi-trash3 me-1"></i>Tempat Sampah
+          {% if deleted_attendance_count %}
+          <span class="badge text-bg-danger ms-1">{{ deleted_attendance_count }}</span>
+          {% endif %}
+        </a>
       </div>
 
     </form>
@@ -560,7 +567,7 @@
                 type="checkbox"
                 id="selectAllAttendanceReviews"
                 class="form-check-input"
-                aria-label="Pilih semua presensi WA di halaman ini"
+                aria-label="Pilih semua presensi di halaman ini"
               >
             </th>
             <th class="ps-3" style="width:48px">No</th>
@@ -828,7 +835,7 @@
                                           date_from=selected_date_from or '',
                                           date_to=selected_date_to or '',
                                           sort=selected_sort or 'date_desc') }}"
-                      onsubmit="return confirm('Hapus sesi presensi tanggal {{ s.session_date.strftime('%d %b %Y') }}?')">
+                      onsubmit="return confirm('Pindahkan sesi presensi tanggal {{ s.session_date.strftime('%d %b %Y') }} ke tempat sampah?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Hapus">
                     <i class="bi bi-trash"></i>
@@ -1452,7 +1459,7 @@ if (attendanceBulkReviewForm) {
     }
     if (
       event.submitter === attendanceBulkDeleteButton &&
-      !confirm(`Hapus ${selectedCount} presensi terpilih?`)
+      !confirm(`Pindahkan ${selectedCount} presensi terpilih ke tempat sampah?`)
     ) {
       event.preventDefault();
     }

@@ -8,6 +8,7 @@ from app.forms.attendance_forms import AttendanceSessionForm
 from app.models import (
     AttendanceSession,
     Curriculum,
+    DeletedAttendanceSession,
     Enrollment,
     Level,
     Student,
@@ -24,6 +25,7 @@ from app.routes.attendance import (
     _build_attendance_list_query,
     _build_whatsapp_review_map,
     _delete_attendance_sessions_from_refs,
+    _restore_attendance_session_from_trash,
     _set_whatsapp_attendance_manual_review,
     _sync_linked_whatsapp_evaluations,
     _unlink_whatsapp_evaluations_before_attendance_delete,
@@ -291,7 +293,7 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert "attendance.bulk_delete_attendance" in template_text
     assert 'id="attendanceBulkDeleteButton"' in template_text
     assert "Hapus Terpilih" in template_text
-    assert "Hapus ${selectedCount} presensi terpilih?" in template_text
+    assert "Pindahkan ${selectedCount} presensi terpilih ke tempat sampah?" in template_text
     assert "updateAttendanceSelectAllState" in template_text
     assert "Pilih minimal satu presensi terlebih dahulu." in template_text
     assert 'class="js-wa-review-form"' in template_text
@@ -312,6 +314,15 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert "attendance.delete_attendance" in template_text
     assert "attendance.export_attendance_csv" in template_text
     assert "Export CSV" in template_text
+    assert "attendance.attendance_trash" in template_text
+    assert "Tempat Sampah" in template_text
+
+    trash_template_text = (
+        project_root / "app" / "templates" / "attendance" / "trash.html"
+    ).read_text()
+    assert "Tempat Sampah Presensi" in trash_template_text
+    assert "attendance.restore_deleted_attendance" in trash_template_text
+    assert "Restore" in trash_template_text
 
 
 def test_attendance_form_template_has_searchable_attendance_selects():
@@ -439,6 +450,10 @@ def test_attendance_routes_support_public_ref_filters_in_source():
     assert "def _delete_attendance_sessions_from_refs" in route_text
     assert "def bulk_delete_attendance():" in route_text
     assert '@attendance_bp.route("/bulk-delete", methods=["POST"])' in route_text
+    assert "def attendance_trash():" in route_text
+    assert 'DeletedAttendanceSession.query.filter' in route_text
+    assert "def restore_deleted_attendance(deleted_ref):" in route_text
+    assert "_restore_attendance_session_from_trash" in route_text
     assert "_wants_json_response()" in route_text
     assert "_whatsapp_review_response_payload" in route_text
     assert 'return jsonify({"ok": False, "error": str(exc)}), 400' in route_text
@@ -668,9 +683,70 @@ def test_bulk_delete_attendance_removes_selected_sessions_and_preserves_whatsapp
         assert result == {"deleted_count": 2, "unlinked_count": 1}
         assert AttendanceSession.query.get(april_id) is None
         assert AttendanceSession.query.get(may_id) is None
+        deleted_records = DeletedAttendanceSession.query.order_by(
+            DeletedAttendanceSession.original_session_id.asc()
+        ).all()
+        assert [record.original_session_id for record in deleted_records] == [
+            april_id,
+            may_id,
+        ]
+        assert deleted_records[1].payload_json["student_name"] == "Ratih"
         assert evaluation.attendance_session_id is None
         assert evaluation.match_status == "manual-unlinked"
         assert "Presensi terkait dihapus manual" in evaluation.notes
+
+
+def test_restore_deleted_attendance_recreates_session_and_relinks_whatsapp_evaluations():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        seeded = _seed_attendance_sessions()
+        may_id = seeded["may_session"].id
+        may_student_id = seeded["may_session"].student_id
+        may_fee = seeded["may_session"].tutor_fee_amount
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-restore-review@g.us",
+            name="Restore Ratih",
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-restore-review",
+            group=group,
+            author_phone_number="081234567890",
+            author_name="Tutor",
+            sent_at=seeded["may_session"].created_at,
+            body="Evaluasi",
+        )
+        evaluation = WhatsAppEvaluation(
+            message=message,
+            group=group,
+            student_name="Ratih",
+            attendance_date=seeded["may_session"].session_date,
+            attendance_session_id=may_id,
+            match_status="attendance-linked",
+            notes="Linked from WhatsApp scan.",
+        )
+        db.session.add_all([group, message, evaluation])
+        db.session.flush()
+
+        _delete_attendance_sessions_from_refs([seeded["may_session"].public_id])
+        db.session.commit()
+        deleted_record = DeletedAttendanceSession.query.filter_by(
+            original_session_id=may_id
+        ).one()
+        assert AttendanceSession.query.get(may_id) is None
+        assert evaluation.attendance_session_id is None
+
+        restored_session = _restore_attendance_session_from_trash(deleted_record)
+        db.session.commit()
+
+        assert restored_session.id == may_id
+        assert restored_session.student_id == may_student_id
+        assert restored_session.tutor_fee_amount == may_fee
+        assert deleted_record.restored_at is not None
+        assert deleted_record.restored_session_id == may_id
+        assert evaluation.attendance_session_id == may_id
+        assert evaluation.match_status == "attendance-linked"
 
 
 def test_sync_linked_whatsapp_evaluations_follows_manual_attendance_edit():

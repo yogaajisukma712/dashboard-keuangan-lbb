@@ -77,6 +77,37 @@ class AttendanceSession(db.Model):
         return self.session_date.year
 
 
+class DeletedAttendanceSession(db.Model):
+    """Temporary trash record for attendance sessions deleted from the UI."""
+
+    __tablename__ = "deleted_attendance_sessions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    original_session_id = db.Column(db.Integer, nullable=False, index=True)
+    restored_session_id = db.Column(
+        db.Integer, db.ForeignKey("attendance_sessions.id"), nullable=True, index=True
+    )
+    payload_json = db.Column(db.JSON, nullable=False, default=dict)
+    deleted_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    deleted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    restored_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    restored_at = db.Column(db.DateTime, nullable=True)
+
+    restored_session = db.relationship("AttendanceSession", foreign_keys=[restored_session_id])
+    deleted_user = db.relationship("User", foreign_keys=[deleted_by])
+    restored_user = db.relationship("User", foreign_keys=[restored_by])
+
+    @property
+    def public_id(self):
+        from app.utils import encode_public_id
+
+        return encode_public_id("deleted_attendance_session", self.id)
+
+    @property
+    def is_restored(self):
+        return self.restored_at is not None
+
+
 class AttendancePeriodLock(db.Model):
     """Monthly lock that prevents WhatsApp rescans from mutating attendance."""
 

@@ -14,7 +14,7 @@ from .master import (
 )
 from .pricing import PricingRule
 from .enrollment import Enrollment, EnrollmentSchedule
-from .attendance import AttendancePeriodLock, AttendanceSession
+from .attendance import AttendancePeriodLock, AttendanceSession, DeletedAttendanceSession
 from .payment import StudentPayment, StudentPaymentLine
 from .income import OtherIncome
 from .expense import Expense
@@ -39,7 +39,7 @@ __all__ = [
     'SubjectTutorAssignment',
     'PricingRule',
     'Enrollment', 'EnrollmentSchedule',
-    'AttendanceSession', 'AttendancePeriodLock',
+    'AttendanceSession', 'AttendancePeriodLock', 'DeletedAttendanceSession',
     'StudentPayment', 'StudentPaymentLine',
     'OtherIncome',
     'Expense',

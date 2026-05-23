@@ -10,9 +10,12 @@ from app import register_template_filters
 from app.models import (
     AttendanceSession,
     Curriculum,
+    DeletedEnrollment,
     Enrollment,
     Level,
     Student,
+    StudentPayment,
+    StudentPaymentLine,
     Subject,
     Tutor,
     TutorMeetLink,
@@ -25,8 +28,11 @@ from app.models import (
 from app.routes.enrollments import (
     _apply_selected_whatsapp_group,
     _build_enrollment_list_query,
+    _create_deleted_enrollment_record,
     _delete_enrollment_dependencies,
+    _enrollment_delete_snapshot,
     _normalize_rate_form_value,
+    _restore_deleted_enrollment_record,
     _scan_missing_enrollment_whatsapp_groups,
 )
 
@@ -441,6 +447,95 @@ def test_delete_enrollment_dependencies_removes_external_blockers():
         assert evaluation_count == 0
         assert invoice_count == 0
         assert invoice_line_count == 0
+
+
+def test_deleted_enrollment_restore_recovers_attendance_and_student_payment_lines():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        subject = Subject(name="IPA")
+        student = Student(student_code="STD-903", name="Zaaid", is_active=True)
+        tutor = Tutor(tutor_code="TTR-903", name="Rendi", is_active=True)
+        enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="10",
+            student_rate_per_meeting=50000,
+            tutor_rate_per_meeting=30000,
+            status="active",
+        )
+        db.session.add_all([curriculum, level, subject, student, tutor, enrollment])
+        db.session.flush()
+        attendance_session = AttendanceSession(
+            enrollment_id=enrollment.id,
+            student_id=student.id,
+            tutor_id=tutor.id,
+            subject_id=subject.id,
+            session_date=date(2026, 5, 18),
+            status="attended",
+            student_present=True,
+            tutor_present=True,
+            tutor_fee_amount=30000,
+        )
+        payment = StudentPayment(
+            student_id=student.id,
+            receipt_number="RCPT-RESTORE-903",
+            payment_method="cash",
+            total_amount=50000,
+        )
+        db.session.add_all([attendance_session, payment])
+        db.session.flush()
+        payment_line = StudentPaymentLine(
+            student_payment_id=payment.id,
+            enrollment_id=enrollment.id,
+            service_month=date(2026, 5, 1),
+            meeting_count=1,
+            student_rate_per_meeting=50000,
+            tutor_rate_per_meeting=30000,
+            nominal_amount=50000,
+            tutor_payable_amount=30000,
+            margin_amount=20000,
+        )
+        db.session.add(payment_line)
+        db.session.commit()
+
+        enrollment_id = enrollment.id
+        attendance_id = attendance_session.id
+        payment_line_id = payment_line.id
+        payment_id = payment.id
+
+        delete_snapshot = _enrollment_delete_snapshot(enrollment)
+        _delete_enrollment_dependencies(enrollment)
+        _create_deleted_enrollment_record(enrollment, payload=delete_snapshot)
+        db.session.delete(enrollment)
+        db.session.commit()
+
+        deleted_record = DeletedEnrollment.query.filter_by(
+            original_enrollment_id=enrollment_id
+        ).one()
+        assert db.session.get(Enrollment, enrollment_id) is None
+        assert db.session.get(AttendanceSession, attendance_id) is None
+        assert db.session.get(StudentPaymentLine, payment_line_id) is None
+        assert db.session.get(StudentPayment, payment_id) is not None
+
+        restored = _restore_deleted_enrollment_record(deleted_record)
+        db.session.commit()
+
+        restored_attendance = db.session.get(AttendanceSession, attendance_id)
+        restored_line = db.session.get(StudentPaymentLine, payment_line_id)
+        assert restored.id == enrollment_id
+        assert restored.student_id == student.id
+        assert restored_attendance.enrollment_id == enrollment_id
+        assert restored_attendance.session_date == date(2026, 5, 18)
+        assert restored_line.enrollment_id == enrollment_id
+        assert restored_line.student_payment_id == payment_id
+        assert deleted_record.restored_at is not None
 
 
 def test_enrollment_detail_notes_filter_is_registered_and_escapes_html():

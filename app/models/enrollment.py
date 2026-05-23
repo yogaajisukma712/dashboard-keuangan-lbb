@@ -170,6 +170,37 @@ class EnrollmentSchedule(db.Model):
         return days[day_num] if 0 <= day_num <= 6 else "Unknown"
 
 
+class DeletedEnrollment(db.Model):
+    """Temporary trash record for deleted enrollment and related data."""
+
+    __tablename__ = "deleted_enrollments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    original_enrollment_id = db.Column(db.Integer, nullable=False, index=True)
+    restored_enrollment_id = db.Column(
+        db.Integer, db.ForeignKey("enrollments.id"), nullable=True, index=True
+    )
+    payload_json = db.Column(db.JSON, nullable=False, default=dict)
+    deleted_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    deleted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    restored_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    restored_at = db.Column(db.DateTime, nullable=True)
+
+    restored_enrollment = db.relationship("Enrollment", foreign_keys=[restored_enrollment_id])
+    deleted_user = db.relationship("User", foreign_keys=[deleted_by])
+    restored_user = db.relationship("User", foreign_keys=[restored_by])
+
+    @property
+    def public_id(self):
+        from app.utils import encode_public_id
+
+        return encode_public_id("deleted_enrollment", self.id)
+
+    @property
+    def is_restored(self):
+        return self.restored_at is not None
+
+
 # Import at the end to avoid circular imports
 from app.models.attendance import AttendanceSession
 from app.models.payment import StudentPaymentLine

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Tempat Sampah Enrollment — LBB Super Smart{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+  <div>
+    <h1 class="h4 mb-1">Tempat Sampah Enrollment</h1>
+    <div class="text-muted small">Enrollment yang salah hapus bisa direstore bersama presensi dan pembayaran terkait.</div>
+  </div>
+  <a href="{{ url_for('enrollments.list_enrollments') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Kembali ke Enrollment
+  </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if deleted_enrollments.items %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="width:48px">No</th>
+            <th>Siswa</th>
+            <th>Mapel</th>
+            <th>Tutor</th>
+            <th>Kurikulum</th>
+            <th>Jenjang</th>
+            <th class="text-center">Data Ikut Terhapus</th>
+            <th>Dihapus</th>
+            <th class="text-center pe-3">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set offset = (deleted_enrollments.page - 1) * deleted_enrollments.per_page %}
+          {% for item in deleted_enrollments.items %}
+          {% set data = item.payload_json or {} %}
+          {% set label = data.get('label') or {} %}
+          <tr>
+            <td class="ps-3 text-muted">{{ loop.index + offset }}</td>
+            <td>
+              <div class="fw-semibold">{{ label.get('student_name') or '—' }}</div>
+              <div class="text-muted" style="font-size:.75rem">ID lama: {{ item.original_enrollment_id }}</div>
+            </td>
+            <td>{{ label.get('subject_name') or '—' }}</td>
+            <td>{{ label.get('tutor_name') or '—' }}</td>
+            <td>{{ label.get('curriculum_name') or '—' }}</td>
+            <td>{{ label.get('level_name') or '—' }}</td>
+            <td class="text-center">
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                {{ (data.get('attendance_sessions') or []) | length }} presensi
+              </span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">
+                {{ (data.get('student_payment_lines') or []) | length }} pembayaran
+              </span>
+            </td>
+            <td>
+              <div>{{ item.deleted_at.strftime('%d %b %Y %H:%M') }}</div>
+              {% if item.deleted_user %}
+              <div class="text-muted" style="font-size:.75rem">{{ item.deleted_user.username }}</div>
+              {% endif %}
+            </td>
+            <td class="text-center pe-3">
+              <form method="POST"
+                    action="{{ url_for('enrollments.restore_deleted_enrollment', deleted_ref=item.public_id) }}"
+                    onsubmit="return confirm('Restore enrollment ini bersama data presensi dan pembayaran terkait?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-success btn-sm">
+                  <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if deleted_enrollments.pages > 1 %}
+    <div class="border-top px-3 py-2">
+      <nav>
+        <ul class="pagination pagination-sm mb-0 justify-content-end">
+          <li class="page-item {% if not deleted_enrollments.has_prev %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('enrollments.enrollment_trash', page=deleted_enrollments.prev_num) }}">Sebelumnya</a>
+          </li>
+          {% for page_num in deleted_enrollments.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page_num %}
+            <li class="page-item {% if page_num == deleted_enrollments.page %}active{% endif %}">
+              <a class="page-link" href="{{ url_for('enrollments.enrollment_trash', page=page_num) }}">{{ page_num }}</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          <li class="page-item {% if not deleted_enrollments.has_next %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('enrollments.enrollment_trash', page=deleted_enrollments.next_num) }}">Berikutnya</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="bi bi-trash3 fs-2 d-block mb-2"></i>
+      Belum ada enrollment yang dihapus sementara.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

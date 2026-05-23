@@ -120,3 +120,13 @@ def test_enrollment_list_template_contains_quick_search_guard():
     assert 'id="quickSearchEmptyRow"' in template_text
     assert 'querySelectorAll(".enrollment-row")' in template_text
     assert 'row.classList.toggle("d-none", !isMatch)' in template_text
+    assert "enrollments.enrollment_trash" in template_text
+    assert "Tempat Sampah" in template_text
+    assert "Presensi dan pembayaran terkait bisa direstore" in template_text
+
+    trash_template_text = (
+        project_root / "app" / "templates" / "enrollments" / "trash.html"
+    ).read_text(encoding="utf-8")
+    assert "Tempat Sampah Enrollment" in trash_template_text
+    assert "enrollments.restore_deleted_enrollment" in trash_template_text
+    assert "Restore" in trash_template_text

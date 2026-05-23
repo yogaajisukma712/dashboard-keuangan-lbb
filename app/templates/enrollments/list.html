@@ -32,6 +32,12 @@
     <a href="{{ url_for('enrollments.add_enrollment') }}" class="btn btn-primary btn-sm">
       <i class="bi bi-plus-lg me-1"></i>Tambah Enrollment
     </a>
+    <a href="{{ url_for('enrollments.enrollment_trash') }}" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-trash3 me-1"></i>Tempat Sampah
+      {% if deleted_enrollment_count %}
+      <span class="badge text-bg-danger ms-1">{{ deleted_enrollment_count }}</span>
+      {% endif %}
+    </a>
   </div>
 </div>
 
@@ -246,7 +252,7 @@
                         page=enrollments.page,
                         per_page=enrollments.per_page
                       ) }}"
-                      onsubmit="return confirm('Hapus enrollment {{ enrollment.student.name }} — {{ enrollment.subject.name }}?')">
+                      onsubmit="return confirm('Pindahkan enrollment {{ enrollment.student.name }} — {{ enrollment.subject.name }} ke tempat sampah? Presensi dan pembayaran terkait bisa direstore.')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Hapus">
                     <i class="bi bi-trash"></i>

@@ -82,6 +82,9 @@ EXTRA_DDL = [
     "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS whatsapp_group_id        VARCHAR(255)",
     "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS whatsapp_group_name      VARCHAR(255)",
     "ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS whatsapp_group_memberships_json JSONB",
+    "CREATE TABLE IF NOT EXISTS deleted_enrollments (\n        id                     SERIAL PRIMARY KEY,\n        original_enrollment_id INTEGER NOT NULL,\n        restored_enrollment_id INTEGER REFERENCES enrollments(id),\n        payload_json           JSONB NOT NULL DEFAULT '{}',\n        deleted_by             INTEGER REFERENCES users(id),\n        deleted_at             TIMESTAMP DEFAULT NOW() NOT NULL,\n        restored_by            INTEGER REFERENCES users(id),\n        restored_at            TIMESTAMP\n    )",
+    "CREATE INDEX IF NOT EXISTS ix_deleted_enrollments_original_enrollment_id ON deleted_enrollments(original_enrollment_id)",
+    "CREATE INDEX IF NOT EXISTS ix_deleted_enrollments_restored_enrollment_id ON deleted_enrollments(restored_enrollment_id)",
     # Student payments — verification workflow
     "ALTER TABLE student_payments ADD COLUMN IF NOT EXISTS is_verified  BOOLEAN   DEFAULT FALSE",
     "ALTER TABLE student_payments ADD COLUMN IF NOT EXISTS verified_by  INTEGER   REFERENCES users(id)",

@@ -43,7 +43,7 @@
     </a>
     <form method="POST"
           action="{{ url_for('enrollments.delete_enrollment', enrollment_ref=enrollment.public_id) }}"
-          onsubmit="return confirm('Hapus enrollment ini? Tindakan tidak dapat dibatalkan.')">
+          onsubmit="return confirm('Pindahkan enrollment ini ke tempat sampah? Presensi dan pembayaran terkait bisa direstore.')">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-outline-danger btn-sm">
         <i class="bi bi-trash me-1"></i>Hapus

@@ -59,6 +59,12 @@ class Enrollment(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
+    whatsapp_evaluations = db.relationship(
+        "WhatsAppEvaluation",
+        back_populates="enrollment",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self):
         return f"<Enrollment {self.student.name} - {self.subject.name}>"

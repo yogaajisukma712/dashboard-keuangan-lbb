@@ -14,7 +14,8 @@ from flask import (
     url_for,
 )
 from flask_login import login_required
-from sqlalchemy import or_
+from sqlalchemy import bindparam, inspect, or_, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
 from app.forms import EnrollmentForm
@@ -26,6 +27,7 @@ from app.models import (
     Student,
     Subject,
     Tutor,
+    WhatsAppEvaluation,
     WhatsAppGroup,
 )
 from app.services.whatsapp_ingest_service import WhatsAppIngestService
@@ -196,6 +198,101 @@ def _store_enrollment_list_state(
 
 def _public_enrollment_list_state(state: dict | None) -> dict:
     return {key: value for key, value in (state or {}).items() if key != "v"}
+
+
+def _list_redirect_kwargs_from_request() -> dict:
+    return {
+        key: value
+        for key, value in {
+            "q": request.args.get("q", "", type=str),
+            "status": request.args.get("status", "", type=str),
+            "sort": request.args.get("sort", DEFAULT_ENROLLMENT_SORT, type=str),
+            "page": request.args.get("page", 1, type=int),
+            "per_page": request.args.get("per_page", get_per_page(), type=int),
+        }.items()
+        if value not in (None, "")
+    }
+
+
+def _delete_legacy_invoice_rows_for_enrollment(enrollment_id: int) -> None:
+    table_names = set(inspect(db.engine).get_table_names())
+    invoice_ids = []
+    if "student_invoices" in table_names:
+        invoice_ids = [
+            invoice_id
+            for (invoice_id,) in db.session.execute(
+                text(
+                    """
+                    SELECT id
+                    FROM student_invoices
+                    WHERE enrollment_id = :enrollment_id
+                    """
+                ),
+                {"enrollment_id": enrollment_id},
+            ).all()
+        ]
+    if "student_invoice_lines" in table_names:
+        db.session.execute(
+            text("DELETE FROM student_invoice_lines WHERE enrollment_id = :enrollment_id"),
+            {"enrollment_id": enrollment_id},
+        )
+        if invoice_ids:
+            db.session.execute(
+                text(
+                    "DELETE FROM student_invoice_lines WHERE invoice_id IN :invoice_ids"
+                ).bindparams(bindparam("invoice_ids", expanding=True)),
+                {"invoice_ids": invoice_ids},
+            )
+    if "student_invoices" in table_names:
+        db.session.execute(
+            text("DELETE FROM student_invoices WHERE enrollment_id = :enrollment_id"),
+            {"enrollment_id": enrollment_id},
+        )
+
+
+def _delete_enrollment_dependencies(enrollment: Enrollment) -> None:
+    enrollment_id = enrollment.id
+    attendance_session_ids = [
+        session_id
+        for (session_id,) in AttendanceSession.query.with_entities(AttendanceSession.id)
+        .filter_by(enrollment_id=enrollment_id)
+        .all()
+    ]
+
+    attendance_session_id_set = set(attendance_session_ids)
+    for loaded_object in list(db.session.identity_map.values()):
+        if not isinstance(loaded_object, WhatsAppEvaluation):
+            continue
+        if (
+            loaded_object.matched_enrollment_id == enrollment_id
+            or loaded_object.attendance_session_id in attendance_session_id_set
+        ):
+            db.session.delete(loaded_object)
+    db.session.flush()
+
+    db.session.execute(
+        text(
+            """
+            DELETE FROM whatsapp_evaluations
+            WHERE matched_enrollment_id = :enrollment_id
+            """
+        ),
+        {"enrollment_id": enrollment_id},
+    )
+    if attendance_session_ids:
+        db.session.execute(
+            text(
+                """
+                DELETE FROM whatsapp_evaluations
+                WHERE attendance_session_id IN :attendance_session_ids
+                """
+            ).bindparams(bindparam("attendance_session_ids", expanding=True)),
+            {"attendance_session_ids": attendance_session_ids},
+        )
+    for meet_link in list(enrollment.tutor_meet_links):
+        db.session.delete(meet_link)
+    _delete_legacy_invoice_rows_for_enrollment(enrollment_id)
+    db.session.flush()
 
 
 @enrollments_bp.route("/", methods=["GET"])
@@ -408,12 +505,18 @@ def edit_enrollment(enrollment_ref):
 def delete_enrollment(enrollment_ref):
     """Delete enrollment"""
     enrollment = _get_enrollment_by_ref_or_404(enrollment_ref)
+    redirect_kwargs = _list_redirect_kwargs_from_request()
     try:
+        _delete_enrollment_dependencies(enrollment)
         db.session.delete(enrollment)
         db.session.commit()
         flash("Enrollment berhasil dihapus", "success")
-    except Exception as e:
+    except SQLAlchemyError:
         db.session.rollback()
-        flash(f"Error: {str(e)}", "error")
+        flash(
+            "Enrollment gagal dihapus karena masih terhubung dengan data lain. "
+            "Silakan coba lagi atau hubungi admin.",
+            "danger",
+        )
 
-    return redirect(url_for("enrollments.list_enrollments"))
+    return redirect(url_for("enrollments.list_enrollments", **redirect_kwargs))

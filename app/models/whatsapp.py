@@ -202,7 +202,7 @@ class WhatsAppEvaluation(db.Model):
     student = db.relationship("Student")
     tutor = db.relationship("Tutor")
     subject = db.relationship("Subject")
-    enrollment = db.relationship("Enrollment")
+    enrollment = db.relationship("Enrollment", back_populates="whatsapp_evaluations")
     attendance_session = db.relationship("AttendanceSession")
 
 

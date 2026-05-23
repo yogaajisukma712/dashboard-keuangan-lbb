@@ -1,8 +1,9 @@
 from decimal import Decimal
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from flask import Flask
+from sqlalchemy import text
 
 from app import db
 from app import register_template_filters
@@ -14,13 +15,17 @@ from app.models import (
     Student,
     Subject,
     Tutor,
+    TutorMeetLink,
     WhatsAppContact,
+    WhatsAppEvaluation,
     WhatsAppGroup,
+    WhatsAppMessage,
     WhatsAppTutorValidation,
 )
 from app.routes.enrollments import (
     _apply_selected_whatsapp_group,
     _build_enrollment_list_query,
+    _delete_enrollment_dependencies,
     _normalize_rate_form_value,
     _scan_missing_enrollment_whatsapp_groups,
 )
@@ -302,6 +307,140 @@ def test_scan_missing_enrollment_whatsapp_groups_fills_only_empty_enrollments():
         assert empty_enrollment.whatsapp_group_id == "group-ratih@g.us"
         assert empty_enrollment.whatsapp_group_name == "English Ratih"
         assert existing_enrollment.whatsapp_group_id == "existing@g.us"
+
+
+def test_delete_enrollment_dependencies_removes_external_blockers():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        db.session.execute(
+            text(
+                """
+                CREATE TABLE student_invoices (
+                    id INTEGER PRIMARY KEY,
+                    student_id INTEGER NOT NULL,
+                    enrollment_id INTEGER REFERENCES enrollments(id)
+                )
+                """
+            )
+        )
+        db.session.execute(
+            text(
+                """
+                CREATE TABLE student_invoice_lines (
+                    id INTEGER PRIMARY KEY,
+                    invoice_id INTEGER NOT NULL REFERENCES student_invoices(id),
+                    enrollment_id INTEGER NOT NULL REFERENCES enrollments(id),
+                    service_month DATE NOT NULL,
+                    meeting_count INTEGER NOT NULL,
+                    nominal_amount NUMERIC DEFAULT 0
+                )
+                """
+            )
+        )
+
+        curriculum = Curriculum(name="K13")
+        level = Level(name="SMA")
+        subject = Subject(name="Matematika")
+        student = Student(student_code="STD-902", name="Salsa", is_active=True)
+        tutor = Tutor(tutor_code="TTR-902", name="Dinda", is_active=True)
+        enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="10",
+            student_rate_per_meeting=50000,
+            tutor_rate_per_meeting=30000,
+            status="active",
+        )
+        db.session.add_all([curriculum, level, subject, student, tutor, enrollment])
+        db.session.flush()
+
+        attendance_session = AttendanceSession(
+            enrollment_id=enrollment.id,
+            student_id=student.id,
+            tutor_id=tutor.id,
+            subject_id=subject.id,
+            session_date=date(2026, 5, 18),
+            status="attended",
+        )
+        meet_link = TutorMeetLink(
+            enrollment_id=enrollment.id,
+            tutor_id=tutor.id,
+            student_id=student.id,
+            subject_id=subject.id,
+            token="enrollment-delete-link-token",
+            room="ss-meet-enrollment-delete",
+            join_url="https://meet.example/enrollment-delete",
+            status="active",
+        )
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-enrollment-delete@g.us",
+            name="Kelas Delete Enrollment",
+        )
+        db.session.add_all([attendance_session, meet_link, group])
+        db.session.flush()
+        message = WhatsAppMessage(
+            whatsapp_message_id="msg-enrollment-delete",
+            group_id=group.id,
+            sent_at=datetime(2026, 5, 18, 8, 0),
+            body="Presensi",
+        )
+        db.session.add(message)
+        db.session.flush()
+        evaluation = WhatsAppEvaluation(
+            message_id=message.id,
+            group_id=group.id,
+            attendance_date=attendance_session.session_date,
+            matched_enrollment_id=enrollment.id,
+            attendance_session_id=attendance_session.id,
+        )
+        db.session.add(evaluation)
+        db.session.execute(
+            text(
+                """
+                INSERT INTO student_invoices (id, student_id, enrollment_id)
+                VALUES (1, :student_id, :enrollment_id)
+                """
+            ),
+            {"student_id": student.id, "enrollment_id": enrollment.id},
+        )
+        db.session.execute(
+            text(
+                """
+                INSERT INTO student_invoice_lines
+                    (id, invoice_id, enrollment_id, service_month, meeting_count, nominal_amount)
+                VALUES (1, 1, :enrollment_id, '2026-05-01', 1, 50000)
+                """
+            ),
+            {"enrollment_id": enrollment.id},
+        )
+        db.session.commit()
+
+        enrollment_id = enrollment.id
+        meet_link_id = meet_link.id
+        evaluation_id = evaluation.id
+
+        _delete_enrollment_dependencies(enrollment)
+        db.session.delete(enrollment)
+        db.session.commit()
+
+        invoice_count = db.session.execute(text("SELECT COUNT(*) FROM student_invoices")).scalar()
+        invoice_line_count = db.session.execute(
+            text("SELECT COUNT(*) FROM student_invoice_lines")
+        ).scalar()
+        evaluation_count = db.session.execute(
+            text("SELECT COUNT(*) FROM whatsapp_evaluations WHERE id = :id"),
+            {"id": evaluation_id},
+        ).scalar()
+        assert db.session.get(Enrollment, enrollment_id) is None
+        assert db.session.get(TutorMeetLink, meet_link_id) is None
+        assert evaluation_count == 0
+        assert invoice_count == 0
+        assert invoice_line_count == 0
 
 
 def test_enrollment_detail_notes_filter_is_registered_and_escapes_html():

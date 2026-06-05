@@ -13,10 +13,21 @@ def test_tutor_summary_has_name_filter_and_selected_totals():
     assert "tutor-total-check" in template_text
     assert 'id="selectedBalanceTotal"' in template_text
     assert 'id="selectedPayableTotal"' in template_text
+    assert 'id="bulkMarkPaidForm"' in template_text
+    assert 'id="bulkMarkPaidButton"' in template_text
+    assert 'id="bulkMarkPaidCount"' in template_text
+    assert "Pending ke Lunas" in template_text
+    assert "payroll.tutor_summary_mark_paid_bulk" in template_text
     assert "applyTutorNameFilter" in template_text
     assert "updateSelectedTotals" in template_text
+    assert "selectedPendingPayoutChecks" in template_text
+    assert "prepareBulkMarkPaidForm" in template_text
     assert 'data-tutor-name="{{ tutor.name }}"' in template_text
     assert 'data-account-number="{{ tutor.bank_account_number or \'\' }}"' in template_text
+    assert (
+        'data-payout-status="{{ item.latest_payout.status if item.latest_payout else \'\' }}"'
+        in template_text
+    )
 
 
 def test_tutor_summary_keeps_plain_headers_and_sorts_by_account_number_control():

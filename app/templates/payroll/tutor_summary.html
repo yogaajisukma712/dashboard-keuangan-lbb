@@ -173,6 +173,27 @@ selectattr('balance','gt',0) | list | length %}
                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
                     Dipilih: <span id="selectedTutorCount">0</span>
                 </span>
+                <form
+                    method="POST"
+                    action="{{ url_for('payroll.tutor_summary_mark_paid_bulk') }}"
+                    id="bulkMarkPaidForm"
+                    class="d-inline"
+                >
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <input type="hidden" name="month" value="{{ month }}" />
+                    <input type="hidden" name="year" value="{{ year }}" />
+                    <input type="hidden" name="show_all" value="{{ 1 if show_all else 0 }}" />
+                    <div id="bulkMarkPaidRefs"></div>
+                    <button
+                        type="submit"
+                        class="btn btn-outline-success btn-sm"
+                        id="bulkMarkPaidButton"
+                        disabled
+                    >
+                        <i class="bi bi-check2-circle me-1"></i>
+                        Pending ke Lunas (<span id="bulkMarkPaidCount">0</span>)
+                    </button>
+                </form>
                 <button
                     type="button"
                     class="btn btn-success btn-sm"
@@ -244,6 +265,7 @@ selectattr('balance','gt',0) | list | length %}
                                 data-payable="{{ item.payable }}"
                                 data-balance="{{ item.balance }}"
                                 data-payout-ref="{{ item.latest_payout.public_id if item.latest_payout else '' }}"
+                                data-payout-status="{{ item.latest_payout.status if item.latest_payout else '' }}"
                                 data-tutor-name="{{ tutor.name }}"
                                 aria-label="Pilih {{ tutor.name }} untuk hitung total"
                             />
@@ -627,6 +649,8 @@ Mohon dicek kembali. Terima kasih.</textarea>
         const bulkModalCount = document.getElementById("bulkModalCount");
         const bulkWhatsAppWarning = document.getElementById("bulkWhatsAppWarning");
         const bulkWhatsAppForm = document.getElementById("bulkWhatsAppForm");
+        const bulkMarkPaidForm = document.getElementById("bulkMarkPaidForm");
+        const bulkMarkPaidRefs = document.getElementById("bulkMarkPaidRefs");
         const payrollRoot = () => document.getElementById("payrollTutorSummaryPage");
         const payrollEl = (id) => document.getElementById(id);
         const tableBody = () => document.querySelector("#tutorTable tbody");
@@ -685,6 +709,7 @@ Mohon dicek kembali. Terima kasih.</textarea>
             let balanceTotal = 0;
             let payableTotal = 0;
             let sendableCount = 0;
+            let pendingPayoutCount = 0;
 
             totalCheckboxes().forEach(function (checkbox) {
                 if (!checkbox.checked) return;
@@ -694,6 +719,9 @@ Mohon dicek kembali. Terima kasih.</textarea>
                 balanceTotal += Math.max(0, parseFloat(checkbox.dataset.balance) || 0);
                 payableTotal += parseFloat(checkbox.dataset.payable) || 0;
                 if (checkbox.dataset.payoutRef) sendableCount += 1;
+                if (checkbox.dataset.payoutRef && checkbox.dataset.payoutStatus === "pending") {
+                    pendingPayoutCount += 1;
+                }
             });
 
             const selectedTutorCount = payrollEl("selectedTutorCount");
@@ -701,9 +729,13 @@ Mohon dicek kembali. Terima kasih.</textarea>
             const selectedPayableTotal = payrollEl("selectedPayableTotal");
             const currentBulkWhatsAppButton = payrollEl("bulkWhatsAppButton");
             const bulkWhatsAppCount = payrollEl("bulkWhatsAppCount");
+            const currentBulkMarkPaidButton = payrollEl("bulkMarkPaidButton");
+            const bulkMarkPaidCount = payrollEl("bulkMarkPaidCount");
             if (selectedTutorCount) selectedTutorCount.textContent = count;
             if (bulkWhatsAppCount) bulkWhatsAppCount.textContent = sendableCount;
             if (currentBulkWhatsAppButton) currentBulkWhatsAppButton.disabled = sendableCount === 0;
+            if (bulkMarkPaidCount) bulkMarkPaidCount.textContent = pendingPayoutCount;
+            if (currentBulkMarkPaidButton) currentBulkMarkPaidButton.disabled = pendingPayoutCount === 0;
             if (selectedBalanceTotal) {
                 selectedBalanceTotal.textContent = formatRupiahNumber(balanceTotal);
             }
@@ -740,6 +772,34 @@ Mohon dicek kembali. Terima kasih.</textarea>
                     row.style.display !== "none"
                 );
             });
+        }
+
+        function selectedPendingPayoutChecks() {
+            return totalCheckboxes().filter(function (checkbox) {
+                const row = checkbox.closest("tr");
+                return (
+                    checkbox.checked &&
+                    checkbox.dataset.payoutRef &&
+                    checkbox.dataset.payoutStatus === "pending" &&
+                    row &&
+                    row.style.display !== "none"
+                );
+            });
+        }
+
+        function prepareBulkMarkPaidForm() {
+            const selected = selectedPendingPayoutChecks();
+            if (bulkMarkPaidRefs) {
+                bulkMarkPaidRefs.innerHTML = "";
+                selected.forEach(function (checkbox) {
+                    const input = document.createElement("input");
+                    input.type = "hidden";
+                    input.name = "payout_ref";
+                    input.value = checkbox.dataset.payoutRef;
+                    bulkMarkPaidRefs.appendChild(input);
+                });
+            }
+            return selected.length;
         }
 
         function prepareBulkWhatsAppForm() {
@@ -890,6 +950,20 @@ Mohon dicek kembali. Terima kasih.</textarea>
                     submit.disabled = true;
                     submit.innerHTML =
                         '<span class="spinner-border spinner-border-sm me-1"></span>Mengirim...';
+                }
+            });
+        }
+
+        if (bulkMarkPaidForm) {
+            bulkMarkPaidForm.addEventListener("submit", function (event) {
+                const selectedCount = prepareBulkMarkPaidForm();
+                if (!selectedCount) {
+                    event.preventDefault();
+                    showToast("Tidak ada payout pending yang dipilih.", "warning");
+                    return;
+                }
+                if (!confirm(`Tandai ${selectedCount} payout pending menjadi Lunas?`)) {
+                    event.preventDefault();
                 }
             });
         }

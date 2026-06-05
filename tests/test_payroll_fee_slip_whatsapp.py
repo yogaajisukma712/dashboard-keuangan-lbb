@@ -109,8 +109,37 @@ def test_tutor_summary_supports_bulk_whatsapp_fee_slip_send():
     assert "has_request_context" in route_text
     assert "_get_tutor_whatsapp_contact_options(payout.tutor)" in route_text
     assert "payout.whatsapp_last_message = message" in route_text
+    assert "def _record_fee_slip_whatsapp_failure" in route_text
+    assert 'payout.whatsapp_last_status = f"failed: {error}"[:50]' in route_text
+    assert 'error or "Bot timeout/error"' in route_text
+    assert "_record_fee_slip_whatsapp_failure(" in route_text
     assert "bulkWhatsAppModal" in template_text
     assert "bulkWhatsAppForm" in template_text
     assert "data-payout-ref" in template_text
     assert "selectedSendableChecks" in template_text
     assert "Pesan ini menjadi caption" in template_text
+
+
+def test_tutor_summary_supports_bulk_pending_to_paid_action():
+    project_root = Path(__file__).resolve().parents[1]
+    route_text = (project_root / "app" / "routes" / "payroll.py").read_text(
+        encoding="utf-8"
+    )
+    template_text = (
+        project_root / "app" / "templates" / "payroll" / "tutor_summary.html"
+    ).read_text(encoding="utf-8")
+
+    assert '"/tutor-summary/mark-paid-bulk"' in route_text
+    assert "def tutor_summary_mark_paid_bulk" in route_text
+    assert 'request.form.getlist("payout_ref")' in route_text
+    assert 'payout.status != "pending"' in route_text
+    assert 'payout.status = "completed"' in route_text
+    assert "Bulk lunas payout gagal" in route_text
+    assert "payout pending berhasil ditandai Lunas" in route_text
+    assert "bulkMarkPaidForm" in template_text
+    assert "bulkMarkPaidRefs" in template_text
+    assert "bulkMarkPaidButton" in template_text
+    assert "bulkMarkPaidCount" in template_text
+    assert "selectedPendingPayoutChecks" in template_text
+    assert "prepareBulkMarkPaidForm" in template_text
+    assert "data-payout-status" in template_text

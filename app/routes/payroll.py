@@ -228,6 +228,18 @@ def _send_fee_slip_whatsapp_attachment(
     return False, payload.get("error") or "Bot error"
 
 
+def _record_fee_slip_whatsapp_failure(
+    payout: TutorPayout,
+    contact_id: str,
+    message: str,
+    error: str,
+) -> None:
+    payout.whatsapp_last_contact_id = contact_id
+    payout.whatsapp_last_message = message
+    payout.whatsapp_last_sent_at = datetime.utcnow()
+    payout.whatsapp_last_status = f"failed: {error}"[:50]
+
+
 def _send_fee_slips_whatsapp_bulk_background(
     app,
     payout_refs: list[str],
@@ -270,7 +282,13 @@ def _send_fee_slips_whatsapp_bulk_background(
                         sent_count += 1
                         db.session.commit()
                     else:
-                        db.session.rollback()
+                        _record_fee_slip_whatsapp_failure(
+                            payout,
+                            contact_id,
+                            message,
+                            error or "Bot timeout/error",
+                        )
+                        db.session.commit()
                         failed.append(f"{payout.tutor.name}: {error}")
         except Exception:
             db.session.rollback()
@@ -561,6 +579,59 @@ def tutor_summary():
         year=year,
         show_all=show_all,
     )
+
+
+@payroll_bp.route("/tutor-summary/mark-paid-bulk", methods=["POST"])
+@login_required
+@admin_required
+def tutor_summary_mark_paid_bulk():
+    """Mark selected pending tutor payouts as completed from the summary page."""
+    month = request.form.get("month", default=datetime.now().month, type=int)
+    year = request.form.get("year", default=datetime.now().year, type=int)
+    show_all = request.form.get("show_all", "0") == "1"
+    payout_refs = request.form.getlist("payout_ref")
+    redirect_url = url_for(
+        "payroll.tutor_summary",
+        month=month,
+        year=year,
+        show_all=1 if show_all else 0,
+    )
+    unique_refs = list(dict.fromkeys(ref for ref in payout_refs if ref))
+    if not unique_refs:
+        flash("Pilih minimal satu payout pending untuk ditandai lunas.", "warning")
+        return redirect(redirect_url)
+
+    updated_count = 0
+    skipped_count = 0
+    try:
+        for payout_ref in unique_refs:
+            try:
+                payout_id = decode_public_id(payout_ref, "tutor_payout")
+            except ValueError:
+                skipped_count += 1
+                continue
+            payout = TutorPayout.query.get(payout_id)
+            if not payout or payout.status != "pending":
+                skipped_count += 1
+                continue
+            payout.status = "completed"
+            if not payout.payout_date:
+                payout.payout_date = datetime.now()
+            updated_count += 1
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Bulk lunas payout gagal: {exc}", "danger")
+        return redirect(redirect_url)
+
+    if updated_count:
+        message = f"{updated_count} payout pending berhasil ditandai Lunas."
+        if skipped_count:
+            message += f" {skipped_count} pilihan dilewati karena bukan pending."
+        flash(message, "success")
+    else:
+        flash("Tidak ada payout pending yang bisa ditandai lunas.", "warning")
+    return redirect(redirect_url)
 
 
 @payroll_bp.route("/payout/add", methods=["GET", "POST"])

@@ -197,12 +197,13 @@ def _send_fee_slip_whatsapp_attachment(
 ) -> tuple[bool, str]:
     """Send fee slip PDF to one WhatsApp contact and update payout audit fields."""
     tutor = payout.tutor
-    if has_request_context():
-        pdf_response = fee_slip_pdf(payout.public_id)
-        pdf_response.direct_passthrough = False
-        pdf_bytes = pdf_response.get_data()
-    else:
-        pdf_bytes = _render_fee_slip_pdf_via_bot(payout, base_url=base_url)
+    if not base_url and has_request_context():
+        base_url = request.host_url
+    pdf_bytes = _render_fee_slip_pdf_via_bot(
+        payout,
+        base_url=base_url,
+        page_mode="standard-a4",
+    )
     pdf_filename = secure_filename(f"fee_slip_{payout.id}_{tutor.tutor_code}.pdf")
 
     payload, status_code = _bot_request(
@@ -1349,7 +1350,11 @@ def _build_fee_slip_template_context(
     }
 
 
-def _render_fee_slip_pdf_via_bot(payout, base_url: str | None = None):
+def _render_fee_slip_pdf_via_bot(
+    payout,
+    base_url: str | None = None,
+    page_mode: str = "single-page-element-screenshot",
+):
     """Render the same HTML slip with Chromium so PDF matches the web view."""
     resolved_base_url = base_url
     if not resolved_base_url and has_request_context():
@@ -1378,6 +1383,7 @@ def _render_fee_slip_pdf_via_bot(payout, base_url: str | None = None):
             "html": html,
             "baseUrl": resolved_base_url,
             "selector": ".fee-slip-document",
+            "pageMode": page_mode,
         },
         timeout=90,
     )

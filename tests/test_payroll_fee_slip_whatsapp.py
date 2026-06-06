@@ -43,7 +43,7 @@ def test_fee_slip_has_whatsapp_delivery_form_and_bot_guard():
     assert "app.post('/messages/send'" in bot_server
     assert "req.body?.attachment" in bot_server
     assert "MessageMedia" in bot_client
-    assert "{ caption: body }" in bot_client
+    assert "{ caption: body, sendMediaAsDocument: true }" in bot_client
     assert "sendDirectMessage" in bot_client
 
 
@@ -79,11 +79,15 @@ def test_fee_slip_pdf_prefers_browser_rendered_single_page_pdf():
     assert "embed_proof=True" in route_text
     assert "current_app.test_request_context" in route_text
     assert "context_base_url" in route_text
+    assert 'page_mode="standard-a4"' in route_text
+    assert '"pageMode": page_mode' in route_text
     assert "pdf_base64" in route_text
     assert "Chromium fee slip PDF renderer failed" in route_text
     assert "app.post('/render/pdf'" in bot_server
     assert "renderHtmlToSinglePagePdf" in bot_server
-    assert "page_mode: 'single-page-element-screenshot'" in bot_server
+    assert "pageMode === 'standard-a4'" in bot_server
+    assert "format: 'A4'" in bot_server
+    assert "page_mode: req.body?.pageMode || 'single-page-element-screenshot'" in bot_server
     assert "target.screenshot" in bot_server
     assert "pngDimensions" in bot_server
     assert "data:image/png;base64" in bot_server

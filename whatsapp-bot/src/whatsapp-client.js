@@ -591,7 +591,7 @@ async function sendDirectMessage(to, message, attachment = null) {
   const bot = await ensureReady();
   const media = buildMessageMedia(attachment);
   const sent = media
-    ? await bot.sendMessage(contactId, media, { caption: body })
+    ? await bot.sendMessage(contactId, media, { caption: body, sendMediaAsDocument: true })
     : await bot.sendMessage(contactId, body);
   return {
     to: contactId,

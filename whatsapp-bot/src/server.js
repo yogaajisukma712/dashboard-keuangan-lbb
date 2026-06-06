@@ -75,6 +75,14 @@ async function renderHtmlToSinglePagePdf(html, options = {}) {
     if (!target) {
       throw new Error(`PDF target element not found: ${selector}`);
     }
+    if (options.pageMode === 'standard-a4') {
+      return await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        preferCSSPageSize: true,
+        margin: { top: '0', right: '0', bottom: '0', left: '0' },
+      });
+    }
     const screenshot = await target.screenshot({
       type: 'png',
       omitBackground: false,
@@ -247,11 +255,12 @@ app.post('/render/pdf', async (req, res) => {
     const pdf = await renderHtmlToSinglePagePdf(html, {
       baseUrl: req.body?.baseUrl,
       selector: req.body?.selector,
+      pageMode: req.body?.pageMode,
     });
     res.json({
       ok: true,
       pdf_base64: Buffer.from(pdf).toString('base64'),
-      page_mode: 'single-page-element-screenshot',
+      page_mode: req.body?.pageMode || 'single-page-element-screenshot',
     });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });

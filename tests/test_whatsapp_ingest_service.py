@@ -1673,11 +1673,11 @@ def test_scan_attendance_for_month_uses_sender_tutor_and_group_identity():
         summary = WhatsAppIngestService.scan_attendance_for_month(5, 2026)
 
         assert summary["linked_attendance"] == 2
-        assert first_evaluation.attendance_session_id == second_evaluation.attendance_session_id
-        assert AttendanceSession.query.count() == 1
-        stored_session = AttendanceSession.query.first()
-        assert stored_session.enrollment_id == enrollment.id
-        assert stored_session.tutor_id == substitute_tutor.id
+        assert first_evaluation.attendance_session_id != second_evaluation.attendance_session_id
+        assert AttendanceSession.query.count() == 2
+        stored_sessions = AttendanceSession.query.order_by(AttendanceSession.id.asc()).all()
+        assert {item.enrollment_id for item in stored_sessions} == {enrollment.id}
+        assert {item.tutor_id for item in stored_sessions} == {substitute_tutor.id}
         assert first_evaluation.matched_tutor_id == substitute_tutor.id
         assert first_evaluation.matched_enrollment_id == enrollment.id
 

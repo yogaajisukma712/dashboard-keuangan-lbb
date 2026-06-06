@@ -1771,41 +1771,22 @@ class WhatsAppIngestService:
                 return existing_link
             evaluation.attendance_session = None
 
-        author_phone_number = normalize_phone_number(
-            evaluation.message.author_phone_number if evaluation.message else None
+        message_id = (
+            evaluation.message.whatsapp_message_id if evaluation.message else None
         )
-        related_evaluations = (
-            WhatsAppEvaluation.query.join(WhatsAppMessage, WhatsAppEvaluation.message_id == WhatsAppMessage.id)
-            .filter(
-                WhatsAppEvaluation.id != evaluation.id,
-                WhatsAppEvaluation.group_id == evaluation.group_id,
-                WhatsAppEvaluation.attendance_date == evaluation.attendance_date,
-                WhatsAppEvaluation.matched_enrollment_id == enrollment.id,
-                WhatsAppEvaluation.matched_tutor_id == tutor_id,
-                WhatsAppEvaluation.attendance_session_id.isnot(None),
+        if message_id:
+            return (
+                AttendanceSession.query.filter(
+                    AttendanceSession.enrollment_id == enrollment.id,
+                    AttendanceSession.tutor_id == tutor_id,
+                    AttendanceSession.status == "attended",
+                    AttendanceSession.notes.ilike(f"%{message_id}%"),
+                )
+                .order_by(AttendanceSession.id.asc())
+                .first()
             )
-            .order_by(WhatsAppEvaluation.id.asc())
-            .all()
-        )
-        for candidate in related_evaluations:
-            candidate_phone_number = normalize_phone_number(
-                candidate.message.author_phone_number if candidate.message else None
-            )
-            if not phone_numbers_match(author_phone_number, candidate_phone_number):
-                continue
-            if candidate.attendance_session is not None:
-                return candidate.attendance_session
 
-        return (
-            AttendanceSession.query.filter(
-                AttendanceSession.enrollment_id == enrollment.id,
-                AttendanceSession.tutor_id == tutor_id,
-                db.func.date(AttendanceSession.session_date) == evaluation.attendance_date,
-                AttendanceSession.status == "attended",
-            )
-            .order_by(AttendanceSession.id.asc())
-            .first()
-        )
+        return None
 
     @staticmethod
     def refresh_evaluation_attendance_link(

@@ -1044,6 +1044,139 @@ def test_scan_attendance_for_month_skips_locked_period():
         assert AttendanceSession.query.count() == 0
 
 
+def test_validated_tutor_sender_prevents_group_shared_enrollment_mismatch():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="Merdeka")
+        level = Level(name="SMP")
+        math = Subject(name="Matematika")
+        science = Subject(name="IPA")
+        student = Student(student_code="STD-PAYOGA", name="payoga", is_active=True)
+        math_tutor = Tutor(
+            tutor_code="TTR-MATH",
+            name="Hanifah",
+            phone="6282284934032",
+            is_active=True,
+        )
+        science_tutor = Tutor(
+            tutor_code="TTR-IPA",
+            name="Stephanie",
+            phone="6285260716974",
+            is_active=True,
+        )
+        contact = WhatsAppContact(
+            whatsapp_contact_id="6282284934032@c.us",
+            phone_number="6282284934032",
+            display_name="Hanifah",
+            is_group=False,
+        )
+        mixed_group = WhatsAppGroup(
+            whatsapp_group_id="120363418707170023@g.us",
+            name="Payoga_IPA_Math",
+        )
+        math_enrollment = Enrollment(
+            student=student,
+            tutor=math_tutor,
+            subject=math,
+            curriculum=curriculum,
+            level=level,
+            grade="8",
+            student_rate_per_meeting=80000,
+            tutor_rate_per_meeting=45000,
+            status="active",
+            is_active=True,
+            whatsapp_group_id="math-only@g.us",
+            whatsapp_group_memberships_json=[
+                {"whatsapp_group_id": "math-only@g.us", "group_name": "Math"}
+            ],
+        )
+        science_enrollment = Enrollment(
+            student=student,
+            tutor=science_tutor,
+            subject=science,
+            curriculum=curriculum,
+            level=level,
+            grade="8",
+            student_rate_per_meeting=80000,
+            tutor_rate_per_meeting=45000,
+            status="active",
+            is_active=True,
+            whatsapp_group_id="science-only@g.us",
+            whatsapp_group_memberships_json=[
+                {
+                    "group_id": 1,
+                    "whatsapp_group_id": "120363418707170023@g.us",
+                    "group_name": "Payoga_IPA_Math",
+                }
+            ],
+        )
+        db.session.add_all(
+            [
+                curriculum,
+                level,
+                math,
+                science,
+                student,
+                math_tutor,
+                science_tutor,
+                contact,
+                mixed_group,
+                math_enrollment,
+                science_enrollment,
+            ]
+        )
+        db.session.flush()
+        db.session.add_all(
+            [
+                WhatsAppTutorValidation(
+                    contact_id=contact.id,
+                    tutor_id=math_tutor.id,
+                    validated_phone_number="6282284934032",
+                    group_memberships_json=[
+                        {
+                            "group_id": mixed_group.id,
+                            "whatsapp_group_id": mixed_group.whatsapp_group_id,
+                            "group_name": mixed_group.name,
+                        }
+                    ],
+                ),
+                WhatsAppStudentGroupValidation(
+                    group_id=mixed_group.id,
+                    student_id=student.id,
+                ),
+            ]
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-payoga-math",
+            group=mixed_group,
+            author_phone_number="6282284934032",
+            author_name="Hanifah",
+            sent_at=datetime(2026, 5, 30, 17, 0, 0),
+            body="Berikut laporan evaluasi untuk pelajaran MTK Yoga hari ini.",
+        )
+        evaluation = WhatsAppEvaluation(
+            message=message,
+            group=mixed_group,
+            attendance_date=date(2026, 5, 30),
+        )
+        db.session.add_all([message, evaluation])
+        db.session.commit()
+
+        result = WhatsAppIngestService.refresh_evaluation_attendance_link(evaluation)
+
+        assert result["attendance_linked"] is True
+        assert evaluation.matched_tutor_id == math_tutor.id
+        assert evaluation.matched_student_id == student.id
+        assert evaluation.matched_enrollment_id == math_enrollment.id
+        assert evaluation.matched_subject_id == math.id
+        assert evaluation.attendance_session.enrollment_id == math_enrollment.id
+        assert evaluation.attendance_session.subject_id == math.id
+        assert evaluation.attendance_session.tutor_id == math_tutor.id
+        assert AttendanceSession.query.count() == 1
+
+
 def test_lid_author_matches_validated_tutor_phone_alias_by_group_and_name():
     app = _make_test_app()
 

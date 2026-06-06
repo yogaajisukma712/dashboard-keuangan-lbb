@@ -1619,15 +1619,71 @@ class WhatsAppIngestService:
                 "note": "WhatsApp group has not been validated as a student group.",
             }
 
+        active_student_enrollments = Enrollment.query.filter_by(
+            student_id=student.id,
+            status="active",
+        ).all()
         candidates = [
             enrollment
-            for enrollment in Enrollment.query.filter_by(
-                student_id=student.id,
-                status="active",
-            ).all()
+            for enrollment in active_student_enrollments
             if find_matching_enrollment_group(enrollment, group) is not None
         ]
-        if not candidates:
+
+        filtered_candidates = list(candidates)
+
+        if tutor is not None:
+            tutor_owned_candidates = [
+                enrollment
+                for enrollment in candidates
+                if enrollment.tutor_id == tutor.id
+            ]
+            if tutor_owned_candidates:
+                filtered_candidates = tutor_owned_candidates
+            else:
+                tutor_student_candidates = [
+                    enrollment
+                    for enrollment in active_student_enrollments
+                    if enrollment.tutor_id == tutor.id
+                ]
+                if tutor_student_candidates:
+                    if subject is not None:
+                        subject_tutor_candidates = [
+                            enrollment
+                            for enrollment in tutor_student_candidates
+                            if enrollment.subject_id == subject.id
+                        ]
+                        if subject_tutor_candidates:
+                            tutor_student_candidates = subject_tutor_candidates
+                    if len(tutor_student_candidates) == 1:
+                        selected = tutor_student_candidates[0]
+                        return {
+                            "student": student,
+                            "tutor": tutor,
+                            "subject": selected.subject,
+                            "enrollment": selected,
+                            "confidence": 90,
+                            "status": "matched",
+                            "note": (
+                                "Enrollment matched from validated WhatsApp sender tutor "
+                                "and student; the current WhatsApp group is not mapped to "
+                                "that enrollment."
+                            ),
+                        }
+                    return {
+                        "student": student,
+                        "tutor": tutor,
+                        "subject": subject,
+                        "enrollment": None,
+                        "confidence": 70,
+                        "status": "unmatched",
+                        "note": (
+                            "Validated sender tutor owns multiple active enrollments "
+                            "for this student, but none are mapped to the current "
+                            "WhatsApp group."
+                        ),
+                    }
+
+        if not filtered_candidates:
             return {
                 "student": student,
                 "tutor": tutor,
@@ -1640,17 +1696,6 @@ class WhatsAppIngestService:
                     "but no active enrollment shares this WhatsApp group."
                 ),
             }
-
-        filtered_candidates = list(candidates)
-
-        if tutor is not None:
-            tutor_owned_candidates = [
-                enrollment
-                for enrollment in filtered_candidates
-                if enrollment.tutor_id == tutor.id
-            ]
-            if tutor_owned_candidates:
-                filtered_candidates = tutor_owned_candidates
 
         if subject is not None:
             subject_owned_candidates = [

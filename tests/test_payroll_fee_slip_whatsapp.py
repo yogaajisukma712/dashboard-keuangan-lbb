@@ -77,6 +77,8 @@ def test_fee_slip_pdf_prefers_browser_rendered_single_page_pdf():
     assert "def _render_fee_slip_pdf_via_bot" in route_text
     assert '\"/render/pdf\"' in route_text
     assert "embed_proof=True" in route_text
+    assert "current_app.test_request_context" in route_text
+    assert "context_base_url" in route_text
     assert "pdf_base64" in route_text
     assert "Chromium fee slip PDF renderer failed" in route_text
     assert "app.post('/render/pdf'" in bot_server

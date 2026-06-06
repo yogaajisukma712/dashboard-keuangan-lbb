@@ -1357,11 +1357,20 @@ def _render_fee_slip_pdf_via_bot(payout, base_url: str | None = None):
     if not resolved_base_url:
         resolved_base_url = current_app.config.get("APP_BASE_URL", "")
 
-    html = render_template(
-        "payroll/fee_slip.html",
-        **_build_fee_slip_template_context(payout, embed_proof=True),
-        pdf_mode=True,
-    )
+    def render_pdf_html():
+        return render_template(
+            "payroll/fee_slip.html",
+            **_build_fee_slip_template_context(payout, embed_proof=True),
+            pdf_mode=True,
+        )
+
+    if has_request_context():
+        html = render_pdf_html()
+    else:
+        context_base_url = (resolved_base_url or "http://localhost").rstrip("/") + "/"
+        with current_app.test_request_context(base_url=context_base_url):
+            html = render_pdf_html()
+
     payload, status_code = _bot_request(
         "POST",
         "/render/pdf",

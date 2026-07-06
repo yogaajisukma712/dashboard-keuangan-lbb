@@ -515,6 +515,54 @@ def _get_tutor_balance_for_period(tutor_id, month, year):
     return payable - paid
 
 
+def _get_display_payout_lines(payout):
+    """Return payout lines shown in detail pages.
+
+    Completed shortfall payouts are separate accounting records, but the detail page
+    should show the whole paid history for the same tutor/service period.
+    """
+    own_lines = list(payout.payout_lines)
+    if payout.status != "completed" or not own_lines:
+        return own_lines
+
+    periods = {
+        (line.service_month.month, line.service_month.year)
+        for line in own_lines
+        if line.service_month
+    }
+    if not periods:
+        return own_lines
+
+    period_filters = [
+        db.and_(
+            db.extract("month", TutorPayoutLine.service_month) == month,
+            db.extract("year", TutorPayoutLine.service_month) == year,
+        )
+        for month, year in periods
+    ]
+
+    return (
+        TutorPayoutLine.query.join(
+            TutorPayout, TutorPayoutLine.tutor_payout_id == TutorPayout.id
+        )
+        .filter(
+            TutorPayout.tutor_id == payout.tutor_id,
+            TutorPayout.status == "completed",
+            db.or_(*period_filters),
+        )
+        .order_by(
+            TutorPayout.payout_date.asc(),
+            TutorPayout.created_at.asc(),
+            TutorPayoutLine.id.asc(),
+        )
+        .all()
+    )
+
+
+def _sum_payout_lines(lines):
+    return sum((Decimal(str(line.amount or 0)) for line in lines), Decimal("0"))
+
+
 @payroll_bp.route("/tutor-summary", methods=["GET"])
 @login_required
 def tutor_summary():
@@ -804,6 +852,8 @@ def payout_detail(payout_ref):
     """Display payout detail with session list for review."""
     payout = _get_payout_by_ref_or_404(payout_ref)
     payout_sessions = _get_sessions_for_payout(payout)
+    display_payout_lines = _get_display_payout_lines(payout)
+    display_payout_total = _sum_payout_lines(display_payout_lines)
 
     excluded_ids = list(payout.excluded_session_ids or [])
     included_sessions = [s for s in payout_sessions if s.id not in excluded_ids]
@@ -833,6 +883,8 @@ def payout_detail(payout_ref):
         payout=payout,
         payout_sessions=payout_sessions,
         sessions_total=sessions_total,
+        display_payout_lines=display_payout_lines,
+        display_payout_total=display_payout_total,
         excluded_ids=excluded_ids,
         proof_items=_get_payout_proof_contexts(payout),
     )

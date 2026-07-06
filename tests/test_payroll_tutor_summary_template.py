@@ -66,3 +66,23 @@ def test_tutor_summary_has_shortfall_settlement_action():
     assert "payroll.tutor_summary_settle_shortfall" in template_text
     assert "p_done and has_balance" in template_text
     assert "Kekurangan Lunas" in template_text
+
+
+def test_payout_detail_keeps_previous_payment_lines_for_shortfall_payouts():
+    project_root = Path(__file__).resolve().parents[1]
+    route_text = (project_root / "app" / "routes" / "payroll.py").read_text(
+        encoding="utf-8"
+    )
+    template_text = (
+        project_root / "app" / "templates" / "payroll" / "payout_detail.html"
+    ).read_text(encoding="utf-8")
+
+    assert "def _get_display_payout_lines" in route_text
+    assert "TutorPayout.status == \"completed\"" in route_text
+    assert "display_payout_lines = _get_display_payout_lines(payout)" in route_text
+    assert "display_payout_total = _sum_payout_lines(display_payout_lines)" in route_text
+    assert "display_payout_lines=display_payout_lines" in route_text
+    assert "display_payout_total=display_payout_total" in route_text
+    assert "display_payout_lines %}" in template_text
+    assert "format(display_payout_total)" in template_text
+    assert "sessions_total != display_payout_total | float" in template_text

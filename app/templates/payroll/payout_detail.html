@@ -232,7 +232,7 @@ Breadcrumb ───────────────────────
                             Nominal
                         </div>
                         <div class="fw-bold fs-5 text-success">
-                            Rp {{ "{:,.0f}".format(payout.amount) }}
+                            Rp {{ "{:,.0f}".format(display_payout_total) }}
                         </div>
                     </div>
 
@@ -299,7 +299,7 @@ Breadcrumb ───────────────────────
 
         {# ── Payout Lines (Bulan Layanan)
         ─────────────────────────────────────── #} {% set lines =
-        payout.payout_lines.all() %} {% if lines %}
+        display_payout_lines %} {% if lines %}
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white fw-semibold border-bottom">
                 <i class="bi bi-calendar3 me-2 text-primary"></i>Rincian Bulan
@@ -336,8 +336,7 @@ Breadcrumb ───────────────────────
                         <tr>
                             <th class="ps-3">Total</th>
                             <th class="text-end">
-                                Rp {{ "{:,.0f}".format(lines |
-                                sum(attribute='amount')) }}
+                                Rp {{ "{:,.0f}".format(display_payout_total) }}
                             </th>
                             <th></th>
                         </tr>
@@ -359,7 +358,7 @@ Breadcrumb ───────────────────────
                     </span>
                 </span>
                 <span id="sessionTotalBadge"
-                      class="badge {% if sessions_total != payout.amount | float %}bg-warning text-dark{% else %}bg-primary{% endif %} rounded-pill"
+                      class="badge {% if sessions_total != display_payout_total | float %}bg-warning text-dark{% else %}bg-primary{% endif %} rounded-pill"
                       style="font-size:0.8rem"
                       title="Total fee dari sesi yang ditampilkan">
                     Rp {{ "{:,.0f}".format(sessions_total) }}

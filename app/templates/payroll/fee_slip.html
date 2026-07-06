@@ -207,6 +207,9 @@
     <div class="slip-summary-bar">
       <div class="slip-summary-sessions">
         <span class="slip-count">{{ sessions | length }}</span> sesi
+        {% if additional_lines %}
+          <span class="slip-summary-extra">+ {{ additional_lines | length }} tambahan</span>
+        {% endif %}
       </div>
       <div class="slip-summary-total">
         Total: <span class="slip-total-amount">Rp {{ "{:,.0f}".format(total) }}</span>
@@ -214,7 +217,7 @@
     </div>
 
     {# ── TABEL SESI ──────────────────────────────────────────────────────── #}
-    {% if sessions %}
+    {% if sessions or additional_lines %}
     <table class="slip-table">
       <thead>
         <tr>
@@ -264,6 +267,24 @@
           </td>
           <td class="col-fee right">
             Rp {{ "{:,.0f}".format(sess.tutor_fee_amount or 0) }}
+          </td>
+        </tr>
+        {% endfor %}
+        {% for line in additional_lines %}
+        <tr class="{{ 'row-alt' if (sessions | length + loop.index) is even }}">
+          <td class="col-no center">{{ sessions | length + loop.index }}</td>
+          <td class="col-date center">
+            {% if line.service_month %}
+              {{ MONTHS_ID[line.service_month.month] }} {{ line.service_month.year }}
+            {% else %}-{% endif %}
+          </td>
+          <td class="col-day center">-</td>
+          <td class="col-student">Kekurangan bulan sebelumnya</td>
+          <td class="col-curriculum center">-</td>
+          <td class="col-level center">-</td>
+          <td class="col-subject">{{ line.notes or 'Kekurangan bulan sebelumnya' }}</td>
+          <td class="col-fee right">
+            Rp {{ "{:,.0f}".format(line.amount or 0) }}
           </td>
         </tr>
         {% endfor %}
@@ -591,6 +612,13 @@
     font-size: 18px;
     font-weight: 800;
     color: #1a1a1a;
+  }
+
+  .slip-summary-extra {
+    color: var(--slip-muted);
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 4px;
   }
 
   .slip-total-amount {

@@ -63,6 +63,7 @@ MONTH_NAMES_ID = [
     "November",
     "Desember",
 ]
+PREVIOUS_SHORTFALL_NOTE_PREFIX = "Kekurangan bulan sebelumnya"
 
 
 def _format_rupiah(value) -> str:
@@ -82,6 +83,20 @@ def _format_period_label(payout: TutorPayout) -> str:
     if payout.payout_date:
         return f"{MONTH_NAMES_ID[payout.payout_date.month]} {payout.payout_date.year}"
     return "-"
+
+
+def _period_label(month: int, year: int) -> str:
+    return f"{MONTH_NAMES_ID[month]} {year}"
+
+
+def _next_period(month: int, year: int) -> tuple[int, int]:
+    if month == 12:
+        return 1, year + 1
+    return month + 1, year
+
+
+def _is_previous_shortfall_line(line: TutorPayoutLine) -> bool:
+    return (line.notes or "").startswith(PREVIOUS_SHORTFALL_NOTE_PREFIX)
 
 
 def _bot_request(method: str, path: str, payload: dict | None = None, timeout: int = 10):
@@ -524,6 +539,8 @@ def _get_display_payout_lines(payout):
     own_lines = list(payout.payout_lines)
     if payout.status != "completed" or not own_lines:
         return own_lines
+    if any(_is_previous_shortfall_line(line) for line in own_lines):
+        return own_lines
 
     periods = {
         (line.service_month.month, line.service_month.year)
@@ -771,6 +788,146 @@ def tutor_summary_settle_shortfall():
     return redirect(redirect_url)
 
 
+@payroll_bp.route("/tutor-summary/carry-shortfall-next", methods=["POST"])
+@login_required
+@admin_required
+def tutor_summary_carry_shortfall_next():
+    """Add a previous-period shortfall line into the next month's pending payout."""
+    tutor_id = request.form.get("tutor_id", type=int)
+    month = request.form.get("month", default=datetime.now().month, type=int)
+    year = request.form.get("year", default=datetime.now().year, type=int)
+    show_all = request.form.get("show_all", "0") == "1"
+    redirect_url = url_for(
+        "payroll.tutor_summary",
+        month=month,
+        year=year,
+        show_all=1 if show_all else 0,
+    )
+
+    if not tutor_id or not month or not year or not 1 <= month <= 12:
+        flash("Data kekurangan bulan sebelumnya tidak lengkap.", "danger")
+        return redirect(redirect_url)
+
+    tutor = Tutor.query.get_or_404(tutor_id)
+    source_balance = _get_tutor_balance_for_period(tutor.id, month, year).quantize(
+        Decimal("0.01")
+    )
+    if source_balance <= 0:
+        flash(f"{tutor.name} tidak memiliki kekurangan bayar periode ini.", "warning")
+        return redirect(redirect_url)
+
+    next_month, next_year = _next_period(month, year)
+    source_period = _period_label(month, year)
+    next_period = _period_label(next_month, next_year)
+    note = (
+        f"{PREVIOUS_SHORTFALL_NOTE_PREFIX} {source_period} "
+        f"dibayarkan bersama payout {next_period}"
+    )
+
+    pending_target = (
+        TutorPayout.query.join(
+            TutorPayoutLine, TutorPayout.id == TutorPayoutLine.tutor_payout_id
+        )
+        .filter(
+            TutorPayout.tutor_id == tutor.id,
+            TutorPayout.status == "pending",
+            db.extract("month", TutorPayoutLine.service_month) == next_month,
+            db.extract("year", TutorPayoutLine.service_month) == next_year,
+        )
+        .order_by(TutorPayout.created_at.desc())
+        .first()
+    )
+    completed_target = (
+        TutorPayout.query.join(
+            TutorPayoutLine, TutorPayout.id == TutorPayoutLine.tutor_payout_id
+        )
+        .filter(
+            TutorPayout.tutor_id == tutor.id,
+            TutorPayout.status == "completed",
+            db.extract("month", TutorPayoutLine.service_month) == next_month,
+            db.extract("year", TutorPayoutLine.service_month) == next_year,
+        )
+        .first()
+    )
+
+    if completed_target and not pending_target:
+        flash(
+            f"Payout {next_period} untuk {tutor.name} sudah lunas. "
+            "Gunakan tombol Kekurangan Lunas atau buat payout tambahan.",
+            "warning",
+        )
+        return redirect(redirect_url)
+
+    try:
+        payout = pending_target
+        if payout is None:
+            target_balance = _get_tutor_balance_for_period(
+                tutor.id, next_month, next_year
+            ).quantize(Decimal("0.01"))
+            normal_amount = target_balance if target_balance > 0 else Decimal("0")
+            payout = TutorPayout(
+                tutor_id=tutor.id,
+                payout_date=datetime.now(),
+                amount=normal_amount + source_balance,
+                bank_name=tutor.bank_name,
+                account_number=tutor.bank_account_number,
+                payment_method="transfer",
+                status="pending",
+                notes=f"Payout {next_period} termasuk kekurangan {source_period}",
+            )
+            db.session.add(payout)
+            db.session.flush()
+            db.session.add(
+                TutorPayoutLine(
+                    tutor_payout_id=payout.id,
+                    service_month=date(next_year, next_month, 1),
+                    amount=normal_amount,
+                )
+            )
+
+        duplicate_line = (
+            TutorPayoutLine.query.filter(
+                TutorPayoutLine.tutor_payout_id == payout.id,
+                db.extract("month", TutorPayoutLine.service_month) == month,
+                db.extract("year", TutorPayoutLine.service_month) == year,
+                TutorPayoutLine.notes.like(f"{PREVIOUS_SHORTFALL_NOTE_PREFIX}%"),
+            )
+            .first()
+        )
+        if duplicate_line:
+            flash(
+                f"Kekurangan {source_period} sudah masuk ke payout {next_period}.",
+                "info",
+            )
+            return redirect(url_for("payroll.payout_detail", payout_ref=payout.public_id))
+
+        db.session.add(
+            TutorPayoutLine(
+                tutor_payout_id=payout.id,
+                service_month=date(year, month, 1),
+                amount=source_balance,
+                notes=note,
+            )
+        )
+        payout.amount = Decimal(str(payout.amount or 0)) + source_balance
+        if payout.notes:
+            if PREVIOUS_SHORTFALL_NOTE_PREFIX not in payout.notes:
+                payout.notes = f"{payout.notes}\n{note}"
+        else:
+            payout.notes = note
+        db.session.commit()
+        flash(
+            f"Kekurangan {source_period} sebesar {_format_rupiah(source_balance)} "
+            f"ditambahkan ke payout {next_period}.",
+            "success",
+        )
+        return redirect(url_for("payroll.payout_detail", payout_ref=payout.public_id))
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Gagal membawa kekurangan ke bulan berikutnya: {exc}", "danger")
+        return redirect(redirect_url)
+
+
 @payroll_bp.route("/payout/add", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -852,18 +1009,25 @@ def payout_detail(payout_ref):
     """Display payout detail with session list for review."""
     payout = _get_payout_by_ref_or_404(payout_ref)
     payout_sessions = _get_sessions_for_payout(payout)
-    display_payout_lines = _get_display_payout_lines(payout)
-    display_payout_total = _sum_payout_lines(display_payout_lines)
 
     excluded_ids = list(payout.excluded_session_ids or [])
     included_sessions = [s for s in payout_sessions if s.id not in excluded_ids]
     sessions_total = sum(float(s.tutor_fee_amount or 0) for s in included_sessions)
 
+    previous_shortfall_total = sum(
+        float(line.amount or 0)
+        for line in payout.payout_lines
+        if _is_previous_shortfall_line(line)
+    )
+    expected_total = sessions_total + previous_shortfall_total
+
     # Jika payout masih PENDING dan amount tidak sesuai total sesi saat ini,
     # sync otomatis supaya badge dan tabel presensi selalu konsisten.
-    if payout.status == "pending" and abs(sessions_total - float(payout.amount)) > 0.01:
-        payout.amount = Decimal(str(sessions_total))
+    if payout.status == "pending" and abs(expected_total - float(payout.amount)) > 0.01:
+        payout.amount = Decimal(str(expected_total))
         for line in payout.payout_lines:
+            if _is_previous_shortfall_line(line):
+                continue
             sm = line.service_month
             line_sessions = [
                 s
@@ -877,6 +1041,9 @@ def payout_detail(payout_ref):
             db.session.commit()
         except Exception:
             db.session.rollback()
+
+    display_payout_lines = _get_display_payout_lines(payout)
+    display_payout_total = _sum_payout_lines(display_payout_lines)
 
     return render_template(
         "payroll/payout_detail.html",
@@ -1374,6 +1541,8 @@ def _get_sessions_for_payout(payout):
     """Return list of AttendanceSession records covered by this payout."""
     sessions = []
     for line in payout.payout_lines:
+        if _is_previous_shortfall_line(line):
+            continue
         sm = line.service_month  # date object
         month_sessions = (
             AttendanceSession.query.filter(
@@ -1428,7 +1597,12 @@ def _build_fee_slip_template_context(
     """Build one shared context for web, print, PDF, and WhatsApp slip output."""
     tutor = payout.tutor
     sessions = _get_sessions_for_payout(payout)
-    total = sum(float(s.tutor_fee_amount or 0) for s in sessions)
+    additional_lines = [
+        line for line in payout.payout_lines if _is_previous_shortfall_line(line)
+    ]
+    sessions_total = sum(float(s.tutor_fee_amount or 0) for s in sessions)
+    additional_total = sum(float(line.amount or 0) for line in additional_lines)
+    total = sessions_total + additional_total
     period_label = _format_period_label(payout)
     verify_url = url_for(
         "payroll.fee_slip_verify",
@@ -1453,6 +1627,7 @@ def _build_fee_slip_template_context(
         "payout": payout,
         "tutor": tutor,
         "sessions": sessions,
+        "additional_lines": additional_lines,
         "total": total,
         "period_label": period_label,
         "verify_url": verify_url,

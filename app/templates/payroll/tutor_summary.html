@@ -382,6 +382,45 @@ selectattr('balance','gt',0) | list | length %}
                                         >Kekurangan Lunas
                                     </button>
                                 </form>
+                                <form
+                                    method="POST"
+                                    action="{{ url_for('payroll.tutor_summary_carry_shortfall_next') }}"
+                                    style="display: inline"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="{{ csrf_token() }}"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="tutor_id"
+                                        value="{{ tutor.id }}"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="month"
+                                        value="{{ month }}"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="year"
+                                        value="{{ year }}"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="show_all"
+                                        value="{{ 1 if show_all else 0 }}"
+                                    />
+                                    <button
+                                        type="submit"
+                                        class="btn btn-outline-primary btn-sm py-0 px-2"
+                                        title="Tambahkan kekurangan ini ke payout bulan berikutnya"
+                                    >
+                                        <i class="bi bi-calendar-plus me-1"></i
+                                        >Bayar Bulan Depan
+                                    </button>
+                                </form>
                                 {% endif %}
                                 {# ── Belum ada payout: tombol Buat ── #} {%
                                 elif item.balance > 0 %}

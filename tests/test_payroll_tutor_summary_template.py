@@ -79,6 +79,7 @@ def test_payout_detail_keeps_previous_payment_lines_for_shortfall_payouts():
 
     assert "def _get_display_payout_lines" in route_text
     assert "TutorPayout.status == \"completed\"" in route_text
+    assert "any(_is_previous_shortfall_line(line) for line in own_lines)" in route_text
     assert "display_payout_lines = _get_display_payout_lines(payout)" in route_text
     assert "display_payout_total = _sum_payout_lines(display_payout_lines)" in route_text
     assert "display_payout_lines=display_payout_lines" in route_text
@@ -86,3 +87,41 @@ def test_payout_detail_keeps_previous_payment_lines_for_shortfall_payouts():
     assert "display_payout_lines %}" in template_text
     assert "format(display_payout_total)" in template_text
     assert "sessions_total != display_payout_total | float" in template_text
+
+
+def test_tutor_summary_can_carry_shortfall_to_next_month_payout():
+    project_root = Path(__file__).resolve().parents[1]
+    route_text = (project_root / "app" / "routes" / "payroll.py").read_text(
+        encoding="utf-8"
+    )
+    template_text = (
+        project_root / "app" / "templates" / "payroll" / "tutor_summary.html"
+    ).read_text(encoding="utf-8")
+
+    assert "PREVIOUS_SHORTFALL_NOTE_PREFIX" in route_text
+    assert '"/tutor-summary/carry-shortfall-next"' in route_text
+    assert "def tutor_summary_carry_shortfall_next" in route_text
+    assert "pending_target" in route_text
+    assert "completed_target" in route_text
+    assert "PayoutLine(" in route_text
+    assert "dibayarkan bersama payout" in route_text
+    assert "_is_previous_shortfall_line(line)" in route_text
+    assert "payroll.tutor_summary_carry_shortfall_next" in template_text
+    assert "Bayar Bulan Depan" in template_text
+
+
+def test_fee_slip_shows_previous_month_shortfall_as_additional_line():
+    project_root = Path(__file__).resolve().parents[1]
+    route_text = (project_root / "app" / "routes" / "payroll.py").read_text(
+        encoding="utf-8"
+    )
+    template_text = (
+        project_root / "app" / "templates" / "payroll" / "fee_slip.html"
+    ).read_text(encoding="utf-8")
+
+    assert "additional_lines = [" in route_text
+    assert "additional_total" in route_text
+    assert "total = sessions_total + additional_total" in route_text
+    assert "additional_lines" in template_text
+    assert "Kekurangan bulan sebelumnya" in template_text
+    assert "slip-summary-extra" in template_text

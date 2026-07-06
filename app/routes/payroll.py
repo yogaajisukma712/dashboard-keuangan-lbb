@@ -523,6 +523,34 @@ def _get_tutor_paid_for_period(tutor_id, month, year):
     return Decimal(str(total))
 
 
+def _get_carried_shortfall_for_period(tutor_id, month, year, *, status=None):
+    """Get previous-period shortfall lines carried into the selected payout month."""
+    target_payout_ids_query = (
+        db.session.query(TutorPayoutLine.tutor_payout_id)
+        .join(TutorPayout, TutorPayoutLine.tutor_payout_id == TutorPayout.id)
+        .filter(
+            TutorPayout.tutor_id == tutor_id,
+            db.extract("month", TutorPayoutLine.service_month) == month,
+            db.extract("year", TutorPayoutLine.service_month) == year,
+        )
+    )
+    if status:
+        target_payout_ids_query = target_payout_ids_query.filter(
+            TutorPayout.status == status
+        )
+
+    total = (
+        db.session.query(db.func.sum(TutorPayoutLine.amount))
+        .filter(
+            TutorPayoutLine.tutor_payout_id.in_(target_payout_ids_query),
+            TutorPayoutLine.notes.like(f"{PREVIOUS_SHORTFALL_NOTE_PREFIX}%"),
+        )
+        .scalar()
+        or Decimal("0")
+    )
+    return Decimal(str(total))
+
+
 def _get_tutor_balance_for_period(tutor_id, month, year):
     """Get remaining tutor payable balance for a specific service period."""
     payable = _get_tutor_payable_for_period(tutor_id, month, year)
@@ -597,11 +625,17 @@ def tutor_summary():
     tutor_data = []
     for tutor in tutors:
         attendance_total = _get_tutor_attendance_for_period(tutor.id, month, year)
-        payable = _get_tutor_payable_for_period(tutor.id, month, year)
-        paid = _get_tutor_paid_for_period(tutor.id, month, year)
+        base_payable = _get_tutor_payable_for_period(tutor.id, month, year)
+        carried_shortfall = _get_carried_shortfall_for_period(tutor.id, month, year)
+        completed_carried_shortfall = _get_carried_shortfall_for_period(
+            tutor.id, month, year, status="completed"
+        )
+        payable = base_payable + carried_shortfall
+        base_paid = _get_tutor_paid_for_period(tutor.id, month, year)
+        paid = base_paid + completed_carried_shortfall
         balance = payable - paid
         # Flag discrepancy: payout CSV had more data than attendance CSV
-        has_presensi_gap = paid > attendance_total
+        has_presensi_gap = base_paid > attendance_total
 
         # Get latest payout ID for this tutor/month so we can link to fee slip
         latest_payout = (
@@ -621,6 +655,8 @@ def tutor_summary():
             {
                 "tutor": tutor,
                 "attendance_total": float(attendance_total),
+                "base_payable": float(base_payable),
+                "carried_shortfall": float(carried_shortfall),
                 "payable": float(payable),
                 "paid": float(paid),
                 "balance": float(balance),

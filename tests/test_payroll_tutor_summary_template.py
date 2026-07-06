@@ -24,6 +24,8 @@ def test_tutor_summary_has_name_filter_and_selected_totals():
     assert "prepareBulkMarkPaidForm" in template_text
     assert 'data-tutor-name="{{ tutor.name }}"' in template_text
     assert 'data-account-number="{{ tutor.bank_account_number or \'\' }}"' in template_text
+    assert 'data-base-payable="{{ item.base_payable }}"' in template_text
+    assert 'data-carried-shortfall="{{ item.carried_shortfall }}"' in template_text
     assert (
         'data-payout-status="{{ item.latest_payout.status if item.latest_payout else \'\' }}"'
         in template_text
@@ -106,8 +108,15 @@ def test_tutor_summary_can_carry_shortfall_to_next_month_payout():
     assert "PayoutLine(" in route_text
     assert "dibayarkan bersama payout" in route_text
     assert "_is_previous_shortfall_line(line)" in route_text
+    assert "def _get_carried_shortfall_for_period" in route_text
+    assert "base_payable = _get_tutor_payable_for_period" in route_text
+    assert "payable = base_payable + carried_shortfall" in route_text
+    assert "paid = base_paid + completed_carried_shortfall" in route_text
     assert "payroll.tutor_summary_carry_shortfall_next" in template_text
     assert "Bayar Bulan Depan" in template_text
+    assert "item.base_payable" in template_text
+    assert "item.carried_shortfall" in template_text
+    assert "Kekurangan bulan sebelumnya" in template_text
 
 
 def test_fee_slip_shows_previous_month_shortfall_as_additional_line():

@@ -263,6 +263,8 @@ selectattr('balance','gt',0) | list | length %}
                                 class="form-check-input tutor-total-check"
                                 data-tutor-id="{{ tutor.id }}"
                                 data-payable="{{ item.payable }}"
+                                data-base-payable="{{ item.base_payable }}"
+                                data-carried-shortfall="{{ item.carried_shortfall }}"
                                 data-balance="{{ item.balance }}"
                                 data-payout-ref="{{ item.latest_payout.public_id if item.latest_payout else '' }}"
                                 data-payout-status="{{ item.latest_payout.status if item.latest_payout else '' }}"
@@ -282,10 +284,26 @@ selectattr('balance','gt',0) | list | length %}
                             {{ tutor.bank_account_number or '-' }}
                         </td>
                         <td class="text-end small" data-payroll-col="payable">
-                            Rp {{ "{:,.0f}".format(item.payable) }}
+                            {% if item.carried_shortfall > 0 %}
+                            <div class="fw-semibold">
+                                Rp {{ "{:,.0f}".format(item.base_payable) }}
+                                <span class="text-primary"
+                                    >+ Rp {{
+                                    "{:,.0f}".format(item.carried_shortfall)
+                                    }}</span
+                                >
+                            </div>
+                            <div class="text-muted" style="font-size:.75rem">
+                                Total Rp {{ "{:,.0f}".format(item.payable) }}
+                            </div>
+                            <div class="text-primary" style="font-size:.75rem">
+                                Kekurangan bulan sebelumnya
+                            </div>
+                            {% else %} Rp {{ "{:,.0f}".format(item.payable) }}
+                            {% endif %}
                             {% if item.has_presensi_gap %}
                             <br><span class="text-warning fst-italic" style="font-size:.75rem"
-                                title="Payout CSV = Rp {{ '{:,.0f}'.format(item.paid) }}, tapi presensi hanya Rp {{ '{:,.0f}'.format(item.payable) }}. Ada sesi yang belum tercatat di Data Presensi — perlu dilengkapi.">
+                                title="Payout CSV = Rp {{ '{:,.0f}'.format(item.paid) }}, tapi presensi hanya Rp {{ '{:,.0f}'.format(item.base_payable) }}. Ada sesi yang belum tercatat di Data Presensi — perlu dilengkapi.">
                                 <i class="bi bi-exclamation-triangle-fill"></i> presensi belum lengkap
                             </span>
                             {% endif %}
@@ -302,7 +320,7 @@ selectattr('balance','gt',0) | list | length %}
                         <td class="text-end small" data-payroll-col="balance">
                             {% if is_overpaid %}
                             <span class="badge bg-warning text-dark rounded-pill"
-                                title="Presensi belum lengkap: dibayar Rp {{ '{:,.0f}'.format(item.paid) }} tapi presensi hanya Rp {{ '{:,.0f}'.format(item.payable) }}. Selisih Rp {{ '{:,.0f}'.format(item.paid - item.payable) }} — lengkapi Data Presensi.">
+                                title="Presensi belum lengkap: dibayar Rp {{ '{:,.0f}'.format(item.paid) }} tapi presensi hanya Rp {{ '{:,.0f}'.format(item.base_payable) }}. Selisih Rp {{ '{:,.0f}'.format(item.paid - item.payable) }} — lengkapi Data Presensi.">
                                 <i class="bi bi-exclamation-triangle-fill"></i>
                                 +Rp {{ "{:,.0f}".format(item.paid - item.payable) }} kelebihan
                             </span>

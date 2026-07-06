@@ -134,3 +134,15 @@ def test_fee_slip_shows_previous_month_shortfall_as_additional_line():
     assert "additional_lines" in template_text
     assert "Kekurangan bulan sebelumnya" in template_text
     assert "slip-summary-extra" in template_text
+
+
+def test_uploading_transfer_proof_marks_payout_completed():
+    project_root = Path(__file__).resolve().parents[1]
+    route_text = (project_root / "app" / "routes" / "payroll.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "def upload_proof" in route_text
+    assert 'payout.status = "completed"' in route_text
+    assert "if not payout.payout_date" in route_text
+    assert "Payout otomatis ditandai Lunas" in route_text

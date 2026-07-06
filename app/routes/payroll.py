@@ -1558,9 +1558,16 @@ def upload_proof(payout_ref):
         if not had_legacy_proof:
             payout.proof_image = saved_paths[0]
             payout.proof_notes = notes
+        payout.status = "completed"
+        if not payout.payout_date:
+            payout.payout_date = datetime.now()
         db.session.commit()
 
-        flash(f"{len(saved_paths)} bukti transfer berhasil diupload", "success")
+        flash(
+            f"{len(saved_paths)} bukti transfer berhasil diupload. "
+            "Payout otomatis ditandai Lunas.",
+            "success",
+        )
     except Exception as exc:
         db.session.rollback()
         flash(f"Gagal upload: {exc}", "danger")

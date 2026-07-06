@@ -43,3 +43,26 @@ def test_tutor_summary_keeps_plain_headers_and_sorts_by_account_number_control()
     assert "<th>No. Rekening</th>" in template_text
     assert "sortByAccountNumber" in template_text
     assert 'data-payroll-col="row-number"' in template_text
+
+
+def test_tutor_summary_has_shortfall_settlement_action():
+    project_root = Path(__file__).resolve().parents[1]
+    route_text = (project_root / "app" / "routes" / "payroll.py").read_text(
+        encoding="utf-8"
+    )
+    template_text = (
+        project_root / "app" / "templates" / "payroll" / "tutor_summary.html"
+    ).read_text(encoding="utf-8")
+
+    assert '"/tutor-summary/settle-shortfall"' in route_text
+    assert "def tutor_summary_settle_shortfall" in route_text
+    assert "Pembayaran kekurangan lunas periode" in route_text
+    assert 'status="completed"' in route_text
+    assert 'TutorPayout.status == "completed"' in route_text
+    assert 'TutorPayout.status == "pending"' in route_text
+    assert "Konfirmasi payout pending lebih dulu" in route_text
+    assert "TutorPayoutLine(" in route_text
+    assert "Gagal mencatat pembayaran kekurangan lunas" in route_text
+    assert "payroll.tutor_summary_settle_shortfall" in template_text
+    assert "p_done and has_balance" in template_text
+    assert "Kekurangan Lunas" in template_text

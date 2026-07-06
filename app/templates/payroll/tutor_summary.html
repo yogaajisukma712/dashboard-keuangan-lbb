@@ -342,6 +342,47 @@ selectattr('balance','gt',0) | list | length %}
                                 >
                                     <i class="bi bi-file-earmark-text"></i>
                                 </a>
+                                {% if p_done and has_balance %}
+                                <form
+                                    method="POST"
+                                    action="{{ url_for('payroll.tutor_summary_settle_shortfall') }}"
+                                    style="display: inline"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="{{ csrf_token() }}"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="tutor_id"
+                                        value="{{ tutor.id }}"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="month"
+                                        value="{{ month }}"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="year"
+                                        value="{{ year }}"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="show_all"
+                                        value="{{ 1 if show_all else 0 }}"
+                                    />
+                                    <button
+                                        type="submit"
+                                        class="btn btn-outline-success btn-sm py-0 px-2"
+                                        title="Catat pembayaran kekurangan dan tandai lunas"
+                                    >
+                                        <i class="bi bi-cash-coin me-1"></i
+                                        >Kekurangan Lunas
+                                    </button>
+                                </form>
+                                {% endif %}
                                 {# ── Belum ada payout: tombol Buat ── #} {%
                                 elif item.balance > 0 %}
                                 <form

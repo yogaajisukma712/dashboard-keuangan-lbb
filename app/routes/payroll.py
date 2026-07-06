@@ -635,6 +635,94 @@ def tutor_summary_mark_paid_bulk():
     return redirect(redirect_url)
 
 
+@payroll_bp.route("/tutor-summary/settle-shortfall", methods=["POST"])
+@login_required
+@admin_required
+def tutor_summary_settle_shortfall():
+    """Create a completed supplemental payout for a remaining tutor balance."""
+    tutor_id = request.form.get("tutor_id", type=int)
+    month = request.form.get("month", default=datetime.now().month, type=int)
+    year = request.form.get("year", default=datetime.now().year, type=int)
+    show_all = request.form.get("show_all", "0") == "1"
+    redirect_url = url_for(
+        "payroll.tutor_summary",
+        month=month,
+        year=year,
+        show_all=1 if show_all else 0,
+    )
+
+    if not tutor_id or not month or not year or not 1 <= month <= 12:
+        flash("Data pembayaran kekurangan tidak lengkap.", "danger")
+        return redirect(redirect_url)
+
+    tutor = Tutor.query.get_or_404(tutor_id)
+    period_filter = (
+        TutorPayout.query.join(
+            TutorPayoutLine, TutorPayout.id == TutorPayoutLine.tutor_payout_id
+        )
+        .filter(
+            TutorPayout.tutor_id == tutor.id,
+            db.extract("month", TutorPayoutLine.service_month) == month,
+            db.extract("year", TutorPayoutLine.service_month) == year,
+        )
+    )
+    if not period_filter.filter(TutorPayout.status == "completed").first():
+        flash(
+            f"{tutor.name} belum memiliki payout lunas untuk periode ini.",
+            "warning",
+        )
+        return redirect(redirect_url)
+    if period_filter.filter(TutorPayout.status == "pending").first():
+        flash(
+            f"{tutor.name} masih memiliki payout pending untuk periode ini. "
+            "Konfirmasi payout pending lebih dulu.",
+            "warning",
+        )
+        return redirect(redirect_url)
+
+    balance = _get_tutor_balance_for_period(tutor.id, month, year).quantize(
+        Decimal("0.01")
+    )
+
+    if balance <= 0:
+        flash(f"{tutor.name} tidak memiliki kekurangan bayar periode ini.", "warning")
+        return redirect(redirect_url)
+
+    note = f"Pembayaran kekurangan lunas periode {MONTH_NAMES_ID[month]} {year}"
+    try:
+        payout = TutorPayout(
+            tutor_id=tutor.id,
+            payout_date=datetime.now(),
+            amount=balance,
+            bank_name=tutor.bank_name,
+            account_number=tutor.bank_account_number,
+            payment_method="transfer",
+            status="completed",
+            notes=note,
+        )
+        db.session.add(payout)
+        db.session.flush()
+
+        payout_line = TutorPayoutLine(
+            tutor_payout_id=payout.id,
+            service_month=date(year, month, 1),
+            amount=balance,
+            notes=note,
+        )
+        db.session.add(payout_line)
+        db.session.commit()
+        flash(
+            f"Pembayaran kekurangan {tutor.name} sebesar "
+            f"{_format_rupiah(balance)} ditandai lunas.",
+            "success",
+        )
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Gagal mencatat pembayaran kekurangan lunas: {exc}", "danger")
+
+    return redirect(redirect_url)
+
+
 @payroll_bp.route("/payout/add", methods=["GET", "POST"])
 @login_required
 @admin_required

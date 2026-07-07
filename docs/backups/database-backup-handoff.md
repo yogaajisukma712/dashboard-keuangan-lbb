@@ -1,5 +1,8 @@
 # Database Backup Handoff
 
+Backup otomatis harian beserta restore sesi WhatsApp didokumentasikan di
+`docs/backups/daily-github-backup.md`.
+
 Last backup: 20260707-133509-WIB
 
 ## Backup Location

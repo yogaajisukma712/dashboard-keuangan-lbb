@@ -1,0 +1,15 @@
+[Unit]
+Description=Backup harian Aplikasi Lembaga ke GitHub
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/lembaga-daily-backup
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=3h
+
+[Install]
+WantedBy=multi-user.target

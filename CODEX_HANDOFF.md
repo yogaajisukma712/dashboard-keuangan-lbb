@@ -35,6 +35,15 @@ Read docs/backups/database-backup-handoff.md before restore. Backup archive is e
 
 The timer does not stop or restart the WhatsApp, web, or database containers.
 
+Weekly WhatsApp maintenance:
+
+- Timer: `lembaga-weekly-whatsapp-restart.timer`
+- Schedule: every Sunday at 01.00 Asia/Jakarta (Saturday 18.00 UTC)
+- Safety gate: encrypted backup not older than two hours, valid checksums, and bot `healthy` plus session `ready`
+- Scope: restart only `billing_supersmart_whatsapp_bot`; persistent volumes remain attached
+- Post-check: wait up to five minutes for container `healthy` and session `ready`
+- Missed schedules are not replayed after server boot
+
 ## Deployment Reminder
 
 The production web container does not mount source code. After code changes on server, rebuild and recreate billing_supersmart_web, then connect it to the existing aplikasilembaga_billing_net network if Compose creates a new project network.

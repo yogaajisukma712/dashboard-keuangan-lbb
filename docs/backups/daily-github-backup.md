@@ -12,6 +12,22 @@ Backup otomatis berjalan setiap hari pukul 00.00 WIB dari server produksi.
 
 Timer tidak menghentikan atau me-restart container WhatsApp maupun web.
 
+## Restart Mingguan WhatsApp
+
+`lembaga-weekly-whatsapp-restart.timer` me-restart hanya container WhatsApp
+setiap Minggu pukul 01.00 WIB, satu jam setelah backup harian.
+
+Restart hanya dijalankan jika:
+
+- backup terenkripsi terbaru berumur maksimal dua jam;
+- seluruh checksum backup valid;
+- container berstatus `healthy` dan sesi berstatus `ready` sebelum restart.
+
+Setelah restart, service menunggu maksimal lima menit sampai container kembali
+`healthy` dan sesi kembali `ready`. Volume auth, volume backup, PostgreSQL, dan
+container web tidak dihapus atau di-restart. Timer tidak mengejar jadwal yang
+terlewat setelah server baru menyala.
+
 ## Lokasi Server
 
 - Skrip: `/usr/local/sbin/lembaga-daily-backup`
@@ -26,6 +42,8 @@ Timer tidak menghentikan atau me-restart container WhatsApp maupun web.
 systemctl status lembaga-daily-backup.timer
 systemctl list-timers lembaga-daily-backup.timer
 journalctl -u lembaga-daily-backup.service -n 100 --no-pager
+systemctl status lembaga-weekly-whatsapp-restart.timer
+journalctl -u lembaga-weekly-whatsapp-restart.service -n 100 --no-pager
 ```
 
 ## Restore WhatsApp

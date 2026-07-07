@@ -1,0 +1,12 @@
+[Unit]
+Description=Restart mingguan WhatsApp bot Aplikasi Lembaga
+Wants=network-online.target docker.service
+After=network-online.target docker.service lembaga-daily-backup.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/lembaga-weekly-whatsapp-restart
+TimeoutStartSec=10min
+
+[Install]
+WantedBy=multi-user.target

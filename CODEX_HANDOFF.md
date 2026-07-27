@@ -39,6 +39,20 @@ Restore verification:
 - five application containers running; database and WhatsApp containers healthy
 - both Cloudflare tunnel services active
 
+WhatsApp gap recovery completed 2026-07-27:
+
+- Production fix commit: `33ca64b`
+- Root failure: upstream `getChats()` aborted with the opaque error `r`
+- Recovery: per-group chat loading, direct group-ID fallback, and 2,000-message backend batches
+- Detected groups: 122; operational groups scanned: 121; configured exclusions: 1
+- Direct-fallback groups: 16; failed groups after fallback: 0
+- Gap cutoff: message after `2026-07-10 12:25:27 UTC`
+- Gap recovered: 386 messages and 27 relevant evaluations
+- Gap attendance result: 27 linked, 0 unmatched
+- Latest visible WhatsApp message at audit: `2026-07-27 14:30:15 WIB`
+- Final database totals: 33,955 messages, 2,993 evaluations, 5,274 attendance sessions
+- Post-recovery encrypted release: `daily-20260727-150851-WIB`
+
 ## Daily GitHub Backup
 
 - Timer: `lembaga-daily-backup.timer`

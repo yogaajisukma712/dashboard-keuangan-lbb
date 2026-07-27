@@ -1,0 +1,4 @@
+ingress:
+  - hostname: recruitment.supersmart.click
+    service: http://localhost:6006
+  - service: http_status:404

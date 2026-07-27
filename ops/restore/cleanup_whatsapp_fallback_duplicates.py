@@ -152,10 +152,16 @@ def build_cleanup_plan():
         .order_by(WhatsAppMessage.id.asc())
         .all()
     )
+    full_participant_prefixes = {
+        message.whatsapp_message_id.rsplit("_", 1)[0]
+        for message in false_message_ids
+        if message.whatsapp_message_id.count("_") >= 3
+    }
     truncated_message_ids = [
         message
         for message in false_message_ids
         if message.whatsapp_message_id.count("_") == 2
+        and message.whatsapp_message_id in full_participant_prefixes
     ]
     duplicate_messages = [
         (message, "timestamp-fallback")

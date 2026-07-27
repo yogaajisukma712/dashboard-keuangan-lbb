@@ -6,6 +6,7 @@ const { listChatsResilient } = require('./chat-loader');
 const { classifyEvaluationMessage, parseEvaluationMessage } = require('./evaluation/parser');
 const { postSyncPayload } = require('./flask-client');
 const { isExcludedGroupName } = require('./group-filters');
+const { partitionMessagesBySyncStart } = require('./sync-window');
 const {
   createSessionBackup,
   deleteSessionBackup,
@@ -69,6 +70,9 @@ function summarizeFetchedMessages(fetchedMessages, {
   fullSync,
   limit,
   relevantMessages,
+  eligibleMessages,
+  skippedBeforeSyncStartCount,
+  syncStartAt,
 } = {}) {
   const sentAtValues = fetchedMessages
     .map((item) => Number(item.timestamp || 0))
@@ -82,6 +86,9 @@ function summarizeFetchedMessages(fetchedMessages, {
     scan_mode: fullSync ? 'full_sync_all_available' : 'limited_recent',
     requested_limit: limit === Infinity ? 'all_available' : limit,
     fetched_message_count: fetchedMessages.length,
+    eligible_message_count: eligibleMessages,
+    skipped_before_sync_start_count: skippedBeforeSyncStartCount,
+    sync_start_at: syncStartAt,
     relevant_message_count: relevantMessages,
     first_fetched_message_at: firstTimestamp ? toIsoFromUnix(firstTimestamp) : null,
     last_fetched_message_at: lastTimestamp ? toIsoFromUnix(lastTimestamp) : null,
@@ -676,8 +683,12 @@ async function buildSyncPayloadForGroups(groupIds, limit, { fullSync = false } =
     }
 
     const fetchedMessages = await chat.fetchMessages(fetchOptions);
+    const syncWindow = partitionMessagesBySyncStart(
+      fetchedMessages,
+      config.syncStartAt,
+    );
     let groupRelevantMessages = 0;
-    for (const item of fetchedMessages) {
+    for (const item of syncWindow.eligibleMessages) {
       const classification = classifyEvaluationMessage(item.body);
       const parsed = classification.shouldStore ? parseEvaluationMessage(item.body) : null;
       if (parsed) {
@@ -735,6 +746,9 @@ async function buildSyncPayloadForGroups(groupIds, limit, { fullSync = false } =
         fullSync,
         limit,
         relevantMessages: groupRelevantMessages,
+        eligibleMessages: syncWindow.eligibleMessages.length,
+        skippedBeforeSyncStartCount: syncWindow.skippedBeforeSyncStartCount,
+        syncStartAt: syncWindow.syncStartAt,
       }),
     };
     scannedMessages += fetchedMessages.length;

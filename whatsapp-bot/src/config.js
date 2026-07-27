@@ -3,6 +3,7 @@ require('dotenv').config();
 const path = require('path');
 
 const { parseExcludedGroupNames } = require('./group-filters');
+const { normalizeSyncStartAt } = require('./sync-window');
 
 const authDataPath = process.env.WWEBJS_DATA_PATH || '/app/.wwebjs_auth';
 
@@ -29,6 +30,7 @@ module.exports = {
   chromiumPath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
   defaultMessageLimit: numberFromEnv('WHATSAPP_SYNC_MESSAGE_LIMIT', 500),
   syncMessageBatchSize: numberFromEnv('WHATSAPP_SYNC_MESSAGE_BATCH_SIZE', 2000),
+  syncStartAt: normalizeSyncStartAt(process.env.WHATSAPP_SYNC_START_AT),
   autoStart: booleanFromEnv('WHATSAPP_AUTO_START', true),
   autoSyncEnabled: booleanFromEnv('WHATSAPP_AUTO_SYNC_ENABLED', true),
   autoSyncFullSync: booleanFromEnv('WHATSAPP_AUTO_SYNC_FULL_SYNC', true),

@@ -1,26 +1,43 @@
 # Aplikasi Lembaga Handoff
 
-Last updated: 2026-07-07 Asia/Jakarta
+Last updated: 2026-07-27 Asia/Jakarta
 
 ## Current Project
 
 - Local path: /home/ubuntu/Documents/lembaga/aplikasi lembaga
-- Server host: 178.128.19.223
+- Server SSH: ec2-user@ec2-98-94-77-55.compute-1.amazonaws.com
+- SSH key: /home/ubuntu/Documents/lembaga/aplikasi lembaga/lembaga.pem
 - Server app path: /opt/apps/lembaga/aplikasi-lembaga
 - Main GitHub repo: https://github.com/yogaajisukma712/dashboard-keuangan-lbb
+- Compose project: aplikasilembaga
+- Production domains: https://app.supersmart.click, https://tutor.supersmart.click, https://recruitment.supersmart.click
 
 ## Database Backup
 
-Latest encrypted database backup:
+The new server was restored from the latest complete release available when the
+old server failed:
 
 - Backup repository: https://github.com/yogaajisukma712/lembaga-db-backups
-- Backup file: backups/20260707-133509-WIB/lembaga-db-backup-20260707-133509-WIB.tar.gz.enc
-- Passphrase file in this app repo: docs/backups/secrets/database-backup-passphrase-20260707-133509-WIB.txt
-- Restore handoff: docs/backups/database-backup-handoff.md
-- Server local encrypted archive: /root/db-backups/lembaga/lembaga-db-backup-20260707-133509-WIB.tar.gz.enc
-- Server passphrase source: /root/db-backups/lembaga/20260707-133509-WIB/PASSPHRASE_DO_NOT_UPLOAD.txt
+- Restore source: GitHub release `daily-20260711-000018-WIB`
+- PostgreSQL asset: `postgres-cluster-20260711-000018-WIB.sql.gz.enc`
+- WhatsApp asset: `wa-session-billing-supersmart-2026-07-10T17-00-18-862Z-491cfa5d.tar.gz.enc`
+- Restore cache: `/opt/backups/lembaga/daily-20260711-000018-WIB`
+- Root-only passphrase: `/root/.config/lembaga-backup/passphrase`
+- Guarded restore tool: `ops/restore/restore-latest-backup.sh`
 
-Read docs/backups/database-backup-handoff.md before restore. Backup archive is encrypted with OpenSSL AES-256-CBC PBKDF2.
+All release checksums passed before decryption. The restore selected only
+`lbb_db` from the full cluster dump to avoid replacing PostgreSQL system
+databases and roles.
+
+Restore verification:
+
+- 37 table COPY blocks compared against live PostgreSQL
+- 33,366 backup rows and 33,366 restored rows
+- 0 table-count mismatches
+- 5,955 WhatsApp auth files restored
+- WhatsApp session returned `ready=true`, `authenticated=true`, and no QR
+- five application containers running; database and WhatsApp containers healthy
+- both Cloudflare tunnel services active
 
 ## Daily GitHub Backup
 
@@ -30,7 +47,7 @@ Read docs/backups/database-backup-handoff.md before restore. Backup archive is e
 - Coverage: official WhatsApp session archive plus all PostgreSQL databases/globals
 - Encryption: OpenSSL AES-256-CBC PBKDF2, passphrase from the database backup handoff
 - Retention: 14 GitHub releases, 3 local encrypted days, 3 local bot session archives
-- First verified release: `daily-20260707-143842-WIB`
+- First verified release from the restored server: `daily-20260727-135433-WIB`
 - Operations and restore: `docs/backups/daily-github-backup.md`
 
 The timer does not stop or restart the WhatsApp, web, or database containers.
@@ -46,4 +63,13 @@ Weekly WhatsApp maintenance:
 
 ## Deployment Reminder
 
-The production web container does not mount source code. After code changes on server, rebuild and recreate billing_supersmart_web, then connect it to the existing aplikasilembaga_billing_net network if Compose creates a new project network.
+The production containers do not mount application source. Push changes to
+GitHub, pull them into `/opt/apps/lembaga/aplikasi-lembaga`, then rebuild and
+recreate the affected Compose service. Keep project name `aplikasilembaga` so
+the restored PostgreSQL and WhatsApp volumes remain attached. Never run
+`docker compose down -v`.
+
+The old `.env` was not present in the encrypted backup. Required production
+secrets were rotated and stored root-only on the new server. Optional Google
+OAuth, SMTP, and SS Meet secrets remain unset until their original values are
+provided.

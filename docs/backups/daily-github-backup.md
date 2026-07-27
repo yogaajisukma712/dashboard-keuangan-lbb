@@ -30,11 +30,14 @@ terlewat setelah server baru menyala.
 
 ## Lokasi Server
 
+- Server: `ec2-user@ec2-98-94-77-55.compute-1.amazonaws.com`
+- Aplikasi: `/opt/apps/lembaga/aplikasi-lembaga`
 - Skrip: `/usr/local/sbin/lembaga-daily-backup`
 - Secret: `/root/.config/lembaga-backup/`
 - Arsip sementara: `/root/daily-backups/lembaga/`
 - Unit: `lembaga-daily-backup.service`
 - Timer: `lembaga-daily-backup.timer`
+- Backup perdana terverifikasi di server baru: `daily-20260727-135433-WIB`
 
 ## Pemeriksaan
 
@@ -65,6 +68,11 @@ openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
 ## Restore PostgreSQL
 
 Restore database adalah operasi berisiko. Buat backup keadaan terkini dan hentikan penulisan aplikasi sebelum menjalankannya.
+
+Untuk pemulihan bencana ke server kosong, gunakan skrip terjaga
+`ops/restore/restore-latest-backup.sh`. Skrip menolak menimpa database atau
+volume WhatsApp yang sudah berisi data kecuali `FORCE_RESTORE=true` diberikan
+secara eksplisit.
 
 ```bash
 openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \

@@ -9,6 +9,40 @@ const { clearChromiumSingletonLocks } = require('./session-runtime');
 
 const execFileAsync = promisify(execFile);
 const BACKUP_EXTENSION = '.tar.gz';
+const BACKUP_ATTEMPTS = 3;
+
+async function createTarArchive(targetPath, sourcePath) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= BACKUP_ATTEMPTS; attempt += 1) {
+    try {
+      await execFileAsync('tar', [
+        '--ignore-failed-read',
+        '--warning=no-file-changed',
+        '--exclude',
+        './_backups',
+        '--exclude',
+        './SingletonLock',
+        '--exclude',
+        './SingletonSocket',
+        '--exclude',
+        './SingletonCookie',
+        '-czf',
+        targetPath,
+        '-C',
+        sourcePath,
+        '.',
+      ]);
+      return;
+    } catch (error) {
+      lastError = error;
+      fs.rmSync(targetPath, { force: true });
+      if (attempt < BACKUP_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
+  throw lastError;
+}
 
 function ensureDir(targetPath) {
   fs.mkdirSync(targetPath, { recursive: true });
@@ -137,23 +171,7 @@ async function createSessionBackup(runtimeState = {}) {
   const filename = `wa-session-${config.clientId}-${stamp}-${token}${BACKUP_EXTENSION}`;
   const targetPath = path.join(config.authBackupPath, filename);
 
-  await execFileAsync('tar', [
-    '--ignore-failed-read',
-    '--warning=no-file-changed',
-    '--exclude',
-    './_backups',
-    '--exclude',
-    './SingletonLock',
-    '--exclude',
-    './SingletonSocket',
-    '--exclude',
-    './SingletonCookie',
-    '-czf',
-    targetPath,
-    '-C',
-    config.authDataPath,
-    '.',
-  ]);
+  await createTarArchive(targetPath, config.authDataPath);
 
   const stats = fs.statSync(targetPath);
   return {

@@ -53,6 +53,28 @@ WhatsApp gap recovery completed 2026-07-27:
 - Final database totals: 33,955 messages, 2,993 evaluations, 5,274 attendance sessions
 - Post-recovery encrypted release: `daily-20260727-150851-WIB`
 
+WhatsApp July attendance reconciliation completed 2026-07-27:
+
+- Production commit: `e0697d1` (fix series started at `6167acb`)
+- Parser now accepts mistyped/unspaced English ordinals, structured reports
+  without time labels, and later bare evaluation sections
+- Direct fallback preserves full serialized WhatsApp message keys, including
+  incoming group participant `@lid` suffixes
+- Re-ingest cannot downgrade a stored message that already has an evaluation
+- Guarded cleanup tool: `ops/restore/cleanup_whatsapp_fallback_duplicates.py`
+- Cleanup is dry-run by default, aborts on conflicts, and is idempotent after execution
+- July result: 47 evaluation-linked sessions plus 6 lesson-schedule sessions
+- All 47 July evaluation authors use WhatsApp `@lid`; all matched tutor,
+  student, enrollment, and attendance records successfully
+- Final monthly rescan: 47 processed, 47 linked, 0 ambiguous, 0 unmatched,
+  0 reprocessed on the idempotency pass
+- Parser audit: 516 July messages, 0 ignored messages that should be parsed
+- Duplicate audit: 0 exact-body repeats; one same-day pair is valid because
+  it has two distinct reported lesson times
+- Final database totals: 21,375 messages, 2,101 evaluations, 4,818 attendance sessions
+- Latest visible WhatsApp message at audit: `2026-07-27 16:46:45 WIB`
+- Post-reconciliation encrypted release: `daily-20260727-170457-WIB`
+
 ## Daily GitHub Backup
 
 - Timer: `lembaga-daily-backup.timer`

@@ -138,13 +138,32 @@ def copy_evaluation_message_payload(source, target):
 
 
 def build_cleanup_plan():
-    fallback_messages = (
+    timestamp_fallback_messages = (
         WhatsAppMessage.query.filter(
             WhatsAppMessage.whatsapp_message_id.op("~")(FALLBACK_ID_PATTERN)
         )
         .order_by(WhatsAppMessage.id.asc())
         .all()
     )
+    false_message_ids = (
+        WhatsAppMessage.query.filter(
+            WhatsAppMessage.whatsapp_message_id.startswith("false_")
+        )
+        .order_by(WhatsAppMessage.id.asc())
+        .all()
+    )
+    truncated_message_ids = [
+        message
+        for message in false_message_ids
+        if message.whatsapp_message_id.count("_") == 2
+    ]
+    duplicate_messages = [
+        (message, "timestamp-fallback")
+        for message in timestamp_fallback_messages
+    ] + [
+        (message, "truncated-participant")
+        for message in truncated_message_ids
+    ]
     canonical_messages = (
         WhatsAppMessage.query.filter(
             or_(
@@ -161,13 +180,21 @@ def build_cleanup_plan():
 
     plan = []
     conflicts = []
-    for fallback in fallback_messages:
+    for fallback, source_kind in duplicate_messages:
         candidates = canonical_by_moment.get((fallback.group_id, fallback.sent_at), [])
+        if source_kind == "truncated-participant":
+            canonical_prefix = f"{fallback.whatsapp_message_id}_"
+            candidates = [
+                candidate
+                for candidate in candidates
+                if candidate.whatsapp_message_id.startswith(canonical_prefix)
+            ]
         canonical = select_canonical(fallback, candidates)
         if canonical is None:
             conflicts.append(
                 {
                     "fallback_message_id": fallback.id,
+                    "source_kind": source_kind,
                     "reason": "canonical-message-not-found",
                 }
             )
@@ -200,9 +227,10 @@ def build_cleanup_plan():
                 if not can_replace_canonical or canonical_reference_count != 1:
                     conflicts.append(
                         {
-                            "fallback_message_id": fallback.id,
-                            "canonical_message_id": canonical.id,
-                            "reason": "evaluation-mismatch",
+                        "fallback_message_id": fallback.id,
+                        "canonical_message_id": canonical.id,
+                        "source_kind": source_kind,
+                        "reason": "evaluation-mismatch",
                         }
                     )
                     continue
@@ -212,6 +240,7 @@ def build_cleanup_plan():
                     {
                         "fallback": fallback,
                         "canonical": canonical,
+                        "source_kind": source_kind,
                         "action": action,
                         "attendance_to_delete": attendance_to_delete,
                     }
@@ -227,6 +256,7 @@ def build_cleanup_plan():
                             {
                                 "fallback_message_id": fallback.id,
                                 "canonical_message_id": canonical.id,
+                                "source_kind": source_kind,
                                 "reason": "attendance-mismatch",
                             }
                         )
@@ -239,6 +269,7 @@ def build_cleanup_plan():
                             {
                                 "fallback_message_id": fallback.id,
                                 "canonical_message_id": canonical.id,
+                                "source_kind": source_kind,
                                 "reason": "attendance-has-extra-references",
                             }
                         )
@@ -253,6 +284,7 @@ def build_cleanup_plan():
             {
                 "fallback": fallback,
                 "canonical": canonical,
+                "source_kind": source_kind,
                 "action": action,
                 "attendance_to_delete": attendance_to_delete,
             }
@@ -264,6 +296,8 @@ def build_cleanup_plan():
 def summarize_plan(plan, conflicts):
     summary = {
         "fallback_messages": len(plan) + len(conflicts),
+        "timestamp_fallback_messages": 0,
+        "truncated_participant_messages": 0,
         "planned_message_deletes": len(plan),
         "duplicate_evaluations": 0,
         "evaluation_transfers": 0,
@@ -273,6 +307,10 @@ def summarize_plan(plan, conflicts):
         "conflict_examples": conflicts[:10],
     }
     for item in plan:
+        if item["source_kind"] == "timestamp-fallback":
+            summary["timestamp_fallback_messages"] += 1
+        elif item["source_kind"] == "truncated-participant":
+            summary["truncated_participant_messages"] += 1
         if item["action"] == "delete-duplicate-evaluation":
             summary["duplicate_evaluations"] += 1
         elif item["action"] == "transfer-evaluation":
@@ -281,6 +319,11 @@ def summarize_plan(plan, conflicts):
             summary["canonical_evaluation_replacements"] += 1
         if item["attendance_to_delete"] is not None:
             summary["attendance_deletes"] += 1
+    for conflict in conflicts:
+        if conflict.get("source_kind") == "timestamp-fallback":
+            summary["timestamp_fallback_messages"] += 1
+        elif conflict.get("source_kind") == "truncated-participant":
+            summary["truncated_participant_messages"] += 1
     return summary
 
 

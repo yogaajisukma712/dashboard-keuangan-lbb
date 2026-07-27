@@ -97,6 +97,7 @@ def test_execute_plan_replaces_inconsistent_canonical_evaluation():
                 {
                     "fallback": fallback_message,
                     "canonical": canonical_message,
+                    "source_kind": "timestamp-fallback",
                     "action": "replace-canonical-evaluation",
                     "attendance_to_delete": canonical_attendance,
                 }

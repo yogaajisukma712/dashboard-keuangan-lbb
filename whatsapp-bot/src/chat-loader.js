@@ -23,7 +23,9 @@ function serializeDirectMessageId(id, groupId) {
   const localId = id?.id || '';
   const remote = serializeWid(id?.remote) || groupId;
   if (!localId || !remote) return '';
-  return `${Boolean(id?.fromMe)}_${remote}_${localId}`;
+  const participant = serializeWid(id?.participant);
+  const participantSuffix = participant ? `_${participant}` : '';
+  return `${Boolean(id?.fromMe)}_${remote}_${localId}${participantSuffix}`;
 }
 
 async function listBrowserGroupIds(bot) {
@@ -80,6 +82,7 @@ async function fetchMessagesByGroupId(bot, chatId, searchOptions = {}) {
           _serialized: id._serialized || '',
           id: id.id || '',
           remote: serializeId(id.remote),
+          participant: serializeId(id.participant || serialized.author || message.author),
           fromMe: Boolean(id.fromMe),
         },
         timestamp: serialized.timestamp || message.t,

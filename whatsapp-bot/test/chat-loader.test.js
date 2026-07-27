@@ -13,11 +13,15 @@ test('serializeDirectMessageId rebuilds the canonical WhatsApp message id', () =
       fromMe: false,
       remote: { _serialized: '120363000000000000@g.us' },
       id: 'ABCDEF123456',
+      participant: { _serialized: '14946586865677@lid' },
     },
     'fallback@g.us',
   );
 
-  assert.equal(result, 'false_120363000000000000@g.us_ABCDEF123456');
+  assert.equal(
+    result,
+    'false_120363000000000000@g.us_ABCDEF123456_14946586865677@lid',
+  );
 });
 
 test('serializeDirectMessageId preserves an existing canonical id', () => {

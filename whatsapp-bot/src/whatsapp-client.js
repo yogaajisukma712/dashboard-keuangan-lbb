@@ -2,6 +2,7 @@ const QRCode = require('qrcode');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 
 const config = require('./config');
+const { listChatsResilient } = require('./chat-loader');
 const { classifyEvaluationMessage, parseEvaluationMessage } = require('./evaluation/parser');
 const { postSyncPayload } = require('./flask-client');
 const { isExcludedGroupName } = require('./group-filters');
@@ -552,8 +553,17 @@ async function deleteBackup(filename) {
 
 async function listGroups() {
   const bot = await ensureReady();
-  const chats = await bot.getChats();
-  return chats.filter(
+  const result = await listChatsResilient(bot);
+  if (result.usedFallback) {
+    logBotEvent('chat_list_fallback', {
+      primaryError: result.primaryError,
+      totalGroupIds: result.totalGroupIds,
+      loadedGroups: result.chats.length,
+      failedGroups: result.failures.length,
+      failures: result.failures.slice(0, 10),
+    });
+  }
+  return result.chats.filter(
     (chat) => chat.isGroup && !isExcludedGroupName(chat.name, config.excludedGroupNames),
   );
 }

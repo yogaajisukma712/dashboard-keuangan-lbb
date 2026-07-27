@@ -75,6 +75,29 @@ WhatsApp July attendance reconciliation completed 2026-07-27:
 - Latest visible WhatsApp message at audit: `2026-07-27 16:46:45 WIB`
 - Post-reconciliation encrypted release: `daily-20260727-170457-WIB`
 
+Pre-July history restoration completed 2026-07-27:
+
+- Historical source: isolated restore of `daily-20260711-000018-WIB`
+- Restored scope: only `whatsapp_messages`, `whatsapp_evaluations`, and
+  `attendance_sessions` before 1 July 2026
+- Preserved scope: every row from July 2026 onward plus all financial, payout,
+  payment, invoice, master, contact, group, and membership tables
+- Historical result: 20,667 messages, 1,664 evaluations, and 4,178 attendance
+  sessions match the backup by row count and digest
+- Payroll verification: 10 financial/payout tables and 23 monthly attendance
+  aggregates through June match the backup
+- July result after full scan: 634 stored messages, 62 evaluations, and 66
+  attendance sessions; all 62 evaluations link to attendance
+- Sync boundary: `WHATSAPP_SYNC_START_AT=2026-06-30T17:00:00.000Z`
+  (1 July 2026 00.00 WIB)
+- Guarded restore tool: `ops/restore/restore_pre_july_2026_history.py`
+- Sync/restore commit: `e6d5ed2`
+- Live-session backup reliability commits: `723cae5`, `c7b6e4f`
+- Pre-restore safety release: `daily-20260727-174410-WIB`
+- Final clean release: `daily-20260727-175413-WIB`
+- Temporary comparison database was dropped after verification; production
+  now contains only `lbb_db` and `postgres`
+
 ## Daily GitHub Backup
 
 - Timer: `lembaga-daily-backup.timer`
@@ -84,6 +107,7 @@ WhatsApp July attendance reconciliation completed 2026-07-27:
 - Encryption: OpenSSL AES-256-CBC PBKDF2, passphrase from the database backup handoff
 - Retention: 14 GitHub releases, 3 local encrypted days, 3 local bot session archives
 - First verified release from the restored server: `daily-20260727-135433-WIB`
+- Latest verified post-history-restore release: `daily-20260727-175413-WIB`
 - Operations and restore: `docs/backups/daily-github-backup.md`
 
 The timer does not stop or restart the WhatsApp, web, or database containers.

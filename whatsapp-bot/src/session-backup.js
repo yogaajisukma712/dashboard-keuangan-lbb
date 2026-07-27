@@ -138,6 +138,8 @@ async function createSessionBackup(runtimeState = {}) {
   const targetPath = path.join(config.authBackupPath, filename);
 
   await execFileAsync('tar', [
+    '--ignore-failed-read',
+    '--warning=no-file-changed',
     '--exclude',
     './_backups',
     '--exclude',

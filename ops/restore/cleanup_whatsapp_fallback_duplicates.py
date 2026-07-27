@@ -54,6 +54,37 @@ def same_report(left, right):
     )
 
 
+def evaluations_can_merge(left, right):
+    if not left or not right:
+        return False
+    identity_fields = (
+        "attendance_date",
+        "matched_student_id",
+        "matched_enrollment_id",
+        "matched_tutor_id",
+        "matched_subject_id",
+    )
+    if any(getattr(left, field) != getattr(right, field) for field in identity_fields):
+        return False
+
+    parsed_fields = (
+        "student_name",
+        "tutor_name",
+        "subject_name",
+        "focus_topic",
+        "summary_text",
+        "source_language",
+        "reported_lesson_date",
+        "reported_time_label",
+    )
+    return all(
+        not getattr(left, field)
+        or not getattr(right, field)
+        or getattr(left, field) == getattr(right, field)
+        for field in parsed_fields
+    )
+
+
 def subject_match_is_consistent(evaluation):
     if not evaluation or not evaluation.subject or not evaluation.subject_name:
         return False
@@ -217,6 +248,46 @@ def build_cleanup_plan():
             if not same_evaluation(fallback_evaluation, canonical_evaluation):
                 fallback_attendance = fallback_evaluation.attendance_session
                 canonical_attendance = canonical_evaluation.attendance_session
+                can_merge_canonical = (
+                    fallback.body == canonical.body
+                    and evaluations_can_merge(fallback_evaluation, canonical_evaluation)
+                    and (
+                        fallback_attendance is canonical_attendance
+                        or same_attendance(fallback_attendance, canonical_attendance)
+                    )
+                )
+                if can_merge_canonical:
+                    if (
+                        fallback_attendance
+                        and canonical_attendance
+                        and fallback_attendance.id != canonical_attendance.id
+                    ):
+                        reference_count = WhatsAppEvaluation.query.filter_by(
+                            attendance_session_id=fallback_attendance.id
+                        ).count()
+                        if reference_count != 1:
+                            conflicts.append(
+                                {
+                                    "fallback_message_id": fallback.id,
+                                    "canonical_message_id": canonical.id,
+                                    "source_kind": source_kind,
+                                    "reason": "attendance-has-extra-references",
+                                }
+                            )
+                            continue
+                        attendance_to_delete = fallback_attendance
+                    action = "merge-canonical-evaluation"
+                    plan.append(
+                        {
+                            "fallback": fallback,
+                            "canonical": canonical,
+                            "source_kind": source_kind,
+                            "action": action,
+                            "attendance_to_delete": attendance_to_delete,
+                        }
+                    )
+                    continue
+
                 can_replace_canonical = (
                     same_report(fallback_evaluation, canonical_evaluation)
                     and subject_match_is_consistent(fallback_evaluation)
@@ -308,6 +379,7 @@ def summarize_plan(plan, conflicts):
         "duplicate_evaluations": 0,
         "evaluation_transfers": 0,
         "canonical_evaluation_replacements": 0,
+        "canonical_evaluation_merges": 0,
         "attendance_deletes": 0,
         "conflicts": len(conflicts),
         "conflict_examples": conflicts[:10],
@@ -323,6 +395,8 @@ def summarize_plan(plan, conflicts):
             summary["evaluation_transfers"] += 1
         elif item["action"] == "replace-canonical-evaluation":
             summary["canonical_evaluation_replacements"] += 1
+        elif item["action"] == "merge-canonical-evaluation":
+            summary["canonical_evaluation_merges"] += 1
         if item["attendance_to_delete"] is not None:
             summary["attendance_deletes"] += 1
     for conflict in conflicts:
@@ -358,6 +432,36 @@ def execute_plan(plan):
             WhatsAppEvaluation.query.filter_by(id=fallback_evaluation.id).update(
                 {"message_id": canonical.id},
                 synchronize_session=False,
+            )
+        elif item["action"] == "merge-canonical-evaluation":
+            canonical_evaluation = canonical.evaluation
+            merge_fields = (
+                "student_name",
+                "tutor_name",
+                "subject_name",
+                "focus_topic",
+                "summary_text",
+                "source_language",
+                "reported_lesson_date",
+                "reported_time_label",
+            )
+            for field in merge_fields:
+                if not getattr(canonical_evaluation, field):
+                    setattr(
+                        canonical_evaluation,
+                        field,
+                        getattr(fallback_evaluation, field),
+                    )
+            if (
+                canonical_evaluation.attendance_session_id is None
+                and fallback_evaluation.attendance_session_id is not None
+            ):
+                canonical_evaluation.attendance_session_id = (
+                    fallback_evaluation.attendance_session_id
+                )
+            db.session.flush()
+            WhatsAppEvaluation.query.filter_by(id=fallback_evaluation.id).delete(
+                synchronize_session=False
             )
 
         attendance = item["attendance_to_delete"]

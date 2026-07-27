@@ -113,3 +113,85 @@ def test_execute_plan_replaces_inconsistent_canonical_evaluation():
         assert db.session.get(WhatsAppEvaluation, canonical_evaluation_id) is None
         assert db.session.get(AttendanceSession, canonical_attendance_id) is None
         assert db.session.get(AttendanceSession, fallback_attendance_id) is not None
+
+
+def test_execute_plan_merges_missing_canonical_evaluation_fields():
+    app = _make_test_app()
+    with app.app_context():
+        db.create_all()
+        group = WhatsAppGroup(
+            whatsapp_group_id="120363000000000001@g.us",
+            name="Student Group",
+        )
+        canonical_message = WhatsAppMessage(
+            whatsapp_message_id="false_120363000000000001@g.us_ABCDEF_sender@lid",
+            group=group,
+            sent_at=datetime(2026, 5, 26, 13, 0),
+            body="Identical evaluation report",
+        )
+        truncated_message = WhatsAppMessage(
+            whatsapp_message_id="false_120363000000000001@g.us_ABCDEF",
+            group=group,
+            sent_at=datetime(2026, 5, 26, 13, 0),
+            body="Identical evaluation report",
+        )
+        attendance = AttendanceSession(
+            enrollment_id=10,
+            student_id=20,
+            tutor_id=30,
+            subject_id=40,
+            session_date=date(2026, 5, 26),
+            status="attended",
+            student_present=True,
+            tutor_present=True,
+            tutor_fee_amount=40000,
+        )
+        canonical_evaluation = WhatsAppEvaluation(
+            message=canonical_message,
+            group=group,
+            attendance_date=date(2026, 5, 26),
+            reported_time_label="08:00 - 09:00 PM",
+            attendance_session=attendance,
+        )
+        truncated_evaluation = WhatsAppEvaluation(
+            message=truncated_message,
+            group=group,
+            attendance_date=date(2026, 5, 26),
+            reported_lesson_date=date(2026, 5, 26),
+            reported_time_label="08:00 - 09:00 PM",
+            subject_name="English",
+            attendance_session=attendance,
+        )
+        db.session.add_all(
+            [
+                group,
+                canonical_message,
+                truncated_message,
+                attendance,
+                canonical_evaluation,
+                truncated_evaluation,
+            ]
+        )
+        db.session.commit()
+        canonical_message_id = canonical_message.id
+        truncated_message_id = truncated_message.id
+        truncated_evaluation_id = truncated_evaluation.id
+
+        execute_plan(
+            [
+                {
+                    "fallback": truncated_message,
+                    "canonical": canonical_message,
+                    "source_kind": "truncated-participant",
+                    "action": "merge-canonical-evaluation",
+                    "attendance_to_delete": None,
+                }
+            ]
+        )
+        db.session.commit()
+
+        canonical = db.session.get(WhatsAppMessage, canonical_message_id)
+        assert canonical.evaluation.reported_lesson_date == date(2026, 5, 26)
+        assert canonical.evaluation.subject_name == "English"
+        assert db.session.get(WhatsAppMessage, truncated_message_id) is None
+        assert db.session.get(WhatsAppEvaluation, truncated_evaluation_id) is None

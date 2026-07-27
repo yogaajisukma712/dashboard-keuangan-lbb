@@ -559,6 +559,7 @@ async function listGroups() {
       primaryError: result.primaryError,
       totalGroupIds: result.totalGroupIds,
       loadedGroups: result.chats.length,
+      directFallbackGroups: result.directFallbacks.length,
       failedGroups: result.failures.length,
       failures: result.failures.slice(0, 10),
     });

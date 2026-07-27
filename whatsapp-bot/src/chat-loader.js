@@ -49,9 +49,13 @@ async function fetchMessagesByGroupId(bot, chatId, searchOptions = {}) {
     : null;
 
   const messages = await bot.pupPage.evaluate(async (groupId, options) => {
-    const serializeId = (value) => (
-      value?._serialized || value?.toString?.() || ''
-    );
+    const serializeId = (value) => {
+      if (!value) return '';
+      if (typeof value === 'string') return value;
+      if (value._serialized) return value._serialized;
+      const serialized = value.toString?.() || '';
+      return serialized === '[object Object]' ? '' : serialized;
+    };
     const chat = await window.WWebJS.getChat(groupId, { getAsModel: false });
     if (!chat) throw new Error(`Group model is unavailable: ${groupId}`);
 
@@ -79,7 +83,7 @@ async function fetchMessagesByGroupId(bot, chatId, searchOptions = {}) {
       const id = serialized.id || message.id || {};
       return {
         id: {
-          _serialized: id._serialized || '',
+          _serialized: serializeId(id),
           id: id.id || '',
           remote: serializeId(id.remote),
           participant: serializeId(id.participant || serialized.author || message.author),
@@ -107,9 +111,13 @@ async function fetchMessagesByGroupId(bot, chatId, searchOptions = {}) {
 
 async function createDirectGroupChat(bot, chatId) {
   const metadata = await bot.pupPage.evaluate(async (groupId) => {
-    const serializeId = (value) => (
-      value?._serialized || value?.toString?.() || ''
-    );
+    const serializeId = (value) => {
+      if (!value) return '';
+      if (typeof value === 'string') return value;
+      if (value._serialized) return value._serialized;
+      const serialized = value.toString?.() || '';
+      return serialized === '[object Object]' ? '' : serialized;
+    };
     const chat = await window.WWebJS.getChat(groupId, { getAsModel: false });
     if (!chat) throw new Error(`Group model is unavailable: ${groupId}`);
     const participantCollection = chat.groupMetadata?.participants;

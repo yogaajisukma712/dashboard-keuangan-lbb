@@ -2,10 +2,52 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  fetchMessagesByGroupId,
   listChatsResilient,
   loadChatsInBatches,
   serializeDirectMessageId,
 } = require('../src/chat-loader');
+
+test('fetchMessagesByGroupId keeps a serialized string message id', async () => {
+  const canonical = 'false_120363000000000000@g.us_ABCDEF_14946586865677@lid';
+  const originalWindow = global.window;
+  global.window = {
+    WWebJS: {
+      getChat: async () => ({
+        msgs: {
+          getModelsArray: () => [{
+            isNotification: false,
+            serialize: () => ({
+              id: canonical,
+              timestamp: 1770000000,
+              body: 'Evaluation report',
+              author: '14946586865677@lid',
+              from: '120363000000000000@g.us',
+              type: 'chat',
+            }),
+          }],
+        },
+      }),
+    },
+  };
+  const bot = {
+    pupPage: {
+      evaluate: (operation, ...args) => operation(...args),
+    },
+  };
+
+  try {
+    const messages = await fetchMessagesByGroupId(
+      bot,
+      '120363000000000000@g.us',
+      {},
+    );
+
+    assert.equal(messages[0].id._serialized, canonical);
+  } finally {
+    global.window = originalWindow;
+  }
+});
 
 test('serializeDirectMessageId rebuilds the canonical WhatsApp message id', () => {
   const result = serializeDirectMessageId(

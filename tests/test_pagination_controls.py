@@ -73,16 +73,17 @@ def test_whatsapp_tables_have_client_side_page_size_selectors():
     assert "readPageSize(" in template_text
 
 
-def test_saved_filter_restore_does_not_force_page_reload():
+def test_saved_filter_restore_reloads_server_results_without_ajax_hacks():
     project_root = Path(__file__).resolve().parents[1]
-    template_text = (project_root / "app" / "templates" / "base.html").read_text(
+    script_text = (
+        project_root / "app" / "static" / "js" / "persistent-filters.js"
+    ).read_text(
         encoding="utf-8"
     )
 
-    assert "window.location.replace(currentUrl.toString())" not in template_text
-    assert 'window.history.replaceState({}, "", currentUrl.toString())' in template_text
-    assert "window.__lbbPendingFilterRestores.push" in template_text
-    assert "processPendingFilterRestores();" in template_text
+    assert "win.location.replace(url.toString())" in script_text
+    assert "mergeRestoredSearch(url.search, restorations)" in script_text
+    assert 'params.delete("page")' in script_text
 
 
 def test_payment_list_filter_uses_month_year_and_calendar_range():

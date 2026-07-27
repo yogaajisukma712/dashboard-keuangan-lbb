@@ -1,0 +1,91 @@
+.lbb-filter-managed {
+  --lbb-filter-border: #d8e0ee;
+  --lbb-filter-chip-bg: #eef4ff;
+  --lbb-filter-chip-text: #1f3b78;
+}
+
+.lbb-filter-memory-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--lbb-filter-border);
+}
+
+.lbb-filter-memory-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 30px;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lbb-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  max-width: min(100%, 360px);
+  border: 1px solid #c9d7f2;
+  border-radius: 8px;
+  background: var(--lbb-filter-chip-bg);
+  color: var(--lbb-filter-chip-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  overflow: hidden;
+}
+
+.lbb-filter-chip-text {
+  padding: 0.35rem 0.25rem 0.35rem 0.6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lbb-filter-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border: 0;
+  background: transparent;
+  color: #526b9f;
+}
+
+.lbb-filter-chip-remove:hover,
+.lbb-filter-chip-remove:focus {
+  background: #dce8fb;
+  color: #162d63;
+  outline: 0;
+}
+
+.lbb-filter-reset {
+  min-height: 30px;
+  margin-left: auto;
+  border-radius: 8px;
+}
+
+@media (max-width: 575.98px) {
+  .lbb-filter-memory-bar {
+    align-items: stretch;
+  }
+
+  .lbb-filter-memory-label {
+    width: 100%;
+  }
+
+  .lbb-filter-chip {
+    max-width: 100%;
+  }
+
+  .lbb-filter-reset {
+    width: 100%;
+    margin-left: 0;
+  }
+}

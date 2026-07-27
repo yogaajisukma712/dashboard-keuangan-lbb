@@ -36,6 +36,10 @@
             href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
             rel="stylesheet"
         />
+        <link
+            href="{{ url_for('static', filename='css/persistent-filters.css') }}"
+            rel="stylesheet"
+        />
 
         <style>
             /* ══════════════════════════════════════════
@@ -431,7 +435,9 @@
 
         {% block head %}{% endblock %}
     </head>
-    <body>
+    <body
+        data-lbb-filter-user="{{ current_user.get_id() if current_user.is_authenticated else 'guest' }}"
+    >
         <!-- ═══════════════════════════════════════════════════════
      TOPBAR
 ═══════════════════════════════════════════════════════ -->
@@ -920,9 +926,12 @@
             });
         </script>
 
+        <script src="{{ url_for('static', filename='js/persistent-filters.js') }}"></script>
+
         <script>
             /* ── Pertahankan filter tabel saat halaman di-reload ── */
             (function () {
+                if (window.LbbPersistentFilters) return;
                 var storagePrefix = "lbb:table-filter:";
                 var pathKey = window.location.pathname;
 
@@ -1156,7 +1165,7 @@
                     });
                 }
 
-                function requestFilter(form, url) {
+                function requestFilter(form, url, historyMode) {
                     var targetIds = String(form.dataset.lbbFilterTargets || "")
                         .split(/[,\s]+/)
                         .filter(Boolean);
@@ -1185,8 +1194,14 @@
                         })
                         .then(function (html) {
                             replaceTargetsFromResponse(html, targetIds);
-                            window.history.pushState({}, "", url.toString());
+                            historyMode = historyMode || "push";
+                            window.history[
+                                historyMode === "replace" ? "replaceState" : "pushState"
+                            ]({ lbbFilter: true }, "", url.toString());
                             initLbbFilterUi(document);
+                            if (window.LbbPersistentFilters) {
+                                window.LbbPersistentFilters.init(document, false);
+                            }
                             document.dispatchEvent(
                                 new CustomEvent("lbb:filter-updated", {
                                     detail: { formId: form.id || null, url: url.toString() },
@@ -1217,7 +1232,7 @@
                         form.addEventListener("change", function (event) {
                             var control = event.target;
                             if (!control || !control.name || control.dataset.lbbNoAutosubmit === "true") return;
-                            requestFilter(form, buildUrlFromForm(form));
+                            requestFilter(form, buildUrlFromForm(form), "replace");
                         });
                     }
                 }
@@ -1417,16 +1432,6 @@
                     bindQuickFilters(root);
                 }
 
-                function processPendingFilterRestores() {
-                    var pending = window.__lbbPendingFilterRestores || [];
-                    window.__lbbPendingFilterRestores = [];
-                    pending.forEach(function (item) {
-                        var form = document.getElementById(item.formId || "");
-                        if (!form || !form.dataset.lbbFilterTargets || !item.url) return;
-                        requestFilter(form, new URL(item.url, window.location.origin));
-                    });
-                }
-
                 document.addEventListener("click", function (event) {
                     var link = event.target.closest("a[data-lbb-filter-reset]");
                     if (!link) return;
@@ -1450,13 +1455,22 @@
                         }
                         var url = new URL(select.form.action || window.location.pathname, window.location.origin);
                         url.search = new URLSearchParams(new FormData(select.form)).toString();
-                        requestFilter(form, url);
+                        requestFilter(form, url, "replace");
                     },
                 };
 
                 document.addEventListener("DOMContentLoaded", function () {
                     initLbbFilterUi(document);
-                    processPendingFilterRestores();
+                });
+
+                var ajaxFilterHistoryActive = false;
+                document.addEventListener("lbb:filter-updated", function () {
+                    ajaxFilterHistoryActive = true;
+                });
+                window.addEventListener("popstate", function () {
+                    if (ajaxFilterHistoryActive) {
+                        window.location.reload();
+                    }
                 });
             })();
         </script>

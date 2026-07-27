@@ -121,6 +121,19 @@ Weekly WhatsApp maintenance:
 - Post-check: wait up to five minutes for container `healthy` and session `ready`
 - Missed schedules are not replayed after server boot
 
+## Persistent Filters
+
+- Shared manager: `app/static/js/persistent-filters.js`
+- Shared styling: `app/static/css/persistent-filters.css`
+- Coverage: authenticated admin pages and tutor portal GET filter forms
+- Storage scope: current user, page path, form action, and stable form identity
+- Behavior: restores missing filters with a real server reload, preserves explicit
+  URL parameters, keeps AJAX filter history usable with browser Back, and shows
+  removable active-filter chips plus a full reset control
+- Reset clears both the URL state and saved browser state
+- The legacy inline manager in `app/templates/base.html` is fallback-only and
+  exits when `window.LbbPersistentFilters` is available
+
 ## Deployment Reminder
 
 The production containers do not mount application source. Push changes to

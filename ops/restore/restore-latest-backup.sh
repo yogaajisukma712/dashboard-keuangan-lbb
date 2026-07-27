@@ -8,6 +8,8 @@ BACKUP_DIR="${BACKUP_DIR:-}"
 ENV_FILE="${ENV_FILE:-.env}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-aplikasilembaga}"
 FORCE_RESTORE="${FORCE_RESTORE:-false}"
+RESTORE_DATABASE="${RESTORE_DATABASE:-true}"
+RESTORE_WHATSAPP="${RESTORE_WHATSAPP:-true}"
 DB_CONTAINER="${DB_CONTAINER:-billing_supersmart_db}"
 
 log() {
@@ -78,8 +80,9 @@ restore_whatsapp() {
   backup_volume="${COMPOSE_PROJECT_NAME}_whatsapp_bot_backups"
   archive_name="$(basename "$whatsapp_archive")"
 
-  compose create whatsapp_bot >/dev/null
   docker stop billing_supersmart_whatsapp_bot >/dev/null 2>&1 || true
+  docker volume create "$auth_volume" >/dev/null
+  docker volume create "$backup_volume" >/dev/null
 
   auth_entries="$(docker run --rm -v "$auth_volume:/data" alpine \
     sh -c "find /data -mindepth 1 -maxdepth 1 | wc -l")"
@@ -121,8 +124,17 @@ main() {
   compose up -d db >/dev/null
   wait_for_database
 
-  restore_database "$database_archive"
-  restore_whatsapp "$whatsapp_archive"
+  if [ "$RESTORE_DATABASE" = "true" ]; then
+    restore_database "$database_archive"
+  else
+    log "Restore database dilewati."
+  fi
+
+  if [ "$RESTORE_WHATSAPP" = "true" ]; then
+    restore_whatsapp "$whatsapp_archive"
+  else
+    log "Restore WhatsApp dilewati."
+  fi
 
   tables="$(docker exec "$DB_CONTAINER" psql -U postgres -d lbb_db -Atqc \
     "select count(*) from information_schema.tables where table_schema='public'")"

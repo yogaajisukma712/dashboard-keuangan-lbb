@@ -42,7 +42,7 @@ function parseIndonesianDate(value) {
 
 function parseEnglishDate(value) {
   const cleaned = normalizeWhitespace(value)
-    .replace(/(\d+)(st|nd|rd|th)/gi, '$1')
+    .replace(/(\d+)(?:sth|st|nd|rd|th)/gi, '$1 ')
     .replace(/,/g, '');
   const match = cleaned.match(/([A-Za-z]+)\s+(\d{1,2})\s+(\d{4})/);
   if (!match) return null;
@@ -167,9 +167,11 @@ function extractEvaluationBody(body) {
     /(?:🔍\s*)?(?:Evaluasi|Evaluation|Catatan\s+Evaluasi|Hasil\s*Evaluasi|Hsil\s*Evaluasi|Hasil\s+Belajar|Laporan|Report|Lesson\s+Summary|Learning\s+Summary|Progress\s+Report)\s*:/i.test(line),
   );
   const fallbackHeaderIndex = headerIndex === -1
-    ? lines.findIndex((line) =>
-        /(?:hasil\s*evaluasi|hsil\s*evaluasi|laporan|evaluation|report|lesson\s+summary|learning\s+summary)/i.test(line),
-      )
+    ? lines.reduce((candidate, line, index) => (
+        /^\s*(?:[📄📝🔍✅⭐️✨\-•]*\s*)?(?:hasil\s*evaluasi|hsil\s*evaluasi|laporan|evaluation|report|lesson\s+summary|learning\s+summary)\b/i.test(line)
+          ? index
+          : candidate
+      ), -1)
     : headerIndex;
   if (fallbackHeaderIndex === -1) return '';
 
@@ -253,11 +255,21 @@ function classifyEvaluationMessage(body) {
     markers.hasParsedTime,
     markers.hasEvaluationBody,
   ];
+  const structuredWithoutTimeMarkers = [
+    markers.hasTitle,
+    markers.hasParsedDate,
+    markers.hasTopic,
+    markers.hasEvaluationBody,
+    markers.hasEvaluationKeyword,
+  ];
 
   if (strictMarkers.every(Boolean) && (markers.hasClosingIdentity || markers.hasGuardianGreeting)) {
     return { shouldStore: true, reason: 'evaluation-report', markers };
   }
   if (relaxedMarkers.every(Boolean) && (markers.hasTitle || markers.hasTopic || markers.hasClosingIdentity || markers.hasGuardianGreeting)) {
+    return { shouldStore: true, reason: 'evaluation-report', markers };
+  }
+  if (structuredWithoutTimeMarkers.every(Boolean)) {
     return { shouldStore: true, reason: 'evaluation-report', markers };
   }
   return { shouldStore: false, reason: 'irrelevant', markers };
@@ -310,7 +322,7 @@ function parseEvaluationMessage(body) {
   if (!focusTopic && summaryText) {
     focusTopic = 'Evaluasi';
   }
-  if (!reportedLessonDate || !reportedTimeLabel || !summaryText) {
+  if (!reportedLessonDate || !summaryText) {
     return null;
   }
 

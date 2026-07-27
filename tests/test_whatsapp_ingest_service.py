@@ -77,6 +77,63 @@ def test_as_date_accepts_date_and_datetime_values():
     assert as_date(None) is None
 
 
+def test_reingest_without_evaluation_preserves_existing_evaluation_message():
+    app = _make_test_app()
+    with app.app_context():
+        db.create_all()
+        group = WhatsAppGroup(
+            whatsapp_group_id="120363000000000000@g.us",
+            name="Student Group",
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="false_120363000000000000@g.us_ABCDEF",
+            group=group,
+            sent_at=datetime(2026, 7, 21, 13, 0),
+            body="Laporan evaluasi asli yang sudah berhasil diproses.",
+            filter_status="relevant",
+            relevance_reason="evaluation-report",
+            raw_payload={"source": "original"},
+            parsed_payload={"evaluation_id": 1},
+        )
+        evaluation = WhatsAppEvaluation(
+            message=message,
+            group=group,
+            attendance_date=date(2026, 7, 21),
+        )
+        db.session.add_all([group, message, evaluation])
+        db.session.commit()
+
+        item = {
+            "whatsapp_message_id": message.whatsapp_message_id,
+            "whatsapp_group_id": group.whatsapp_group_id,
+            "whatsapp_contact_id": "123456789@lid",
+            "author_phone_number": None,
+            "author_name": "Tutor",
+            "sent_at": "2026-07-21T13:00:00",
+            "body": "",
+            "message_type": "chat",
+            "filter_status": "ignored",
+            "relevance_reason": "irrelevant",
+            "raw_payload": {"source": "rescan"},
+            "parsed_payload": {},
+            "evaluation": None,
+        }
+
+        WhatsAppIngestService.upsert_message_and_evaluation(
+            item,
+            {group.whatsapp_group_id: group},
+            {},
+        )
+        db.session.commit()
+
+        assert message.body == "Laporan evaluasi asli yang sudah berhasil diproses."
+        assert message.filter_status == "relevant"
+        assert message.relevance_reason == "evaluation-report"
+        assert message.raw_payload == {"source": "original"}
+        assert message.parsed_payload == {"evaluation_id": 1}
+        assert message.evaluation.id == evaluation.id
+
+
 def test_find_best_name_match_works_with_case_and_spacing_noise():
     match = find_best_name_match(
         "  Ratih  ",

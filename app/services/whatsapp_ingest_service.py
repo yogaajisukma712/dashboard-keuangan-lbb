@@ -2701,6 +2701,12 @@ class WhatsAppIngestService:
             db.session.add(message)
             created = True
 
+        evaluation_payload = item.get("evaluation")
+        preserve_existing_evaluation = (
+            not created
+            and message.evaluation is not None
+            and not evaluation_payload
+        )
         author_contact = contact_map.get(item.get("whatsapp_contact_id"))
         sent_at = WhatsAppIngestService.parse_datetime(item.get("sent_at"))
         message.group = group
@@ -2708,16 +2714,16 @@ class WhatsAppIngestService:
         message.author_phone_number = normalize_phone_number(item.get("author_phone_number"))
         message.author_name = item.get("author_name")
         message.sent_at = sent_at
-        message.body = item.get("body") or ""
         message.message_type = item.get("message_type") or "chat"
         message.from_me = bool(item.get("from_me", False))
         message.has_media = bool(item.get("has_media", False))
-        message.filter_status = item.get("filter_status") or "relevant"
-        message.relevance_reason = item.get("relevance_reason")
-        message.raw_payload = item.get("raw_payload") or {}
-        message.parsed_payload = item.get("parsed_payload") or {}
+        if not preserve_existing_evaluation:
+            message.body = item.get("body") or ""
+            message.filter_status = item.get("filter_status") or "relevant"
+            message.relevance_reason = item.get("relevance_reason")
+            message.raw_payload = item.get("raw_payload") or {}
+            message.parsed_payload = item.get("parsed_payload") or {}
 
-        evaluation_payload = item.get("evaluation")
         evaluation_created = False
         attendance_linked = False
         if evaluation_payload:

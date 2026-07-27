@@ -235,6 +235,53 @@ Time: 04.00 - 05.00 PM`;
   assert.equal(result.shouldStore, false);
 });
 
+test('parseEvaluationMessage accepts mistyped and unspaced English ordinals', () => {
+  for (const dateLabel of ['July 21sth 2026', 'July 21st2026']) {
+    const body = `Evaluation report for Maya's English class
+Date: ${dateLabel}
+Time: 08:00 - 09:00 PM
+Topic: Reading comprehension
+Evaluation:
+Maya identified the main idea and answered the comprehension questions independently.
+Warm regards,
+Ms. Sari`;
+
+    const result = parseEvaluationMessage(body);
+
+    assert.equal(result.reportedLessonDate, '2026-07-21');
+  }
+});
+
+test('parseEvaluationMessage accepts a structured report without a time label', () => {
+  const body = `Laporan evaluasi les Matematika Maya hari ini
+Tanggal: 24 Juli 2026
+Materi: Pecahan campuran
+Hasil Evaluasi:
+Maya mampu menyelesaikan soal pecahan campuran dan menjelaskan langkah pengerjaannya dengan baik.`;
+
+  const result = parseEvaluationMessage(body);
+
+  assert.equal(result.reportedLessonDate, '2026-07-24');
+  assert.equal(result.reportedTimeLabel, null);
+});
+
+test('parseEvaluationMessage prefers a later bare evaluation section over the report title', () => {
+  const body = `Laporan evaluasi les Matematika Maya hari ini
+Tanggal: 26 Juli 2026
+Pukul: 18.15-19.15 WIB
+Materi: Persamaan linear
+
+Hasil Evaluasi
+Maya memahami konsep persamaan linear dan dapat menyelesaikan latihan secara mandiri.
+
+Salam hangat,
+Kak Sari`;
+
+  const result = parseEvaluationMessage(body);
+
+  assert.match(result.summaryText, /^Maya memahami konsep persamaan linear/);
+});
+
 test('classifyEvaluationMessage ignores casual group chat', () => {
   const result = classifyEvaluationMessage('Besok jam 5 jadi ya kak');
 

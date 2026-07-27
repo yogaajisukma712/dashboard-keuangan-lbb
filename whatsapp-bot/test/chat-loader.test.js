@@ -4,7 +4,30 @@ const assert = require('node:assert/strict');
 const {
   listChatsResilient,
   loadChatsInBatches,
+  serializeDirectMessageId,
 } = require('../src/chat-loader');
+
+test('serializeDirectMessageId rebuilds the canonical WhatsApp message id', () => {
+  const result = serializeDirectMessageId(
+    {
+      fromMe: false,
+      remote: { _serialized: '120363000000000000@g.us' },
+      id: 'ABCDEF123456',
+    },
+    'fallback@g.us',
+  );
+
+  assert.equal(result, 'false_120363000000000000@g.us_ABCDEF123456');
+});
+
+test('serializeDirectMessageId preserves an existing canonical id', () => {
+  const canonical = 'false_120363000000000000@g.us_ABCDEF123456';
+
+  assert.equal(
+    serializeDirectMessageId({ _serialized: canonical }, 'fallback@g.us'),
+    canonical,
+  );
+});
 
 test('listChatsResilient keeps the normal getChats path', async () => {
   const expected = [{ id: 'one' }, { id: 'two' }];

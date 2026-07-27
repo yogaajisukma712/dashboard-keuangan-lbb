@@ -8,6 +8,24 @@ function errorMessage(error) {
   }
 }
 
+function serializeWid(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (value._serialized) return value._serialized;
+  if (value.user && value.server) return `${value.user}@${value.server}`;
+  return '';
+}
+
+function serializeDirectMessageId(id, groupId) {
+  const serialized = serializeWid(id);
+  if (serialized) return serialized;
+
+  const localId = id?.id || '';
+  const remote = serializeWid(id?.remote) || groupId;
+  if (!localId || !remote) return '';
+  return `${Boolean(id?.fromMe)}_${remote}_${localId}`;
+}
+
 async function listBrowserGroupIds(bot) {
   if (!bot?.pupPage?.evaluate) {
     throw new Error('WhatsApp browser page is unavailable for chat fallback.');
@@ -28,7 +46,7 @@ async function fetchMessagesByGroupId(bot, chatId, searchOptions = {}) {
     ? requestedLimit
     : null;
 
-  return bot.pupPage.evaluate(async (groupId, options) => {
+  const messages = await bot.pupPage.evaluate(async (groupId, options) => {
     const serializeId = (value) => (
       value?._serialized || value?.toString?.() || ''
     );
@@ -54,20 +72,34 @@ async function fetchMessagesByGroupId(bot, chatId, searchOptions = {}) {
       messages = messages.slice(messages.length - options.limit);
     }
 
-    return messages.map((message) => ({
-      id: {
-        _serialized: serializeId(message.id),
-        fromMe: Boolean(message.id?.fromMe),
-      },
-      timestamp: message.t,
-      body: message.body || message.caption || '',
-      author: serializeId(message.author),
-      from: serializeId(message.from),
-      type: message.type || 'chat',
-      fromMe: Boolean(message.id?.fromMe),
-      hasMedia: Boolean(message.mediaData || message.isMedia),
-    }));
+    return messages.map((message) => {
+      const serialized = message.serialize?.() || {};
+      const id = serialized.id || message.id || {};
+      return {
+        id: {
+          _serialized: id._serialized || '',
+          id: id.id || '',
+          remote: serializeId(id.remote),
+          fromMe: Boolean(id.fromMe),
+        },
+        timestamp: serialized.timestamp || message.t,
+        body: serialized.body || serialized.caption || message.body || message.caption || '',
+        author: serializeId(serialized.author || message.author),
+        from: serializeId(serialized.from || message.from),
+        type: serialized.type || message.type || 'chat',
+        fromMe: Boolean(id.fromMe),
+        hasMedia: Boolean(serialized.hasMedia || message.mediaData || message.isMedia),
+      };
+    });
   }, chatId, { loadAll, limit });
+
+  return messages.map((message) => ({
+    ...message,
+    id: {
+      ...message.id,
+      _serialized: serializeDirectMessageId(message.id, chatId),
+    },
+  }));
 }
 
 async function createDirectGroupChat(bot, chatId) {
@@ -200,4 +232,5 @@ module.exports = {
   listBrowserGroupIds,
   listChatsResilient,
   loadChatsInBatches,
+  serializeDirectMessageId,
 };

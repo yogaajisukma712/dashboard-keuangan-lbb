@@ -72,17 +72,25 @@ def evaluations_can_merge(left, right):
         "tutor_name",
         "subject_name",
         "focus_topic",
-        "summary_text",
         "source_language",
         "reported_lesson_date",
         "reported_time_label",
     )
-    return all(
+    parsed_fields_compatible = all(
         not getattr(left, field)
         or not getattr(right, field)
         or getattr(left, field) == getattr(right, field)
         for field in parsed_fields
     )
+    left_summary = left.summary_text or ""
+    right_summary = right.summary_text or ""
+    summaries_compatible = (
+        not left_summary
+        or not right_summary
+        or left_summary in right_summary
+        or right_summary in left_summary
+    )
+    return parsed_fields_compatible and summaries_compatible
 
 
 def subject_match_is_consistent(evaluation):
@@ -452,6 +460,13 @@ def execute_plan(plan):
                         field,
                         getattr(fallback_evaluation, field),
                     )
+            if (
+                fallback_evaluation.summary_text
+                and canonical_evaluation.summary_text
+                and fallback_evaluation.summary_text
+                in canonical_evaluation.summary_text
+            ):
+                canonical_evaluation.summary_text = fallback_evaluation.summary_text
             if (
                 canonical_evaluation.attendance_session_id is None
                 and fallback_evaluation.attendance_session_id is not None

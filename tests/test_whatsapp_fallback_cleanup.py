@@ -151,6 +151,7 @@ def test_execute_plan_merges_missing_canonical_evaluation_fields():
             group=group,
             attendance_date=date(2026, 5, 26),
             reported_time_label="08:00 - 09:00 PM",
+            summary_text="Template heading. Clean evaluation summary.",
             attendance_session=attendance,
         )
         truncated_evaluation = WhatsAppEvaluation(
@@ -160,6 +161,7 @@ def test_execute_plan_merges_missing_canonical_evaluation_fields():
             reported_lesson_date=date(2026, 5, 26),
             reported_time_label="08:00 - 09:00 PM",
             subject_name="English",
+            summary_text="Clean evaluation summary.",
             attendance_session=attendance,
         )
         db.session.add_all(
@@ -193,5 +195,6 @@ def test_execute_plan_merges_missing_canonical_evaluation_fields():
         canonical = db.session.get(WhatsAppMessage, canonical_message_id)
         assert canonical.evaluation.reported_lesson_date == date(2026, 5, 26)
         assert canonical.evaluation.subject_name == "English"
+        assert canonical.evaluation.summary_text == "Clean evaluation summary."
         assert db.session.get(WhatsAppMessage, truncated_message_id) is None
         assert db.session.get(WhatsAppEvaluation, truncated_evaluation_id) is None

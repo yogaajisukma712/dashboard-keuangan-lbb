@@ -2026,7 +2026,11 @@ def test_upsert_evaluation_inserts_first_group_enrollment_for_manual_review_when
         assert AttendanceSession.query.count() == 1
 
 
-def test_scan_attendance_updates_existing_link_when_group_enrollment_changes():
+def test_scan_attendance_preserves_existing_row_when_group_enrollment_changes():
+    # Behaviour change (bug fix): an automatic rescan must NEVER overwrite an
+    # existing attendance row. When the validated group enrollment changes, the
+    # evaluation's matched_* fields are refreshed, but the linked attendance row
+    # keeps the admin-owned values. Only the link is preserved.
     app = _make_test_app()
 
     with app.app_context():
@@ -2139,12 +2143,15 @@ def test_scan_attendance_updates_existing_link_when_group_enrollment_changes():
 
         assert summary["linked_attendance"] == 1
         assert AttendanceSession.query.count() == 1
-        assert session.enrollment_id == new_enrollment.id
-        assert session.student_id == new_student.id
-        assert session.subject_id == math.id
-        assert session.tutor_fee_amount == new_enrollment.tutor_rate_per_meeting
+        # The existing attendance row is preserved unchanged (admin values win).
+        assert session.enrollment_id == old_enrollment.id
+        assert session.student_id == old_student.id
+        assert session.subject_id == english.id
+        assert session.tutor_fee_amount == 45000
+        # The evaluation's matched_* fields still get refreshed to the new context.
         assert evaluation.matched_enrollment_id == new_enrollment.id
         assert evaluation.matched_student_id == new_student.id
+        assert evaluation.attendance_session_id == session.id
 
 
 def test_lid_sender_contact_name_selects_validated_tutor_enrollment_in_shared_group():
@@ -2549,3 +2556,314 @@ def test_upsert_evaluation_truncates_long_varchar_payload_fields():
         assert len(evaluation.focus_topic) == 255
         assert len(evaluation.source_language) == 32
         assert len(evaluation.reported_time_label) == 64
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for the WhatsApp re-ingest destructive-behaviour bug fix:
+#   1. manual deletions must not be undone by re-ingest
+#   2. manual edits must not be overwritten, and must not spawn duplicates
+#   3. editing only the session_date must not spawn a duplicate
+#   4. locked attendance periods must block create AND modify from ingest
+#   5. restore-from-trash stays linked, and re-ingest neither dupes nor edits
+#   6. a normal untouched evaluation still creates attendance on first ingest
+# ---------------------------------------------------------------------------
+
+# A message id that contains LIKE-significant characters ("_") to guard the
+# autoescape behaviour of the notes fallback lookup.
+_FIX_MESSAGE_ID = "false_120363000000000000@g.us_ABC123"
+_FIX_PHONE = "081999000111"
+
+
+def _seed_ingest_environment(*, sent_at, message_id=_FIX_MESSAGE_ID):
+    """Seed a validated student group + validated tutor + one active enrollment.
+
+    Must be called inside an app context after db.create_all(). Returns the
+    created objects so tests can drive upsert_evaluation and assert on them.
+    """
+    curriculum = Curriculum(name="K13")
+    level = Level(name="SMP")
+    subject = Subject(name="Matematika")
+    student = Student(student_code="STD-FIX", name="Siswa Fix", is_active=True)
+    tutor = Tutor(
+        tutor_code="TTR-FIX",
+        name="Tutor Fix",
+        phone="081999000111",
+        is_active=True,
+    )
+    contact = WhatsAppContact(
+        whatsapp_contact_id="6281999000111@c.us",
+        phone_number="081999000111",
+        display_name="Tutor Fix",
+        is_group=False,
+    )
+    group = WhatsAppGroup(whatsapp_group_id="group-fix@g.us", name="Group Fix")
+    enrollment = Enrollment(
+        student=student,
+        tutor=tutor,
+        subject=subject,
+        curriculum=curriculum,
+        level=level,
+        grade="8",
+        student_rate_per_meeting=80000,
+        tutor_rate_per_meeting=45000,
+        status="active",
+        whatsapp_group_id="group-fix@g.us",
+        whatsapp_group_name="Group Fix",
+        whatsapp_group_memberships_json=[
+            {"whatsapp_group_id": "group-fix@g.us", "group_name": "Group Fix"}
+        ],
+    )
+    db.session.add_all(
+        [curriculum, level, subject, student, tutor, contact, group, enrollment]
+    )
+    db.session.flush()
+    db.session.add_all(
+        [
+            WhatsAppStudentGroupValidation(group_id=group.id, student_id=student.id),
+            WhatsAppTutorValidation(
+                contact_id=contact.id,
+                tutor_id=tutor.id,
+                validated_phone_number="081999000111",
+                group_memberships_json=[
+                    {
+                        "group_id": group.id,
+                        "whatsapp_group_id": "group-fix@g.us",
+                        "group_name": "Group Fix",
+                    }
+                ],
+            ),
+        ]
+    )
+    message = WhatsAppMessage(
+        whatsapp_message_id=message_id,
+        group=group,
+        author_phone_number="081999000111",
+        author_name="Tutor Fix",
+        sent_at=sent_at,
+        body="Laporan evaluasi valid",
+    )
+    db.session.add(message)
+    db.session.flush()
+    return {
+        "group": group,
+        "message": message,
+        "enrollment": enrollment,
+        "student": student,
+        "tutor": tutor,
+        "subject": subject,
+    }
+
+
+def _ingest_fix_payload(env):
+    return WhatsAppIngestService.upsert_evaluation(
+        env["message"],
+        env["group"],
+        {"summary_text": "Evaluasi valid."},
+        _FIX_PHONE,
+    )
+
+
+def test_reingest_does_not_undo_manual_attendance_deletion():
+    from app.models import DeletedAttendanceSession
+    from app.routes.attendance import _delete_attendance_sessions_from_refs
+    from app.utils.public_ids import encode_public_id
+
+    app = _make_test_app()
+    with app.app_context():
+        db.create_all()
+        env = _seed_ingest_environment(sent_at=datetime(2026, 7, 21, 18, 0, 0))
+        evaluation, created, attendance_linked = _ingest_fix_payload(env)
+        db.session.commit()
+        assert created is True
+        assert attendance_linked is True
+        assert AttendanceSession.query.count() == 1
+        session_id = evaluation.attendance_session_id
+
+        # Delete the attendance exactly the way the admin route does.
+        ref = encode_public_id("attendance_session", session_id)
+        _delete_attendance_sessions_from_refs([ref])
+        db.session.commit()
+
+        assert AttendanceSession.query.count() == 0
+        evaluation = WhatsAppEvaluation.query.get(evaluation.id)
+        assert evaluation.attendance_session_id is None
+        assert evaluation.match_status == "manual-unlinked"
+        assert DeletedAttendanceSession.query.count() == 1
+
+        # Re-ingest the identical payload: the bot must NOT resurrect anything.
+        evaluation2, created2, attendance_linked2 = _ingest_fix_payload(env)
+        db.session.commit()
+
+        assert created2 is False
+        assert attendance_linked2 is False
+        assert AttendanceSession.query.count() == 0
+        assert evaluation2.attendance_session_id is None
+        assert evaluation2.match_status == "manual-unlinked"
+        # The manual-deletion note must survive the re-ingest.
+        assert "Presensi terkait dihapus manual pada" in (evaluation2.notes or "")
+
+
+def test_reingest_does_not_overwrite_manual_edits_nor_duplicate():
+    app = _make_test_app()
+    with app.app_context():
+        db.create_all()
+        env = _seed_ingest_environment(sent_at=datetime(2026, 7, 21, 18, 0, 0))
+        # A second tutor the admin can reassign the row to.
+        other_tutor = Tutor(
+            tutor_code="TTR-OTHER",
+            name="Tutor Lain",
+            phone="081222333444",
+            is_active=True,
+        )
+        db.session.add(other_tutor)
+        db.session.flush()
+
+        evaluation, _created, _linked = _ingest_fix_payload(env)
+        db.session.commit()
+        assert AttendanceSession.query.count() == 1
+        session = evaluation.attendance_session
+
+        # Admin manually edits four fields.
+        session.tutor_fee_amount = 12345
+        session.status = "excused"
+        session.session_date = datetime(2026, 7, 25, 0, 0, 0)
+        session.tutor_id = other_tutor.id
+        db.session.commit()
+
+        # Re-ingest the identical payload.
+        _ingest_fix_payload(env)
+        db.session.commit()
+
+        assert AttendanceSession.query.count() == 1
+        refreshed = AttendanceSession.query.get(session.id)
+        assert float(refreshed.tutor_fee_amount) == 12345
+        assert refreshed.status == "excused"
+        assert as_date(refreshed.session_date) == date(2026, 7, 25)
+        assert refreshed.tutor_id == other_tutor.id
+
+
+def test_reingest_after_only_session_date_edit_does_not_duplicate():
+    app = _make_test_app()
+    with app.app_context():
+        db.create_all()
+        env = _seed_ingest_environment(sent_at=datetime(2026, 7, 21, 18, 0, 0))
+        evaluation, _created, _linked = _ingest_fix_payload(env)
+        db.session.commit()
+        session = evaluation.attendance_session
+
+        # Admin edits ONLY the session_date (the case that previously dropped the
+        # link and produced a duplicate on the next ingest).
+        session.session_date = datetime(2026, 7, 28, 0, 0, 0)
+        db.session.commit()
+
+        _ingest_fix_payload(env)
+        db.session.commit()
+
+        assert AttendanceSession.query.count() == 1
+        refreshed = AttendanceSession.query.get(session.id)
+        assert as_date(refreshed.session_date) == date(2026, 7, 28)
+
+
+def test_locked_period_blocks_create_and_modify_on_ingest():
+    app = _make_test_app()
+    with app.app_context():
+        db.create_all()
+        env = _seed_ingest_environment(sent_at=datetime(2026, 7, 21, 18, 0, 0))
+        db.session.add(AttendancePeriodLock(month=7, year=2026))
+        db.session.commit()
+
+        # (a) A locked period must prevent creating any new attendance row.
+        evaluation, created, attendance_linked = _ingest_fix_payload(env)
+        db.session.commit()
+        assert created is True
+        assert attendance_linked is False
+        assert evaluation.attendance_session_id is None
+        assert AttendanceSession.query.count() == 0
+
+        # (b) An existing linked row in a locked period must not be modified.
+        existing = AttendanceSession(
+            enrollment_id=env["enrollment"].id,
+            student_id=env["student"].id,
+            tutor_id=env["tutor"].id,
+            subject_id=env["subject"].id,
+            session_date=datetime(2026, 7, 21, 0, 0, 0),
+            status="attended",
+            student_present=True,
+            tutor_present=True,
+            tutor_fee_amount=99999,
+            notes=(
+                f"Manual row for {env['message'].whatsapp_message_id} in group "
+                f"{env['group'].whatsapp_group_id}."
+            ),
+        )
+        db.session.add(existing)
+        db.session.flush()
+        evaluation.attendance_session = existing
+        evaluation.match_status = "attendance-linked"
+        db.session.commit()
+
+        _ingest_fix_payload(env)
+        db.session.commit()
+
+        assert AttendanceSession.query.count() == 1
+        refreshed = AttendanceSession.query.get(existing.id)
+        assert float(refreshed.tutor_fee_amount) == 99999
+
+
+def test_restore_from_trash_stays_linked_and_survives_reingest():
+    from app.models import DeletedAttendanceSession
+    from app.routes.attendance import (
+        _delete_attendance_sessions_from_refs,
+        _restore_attendance_session_from_trash,
+    )
+    from app.utils.public_ids import encode_public_id
+
+    app = _make_test_app()
+    with app.app_context():
+        db.create_all()
+        env = _seed_ingest_environment(sent_at=datetime(2026, 7, 21, 18, 0, 0))
+        evaluation, _created, _linked = _ingest_fix_payload(env)
+        db.session.commit()
+        eval_id = evaluation.id
+        session_id = evaluation.attendance_session_id
+
+        ref = encode_public_id("attendance_session", session_id)
+        _delete_attendance_sessions_from_refs([ref])
+        db.session.commit()
+        assert AttendanceSession.query.count() == 0
+
+        deleted_record = DeletedAttendanceSession.query.first()
+        restored = _restore_attendance_session_from_trash(deleted_record)
+        db.session.commit()
+
+        # After restore the evaluation is linked again and NOT blocked.
+        evaluation = WhatsAppEvaluation.query.get(eval_id)
+        assert evaluation.attendance_session_id == restored.id
+        assert evaluation.match_status == "attendance-linked"
+        assert AttendanceSession.query.count() == 1
+
+        # A later ingest neither duplicates nor overwrites the restored row.
+        restored.tutor_fee_amount = 54321
+        db.session.commit()
+        _ingest_fix_payload(env)
+        db.session.commit()
+
+        assert AttendanceSession.query.count() == 1
+        refreshed = AttendanceSession.query.get(restored.id)
+        assert float(refreshed.tutor_fee_amount) == 54321
+
+
+def test_normal_evaluation_in_unlocked_period_creates_attendance():
+    app = _make_test_app()
+    with app.app_context():
+        db.create_all()
+        env = _seed_ingest_environment(sent_at=datetime(2026, 7, 21, 18, 0, 0))
+
+        evaluation, created, attendance_linked = _ingest_fix_payload(env)
+        db.session.commit()
+
+        assert created is True
+        assert attendance_linked is True
+        assert AttendanceSession.query.count() == 1
+        assert evaluation.attendance_session_id is not None
+        assert evaluation.match_status == "attendance-linked"

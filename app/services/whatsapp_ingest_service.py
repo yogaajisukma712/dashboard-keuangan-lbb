@@ -1756,31 +1756,49 @@ class WhatsAppIngestService:
         }
 
     @staticmethod
+    def is_attendance_date_locked(attendance_date) -> bool:
+        """Report whether attendance_date falls inside a locked attendance period.
+
+        Uses the same AttendancePeriodLock source of truth the UI routes use
+        (see app/routes/attendance.py::_get_attendance_lock_for_date), so the
+        automatic ingest respects admin locks exactly like the manual routes.
+        """
+        resolved = as_date(attendance_date)
+        if resolved is None:
+            return False
+        return (
+            AttendancePeriodLock.query.filter_by(
+                month=resolved.month,
+                year=resolved.year,
+            ).first()
+            is not None
+        )
+
+    @staticmethod
     def find_existing_attendance_for_whatsapp_identity(
         enrollment: Enrollment,
         evaluation: WhatsAppEvaluation,
         matched_tutor: Tutor | None,
     ) -> AttendanceSession | None:
-        tutor_id = matched_tutor.id if matched_tutor is not None else enrollment.tutor_id
+        # If the evaluation is already linked to an attendance row, that link is
+        # authoritative: return it unconditionally. Do NOT drop the link when the
+        # admin changed session_date or status, otherwise the next ingest inserts
+        # a duplicate row.
         if evaluation.attendance_session is not None:
-            existing_link = evaluation.attendance_session
-            if (
-                as_date(existing_link.session_date) == evaluation.attendance_date
-                and existing_link.status == "attended"
-            ):
-                return existing_link
-            evaluation.attendance_session = None
+            return evaluation.attendance_session
 
+        # Fallback identity: the WhatsApp message id embedded in the attendance
+        # notes. The message id is globally unique, so matching on notes alone is
+        # precise and keeps recognising the row after an admin edits the tutor,
+        # enrollment, status or date. LIKE-significant characters in the id (e.g.
+        # "_") are escaped via autoescape so they match literally.
         message_id = (
             evaluation.message.whatsapp_message_id if evaluation.message else None
         )
         if message_id:
             return (
                 AttendanceSession.query.filter(
-                    AttendanceSession.enrollment_id == enrollment.id,
-                    AttendanceSession.tutor_id == tutor_id,
-                    AttendanceSession.status == "attended",
-                    AttendanceSession.notes.ilike(f"%{message_id}%"),
+                    AttendanceSession.notes.contains(message_id, autoescape=True),
                 )
                 .order_by(AttendanceSession.id.asc())
                 .first()
@@ -1792,6 +1810,21 @@ class WhatsAppIngestService:
     def refresh_evaluation_attendance_link(
         evaluation: WhatsAppEvaluation,
     ) -> dict:
+        # Automatic/bulk path: respect the manual-deletion block. If the admin
+        # deliberately unlinked this evaluation, do not relink or recreate it.
+        # (The only current caller, scan_attendance_for_month, already skips
+        # "manual-unlinked" evaluations; this is defense-in-depth for any future
+        # automatic caller. A human-initiated re-link would use a dedicated route,
+        # of which none currently exists.)
+        if (evaluation.match_status == "manual-unlinked") and (
+            evaluation.attendance_session_id is None
+        ):
+            return {
+                "attendance_linked": False,
+                "status": "manual-unlinked",
+                "notes": evaluation.notes,
+            }
+
         author_phone_number = (
             evaluation.message.author_phone_number if evaluation.message else None
         )
@@ -2756,6 +2789,16 @@ class WhatsAppIngestService:
             db.session.add(evaluation)
             created = True
 
+        # Capture the pre-ingest signal BEFORE any assignment overwrites it. A
+        # "manual-unlinked" evaluation with no attendance link means the admin
+        # deliberately removed the attendance; the automatic ingest must not
+        # recreate or relink it.
+        previous_status = evaluation.match_status
+        previous_notes = evaluation.notes
+        blocked = (previous_status == "manual-unlinked") and (
+            evaluation.attendance_session_id is None
+        )
+
         reported_lesson_date = WhatsAppIngestService.parse_date(
             payload.get("reported_lesson_date")
         )
@@ -2788,6 +2831,24 @@ class WhatsAppIngestService:
         evaluation.notes = matches["note"]
 
         attendance_linked = False
+        if blocked:
+            # Admin deliberately removed this attendance: do not link or create.
+            # Force the status back to "manual-unlinked" so the recomputed status
+            # cannot overwrite the admin's decision, and never lose the manual
+            # "Presensi terkait dihapus manual pada ..." note.
+            recomputed_note = matches["note"]
+            preserved_notes = previous_notes or ""
+            if recomputed_note and recomputed_note not in preserved_notes:
+                evaluation.notes = (
+                    f"{preserved_notes}\n{recomputed_note}".strip()
+                    if preserved_notes
+                    else recomputed_note
+                )
+            else:
+                evaluation.notes = preserved_notes or recomputed_note
+            evaluation.match_status = "manual-unlinked"
+            return evaluation, created, False
+
         if matches["enrollment"] is not None:
             attendance = WhatsAppIngestService.link_or_create_attendance(
                 matches["enrollment"], evaluation, matched_tutor=matches["tutor"]
@@ -2855,6 +2916,7 @@ class WhatsAppIngestService:
         enrollment: Enrollment,
         evaluation: WhatsAppEvaluation,
         matched_tutor: Tutor | None = None,
+        allow_create: bool = True,
     ) -> AttendanceSession | None:
         actual_tutor = matched_tutor or enrollment.tutor
         actual_tutor_id = actual_tutor.id if actual_tutor is not None else enrollment.tutor_id
@@ -2864,19 +2926,18 @@ class WhatsAppIngestService:
             actual_tutor,
         )
         if existing is not None:
-            existing.enrollment_id = enrollment.id
-            existing.student_id = enrollment.student_id
-            existing.tutor_id = actual_tutor_id
-            existing.session_date = datetime.combine(
-                evaluation.attendance_date, datetime.min.time()
-            )
-            existing.status = "attended"
-            existing.student_present = True
-            existing.tutor_present = True
-            existing.subject_id = enrollment.subject_id
-            existing.tutor_fee_amount = enrollment.tutor_rate_per_meeting
-            existing.updated_at = datetime.utcnow()
+            # Never overwrite an existing attendance row from an automatic ingest.
+            # The admin's manually edited values always win; we only restore the
+            # evaluation<->attendance link. This holds inside a locked period too:
+            # linking is allowed, but no field is modified.
             return existing
+
+        # No existing row: creating one requires an INSERT. Refuse when the caller
+        # disabled creation, or when the attendance date is in a locked period.
+        if not allow_create:
+            return None
+        if WhatsAppIngestService.is_attendance_date_locked(evaluation.attendance_date):
+            return None
 
         author_phone_number = normalize_phone_number(
             evaluation.message.author_phone_number if evaluation.message else None

@@ -40,6 +40,10 @@
             href="{{ url_for('static', filename='css/persistent-filters.css') }}"
             rel="stylesheet"
         />
+        <link
+            href="{{ url_for('static', filename='css/searchable-select.css') }}"
+            rel="stylesheet"
+        />
 
         <style>
             /* ══════════════════════════════════════════
@@ -927,6 +931,7 @@
         </script>
 
         <script src="{{ url_for('static', filename='js/persistent-filters.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/searchable-select.js') }}"></script>
 
         <script>
             /* ── Pertahankan filter tabel saat halaman di-reload ── */
@@ -1280,6 +1285,10 @@
                 }
 
                 function enhanceSearchableSelect(select) {
+                    if (window.LbbSearchableSelect) {
+                        window.LbbSearchableSelect.enhance(select);
+                        return;
+                    }
                     if (select.dataset.lbbSearchableReady === "1" || select.multiple) return;
                     var hasExplicitSelection = asArray(select.options).some(function (option) {
                         return option.defaultSelected && option.value !== "";
@@ -1427,7 +1436,11 @@
                 function initLbbFilterUi(root) {
                     root = root || document;
                     asArray(root.querySelectorAll("form[data-lbb-filter-form]")).forEach(bindFilterForm);
-                    asArray(root.querySelectorAll("select.form-select, select[data-searchable-select]")).forEach(enhanceSearchableSelect);
+                    if (window.LbbSearchableSelect) {
+                        window.LbbSearchableSelect.init(root);
+                    } else {
+                        asArray(root.querySelectorAll("select.form-select, select[data-searchable-select]")).forEach(enhanceSearchableSelect);
+                    }
                     bindFilterRegions(root);
                     bindQuickFilters(root);
                 }

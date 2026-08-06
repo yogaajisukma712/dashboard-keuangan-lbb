@@ -1,0 +1,117 @@
+/* LBB searchable select — built on Bootstrap 5.3 dropdown.
+   Escapes overflow clipping via Popper strategy:"fixed" (set in JS) plus a
+   z-index above the modal layer (Bootstrap modal = 1055). */
+
+.lbb-select {
+  position: relative;
+}
+
+.lbb-select.w-auto {
+  display: inline-block;
+}
+
+/* The toggle keeps the native Bootstrap .form-select look (border + caret).
+   Reserve room on the right so the value never sits under the clear button. */
+.lbb-select-toggle {
+  position: relative;
+  padding-right: 3.75rem;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.lbb-select-toggle.lbb-select-placeholder .lbb-select-value {
+  color: #6c757d;
+}
+
+.lbb-select-value {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Clear (×) button, layered over the toggle just left of the caret. */
+.lbb-select-clear {
+  position: absolute;
+  top: 50%;
+  right: 2.1rem;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #6c757d;
+  line-height: 1;
+  font-size: 0.75rem;
+}
+
+.lbb-select-clear:hover,
+.lbb-select-clear:focus {
+  background: #e9ecef;
+  color: #212529;
+  outline: 0;
+}
+
+.lbb-select.lbb-has-value .lbb-select-clear {
+  display: inline-flex;
+}
+
+.lbb-select-toggle:disabled ~ .lbb-select-clear,
+.lbb-select.lbb-is-disabled .lbb-select-clear {
+  display: none;
+}
+
+/* Panel — must float above the modal layer and never be clipped. */
+.lbb-select-menu {
+  z-index: 1080;
+  min-width: 12rem;
+  max-width: 95vw;
+  overflow: hidden;
+}
+
+.lbb-select-options {
+  max-height: 15rem;
+  overflow-y: auto;
+}
+
+.lbb-select-options .list-group-item {
+  cursor: pointer;
+  border-left: 0;
+  border-right: 0;
+}
+
+.lbb-select-options .list-group-item:first-child {
+  border-top: 0;
+}
+
+.lbb-select-options .list-group-item.active {
+  background-color: var(--brand-primary, #0d6efd);
+  border-color: var(--brand-primary, #0d6efd);
+  color: #fff;
+}
+
+/* Keyboard / hover highlight distinct from the selected (active) state. */
+.lbb-select-options .list-group-item.lbb-highlight:not(.active) {
+  background-color: #eef4ff;
+  color: #1f2937;
+}
+
+/* Non-interactive optgroup header rendered inside the list. */
+.lbb-select-optgroup {
+  cursor: default;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6c757d;
+  background: #f8f9fa;
+  pointer-events: none;
+}

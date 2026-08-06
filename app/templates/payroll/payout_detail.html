@@ -462,18 +462,33 @@ Breadcrumb ───────────────────────
                     </div>
                     <div class="d-flex flex-column gap-3">
                         {% for proof in proof_items %}
-                        <div class="border rounded p-2 bg-light">
+                        <div class="border rounded p-2 {% if proof.is_current_payout %}bg-light{% else %}bg-white border-warning-subtle{% endif %}">
                             <div
                                 class="d-flex justify-content-between align-items-start gap-2 mb-2"
                             >
                                 <div class="small">
                                     <div class="fw-semibold text-break">
                                         Bukti #{{ loop.index }}
+                                        {% if proof.payment_label %}
+                                        <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1">{{ proof.payment_label }}</span>
+                                        {% endif %}
                                     </div>
                                     <div class="text-muted text-break">
                                         {{ proof.original_filename }}
                                     </div>
+                                    {% if not proof.is_current_payout %}
+                                    <div class="text-warning-emphasis small mt-1">
+                                        <i class="bi bi-info-circle me-1"></i>Bukti ini
+                                        terlampir pada pembayaran lain
+                                        <a
+                                            href="{{ url_for('payroll.payout_detail', payout_ref=proof.payout_ref) }}"
+                                            class="fw-semibold"
+                                            >buka pembayaran tersebut</a
+                                        >.
+                                    </div>
+                                    {% endif %}
                                 </div>
+                                {% if proof.exists %}
                                 <a
                                     href="{{ proof.download_url }}"
                                     target="_blank"
@@ -482,8 +497,18 @@ Breadcrumb ───────────────────────
                                     <i class="bi bi-box-arrow-up-right me-1"></i
                                     >Buka
                                 </a>
+                                {% endif %}
                             </div>
-                            {% if proof.is_image %}
+                            {% if not proof.exists %}
+                            <div
+                                class="alert alert-warning py-2 mb-0 d-flex align-items-center gap-2"
+                            >
+                                <i class="bi bi-exclamation-triangle fs-5"></i>
+                                <span class="small"
+                                    >Berkas bukti tidak ditemukan di server.</span
+                                >
+                            </div>
+                            {% elif proof.is_image %}
                             <div
                                 class="border rounded overflow-hidden bg-white"
                                 style="max-height: 220px"

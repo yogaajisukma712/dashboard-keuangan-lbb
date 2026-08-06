@@ -64,6 +64,9 @@ MONTH_NAMES_ID = [
     "Desember",
 ]
 PREVIOUS_SHORTFALL_NOTE_PREFIX = "Kekurangan bulan sebelumnya"
+# Prefix written by tutor_summary_settle_shortfall for a supplemental (kekurangan)
+# payment. Used to detect settlement payouts when aggregating slip proofs.
+SETTLEMENT_NOTE_PREFIX = "Pembayaran kekurangan lunas"
 
 
 def _format_rupiah(value) -> str:
@@ -377,6 +380,27 @@ def _build_proof_context(proof_image, *, proof_endpoint="payroll.serve_payroll_p
     }
 
 
+def _proof_file_exists(file_path):
+    """Return True when the proof file physically exists under UPLOAD_FOLDER.
+
+    Guarded defensively: some callers may run without an active app context or
+    a configured UPLOAD_FOLDER, and a missing config must never raise here.
+    """
+    if not file_path:
+        return False
+    try:
+        upload_folder = current_app.config.get("UPLOAD_FOLDER")
+    except (RuntimeError, AttributeError, TypeError):
+        return False
+    if not upload_folder:
+        return False
+    try:
+        full_path = os.path.join(upload_folder, "payroll_proofs", os.path.basename(file_path))
+        return os.path.isfile(full_path)
+    except (OSError, TypeError):
+        return False
+
+
 def _proof_context_from_path(
     file_path,
     notes=None,
@@ -392,6 +416,8 @@ def _proof_context_from_path(
     filename = os.path.basename(file_path)
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     download_url = _proof_download_url(file_path, endpoint=proof_endpoint)
+    exists = _proof_file_exists(file_path)
+    is_image = ext in {"png", "jpg", "jpeg", "gif", "webp"}
     return {
         "file_path": file_path,
         "filename": filename,
@@ -399,12 +425,12 @@ def _proof_context_from_path(
         "notes": notes,
         "uploaded_at": uploaded_at,
         "download_url": download_url,
-        "image_url": download_url
-        if ext in {"png", "jpg", "jpeg", "gif", "webp"}
-        else None,
-        "is_image": ext in {"png", "jpg", "jpeg", "gif", "webp"},
+        # A missing file must not produce an <img> src that 404s.
+        "image_url": download_url if (is_image and exists) else None,
+        "is_image": is_image,
         "is_pdf": ext == "pdf",
         "extension": ext,
+        "exists": exists,
     }
 
 
@@ -488,6 +514,48 @@ def _get_payout_proof_contexts(payout, *, proof_endpoint="payroll.serve_payroll_
     return contexts
 
 
+def _get_display_payout_proof_contexts(
+    payout, *, proof_endpoint="payroll.serve_payroll_proof"
+):
+    """Aggregate transfer proofs across every payout shown on this slip.
+
+    A tutor+period may be paid via an original payout plus one or more
+    settlement ("kekurangan lunas") payouts, each carrying its own uploaded
+    proof. The fee slip must show all of them, tagged with which payment they
+    belong to. Proofs are de-duplicated by filename and returned oldest payment
+    first (then oldest upload first) so "Bukti #1" is the first payment.
+    """
+    contexts = []
+    seen_filenames = set()
+    for related in _get_period_payouts_for_display(payout):
+        is_settlement = any(
+            (line.notes or "").startswith(SETTLEMENT_NOTE_PREFIX)
+            for line in related.payout_lines
+        )
+        payment_label = (
+            "Pembayaran Kekurangan" if is_settlement else "Pembayaran Utama"
+        )
+        for ctx in _get_payout_proof_contexts(related, proof_endpoint=proof_endpoint):
+            if ctx["filename"] in seen_filenames:
+                continue
+            seen_filenames.add(ctx["filename"])
+            ctx["payout_id"] = related.id
+            ctx["payout_ref"] = related.public_id
+            ctx["payout_amount"] = float(related.amount or 0)
+            ctx["payout_date"] = related.payout_date
+            ctx["is_current_payout"] = related.id == payout.id
+            ctx["payment_label"] = payment_label
+            contexts.append(ctx)
+
+    contexts.sort(
+        key=lambda item: (
+            item.get("payout_date") or datetime.min,
+            item.get("uploaded_at") or datetime.min,
+        )
+    )
+    return contexts
+
+
 def _get_tutor_attendance_for_period(tutor_id, month, year):
     """Get raw attendance total (sum of tutor_fee_amount for attended sessions)."""
     total = db.session.query(db.func.sum(AttendanceSession.tutor_fee_amount)).filter(
@@ -558,11 +626,79 @@ def _get_tutor_balance_for_period(tutor_id, month, year):
     return payable - paid
 
 
+def _get_period_payouts_for_display(payout):
+    """Return the payouts whose data belongs on this displayed slip.
+
+    Ordered oldest first (payout_date asc, then created_at asc, then id asc).
+
+    A tutor may be paid for one service period across several completed payouts
+    (e.g. an original payout plus a later "kekurangan lunas" settlement payout).
+    The slip aggregates those siblings so lines AND proofs are shown together.
+
+    Security invariant: the sibling query is always scoped to the SAME
+    ``tutor_id`` so a slip can never expose another tutor's payout or proof.
+    """
+    own_lines = list(payout.payout_lines)
+    if payout.status != "completed" or not own_lines:
+        return [payout]
+    # Carried previous-month shortfall payouts are shown standalone; do not
+    # over-aggregate (mirror the guard in _get_display_payout_lines).
+    if any(_is_previous_shortfall_line(line) for line in own_lines):
+        return [payout]
+
+    periods = {
+        (line.service_month.month, line.service_month.year)
+        for line in own_lines
+        if line.service_month
+    }
+    if not periods:
+        return [payout]
+
+    period_filters = [
+        db.and_(
+            db.extract("month", TutorPayoutLine.service_month) == month,
+            db.extract("year", TutorPayoutLine.service_month) == year,
+        )
+        for month, year in periods
+    ]
+
+    related = (
+        TutorPayout.query.join(
+            TutorPayoutLine, TutorPayoutLine.tutor_payout_id == TutorPayout.id
+        )
+        .filter(
+            TutorPayout.tutor_id == payout.tutor_id,
+            TutorPayout.status == "completed",
+            db.or_(*period_filters),
+        )
+        .all()
+    )
+
+    # De-duplicate (the join can yield the same payout once per matching line)
+    # and guarantee `payout` itself is always present.
+    by_id = {p.id: p for p in related}
+    by_id.setdefault(payout.id, payout)
+
+    return sorted(
+        by_id.values(),
+        key=lambda p: (
+            p.payout_date or datetime.min,
+            p.created_at or datetime.min,
+            p.id,
+        ),
+    )
+
+
 def _get_display_payout_lines(payout):
     """Return payout lines shown in detail pages.
 
     Completed shortfall payouts are separate accounting records, but the detail page
     should show the whole paid history for the same tutor/service period.
+
+    The set of payouts contributing lines is sourced from
+    ``_get_period_payouts_for_display`` so line aggregation and proof aggregation
+    can never drift apart. Line selection still filters by the displayed periods
+    and preserves the historical ordering exactly.
     """
     own_lines = list(payout.payout_lines)
     if payout.status != "completed" or not own_lines:
@@ -586,13 +722,14 @@ def _get_display_payout_lines(payout):
         for month, year in periods
     ]
 
+    payout_ids = [p.id for p in _get_period_payouts_for_display(payout)]
+
     return (
         TutorPayoutLine.query.join(
             TutorPayout, TutorPayoutLine.tutor_payout_id == TutorPayout.id
         )
         .filter(
-            TutorPayout.tutor_id == payout.tutor_id,
-            TutorPayout.status == "completed",
+            TutorPayout.id.in_(payout_ids),
             db.or_(*period_filters),
         )
         .order_by(
@@ -789,7 +926,7 @@ def tutor_summary_settle_shortfall():
         flash(f"{tutor.name} tidak memiliki kekurangan bayar periode ini.", "warning")
         return redirect(redirect_url)
 
-    note = f"Pembayaran kekurangan lunas periode {MONTH_NAMES_ID[month]} {year}"
+    note = f"{SETTLEMENT_NOTE_PREFIX} periode {MONTH_NAMES_ID[month]} {year}"
     try:
         payout = TutorPayout(
             tutor_id=tutor.id,
@@ -1089,7 +1226,7 @@ def payout_detail(payout_ref):
         display_payout_lines=display_payout_lines,
         display_payout_total=display_payout_total,
         excluded_ids=excluded_ids,
-        proof_items=_get_payout_proof_contexts(payout),
+        proof_items=_get_display_payout_proof_contexts(payout),
     )
 
 
@@ -1653,7 +1790,9 @@ def _build_fee_slip_template_context(
         _external=True,
     )
     proof_ctx = _build_proof_context(payout.proof_image, proof_endpoint=proof_endpoint)
-    proof_items = _get_payout_proof_contexts(payout, proof_endpoint=proof_endpoint)
+    proof_items = _get_display_payout_proof_contexts(
+        payout, proof_endpoint=proof_endpoint
+    )
     if embed_proof and proof_ctx.get("proof_image_url"):
         proof_ctx["proof_image_url"] = _proof_image_data_uri(payout.proof_image)
     if embed_proof:
@@ -2149,20 +2288,35 @@ def fee_slip_pdf(payout_ref):
     session_table.setStyle(TableStyle(session_style))
     story.append(session_table)
 
-    proof_items = _get_payout_proof_contexts(payout)
+    proof_items = _get_display_payout_proof_contexts(payout)
     if proof_items:
         story.append(Spacer(1, 0.28 * cm))
         story.append(Paragraph("<b>Bukti Transfer</b>", bold))
         story.append(Spacer(1, 0.12 * cm))
         for index, proof in enumerate(proof_items, 1):
-            story.append(Paragraph(f"Bukti #{index}: {proof['original_filename']}", small))
-            if proof["is_image"]:
-                proof_path = os.path.join(
-                    current_app.config["UPLOAD_FOLDER"],
-                    "payroll_proofs",
-                    proof["filename"],
+            label = proof.get("payment_label")
+            heading = f"Bukti #{index}: {proof['original_filename']}"
+            if label:
+                heading += f" ({label})"
+            story.append(Paragraph(heading, small))
+            proof_path = os.path.join(
+                current_app.config["UPLOAD_FOLDER"],
+                "payroll_proofs",
+                proof["filename"],
+            )
+            file_present = False
+            try:
+                file_present = os.path.exists(proof_path)
+            except OSError:
+                file_present = False
+            if not file_present:
+                story.append(
+                    Paragraph(
+                        "Berkas bukti tidak ditemukan di server.", small
+                    )
                 )
-                if os.path.exists(proof_path):
+            elif proof["is_image"]:
+                try:
                     proof_width, proof_height = _fit_image_size(
                         proof_path, 15.5 * cm, 10.2 * cm
                     )
@@ -2183,6 +2337,12 @@ def fee_slip_pdf(payout_ref):
                         )
                     )
                     story.append(proof_table)
+                except Exception:
+                    story.append(
+                        Paragraph(
+                            "Berkas bukti tidak dapat dimuat.", small
+                        )
+                    )
             elif proof["is_pdf"]:
                 story.append(
                     Paragraph("Bukti transfer tersimpan sebagai file PDF di sistem.", small)

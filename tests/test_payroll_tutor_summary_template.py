@@ -58,7 +58,10 @@ def test_tutor_summary_has_shortfall_settlement_action():
 
     assert '"/tutor-summary/settle-shortfall"' in route_text
     assert "def tutor_summary_settle_shortfall" in route_text
-    assert "Pembayaran kekurangan lunas periode" in route_text
+    # The settlement note prefix now lives in a module-level constant that is
+    # reused for both writing the note and detecting settlement proofs.
+    assert 'SETTLEMENT_NOTE_PREFIX = "Pembayaran kekurangan lunas"' in route_text
+    assert 'f"{SETTLEMENT_NOTE_PREFIX} periode' in route_text
     assert 'status="completed"' in route_text
     assert 'TutorPayout.status == "completed"' in route_text
     assert 'TutorPayout.status == "pending"' in route_text

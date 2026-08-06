@@ -309,7 +309,15 @@
       {% for proof in proof_items %}
         <div class="slip-proof-item">
           <div class="slip-proof-file-name">Bukti #{{ loop.index }} - {{ proof.original_filename }}</div>
-          {% if proof.is_image %}
+          {% if proof.payment_label %}
+          <div class="slip-proof-payment-label">{{ proof.payment_label }}</div>
+          {% endif %}
+          {% if not proof.exists %}
+          <div class="slip-proof-file">
+            <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+            Berkas bukti tidak ditemukan di server.
+          </div>
+          {% elif proof.is_image %}
           <div class="slip-proof-card">
             <img src="{{ proof.image_url }}" alt="Bukti Pembayaran" class="slip-proof-image">
           </div>
@@ -725,6 +733,18 @@
     font-weight: 700;
     margin: 0 0 6px;
     word-break: break-word;
+  }
+
+  .slip-proof-payment-label {
+    display: inline-block;
+    color: #7a6412;
+    background: #fbf3d0;
+    border: 1px solid #ead682;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 8px;
+    margin: 0 0 6px;
   }
 
   .slip-proof-card {

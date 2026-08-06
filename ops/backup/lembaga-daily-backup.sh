@@ -131,14 +131,38 @@ if [[ "${asset_count}" -ne 4 ]]; then
 fi
 
 echo "[5/6] Terapkan retensi"
+# Urutkan kandidat berdasarkan nama tag menurun (bukan createdAt). Nama tag
+# berpola daily-YYYYMMDD-HHMMSS-WIB, sehingga urutan leksikografis identik
+# dengan urutan kronologis dan tidak pernah seri seperti createdAt yang diseed.
+readonly RETENTION_DELETE_LIMIT=10
 mapfile -t expired_tags < <(
   gh release list --repo "${REPOSITORY}" --limit 100 \
-    --json tagName,createdAt \
-    --jq "map(select(.tagName | startswith(\"daily-\"))) | sort_by(.createdAt) | reverse | .[${GITHUB_RETENTION}:][] | .tagName"
+    --json tagName \
+    --jq "map(.tagName) | map(select(startswith(\"daily-\"))) | sort | reverse | .[${GITHUB_RETENTION}:][]"
 )
-for expired_tag in "${expired_tags[@]}"; do
-  gh release delete "${expired_tag}" --repo "${REPOSITORY}" --cleanup-tag --yes
+
+# Pengaman keras: rilis dari run saat ini (${tag}) tidak boleh pernah dihapus,
+# meski logika pengurutan suatu saat mengalami regresi lagi.
+current_tag_in_list=0
+filtered_expired_tags=()
+for candidate_tag in "${expired_tags[@]}"; do
+  if [[ "${candidate_tag}" == "${tag}" ]]; then
+    current_tag_in_list=1
+    continue
+  fi
+  filtered_expired_tags+=("${candidate_tag}")
 done
+expired_tags=("${filtered_expired_tags[@]}")
+
+if [[ "${current_tag_in_list}" -eq 1 ]]; then
+  echo "PERINGATAN: rilis run saat ini (${tag}) masuk daftar kedaluwarsa; retensi dilewati demi keamanan." >&2
+elif [[ "${#expired_tags[@]}" -gt "${RETENTION_DELETE_LIMIT}" ]]; then
+  echo "PERINGATAN: kandidat hapus retensi berjumlah ${#expired_tags[@]} (>${RETENTION_DELETE_LIMIT}); retensi dilewati demi keamanan." >&2
+else
+  for expired_tag in "${expired_tags[@]}"; do
+    gh release delete "${expired_tag}" --repo "${REPOSITORY}" --cleanup-tag --yes
+  done
+fi
 
 find "${BACKUP_ROOT}" -mindepth 1 -maxdepth 1 -type d \
   -mtime "+${LOCAL_RETENTION_DAYS}" -exec rm -rf -- {} +

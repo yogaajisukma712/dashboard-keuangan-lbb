@@ -2,6 +2,15 @@
    Escapes overflow clipping via Popper strategy:"fixed" (set in JS) plus a
    z-index above the modal layer (Bootstrap modal = 1055). */
 
+/* Anti-flash: while JS is active (html.lbb-js), hide native selects that have
+   not yet been enhanced so the raw <select> never flashes before its Bootstrap
+   replacement is inserted. Uses visibility (not display) so layout does not
+   shift. The head script removes .lbb-js after ~2s, so if the component fails
+   to load the native selects always become visible again (fail-safe). */
+html.lbb-js select.form-select:not([data-lbb-searchable-ready="1"]) {
+  visibility: hidden;
+}
+
 .lbb-select {
   position: relative;
 }

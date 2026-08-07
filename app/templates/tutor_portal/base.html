@@ -4,6 +4,76 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Dashboard Tutor{% endblock %} - Super Smart</title>
+    <!-- Pre-paint bootstrap: restore last-used filter query before first paint
+         and flag html.lbb-js. Wrapped in try/catch so it can never block render. -->
+    <script>
+      (function () {
+        var el = document.documentElement;
+        try {
+          el.classList.add("lbb-js");
+          window.setTimeout(function () {
+            try {
+              el.classList.remove("lbb-js");
+            } catch (_e) {}
+          }, 2000);
+        } catch (_e) {}
+
+        try {
+          var IGNORE = {
+            page: 1,
+            per_page: 1,
+            csrf_token: 1,
+            reset: 1,
+            reset_filters: 1,
+          };
+          var loc = window.location;
+          var userId =
+            "{{ current_user.get_id() if current_user.is_authenticated else session.get('tutor_portal_tutor_id', 'guest') }}";
+          var pathname = loc.pathname;
+          var storageKey = "lbb:lastquery:v1:" + userId + ":" + pathname;
+          var guardKey = "lbb:lastquery-guard:" + pathname;
+          var current = new URLSearchParams(loc.search);
+
+          function meaningful(params) {
+            var found = false;
+            params.forEach(function (value, name) {
+              if (IGNORE[name]) return;
+              if (String(value).trim() !== "") found = true;
+            });
+            return found;
+          }
+
+          if (current.get("reset_filters") === "1") {
+            try {
+              window.localStorage.removeItem(storageKey);
+            } catch (_e) {}
+            try {
+              window.sessionStorage.removeItem(guardKey);
+            } catch (_e) {}
+          } else if (meaningful(current)) {
+            try {
+              window.localStorage.setItem(storageKey, loc.search || "");
+            } catch (_e) {}
+            try {
+              window.sessionStorage.removeItem(guardKey);
+            } catch (_e) {}
+          } else {
+            var stored = window.localStorage.getItem(storageKey);
+            if (
+              stored &&
+              stored !== loc.search &&
+              meaningful(new URLSearchParams(stored)) &&
+              window.sessionStorage.getItem(guardKey) !== "1"
+            ) {
+              window.sessionStorage.setItem(guardKey, "1");
+              loc.replace(pathname + stored);
+            }
+          }
+        } catch (_e) {
+          /* storage unavailable — render as-is */
+        }
+      })();
+    </script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/persistent-filters.css') }}" rel="stylesheet">

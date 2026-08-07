@@ -322,11 +322,25 @@ def register_response_hooks(app):
     @app.after_request
     def apply_no_cache_headers(response):
         content_type = (response.content_type or "").lower()
+        # Static assets are safe to cache: they are versioned via a `v=<mtime>`
+        # query param (see add_static_cache_bust below). A long, immutable cache
+        # is used when the version param is present, otherwise a short one so
+        # any un-versioned request still refreshes quickly.
+        if request.path.startswith("/static/"):
+            if request.args.get("v"):
+                response.headers["Cache-Control"] = (
+                    "public, max-age=31536000, immutable"
+                )
+            else:
+                response.headers["Cache-Control"] = "public, max-age=60"
+            response.headers.pop("Pragma", None)
+            response.headers.pop("Expires", None)
+            return response
+        # HTML pages (and any dynamically served CSS/JS) stay uncacheable.
         if (
             content_type.startswith("text/html")
             or content_type.startswith("text/css")
             or "javascript" in content_type
-            or request.path.startswith("/static/")
         ):
             response.headers["Cache-Control"] = (
                 "no-store, no-cache, must-revalidate, max-age=0, private"
@@ -334,6 +348,28 @@ def register_response_hooks(app):
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
         return response
+
+    @app.url_defaults
+    def add_static_cache_bust(endpoint, values):
+        """Append v=<int file mtime> to url_for('static', ...) automatically.
+
+        Versions every existing static URL with no template edits so browsers
+        can cache aggressively yet still pick up changed files. Silently skips
+        when the file is missing or unreadable.
+        """
+        if endpoint != "static":
+            return
+        filename = values.get("filename")
+        if not filename or "v" in values:
+            return
+        static_folder = app.static_folder
+        if not static_folder:
+            return
+        try:
+            file_path = os.path.join(static_folder, filename)
+            values["v"] = int(os.stat(file_path).st_mtime)
+        except (OSError, ValueError):
+            return
 
 
 def _request_wants_json():

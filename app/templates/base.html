@@ -17,6 +17,138 @@
             {% block title %}Dashboard Keuangan LBB Super Smart{% endblock %}
         </title>
 
+        <!-- ══════════════════════════════════════════
+             PRE-PAINT BOOTSTRAP
+             Runs before first paint to (a) restore the last-used filter
+             query for this path, (b) apply the stored sidebar-collapsed
+             state, and (c) flag html.lbb-js so unenhanced widgets can be
+             hidden until scripts run. Fully wrapped in try/catch so it can
+             never block rendering.
+        ══════════════════════════════════════════ -->
+        <style>
+            @media (min-width: 992px) {
+                html.sidebar-collapsed #sidebar {
+                    width: var(--sidebar-collapsed-w);
+                }
+                html.sidebar-collapsed #main-content {
+                    margin-left: var(--sidebar-collapsed-w);
+                }
+                html.sidebar-collapsed .sidebar-brand-area {
+                    justify-content: center;
+                    padding-left: 0.75rem;
+                    padding-right: 0.75rem;
+                }
+                html.sidebar-collapsed .sidebar-brand-text,
+                html.sidebar-collapsed .sidebar-section,
+                html.sidebar-collapsed .side-badge {
+                    display: none;
+                }
+                html.sidebar-collapsed .sidebar-link {
+                    justify-content: center;
+                    gap: 0;
+                    font-size: 0;
+                    padding-left: 0;
+                    padding-right: 0;
+                    min-height: 42px;
+                    border-left-width: 0;
+                    border-right: 3px solid transparent;
+                }
+                html.sidebar-collapsed .sidebar-link:hover {
+                    border-right-color: rgba(244, 190, 24, 0.35);
+                }
+                html.sidebar-collapsed .sidebar-link.active {
+                    border-right-color: #f4be18;
+                }
+                html.sidebar-collapsed .sidebar-link i {
+                    width: var(--sidebar-collapsed-w);
+                    font-size: 1rem;
+                }
+            }
+        </style>
+        <script>
+            (function () {
+                var el = document.documentElement;
+                try {
+                    el.classList.add("lbb-js");
+                    window.setTimeout(function () {
+                        try {
+                            el.classList.remove("lbb-js");
+                        } catch (_e) {}
+                    }, 2000);
+                } catch (_e) {}
+
+                // (b) Apply sidebar-collapsed state before paint (desktop only).
+                try {
+                    if (
+                        window.localStorage.getItem("lbb:sidebar-collapsed") ===
+                            "1" &&
+                        window.innerWidth >= 992
+                    ) {
+                        el.classList.add("sidebar-collapsed");
+                    }
+                } catch (_e) {}
+
+                // (a) Restore last-used filter query before paint.
+                try {
+                    var IGNORE = {
+                        page: 1,
+                        per_page: 1,
+                        csrf_token: 1,
+                        reset: 1,
+                        reset_filters: 1,
+                    };
+                    var loc = window.location;
+                    var userId =
+                        "{{ current_user.get_id() if current_user.is_authenticated else 'guest' }}";
+                    var pathname = loc.pathname;
+                    var storageKey =
+                        "lbb:lastquery:v1:" + userId + ":" + pathname;
+                    var guardKey = "lbb:lastquery-guard:" + pathname;
+                    var current = new URLSearchParams(loc.search);
+
+                    function meaningful(params) {
+                        var found = false;
+                        params.forEach(function (value, name) {
+                            if (IGNORE[name]) return;
+                            if (String(value).trim() !== "") found = true;
+                        });
+                        return found;
+                    }
+
+                    if (current.get("reset_filters") === "1") {
+                        // Never redirect on an explicit reset; drop the index.
+                        try {
+                            window.localStorage.removeItem(storageKey);
+                        } catch (_e) {}
+                        try {
+                            window.sessionStorage.removeItem(guardKey);
+                        } catch (_e) {}
+                    } else if (meaningful(current)) {
+                        // URL already carries filters — record it as the latest.
+                        try {
+                            window.localStorage.setItem(storageKey, loc.search || "");
+                        } catch (_e) {}
+                        try {
+                            window.sessionStorage.removeItem(guardKey);
+                        } catch (_e) {}
+                    } else {
+                        var stored = window.localStorage.getItem(storageKey);
+                        if (
+                            stored &&
+                            stored !== loc.search &&
+                            meaningful(new URLSearchParams(stored)) &&
+                            window.sessionStorage.getItem(guardKey) !== "1"
+                        ) {
+                            window.sessionStorage.setItem(guardKey, "1");
+                            loc.replace(pathname + stored);
+                        }
+                    }
+                } catch (_e) {
+                    /* localStorage/sessionStorage unavailable — render as-is */
+                }
+            })();
+        </script>
+
         <!-- Google Fonts: Poppins 300–800 -->
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

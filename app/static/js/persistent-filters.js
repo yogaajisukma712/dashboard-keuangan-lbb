@@ -249,31 +249,63 @@
       return asArray((root || doc).querySelectorAll("form")).filter(isFilterForm);
     }
 
-    function restoreFromStorage(forms) {
+    function lastQueryKey(pathname) {
+      return (
+        "lbb:lastquery:v1:" +
+        getUserId() +
+        ":" +
+        (pathname || win.location.pathname)
+      );
+    }
+
+    function hasMeaningfulQuery(search) {
+      var params = new URLSearchParams(search || "");
+      var meaningful = false;
+      params.forEach(function (value, name) {
+        if (SKIPPED_NAMES.includes(name) || name === "per_page") return;
+        if (String(value == null ? "" : value).trim() !== "") meaningful = true;
+      });
+      return meaningful;
+    }
+
+    function writeLastQuery(url) {
+      if (!storageReady) return;
+      try {
+        if (
+          url.searchParams.get("reset_filters") === "1" ||
+          url.searchParams.get("reset") === "1"
+        ) {
+          return;
+        }
+        win.localStorage.setItem(lastQueryKey(url.pathname), url.search || "");
+      } catch (_error) {
+        /* storage unavailable — never block navigation */
+      }
+    }
+
+    function clearLastQuery() {
+      try {
+        win.localStorage.removeItem(lastQueryKey(win.location.pathname));
+      } catch (_error) {
+        /* ignore */
+      }
+    }
+
+    // Restoration of missing filters now happens in a blocking <head> script
+    // (see base.html / tutor_portal/base.html) BEFORE first paint via the
+    // "lbb:lastquery:v1:<userId>:<pathname>" index, so this function is
+    // intentionally non-navigating: it only performs reset_filters cleanup and
+    // never triggers the old paint-then-reload second navigation.
+    function restoreFromStorage(_forms) {
       var url = new URL(win.location.href);
       if (url.searchParams.get("reset_filters") === "1") {
         clearPage();
+        clearLastQuery();
         suppressNextInitialSave = true;
         url.searchParams.delete("reset_filters");
         win.history.replaceState({}, "", url.toString());
-        return false;
       }
-
-      var restorations = forms
-        .filter(function (form) {
-          var action = new URL(
-            form.getAttribute("action") || win.location.pathname,
-            win.location.href,
-          );
-          return action.pathname === url.pathname;
-        })
-        .map(loadForm)
-        .filter(Boolean);
-      var merged = mergeRestoredSearch(url.search, restorations);
-      if (!merged.changed) return false;
-      url.search = merged.search;
-      win.location.replace(url.toString());
-      return true;
+      return false;
     }
 
     function buildUrlFromForm(form) {
@@ -345,6 +377,7 @@
 
     function navigate(form, url, replace) {
       saveForm(form);
+      writeLastQuery(url);
       if (
         win.LbbFilterUi &&
         form.dataset.lbbFilterTargets &&
@@ -523,6 +556,9 @@
         if (shouldSave) saveForm(form);
         bindForm(form);
       });
+      if (hasMeaningfulQuery(win.location.search)) {
+        writeLastQuery(new URL(win.location.href));
+      }
       bindStandaloneControls(root || doc);
       return true;
     }

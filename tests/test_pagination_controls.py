@@ -73,17 +73,45 @@ def test_whatsapp_tables_have_client_side_page_size_selectors():
     assert "readPageSize(" in template_text
 
 
-def test_saved_filter_restore_reloads_server_results_without_ajax_hacks():
+def test_saved_filter_restore_uses_pre_paint_contract_not_paint_then_reload():
+    """Saved filters are restored by a blocking <head> script BEFORE first
+    paint, keyed by an ``lbb:lastquery`` index, with a one-shot sessionStorage
+    loop guard. The old paint-then-reload navigation inside
+    ``persistent-filters.js`` must be gone."""
     project_root = Path(__file__).resolve().parents[1]
     script_text = (
         project_root / "app" / "static" / "js" / "persistent-filters.js"
-    ).read_text(
-        encoding="utf-8"
-    )
+    ).read_text(encoding="utf-8")
+    base_text = (
+        project_root / "app" / "templates" / "base.html"
+    ).read_text(encoding="utf-8")
+    tutor_base_text = (
+        project_root / "app" / "templates" / "tutor_portal" / "base.html"
+    ).read_text(encoding="utf-8")
 
-    assert "win.location.replace(url.toString())" in script_text
-    assert "mergeRestoredSearch(url.search, restorations)" in script_text
-    assert 'params.delete("page")' in script_text
+    # The visible paint-then-reload restore navigation is removed: restoreFromStorage
+    # no longer loads saved forms, merges them into the URL, and re-navigates.
+    assert "mergeRestoredSearch(url.search, restorations)" not in script_text
+    assert ".map(loadForm)" not in script_text
+
+    # restoreFromStorage is now non-navigating (only performs reset_filters
+    # cleanup) and the head script owns restoration instead.
+    assert "function restoreFromStorage(_forms)" in script_text
+
+    # The module now maintains the last-query index used by the head script.
+    assert "lbb:lastquery:v1:" in script_text
+    assert "function writeLastQuery(" in script_text
+
+    # Both layouts own restoration via a pre-paint head script that:
+    #  - reads/writes the lbb:lastquery index,
+    #  - redirects with location.replace(pathname + storedQuery),
+    #  - guards against redirect loops with a one-shot sessionStorage marker.
+    for text in (base_text, tutor_base_text):
+        assert "lbb:lastquery:v1:" in text
+        assert "loc.replace(pathname + stored)" in text
+        assert "lbb:lastquery-guard:" in text
+        assert "window.sessionStorage" in text
+        assert 'current.get("reset_filters") === "1"' in text
 
 
 def test_payment_list_filter_uses_month_year_and_calendar_range():

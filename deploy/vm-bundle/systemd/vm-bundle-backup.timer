@@ -1,0 +1,9 @@
+[Unit]
+Description=Jalankan backup state WA bot tiap hari 04:30
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

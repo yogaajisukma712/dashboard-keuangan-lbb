@@ -1,0 +1,8 @@
+[Unit]
+Description=Backup harian volume WA bot (auth+backups) untuk fast-redeploy
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/apps/lembaga/vm-bundle
+ExecStart=/opt/apps/lembaga/vm-bundle/backup-state.sh

@@ -1,0 +1,35 @@
+services:
+  whatsapp_bot:
+    image: ghcr.io/yogaajisukma712/lbb-whatsapp-bot:latest
+    container_name: billing_supersmart_whatsapp_bot
+    restart: unless-stopped
+    environment:
+      WHATSAPP_BOT_PORT: "3000"
+      # URL dashboard Vercel (app utama)
+      WHATSAPP_FLASK_BASE_URL: ${WHATSAPP_FLASK_BASE_URL:-https://app.supersmart.click}
+      WHATSAPP_BOT_TOKEN: ${WHATSAPP_BOT_TOKEN}
+      WWEBJS_DATA_PATH: /app/.wwebjs_auth
+      WWEBJS_BACKUP_PATH: /app/.wwebjs_auth/_backups
+      WWEBJS_CLIENT_ID: ${WWEBJS_CLIENT_ID:-billing-supersmart}
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+      WHATSAPP_AUTO_START: "true"
+      WHATSAPP_AUTO_SYNC_ENABLED: "true"
+      WHATSAPP_AUTO_SYNC_FULL_SYNC: "false"
+      WHATSAPP_AUTO_SYNC_INTERVAL_MS: ${WHATSAPP_AUTO_SYNC_INTERVAL_MS:-3600000}
+      # Koordinasi job berat via Neon (dashboard Vercel INSERT, worker bot polling)
+      DATABASE_URL: ${DATABASE_URL}
+    ports:
+      - "127.0.0.1:6002:3000"
+    volumes:
+      - whatsapp_bot_auth:/app/.wwebjs_auth
+      - whatsapp_bot_backups:/app/.wwebjs_backups
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+volumes:
+  whatsapp_bot_auth:
+  whatsapp_bot_backups:

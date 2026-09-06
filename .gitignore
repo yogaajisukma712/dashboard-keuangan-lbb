@@ -87,3 +87,7 @@ instance/
 # ── Agent sync snapshots (tracked) ───────────────────────────────────────────
 !state/
 !state/**
+
+# Kredensial VPS DigitalOcean (plaintext root password) — jangan commit
+Server DO/
+api key penting/

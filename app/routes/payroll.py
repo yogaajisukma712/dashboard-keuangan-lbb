@@ -1933,6 +1933,49 @@ def fee_slip_send_whatsapp(payout_ref):
     return redirect(url_for("payroll.fee_slip", payout_ref=payout.public_id))
 
 
+@payroll_bp.route("/api/fee-slip-job/<string:payout_ref>", methods=["POST"])
+def api_fee_slip_job(payout_ref):
+    """Endpoint worker VM (heavy-jobs): proses SATU slip secara sinkron.
+
+    Auth: header X-Bot-Token == WHATSAPP_BOT_TOKEN (sama seperti endpoint bot).
+    Dipanggil worker JS di VM per payout_ref; logika kirim tetap milik dashboard.
+    """
+    configured = os.getenv("WHATSAPP_BOT_TOKEN", "").strip()
+    provided = request.headers.get("X-Bot-Token", "").strip()
+    if not configured or provided != configured:
+        return jsonify({"ok": False, "error": "Unauthorized bot token"}), 401
+
+    payload = request.get_json(silent=True) or {}
+    message = (payload.get("message") or "").strip()
+    if not message:
+        return jsonify({"ok": False, "error": "message kosong"}), 400
+    try:
+        payout_id = decode_public_id(payout_ref, "tutor_payout")
+        payout = TutorPayout.query.get(payout_id)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"Slip {payout_ref}: {exc}"}), 400
+    if not payout:
+        return jsonify({"ok": False, "error": f"Slip {payout_ref}: tidak ditemukan"}), 404
+
+    contacts = _get_tutor_whatsapp_contact_options(payout.tutor)
+    if not contacts:
+        return jsonify(
+            {"ok": False, "skipped": True, "error": "nomor WA tutor belum divalidasi"}
+        ), 200
+
+    sent, error = _send_fee_slip_whatsapp_attachment(
+        payout, contacts[0]["value"], message, base_url=payload.get("baseUrl")
+    )
+    if sent:
+        db.session.commit()
+        return jsonify({"ok": True, "sent": True}), 200
+    _record_fee_slip_whatsapp_failure(
+        payout, contacts[0]["value"], message, error or "Bot timeout/error"
+    )
+    db.session.commit()
+    return jsonify({"ok": True, "sent": False, "error": error}), 200
+
+
 @payroll_bp.route("/tutor-summary/send-whatsapp-bulk", methods=["POST"])
 @login_required
 def tutor_summary_send_whatsapp_bulk():
@@ -1962,8 +2005,35 @@ def tutor_summary_send_whatsapp_bulk():
         return redirect(url_for("whatsapp_bot.management"))
 
     unique_refs = list(dict.fromkeys(ref for ref in payout_refs if ref))
-    app = current_app._get_current_object()
     base_url = current_app.config.get("APP_BASE_URL") or request.host_url
+
+    if os.getenv("VERCEL"):
+        # Serverless: thread mati saat response terkirim — enqueue job ke Neon,
+        # worker VM bot (heavy-jobs) yang mengeksekusi per slip via API di bawah.
+        from app.services.heavy_jobs_queue import enqueue_job
+
+        job_id = enqueue_job(
+            "send_fee_slips_bulk",
+            {
+                "slips": [
+                    {
+                        "payoutRef": ref,
+                        "message": message,
+                    }
+                    for ref in unique_refs
+                ],
+                "baseUrl": base_url,
+            },
+            requested_by=str(current_user.id) if current_user.is_authenticated else None,
+        )
+        flash(
+            f"Proses kirim {len(unique_refs)} slip gaji dijadwalkan (job #{job_id}). "
+            "Worker VM akan memproses — pantau di halaman ini setelah beberapa menit.",
+            "info",
+        )
+        return redirect(redirect_url)
+
+    app = current_app._get_current_object()
     worker = Thread(
         target=_send_fee_slips_whatsapp_bulk_background,
         args=(app, unique_refs, message, base_url),

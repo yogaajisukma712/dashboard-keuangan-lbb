@@ -62,32 +62,44 @@ async function finishJob(pool, id, result, error) {
 }
 
 async function sendSlip(ctx, slip) {
-  const { flaskBaseUrl } = require('./config');
-  let attachment = slip.attachment || null;
-  if (!attachment && slip.pdfUrl) {
-    const res = await fetch(`${flaskBaseUrl}${slip.pdfUrl}`);
-    if (!res.ok) throw new Error(`pdf fetch ${res.status} ${slip.pdfUrl}`);
-    const buf = Buffer.from(await res.arrayBuffer());
-    attachment = { data: buf.toString('base64'), mimetype: 'application/pdf', filename: slip.filename || 'slip.pdf' };
-  }
-  return ctx.sendDirectMessage(slip.to, slip.message, attachment);
+  const { flaskBaseUrl, flaskBotToken } = require('./config');
+  // Dashboard memproses slip (logika kirim + status DB tetap milik Flask);
+  // worker hanya memanggil endpoint per-slip yang sinkron ringan.
+  const res = await fetch(
+    `${flaskBaseUrl}/payroll/api/fee-slip-job/${encodeURIComponent(slip.payoutRef || slip.to)}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Bot-Token': flaskBotToken || '',
+      },
+      body: JSON.stringify({ message: slip.message, baseUrl: slip.baseUrl }),
+    },
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`fee-slip-job ${res.status}: ${data.error || res.statusText}`);
+  return data;
 }
 
 async function runJob(ctx, job) {
   if (job.job_type === 'send_fee_slips_bulk') {
     const slips = job.payload?.slips || [];
+    const baseUrl = job.payload?.baseUrl || null;
     const sent = [];
-    let failed = 0;
+    const skipped = [];
+    const failed = [];
     for (const slip of slips) {
       try {
-        await sendSlip(ctx, slip);
-        sent.push(slip.to);
+        const r = await sendSlip(ctx, { ...slip, baseUrl });
+        if (r.skipped) skipped.push(slip.payoutRef);
+        else if (r.sent) sent.push(slip.payoutRef);
+        else failed.push(`${slip.payoutRef}: ${r.error}`);
       } catch (e) {
-        failed += 1;
-        console.error(`[heavy-jobs] slip gagal to=${slip.to}: ${e.message}`);
+        failed.push(`${slip.payoutRef}: ${e.message}`);
+        console.error(`[heavy-jobs] slip gagal ${slip.payoutRef}: ${e.message}`);
       }
     }
-    return { sent: sent.length, failed, total: slips.length };
+    return { sent: sent.length, skipped: skipped.length, failed: failed.length, total: slips.length, detailFailed: failed.slice(0, 20) };
   }
   if (job.job_type === 'generic_send') {
     const r = await sendSlip(ctx, job.payload);

@@ -28,9 +28,10 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
 
-    # Ensure upload folder exists
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-    os.makedirs("logs", exist_ok=True)
+    # Vercel serverless: FS read-only — skip disk dirs; bot VM handles heavy jobs
+    if not os.getenv("VERCEL"):
+        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+        os.makedirs("logs", exist_ok=True)
 
     # Initialize extensions
     db.init_app(app)
@@ -442,6 +443,11 @@ def register_error_handlers(app):
 def setup_logging(app):
     """Setup application logging"""
     if not app.debug:
+        # Vercel: stream to stdout only (FS read-only)
+        if os.getenv("VERCEL"):
+            app.logger.setLevel(getattr(logging, app.config["LOG_LEVEL"]))
+            app.logger.info("Dashboard Keuangan LBB Super Smart startup (serverless)")
+            return
         if not os.path.exists("logs"):
             os.mkdir("logs")
 

@@ -318,4 +318,11 @@ app.post('/sync/messages', async (req, res) => {
 app.listen(config.port, () => {
   console.log(`whatsapp-bot listening on ${config.port}`);
   startRuntimeSupervisor();
+  // Heavy-jobs worker: poll tabel heavy_jobs (Neon) — dashboard INSERT, VM eksekusi
+  const { startHeavyJobsWorker } = require('./heavy-jobs');
+  startHeavyJobsWorker({
+    sendDirectMessage,
+    getSessionState,
+    config,
+  });
 });

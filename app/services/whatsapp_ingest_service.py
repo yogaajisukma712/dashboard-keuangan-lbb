@@ -1975,6 +1975,11 @@ class WhatsAppIngestService:
                 if enrollment is None or find_matching_enrollment_group(enrollment, message.group) is None:
                     continue
 
+                # Period lock: scan WA tidak boleh menambah presensi pada bulan
+                # yang sudah dikunci admin (mis. sudah dibayar/divalidasi).
+                if WhatsAppIngestService.is_attendance_date_locked(attendance_date):
+                    continue
+
                 existing = (
                     AttendanceSession.query.filter(
                         AttendanceSession.enrollment_id == enrollment.id,

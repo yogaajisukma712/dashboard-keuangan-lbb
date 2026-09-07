@@ -8,6 +8,7 @@ import json
 import os
 from urllib import error, request as urllib_request
 
+from app.routes.dashboard import _get_vm_heartbeat
 from flask import (
     Blueprint,
     Response,

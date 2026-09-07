@@ -7,7 +7,6 @@ VM mati → job tetap `pending`, diproses saat VM hidup lagi.
 import json
 import os
 
-from app.extensions import db
 
 
 def enqueue_job(job_type: str, payload: dict, requested_by: str | None = None) -> int:
@@ -18,7 +17,9 @@ def enqueue_job(job_type: str, payload: dict, requested_by: str | None = None) -
         VALUES (:job_type, CAST(:payload AS jsonb), :requested_by)
         RETURNING id
     """
-    result = db.session.execute(
+    from app import db as app_db
+
+    result = app_db.session.execute(
         __import__("sqlalchemy").text(sql),
         {
             "job_type": job_type,
@@ -27,7 +28,7 @@ def enqueue_job(job_type: str, payload: dict, requested_by: str | None = None) -
         },
     )
     job_id = result.scalar()
-    db.session.commit()
+    app_db.session.commit()
     return job_id
 
 
@@ -35,7 +36,7 @@ def update_job_status(job_id: int, status: str, result: dict | None = None, erro
     """Untuk endpoint worker callback (opsional dipakai worker JS)."""
     from sqlalchemy import text
 
-    db.session.execute(
+    app_db.session.execute(
         text(
             """
             UPDATE heavy_jobs
@@ -53,4 +54,4 @@ def update_job_status(job_id: int, status: str, result: dict | None = None, erro
             "job_id": job_id,
         },
     )
-    db.session.commit()
+    app_db.session.commit()

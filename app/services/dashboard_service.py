@@ -26,10 +26,33 @@ from app.models import (
 )
 
 
+def _kpi_cache():
+    """Per-request memoization (flask.g) — menghindari query berulang untuk
+    (fungsi, bulan, tahun) yang sama dalam satu render dashboard.
+    N+1 round-trip ke DB terkelola ( Neon/Vercel) turun drastis."""
+    from flask import g
+    if not hasattr(g, "_kpi_cache"):
+        g._kpi_cache = {}
+    return g._kpi_cache
+
+
+def cached_kpi(fn):
+    def wrapper(month, year, *args):
+        key = (fn.__name__, month, year, args)
+        cache = _kpi_cache()
+        if key not in cache:
+            cache[key] = fn(month, year, *args)
+        return cache[key]
+    wrapper.__name__ = fn.__name__
+    wrapper.__doc__ = fn.__doc__
+    return wrapper
+
+
 class DashboardService:
     """Service for dashboard calculations and reporting"""
 
     @staticmethod
+    @cached_kpi
     def get_opening_balance(month, year):
         """Get opening cash balance (= previous month estimated remaining balance)."""
         current_closing = MonthlyClosing.query.filter_by(month=month, year=year).first()
@@ -51,6 +74,7 @@ class DashboardService:
         )
 
     @staticmethod
+    @cached_kpi
     def get_total_income_this_month(month, year):
         """Get total income from student payments this month"""
         total = (
@@ -66,6 +90,7 @@ class DashboardService:
         return float(total)
 
     @staticmethod
+    @cached_kpi
     def get_other_income_this_month(month, year):
         """Get other income (non-student) this month"""
         total = (
@@ -80,6 +105,7 @@ class DashboardService:
         return float(total)
 
     @staticmethod
+    @cached_kpi
     def get_total_expenses_this_month(month, year):
         """Get total expenses this month"""
         total = (
@@ -94,6 +120,7 @@ class DashboardService:
         return float(total)
 
     @staticmethod
+    @cached_kpi
     def get_tutor_payable_from_collection(month, year):
         """Get total tutor payable from student payments this month"""
         total = (
@@ -109,6 +136,7 @@ class DashboardService:
         return float(total)
 
     @staticmethod
+    @cached_kpi
     def get_margin_this_month(month, year):
         """Get total margin this month"""
         total = (
@@ -124,6 +152,7 @@ class DashboardService:
         return float(total)
 
     @staticmethod
+    @cached_kpi
     def get_tutor_salary_accrual(month, year):
         """Get tutor salary already paid/confirmed for this service month.
 
@@ -148,11 +177,13 @@ class DashboardService:
         return float(total)
 
     @staticmethod
+    @cached_kpi
     def get_tutor_paid_amount(month, year):
         """Alias for tutor payout cash-out used by dashboard labels."""
         return DashboardService.get_tutor_salary_accrual(month, year)
 
     @staticmethod
+    @cached_kpi
     def get_grand_tutor_payable(month, year):
         """
         Grand tutor payable outstanding (cumulative up to this month).
@@ -180,6 +211,7 @@ class DashboardService:
         )
 
     @staticmethod
+    @cached_kpi
     def get_estimated_profit(month, year):
         """Get estimated profit this month = margin + other_income - expenses"""
         margin = DashboardService.get_margin_this_month(month, year)
@@ -188,6 +220,7 @@ class DashboardService:
         return margin + other_income - expenses
 
     @staticmethod
+    @cached_kpi
     def get_monthly_cash_flow(month, year):
         """Monthly net cash = income + other_income - expenses (no opening balance).
         Corresponds to 'Saldo Bulan Ini' in the acuan."""
@@ -197,6 +230,7 @@ class DashboardService:
         return income + other - expenses
 
     @staticmethod
+    @cached_kpi
     def get_cash_balance(month, year):
         """Get grand total saldo = opening + income + other_income - expenses.
         Corresponds to 'Grand Total Saldo' in the acuan."""
@@ -210,6 +244,7 @@ class DashboardService:
         return DashboardService._get_cash_balance_internal(month, year, earliest_period)
 
     @staticmethod
+    @cached_kpi
     def get_grand_profit(month, year):
         """Get grand profit = Grand Total Saldo - Grand Hutang Gaji (cumulative tutor payable)"""
         cash_balance = DashboardService.get_cash_balance(month, year)
@@ -217,6 +252,7 @@ class DashboardService:
         return cash_balance - tutor_payable
 
     @staticmethod
+    @cached_kpi
     def get_estimated_remaining_balance(month, year):
         """Estimasi sisa saldo = Grand Total Saldo - Estimasi Gaji Tutor (accrual)"""
         current_closing = MonthlyClosing.query.filter_by(month=month, year=year).first()
@@ -300,6 +336,7 @@ class DashboardService:
         )
 
     @staticmethod
+    @cached_kpi
     def _get_opening_balance_internal(month, year, earliest_period):
         prev_month, prev_year = DashboardService._prev_month(month, year)
         prev_closing = MonthlyClosing.query.filter_by(
@@ -318,6 +355,7 @@ class DashboardService:
         )
 
     @staticmethod
+    @cached_kpi
     def _get_cash_balance_internal(month, year, earliest_period):
         opening = DashboardService._get_opening_balance_internal(
             month, year, earliest_period
@@ -328,6 +366,7 @@ class DashboardService:
         return opening + income + other_income - expenses
 
     @staticmethod
+    @cached_kpi
     def _get_estimated_remaining_balance_internal(month, year, earliest_period):
         cash_balance = DashboardService._get_cash_balance_internal(
             month, year, earliest_period
@@ -336,6 +375,7 @@ class DashboardService:
         return cash_balance - salary_accrual
 
     @staticmethod
+    @cached_kpi
     def _get_opening_tutor_payable_internal(month, year, earliest_period):
         prev_month, prev_year = DashboardService._prev_month(month, year)
         prev_closing = MonthlyClosing.query.filter_by(
@@ -354,6 +394,7 @@ class DashboardService:
         )
 
     @staticmethod
+    @cached_kpi
     def _get_grand_tutor_payable_internal(month, year, earliest_period):
         opening_payable = DashboardService._get_opening_tutor_payable_internal(
             month, year, earliest_period
@@ -364,6 +405,7 @@ class DashboardService:
         return opening_payable + current_payable
 
     @staticmethod
+    @cached_kpi
     def _get_closing_tutor_payable_internal(month, year, earliest_period):
         current_closing = MonthlyClosing.query.filter_by(month=month, year=year).first()
         if current_closing:
@@ -408,6 +450,7 @@ class DashboardService:
         return trend_data
 
     @staticmethod
+    @cached_kpi
     def get_top_students(month, year, limit=5):
         """Get top students by income for the given month/year"""
         results = (
@@ -433,6 +476,7 @@ class DashboardService:
         return [{"id": r[0], "name": r[1], "income": float(r[2] or 0)} for r in results]
 
     @staticmethod
+    @cached_kpi
     def get_top_subjects(month, year, limit=5):
         """Get top subjects by income for the given month/year"""
         results = (
@@ -459,6 +503,7 @@ class DashboardService:
         return [{"id": r[0], "name": r[1], "income": float(r[2] or 0)} for r in results]
 
     @staticmethod
+    @cached_kpi
     def get_payroll_summary(month, year):
         """Get payroll summary for a specific month.
 
@@ -494,6 +539,7 @@ class DashboardService:
         }
 
     @staticmethod
+    @cached_kpi
     def get_tutor_salary_details(month, year):
         """Get detailed salary information per tutor"""
         tutors = Tutor.query.filter_by(is_active=True).all()
@@ -523,6 +569,7 @@ class DashboardService:
         return details
 
     @staticmethod
+    @cached_kpi
     def get_unpaid_tutors(month, year):
         """Get tutors with unpaid balance"""
         unpaid = []
@@ -533,6 +580,7 @@ class DashboardService:
         return unpaid
 
     @staticmethod
+    @cached_kpi
     def get_income_by_student(month, year):
         """Get income breakdown by student"""
         results = (
@@ -556,6 +604,7 @@ class DashboardService:
         return [{"id": r[0], "name": r[1], "income": float(r[2] or 0)} for r in results]
 
     @staticmethod
+    @cached_kpi
     def get_income_by_subject(month, year):
         """Get income breakdown by subject"""
         results = (
@@ -580,6 +629,7 @@ class DashboardService:
         return [{"id": r[0], "name": r[1], "income": float(r[2] or 0)} for r in results]
 
     @staticmethod
+    @cached_kpi
     def get_income_by_curriculum(month, year):
         """Get income breakdown by curriculum (includes curriculum name)"""
         results = (
@@ -605,6 +655,7 @@ class DashboardService:
         return [{"id": r[0], "name": r[1], "income": float(r[2] or 0)} for r in results]
 
     @staticmethod
+    @cached_kpi
     def get_income_by_level(month, year):
         """Get income breakdown by level (includes level name)"""
         results = (
@@ -630,6 +681,7 @@ class DashboardService:
         return [{"id": r[0], "name": r[1], "income": float(r[2] or 0)} for r in results]
 
     @staticmethod
+    @cached_kpi
     def get_monthly_income_summary(month, year):
         """Get monthly income summary"""
         student_income = DashboardService.get_total_income_this_month(month, year)
@@ -641,6 +693,7 @@ class DashboardService:
         }
 
     @staticmethod
+    @cached_kpi
     def get_reconciliation_data(month, year):
         """Get reconciliation data comparing payments vs attendance"""
         paid = (
@@ -663,6 +716,7 @@ class DashboardService:
         }
 
     @staticmethod
+    @cached_kpi
     def get_reconciliation_gap_analysis(month, year):
         """Get gap analysis between payment and attendance"""
         reconciliation = DashboardService.get_reconciliation_data(month, year)
@@ -677,6 +731,7 @@ class DashboardService:
         }
 
     @staticmethod
+    @cached_kpi
     def get_tutor_reconciliation_details(month, year):
         """Get reconciliation details per tutor"""
         tutors = Tutor.query.filter_by(is_active=True).all()

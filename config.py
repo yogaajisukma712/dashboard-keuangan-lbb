@@ -20,6 +20,13 @@ class Config:
         or "postgresql://postgres:password@localhost:5432/lbb_db"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Serverless (Vercel): koneksi DB per-invocation; pre-ping & recycle mencegah
+    # koneksi stale ke Neon autosuspend; NullPool menghindari koneksi mati ter-cache.
+    SQLALCHEMY_ENGINE_OPTIONS = (
+        {"pool_pre_ping": True, "pool_recycle": 280}
+        if os.getenv("VERCEL")
+        else {"pool_pre_ping": True, "pool_recycle": 280, "pool_size": 5, "max_overflow": 10}
+    )
 
     # Session
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)

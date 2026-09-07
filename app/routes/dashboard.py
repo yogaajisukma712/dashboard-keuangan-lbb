@@ -52,6 +52,8 @@ def api_system_heartbeat():
     """VM bot melapor rutin. Auth: X-Bot-Token. Upsert status komponen."""
     import os
 
+    from app import db as app_db
+
     token = os.getenv("WHATSAPP_BOT_TOKEN", "")
     if not token or request.headers.get("X-Bot-Token", "") != token:
         return jsonify({"ok": False, "error": "Unauthorized bot token"}), 401
@@ -60,7 +62,7 @@ def api_system_heartbeat():
     component = (payload.get("component") or "vm-bot").strip()[:64]
     meta = payload.get("meta") or {}
 
-    db.session.execute(
+    app_db.session.execute(
         text(
             """
         CREATE TABLE IF NOT EXISTS system_heartbeats (
@@ -72,7 +74,7 @@ def api_system_heartbeat():
         """
         )
     )
-    db.session.execute(
+    app_db.session.execute(
         text(
             """
         INSERT INTO system_heartbeats (component, last_seen, meta)
@@ -83,7 +85,7 @@ def api_system_heartbeat():
         ),
         {"c": component, "m": json.dumps(meta)},
     )
-    db.session.commit()
+    app_db.session.commit()
     return jsonify({"ok": True})
 
 
@@ -91,9 +93,10 @@ def _get_vm_heartbeat(max_age_seconds=180):
     """Status heartbeat VM untuk halaman admin. None jika tak pernah melapor."""
     from sqlalchemy import text
     from sqlalchemy.exc import ProgrammingError
+    from app import db as app_db
 
     try:
-        row = db.session.execute(
+        row = app_db.session.execute(
             text(
                 "SELECT component, last_seen, meta FROM system_heartbeats "
                 "WHERE component = 'vm-bot' LIMIT 1"

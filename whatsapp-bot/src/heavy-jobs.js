@@ -152,9 +152,37 @@ function startHeavyJobsWorker(ctx) {
     }
   };
 
+  // Heartbeat: beri tahu dashboard VM aktif (tiap tick).
+  function sendHeartbeat() {
+    try {
+      const { flaskBaseUrl, flaskBotToken } = require('./config');
+      const state = (ctx.getSessionState && ctx.getSessionState()) || {};
+      fetch(`${flaskBaseUrl}/api/system/heartbeat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Bot-Token': flaskBotToken || '',
+        },
+        body: JSON.stringify({
+          component: 'vm-bot',
+          meta: {
+            version: require('../package.json').version || 'unknown',
+            session_status: state.status || null,
+            authenticated: !!state.authenticated,
+            uptime_sec: Math.round(process.uptime()),
+          },
+        }),
+      }).catch(() => {});
+    } catch (err) {
+      // heartbeat gagal — tidak fatal
+    }
+  }
+
   const timer = setInterval(tick, POLL_INTERVAL_MS);
   tick();
-  console.log(`[heavy-jobs] worker ON (interval ${POLL_INTERVAL_MS}ms)`);
+  sendHeartbeat();
+  setInterval(sendHeartbeat, 5 * 60 * 1000); // tiap 5 menit
+  console.log(`[heavy-jobs] worker ON (interval ${POLL_INTERVAL_MS}ms) + heartbeat 5m`);
   return { stop: () => { stopped = true; clearInterval(timer); } };
 }
 

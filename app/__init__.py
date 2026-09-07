@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from html import unescape
 from logging.handlers import RotatingFileHandler
 from urllib.parse import urlparse
@@ -57,6 +58,8 @@ def create_app(config_name=None):
     # bukan session — wajib exempt dari CSRF.
     if "payroll.api_fee_slip_job" in app.view_functions:
         csrf.exempt(app.view_functions["payroll.api_fee_slip_job"])
+    if "dashboard.api_system_heartbeat" in app.view_functions:
+        csrf.exempt(app.view_functions["dashboard.api_system_heartbeat"])
 
     # Exempt data_manager write/API endpoints (JSON only, protected by login_required)
     _dm_exempt = [
@@ -294,6 +297,18 @@ def register_context_processors(app):
         get_branding_logo_mark_data_uri,
         pagination_url,
     )
+
+    def _read_app_version():
+        try:
+            return (Path(__file__).resolve().parent.parent / "VERSION").read_text().strip()
+        except Exception:
+            return "dev"
+
+    app.config["APP_VERSION"] = _read_app_version()
+
+    @app.context_processor
+    def inject_app_version():
+        return {"app_version": app.config.get("APP_VERSION", "dev")}
 
     @app.context_processor
     def inject_config():

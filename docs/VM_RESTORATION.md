@@ -1,0 +1,67 @@
+# VM Bot - Handoff & Restorasi Instan (untuk AI agent / admin berikutnya)
+
+> 2026-09-07. Baca ini SEBELUM menyentuh infrastruktur VM/deploy.
+
+## Arsitektur aktif
+
+- Dashboard: Vercel (sin1) - project `lbb-dashboard`, domain `*.supersmart.click`
+- DB: Neon SGP project `green-morning-40964370` (sumber data tunggal, PITR 7 hari)
+- WA bot: container di DO#1 `152.42.246.93` (image GHCR `lbb-whatsapp-bot:latest`,
+  volume: sesi WA + backups + uploads). Satu-satunya bot; VPS#2 & AWS sudah off.
+- File upload (bukti payroll, file tutor): disimpan di volume bot DO#1 via
+  `PUT /files/*` (auth `X-Bot-Token`). Vercel `VERCEL=1` mengaktifkan
+  `app/services/remote_storage.py` yang mengalihkan semua `file.save()`.
+- Bulk kirim slip: dashboard INSERT job Neon `heavy_jobs` -> worker bot polling
+  30 dtk -> kirim per-slip via `/payroll/api/fee-slip-job/<ref>` (token, exempt CSRF).
+- Heartbeat: bot POST `/api/system/heartbeat` tiap 5 menit (auth token);
+  badge status VM di `/whatsapp/management` (aktif / stale >180 detik).
+- Versi dashboard: file `VERSION` (regenerate tiap deploy) tampil di sidebar.
+
+## Kunci-kunci (lokal, gitignored)
+
+- `api key penting/` : vercel.key, neon.key, neon-pooled-conn.txt, neon-direct-conn.txt, github-token.key
+- `.server_lembaga` (repo root): ringkasan akses server
+- DO#1: `/opt/apps/lembaga/aplikasi-lembaga/.env` (SECRET_KEY, token bot,
+  DATABASE_URL_NEON) + `/etc/cloudflared` & `/root/.config/lembaga/` (tunnel WA)
+
+## Restorasi VM mati -> VM baru (<=15 menit)
+
+1. VM Ubuntu 22.04+ (2 vCPU/2GB+, SGP), login root.
+2. Dua file: token tunnel Cloudflare (`wa.token`: tunnel `supersmart-wa`,
+   hostname `wa.supersmart.click` -> `localhost:6002`) + GitHub token.
+3. Satu perintah:
+   curl -fsSL -o restore.sh https://raw.githubusercontent.com/yogaajisukma712/dashboard-keuangan-lbb/main/deploy/vm-bundle/restore.sh
+   bash restore.sh --github-token <ghp_...> --tunnel-token-file ./wa.token
+   Otomatis: unduh backup state terakhir (GitHub release `vm-state-*` di
+   `lembaga-db-backups`) -> docker+image GHCR -> restore volume sesi WA ->
+   bot+tunnel jalan -> health check.
+4. Verifikasi: `https://wa.supersmart.click/health` 200; badge **VM Bot Aktif**
+   di `/whatsapp/management`.
+5. Sesi invalid (backup tua) -> scan QR sekali di halaman manajemen.
+
+## Backup rutin (otomatis)
+
+- Systemd `vm-bundle-backup.timer` di DO#1: harian 04:30 WIB -> `backup-state.sh`
+  -> tar (sesi WA + uploads + env) -> GitHub release `vm-state-YYYYMMDD`
+  di repo `yogaajisukma712/lembaga-db-backups` (token di
+  `/root/.config/lembaga/github-token`). DB tidak ikut backup VM (sudah di Neon).
+
+## Deploy dashboard (update versi otomatis)
+
+bash scripts/deploy-vercel.sh
+Regenerate `VERSION` (semver+tanggal+commit) -> staging rsync -> deploy. Label
+versi tampil di sidebar dashboard.
+
+## Perangkap yang sudah pernah terjadi (JANGAN diulang)
+
+1. Build image bot di VM gagal (mirror Debian bullseye 404) -> SELALU image GHCR;
+   build bertingkat dari image lama bila perlu.
+2. PATCH env Vercel tidak berlaku ke deployment lama -> deploy ulang setelah ubah env.
+3. Deploy dari folder tanpa `.vercel/project.json` membuat project liar
+   (`vercel-deploy`) -> staging wajib link ke `lbb-dashboard`.
+4. SSO/password protection menutup domain vercel.app -> sudah `ssoProtection: null`.
+5. `vercel.json` wajib `rewrites` catch-all -> tanpa itu semua route 404.
+6. Endpoint non-session (worker/heartbeat) wajib `csrf.exempt` di `app/__init__.py`.
+7. Jangan set `SESSION_COOKIE_DOMAIN` (cookie host-only supaya login pasti cocok).
+8. Dua instance `SQLAlchemy` ada (`app/__init__.py` punya yang ter-init) ->
+   modul baru wajib `from app import db`.

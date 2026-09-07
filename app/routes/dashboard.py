@@ -47,6 +47,80 @@ def _parse_month_year(default_today=True):
 
 
 @dashboard_bp.route("/", methods=["GET"])
+@dashboard_bp.route("/api/system/heartbeat", methods=["POST"])
+def api_system_heartbeat():
+    """VM bot melapor rutin. Auth: X-Bot-Token. Upsert status komponen."""
+    import os
+
+    token = os.getenv("WHATSAPP_BOT_TOKEN", "")
+    if not token or request.headers.get("X-Bot-Token", "") != token:
+        return jsonify({"ok": False, "error": "Unauthorized bot token"}), 401
+
+    payload = request.get_json(silent=True) or {}
+    component = (payload.get("component") or "vm-bot").strip()[:64]
+    meta = payload.get("meta") or {}
+
+    db.session.execute(
+        text(
+            """
+        CREATE TABLE IF NOT EXISTS system_heartbeats (
+            id SERIAL PRIMARY KEY,
+            component TEXT NOT NULL UNIQUE,
+            last_seen TIMESTAMPTZ NOT NULL DEFAULT now(),
+            meta JSONB NOT NULL DEFAULT '{}'
+        )
+        """
+        )
+    )
+    db.session.execute(
+        text(
+            """
+        INSERT INTO system_heartbeats (component, last_seen, meta)
+        VALUES (:c, now(), CAST(:m AS jsonb))
+        ON CONFLICT (component) DO UPDATE
+           SET last_seen = now(), meta = CAST(:m AS jsonb)
+        """
+        ),
+        {"c": component, "m": json.dumps(meta)},
+    )
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+def _get_vm_heartbeat(max_age_seconds=180):
+    """Status heartbeat VM untuk halaman admin. None jika tak pernah melapor."""
+    from sqlalchemy import text
+    from sqlalchemy.exc import ProgrammingError
+
+    try:
+        row = db.session.execute(
+            text(
+                "SELECT component, last_seen, meta FROM system_heartbeats "
+                "WHERE component = 'vm-bot' LIMIT 1"
+            )
+        ).fetchone()
+    except ProgrammingError:
+        db.session.rollback()
+        return None
+    if not row:
+        return None
+    from datetime import datetime, timezone
+
+    component, last_seen, meta = row
+    age = (
+        datetime.now(timezone.utc) - last_seen
+    ).total_seconds() if last_seen.tzinfo else (
+        datetime.utcnow() - last_seen
+    ).total_seconds()
+    return {
+        "component": component,
+        "last_seen": last_seen,
+        "age_seconds": int(age),
+        "alive": age <= max_age_seconds,
+        "meta": meta,
+    }
+
+
 @dashboard_bp.route("/owner", methods=["GET"])
 @login_required
 def owner_dashboard():

@@ -120,6 +120,8 @@ def management():
     return render_template(
         "whatsapp/management.html",
         excluded_group_names=WhatsAppIngestService.get_excluded_group_names(),
+        vm_heartbeat=_get_vm_heartbeat(),
+
     )
 
 

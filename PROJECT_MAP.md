@@ -4,6 +4,11 @@ This is the first file an AI agent or developer should read before changing the 
 
 The project is a Flask-based operations and finance system for LBB Super Smart. Its integrations are dense: student master data, enrollments, schedules, attendance, payments, quota, invoices, tutor payroll, reconciliation, dashboard, recruitment, tutor portal, SS Meet, WhatsApp, data manager, imports, reports, and Docker runtime all affect each other.
 
+
+## Infrastruktur VM & Restorasi Instan
+
+Bot WA berjalan di VM (DO#1) sedangkan dashboard di Vercel dan DB di Neon. Panduan lengkap untuk agent: **docs/VM_RESTORATION.md** — arsitektur, lokasi kunci, backup otomatis harian ke GitHub release, dan restorasi VM baru satu perintah (`deploy/vm-bundle/restore.sh`).
+
 ## Required Reading Order
 
 1. `AGENTS.md`

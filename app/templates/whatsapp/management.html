@@ -91,7 +91,18 @@
                     <div class="text-uppercase small fw-semibold text-primary mb-2">
                         Operasional WhatsApp
                     </div>
-                    <h1 class="h3 fw-bold mb-2">Manajemen WhatsApp Bot</h1>
+                    <h1 class="h3 fw-bold mb-2">
+                        Manajemen WhatsApp Bot
+                        {% if vm_heartbeat %}
+                        {% if vm_heartbeat.alive %}
+                        <span class="badge bg-success align-middle ms-2" title="Last seen: {{ vm_heartbeat.last_seen }}">VM Bot Aktif</span>
+                        {% else %}
+                        <span class="badge bg-danger align-middle ms-2" title="Last seen: {{ vm_heartbeat.last_seen }}">VM Bot Stale ({{ vm_heartbeat.age_seconds }}s)</span>
+                        {% endif %}
+                        {% else %}
+                        <span class="badge bg-secondary align-middle ms-2">VM belum melapor</span>
+                        {% endif %}
+                    </h1>
                     <p class="text-muted mb-0">
                         Halaman ini dipakai untuk memulai sesi WhatsApp Web, scan QR,
                         memantau status bot, melihat group yang terbaca, dan menjalankan

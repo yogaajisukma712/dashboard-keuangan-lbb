@@ -1250,6 +1250,22 @@ def invoice_list():
 
     students = Student.query.filter_by(is_active=True).order_by(Student.name).all()
 
+    # Ringkasan per status utk kartu di atas tabel
+    summary_rows = (
+        db.session.execute(
+            db.text(
+                "SELECT status, COUNT(*) AS cnt, COALESCE(SUM(amount),0) AS total "
+                "FROM student_invoices GROUP BY status"
+            )
+        )
+        .mappings()
+        .all()
+    )
+    status_summary = {
+        r["status"]: {"cnt": int(r["cnt"]), "total": float(r["total"])}
+        for r in summary_rows
+    }
+
     today = date.today()
     return render_template(
         "quota/invoice_list.html",
@@ -1266,6 +1282,7 @@ def invoice_list():
             "month": month,
             "year": year,
         },
+        status_summary=status_summary,
         BILLING_TYPE_LABELS=BILLING_TYPE_LABELS,
         current_year=today.year,
     )

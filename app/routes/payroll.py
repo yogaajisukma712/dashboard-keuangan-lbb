@@ -1670,7 +1670,13 @@ def upload_proof(payout_ref):
 
     try:
         upload_dir = _payroll_proof_upload_dir()
-        os.makedirs(upload_dir, exist_ok=True)
+        from app.services.remote_storage import (
+            is_remote_storage_enabled as _rse,
+            save_remote_file as _srf,
+        )
+
+        if not _rse():
+            os.makedirs(upload_dir, exist_ok=True)
 
         had_legacy_proof = bool(payout.proof_image)
         _backfill_legacy_payout_proof(payout)
@@ -1682,13 +1688,8 @@ def upload_proof(payout_ref):
             ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
             filename = secure_filename(f"proof_{payout.id}_{timestamp}_{index}.{ext}")
             file_path = f"payroll_proofs/{filename}"
-            from app.services.remote_storage import (
-                is_remote_storage_enabled,
-                save_remote_file,
-            )
-
-            if is_remote_storage_enabled():
-                save_remote_file(file_path, file.read())
+            if _rse():
+                _srf(file_path, file.read())
             else:
                 file.save(os.path.join(upload_dir, filename))
             saved_paths.append(file_path)

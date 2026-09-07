@@ -397,16 +397,18 @@ def register_error_handlers(app):
     @app.errorhandler(CSRFError)
     def handle_csrf_error(error):
         db.session.rollback()
+        # Pesan khusus: CSRF gagal umumnya karena cookie sesi lama pasca migrasi
+        # server — arahkan user refresh, bukan halaman "akses ditolak" yang menyesatkan.
+        message = (
+            "Sesi keamanan tidak cocok — kemungkinan cookie lama dari server "
+            "sebelumnya. Muat ulang halaman (F5) lalu login kembali."
+        )
         if _request_wants_json():
-            return jsonify(
-                {"error": "CSRF token tidak valid atau sudah kedaluwarsa"}
-            ), 400
+            return jsonify({"error": message}), 400
         try:
-            return render_template("errors/403.html", error=str(error)), 400
+            return render_template("errors/csrf_stale.html", error=message), 400
         except Exception:
-            return jsonify(
-                {"error": "CSRF token tidak valid atau sudah kedaluwarsa"}
-            ), 400
+            return jsonify({"error": message}), 400
 
     @app.errorhandler(404)
     def not_found(error):

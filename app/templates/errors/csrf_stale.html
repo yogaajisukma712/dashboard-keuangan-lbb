@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sesi Kadaluarsa | LBB Super Smart</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
+  <style>
+    body { background: #f3f4f6; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; }
+    .error-card { background: #fff; border-radius: 1.2rem; box-shadow: 0 4px 32px rgba(0,0,0,.08); max-width: 520px; width: 100%; padding: 3rem 2.5rem; text-align: center; }
+    .error-icon { font-size: 5rem; color: #f59e0b; margin-bottom: 1.25rem; }
+    .error-title { font-size: 1.4rem; font-weight: 700; color: #374151; margin: .5rem 0 .75rem; }
+    .error-msg { color: #6b7280; font-size: .93rem; margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+  <div class="error-card">
+    <div class="error-icon"><i class="bi bi-arrow-clockwise"></i></div>
+    <div class="error-title">Sesi Keamanan Tidak Cocok</div>
+    <p class="error-msg">
+      {{ error }}<br>
+      Jika masih gagal, bersihkan cookie situs ini (Ctrl+Shift+Delete) lalu coba lagi.
+    </p>
+    <div class="d-flex gap-2 justify-content-center flex-wrap">
+      <a href="/auth/login" class="btn btn-primary">
+        <i class="bi bi-box-arrow-in-right me-1"></i>Ke Halaman Login
+      </a>
+      <a href="javascript:location.reload()" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-clockwise me-1"></i>Muat Ulang
+      </a>
+    </div>
+  </div>
+</body>
+</html>

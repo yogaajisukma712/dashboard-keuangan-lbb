@@ -157,7 +157,7 @@ function startHeavyJobsWorker(ctx) {
     try {
       const { flaskBaseUrl, flaskBotToken } = require('./config');
       const state = (ctx.getSessionState && ctx.getSessionState()) || {};
-      fetch(`${flaskBaseUrl}/api/system/heartbeat`, {
+      fetch(`${flaskBaseUrl}/dashboard/api/system/heartbeat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

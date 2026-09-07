@@ -7,6 +7,8 @@ from datetime import datetime
 
 from sqlalchemy import text
 
+import json
+
 from flask import Blueprint, jsonify, render_template, request
 from flask_login import login_required
 

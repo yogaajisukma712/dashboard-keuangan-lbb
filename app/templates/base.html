@@ -319,7 +319,7 @@
             #sidebar .sidebar-version-footer {
                 flex: 0 0 auto;
                 margin-top: auto;
-                border-top: 1px solid rgba(0, 0, 0, 0.08);
+                border-top: 1px solid rgba(255, 255, 255, 0.15);
                 background: var(--sidebar-bg);
             }
 
@@ -919,12 +919,12 @@
             </div><!-- /.sidebar-scroll-area -->
 
             <!-- Footer versi: menempel di dasar sidebar -->
-            <div class="sidebar-version-footer px-3 py-2 text-muted" style="font-size:.72rem">
+            <div class="sidebar-version-footer px-3 py-2 text-white" style="font-size:.72rem">
                 <div class="d-flex justify-content-between align-items-center">
                     <span>LBB Super Smart</span>
                     <span class="fw-semibold">v{{ app_version or 'dev' }}</span>
                 </div>
-                <div>Dashboard · Neon · VM Bot</div>
+                <div style="opacity:.75">Dashboard · Neon · VM Bot</div>
             </div>
         </nav>
         {% endif %}

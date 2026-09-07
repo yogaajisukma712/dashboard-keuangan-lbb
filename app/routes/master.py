@@ -984,6 +984,9 @@ def student_detail(student_ref):
     today = date.today()
     month = request.args.get("month", today.month, type=int)
     year = request.args.get("year", today.year, type=int)
+    # Invoice pasca bayar: default 2 bulan terakhir + bulan berjalan;
+    # ?invoice_all_months=1 menampilkan semua bulan berlalu (maks 12 ke belakang).
+    invoice_all_months = request.args.get("invoice_all_months", "0") == "1"
     service_month = _first_of_month(year, month)
     quota_details = _get_student_quota_details(student.id, service_month)
     quota_summary = _build_quota_summary(quota_details)
@@ -1006,7 +1009,10 @@ def student_detail(student_ref):
         quota_alert_summary=quota_alert_summary,
         service_month=service_month,
         service_month_label=_month_label(service_month),
-        postpaid_month_options=build_postpaid_month_options(service_month),
+        postpaid_month_options=build_postpaid_month_options(
+            service_month, show_all_past=invoice_all_months
+        ),
+        invoice_all_months=invoice_all_months,
         student_invoices=student_invoices,
         BILLING_TYPE_LABELS=BILLING_TYPE_LABELS,
     )

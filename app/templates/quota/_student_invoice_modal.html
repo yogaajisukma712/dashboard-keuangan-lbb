@@ -46,6 +46,12 @@
               </div>
               <div class="form-text">Preset untuk pra bayar. Bisa diubah lagi per mapel.</div>
             </div>
+            <div class="col-12">
+              <button type="button" id="invoiceToggleAllMonths" class="btn btn-outline-secondary btn-sm d-none">
+                <i class="bi bi-calendar-range me-1"></i>Tampilkan semua bulan berlalu
+              </button>
+              <div class="form-text">Pasca bayar default menampilkan 2 bulan terakhir + bulan berjalan.</div>
+            </div>
           </div>
 
           <div class="row g-3 mb-3">
@@ -117,7 +123,7 @@
                   <td class="postpaid-month-cell d-none">
                     <div class="d-grid gap-2">
                       {% for month_option in postpaid_month_options %}
-                      <div class="d-flex align-items-center gap-2">
+                      <div class="d-flex align-items-center gap-2{% if month_option.is_extra_past and not invoice_all_months %} extra-past-month d-none{% endif %}">
                         {% if month_option.is_current %}
                         <input
                           class="form-check-input postpaid-current-check"
@@ -211,6 +217,30 @@
     function setPostpaidMonthVisibility(isPostpaid) {
       form.querySelectorAll(".postpaid-month-head, .postpaid-month-cell").forEach(function (el) {
         el.classList.toggle("d-none", !isPostpaid);
+      });
+      updateToggleMonthsVisibility(isPostpaid);
+    }
+
+    var toggleMonthsBtn = document.getElementById("invoiceToggleAllMonths");
+    var allMonthsShown = false;
+    function updateToggleMonthsVisibility(isPostpaid) {
+      if (!toggleMonthsBtn) return;
+      var hasExtra = form.querySelectorAll(".extra-past-month").length > 0;
+      toggleMonthsBtn.classList.toggle("d-none", !(isPostpaid && hasExtra));
+    }
+
+    if (toggleMonthsBtn) {
+      toggleMonthsBtn.addEventListener("click", function () {
+        // Extra-past rows dirender server-side hanya bila invoice_all_months=1 —
+        // toggle = reload URL dengan parameter itu (state checkbox user di-reset).
+        var url = new URL(window.location.href);
+        if (allMonthsShown) {
+          url.searchParams.delete("invoice_all_months");
+        } else {
+          url.searchParams.set("invoice_all_months", "1");
+        }
+        url.hash = "studentInvoiceModal";
+        window.location.href = url.toString();
       });
     }
 

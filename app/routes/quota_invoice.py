@@ -66,17 +66,43 @@ def _shift_month(service_month_date: date, offset: int) -> date:
     return date(month_index // 12, month_index % 12 + 1, 1)
 
 
-def build_postpaid_month_options(service_month_date: date):
-    """Bulan penagihan pasca bayar: dua bulan sebelumnya + bulan berjalan."""
+def build_postpaid_month_options(
+    service_month_date: date,
+    months_back: int = 2,
+    show_all_past: bool = False,
+):
+    """Bulan penagihan pasca bayar.
+
+    Default: dua bulan sebelumnya + bulan berjalan. Dengan show_all_past=True,
+    semua bulan berlalu sejak awal data (maks 12 bulan ke belakang) ikut
+    disertakan — memungkinkan custom tagihan bulan berapa saja yang sudah
+    berlalu, tanpa melebihi bulan berjalan.
+    """
+    current = _first_of_month(date.today().year, date.today().month)
+    # Batas belakang: jangan lebih dari 12 bulan sebelum bulan berjalan.
+    oldest_allowed = _shift_month(current, -12)
+    back = max(0, min(int(months_back or 0), 12))
+    if show_all_past:
+        back = 12
+
     options = []
-    for offset in (-2, -1, 0):
-        month_date = _shift_month(service_month_date, offset)
+    offsets = list(range(-back, 1))
+    if service_month_date < current:
+        # service_month dipilih lewat navigasi bulan; pastikan tetap masuk rentang
+        if service_month_date not in [o["date"] for o in options]:
+            offsets.append(0)
+    for offset in sorted(set(offsets)):
+        month_date = _shift_month(current, offset)
+        # Baris "extra past" = bulan berlalu di luar rentang default (dua bulan
+        # terakhir + bulan berjalan); disembunyikan UI sampai user minta tampil.
+        is_extra_past = offset < -2 and month_date < service_month_date
         options.append(
             {
                 "value": month_date.strftime("%Y-%m"),
                 "date": month_date,
                 "label": _month_label(month_date),
                 "is_current": offset == 0,
+                "is_extra_past": is_extra_past,
             }
         )
     return options

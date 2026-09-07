@@ -103,7 +103,7 @@ def _get_vm_heartbeat(max_age_seconds=180):
             )
         ).fetchone()
     except ProgrammingError:
-        db.session.rollback()
+        app_db.session.rollback()
         return None
     if not row:
         return None

@@ -1,0 +1,872 @@
+{
+  ".codex-workflow/planner_state.json": {
+    "mtime": 1778116263.097987,
+    "seen": 1788697141.7169423,
+    "ast_hash": "381e4c9078a8369a3d83f7784c0e0fa6",
+    "semantic_hash": "381e4c9078a8369a3d83f7784c0e0fa6"
+  },
+  "app/__init__.py": {
+    "mtime": 1786063078.7055755,
+    "seen": 1788697141.7169514,
+    "ast_hash": "942539bc16396589b8831333983bc19d",
+    "semantic_hash": "942539bc16396589b8831333983bc19d"
+  },
+  "app/extensions.py": {
+    "mtime": 1777314731.375857,
+    "seen": 1788697141.716955,
+    "ast_hash": "ab3740e7bbe9b42edbda1b9d1040aa03",
+    "semantic_hash": "ab3740e7bbe9b42edbda1b9d1040aa03"
+  },
+  "app/forms/__init__.py": {
+    "mtime": 1777768199.6972787,
+    "seen": 1788697141.7169578,
+    "ast_hash": "edea5e6e9e73a6956ec5a4f208c5476d",
+    "semantic_hash": "edea5e6e9e73a6956ec5a4f208c5476d"
+  },
+  "app/forms/attendance_forms.py": {
+    "mtime": 1783316868.2722154,
+    "seen": 1788697141.7169602,
+    "ast_hash": "6524e99df35182671e313491e1da12a5",
+    "semantic_hash": "6524e99df35182671e313491e1da12a5"
+  },
+  "app/forms/auth_forms.py": {
+    "mtime": 1777308899.0,
+    "seen": 1788697141.7169626,
+    "ast_hash": "1d730e7ad26738706e1910692f3f6e35",
+    "semantic_hash": "1d730e7ad26738706e1910692f3f6e35"
+  },
+  "app/forms/enrollment_forms.py": {
+    "mtime": 1777979830.7130413,
+    "seen": 1788697141.7169657,
+    "ast_hash": "5f2be09c10f50a5de8f54afc85ce197d",
+    "semantic_hash": "5f2be09c10f50a5de8f54afc85ce197d"
+  },
+  "app/forms/expense_forms.py": {
+    "mtime": 1777308899.0,
+    "seen": 1788697141.7169673,
+    "ast_hash": "cf324f093f437fbb9fd1f3709d959cd1",
+    "semantic_hash": "cf324f093f437fbb9fd1f3709d959cd1"
+  },
+  "app/forms/master_forms.py": {
+    "mtime": 1777768191.325416,
+    "seen": 1788697141.7169695,
+    "ast_hash": "e9b576fadc6ea42b2a2c6d382a960734",
+    "semantic_hash": "e9b576fadc6ea42b2a2c6d382a960734"
+  },
+  "app/forms/payment_forms.py": {
+    "mtime": 1777308899.0,
+    "seen": 1788697141.7169716,
+    "ast_hash": "074a2c47c12735e3fbf05ef879f553e7",
+    "semantic_hash": "074a2c47c12735e3fbf05ef879f553e7"
+  },
+  "app/forms/payroll_forms.py": {
+    "mtime": 1777308899.0,
+    "seen": 1788697141.7169738,
+    "ast_hash": "3efaecc77f2d37eeef7d0639709499d5",
+    "semantic_hash": "3efaecc77f2d37eeef7d0639709499d5"
+  },
+  "app/models/__init__.py": {
+    "mtime": 1783316868.2722154,
+    "seen": 1788697141.7169764,
+    "ast_hash": "15d5ac4a4a49cc15f5bc594a2e18d18a",
+    "semantic_hash": "15d5ac4a4a49cc15f5bc594a2e18d18a"
+  },
+  "app/models/attendance.py": {
+    "mtime": 1783316868.2722154,
+    "seen": 1788697141.7169788,
+    "ast_hash": "b45690363562089ff57b8857c8193213",
+    "semantic_hash": "b45690363562089ff57b8857c8193213"
+  },
+  "app/models/closing.py": {
+    "mtime": 1777308899.0,
+    "seen": 1788697141.7169805,
+    "ast_hash": "e68d4bb27c9970b7824f9370fc714961",
+    "semantic_hash": "e68d4bb27c9970b7824f9370fc714961"
+  },
+  "app/models/enrollment.py": {
+    "mtime": 1783316868.2722154,
+    "seen": 1788697141.7169828,
+    "ast_hash": "8378db407bc0ec6702a2a4df92850070",
+    "semantic_hash": "8378db407bc0ec6702a2a4df92850070"
+  },
+  "app/models/expense.py": {
+    "mtime": 1777687748.086334,
+    "seen": 1788697141.7169847,
+    "ast_hash": "b216b598fb826ec83ffe6646529c1c3d",
+    "semantic_hash": "b216b598fb826ec83ffe6646529c1c3d"
+  },
+  "app/models/income.py": {
+    "mtime": 1777687748.0859456,
+    "seen": 1788697141.716987,
+    "ast_hash": "78f4a238f3af3e76e477a331754fabb9",
+    "semantic_hash": "78f4a238f3af3e76e477a331754fabb9"
+  },
+  "app/models/master.py": {
+    "mtime": 1783316868.2732155,
+    "seen": 1788697141.7169886,
+    "ast_hash": "416ee9bc6f930b0187ba570df5bae664",
+    "semantic_hash": "416ee9bc6f930b0187ba570df5bae664"
+  },
+  "app/models/payment.py": {
+    "mtime": 1778140996.2380917,
+    "seen": 1788697141.7169907,
+    "ast_hash": "acee43cbb278b029bec8dfb15535e02e",
+    "semantic_hash": "acee43cbb278b029bec8dfb15535e02e"
+  },
+  "app/models/payroll.py": {
+    "mtime": 1778171633.5729728,
+    "seen": 1788697141.7169933,
+    "ast_hash": "4e02e36814399069d859a4080a33a8bc",
+    "semantic_hash": "4e02e36814399069d859a4080a33a8bc"
+  },
+  "app/models/pricing.py": {
+    "mtime": 1777688638.4997475,
+    "seen": 1788697141.7169952,
+    "ast_hash": "d3c97fa25b0c68301bbc533d89afc770",
+    "semantic_hash": "d3c97fa25b0c68301bbc533d89afc770"
+  },
+  "app/models/recruitment.py": {
+    "mtime": 1783316868.2732155,
+    "seen": 1788697141.7169979,
+    "ast_hash": "00479793eedcb111d5070885f0abcc5e",
+    "semantic_hash": "00479793eedcb111d5070885f0abcc5e"
+  },
+  "app/models/tutor_portal.py": {
+    "mtime": 1778510678.3531427,
+    "seen": 1788697141.7170005,
+    "ast_hash": "56c6d5e7ed681a7280e8a752b0f3e1fd",
+    "semantic_hash": "56c6d5e7ed681a7280e8a752b0f3e1fd"
+  },
+  "app/models/whatsapp.py": {
+    "mtime": 1783316868.2732155,
+    "seen": 1788697141.7170024,
+    "ast_hash": "2e8af97d72ad6bc3f463c9c4429fe0a7",
+    "semantic_hash": "2e8af97d72ad6bc3f463c9c4429fe0a7"
+  },
+  "app/routes/__init__.py": {
+    "mtime": 1778730172.124008,
+    "seen": 1788697141.7170048,
+    "ast_hash": "91e9fd147b1a222f5d51e30c0acf22a9",
+    "semantic_hash": "91e9fd147b1a222f5d51e30c0acf22a9"
+  },
+  "app/routes/attendance.py": {
+    "mtime": 1783316868.2742155,
+    "seen": 1788697141.7170072,
+    "ast_hash": "6b4855b9b7cfb7d3e92b3830a8f21e02",
+    "semantic_hash": "6b4855b9b7cfb7d3e92b3830a8f21e02"
+  },
+  "app/routes/auth.py": {
+    "mtime": 1777311388.0,
+    "seen": 1788697141.717009,
+    "ast_hash": "a2c42e0819b703b26656baec42329e4d",
+    "semantic_hash": "a2c42e0819b703b26656baec42329e4d"
+  },
+  "app/routes/closings.py": {
+    "mtime": 1778226968.0838833,
+    "seen": 1788697141.7170112,
+    "ast_hash": "6c1557fc55f01df8fb3d09176c21cab0",
+    "semantic_hash": "6c1557fc55f01df8fb3d09176c21cab0"
+  },
+  "app/routes/dashboard.py": {
+    "mtime": 1778730142.182942,
+    "seen": 1788697141.7170134,
+    "ast_hash": "dfd373a103034313fdf6e26f64f3a244",
+    "semantic_hash": "dfd373a103034313fdf6e26f64f3a244"
+  },
+  "app/routes/data_manager.py": {
+    "mtime": 1778730142.307475,
+    "seen": 1788697141.717015,
+    "ast_hash": "ab0fa2742b922bbce5b3aacedf1dad61",
+    "semantic_hash": "ab0fa2742b922bbce5b3aacedf1dad61"
+  },
+  "app/routes/enrollments.py": {
+    "mtime": 1783316868.2742155,
+    "seen": 1788697141.7170174,
+    "ast_hash": "ddd97bc69398ed1b0aa5b8f6d1bd38f7",
+    "semantic_hash": "ddd97bc69398ed1b0aa5b8f6d1bd38f7"
+  },
+  "app/routes/expenses.py": {
+    "mtime": 1777803701.9879694,
+    "seen": 1788697141.717019,
+    "ast_hash": "c1bdbacb8c7b9e480d121e1d23659c53",
+    "semantic_hash": "c1bdbacb8c7b9e480d121e1d23659c53"
+  },
+  "app/routes/incomes.py": {
+    "mtime": 1777803709.6577268,
+    "seen": 1788697141.717022,
+    "ast_hash": "bd909a10628fab61a2d6ddade0415da5",
+    "semantic_hash": "bd909a10628fab61a2d6ddade0415da5"
+  },
+  "app/routes/master.py": {
+    "mtime": 1783316868.2752156,
+    "seen": 1788697141.7170238,
+    "ast_hash": "1cb4de2fb01b1c00bf6f5c4990b1e1ab",
+    "semantic_hash": "1cb4de2fb01b1c00bf6f5c4990b1e1ab"
+  },
+  "app/routes/payments.py": {
+    "mtime": 1783316868.2752156,
+    "seen": 1788697141.7170258,
+    "ast_hash": "f3e23c3e472f027bb7be534b708eb1f1",
+    "semantic_hash": "f3e23c3e472f027bb7be534b708eb1f1"
+  },
+  "app/routes/payroll.py": {
+    "mtime": 1786007902.0355246,
+    "seen": 1788697141.7170277,
+    "ast_hash": "c48654bae41656aea34e9243c0c7807d",
+    "semantic_hash": "c48654bae41656aea34e9243c0c7807d"
+  },
+  "app/routes/quota_invoice.py": {
+    "mtime": 1778730142.1863005,
+    "seen": 1788697141.7170296,
+    "ast_hash": "5a7ae81df45e70c5dc0a448c3ba61b25",
+    "semantic_hash": "5a7ae81df45e70c5dc0a448c3ba61b25"
+  },
+  "app/routes/recruitment.py": {
+    "mtime": 1783316868.2772155,
+    "seen": 1788697141.7170317,
+    "ast_hash": "83f8a775e17713b9db5b99ec36dd7ae3",
+    "semantic_hash": "83f8a775e17713b9db5b99ec36dd7ae3"
+  },
+  "app/routes/reports.py": {
+    "mtime": 1777467150.2576866,
+    "seen": 1788697141.7170336,
+    "ast_hash": "c5c13e2bdbfe4013de9e5eb42dff3f96",
+    "semantic_hash": "c5c13e2bdbfe4013de9e5eb42dff3f96"
+  },
+  "app/routes/tutor_portal.py": {
+    "mtime": 1783316868.2782156,
+    "seen": 1788697141.717036,
+    "ast_hash": "3ff4255412655cb153c168b3a7cf652c",
+    "semantic_hash": "3ff4255412655cb153c168b3a7cf652c"
+  },
+  "app/routes/whatsapp.py": {
+    "mtime": 1777807908.5602283,
+    "seen": 1788697141.7170384,
+    "ast_hash": "7c3d22479cae644a47cb110951f17b58",
+    "semantic_hash": "7c3d22479cae644a47cb110951f17b58"
+  },
+  "app/services/__init__.py": {
+    "mtime": 1777632084.5096686,
+    "seen": 1788697141.7170403,
+    "ast_hash": "6c258ecd650c822b32a0b1fb6f763a74",
+    "semantic_hash": "6c258ecd650c822b32a0b1fb6f763a74"
+  },
+  "app/services/attendance_service.py": {
+    "mtime": 1777311380.0,
+    "seen": 1788697141.7170422,
+    "ast_hash": "a22c05243cdf3cedce30ae0882648aeb",
+    "semantic_hash": "a22c05243cdf3cedce30ae0882648aeb"
+  },
+  "app/services/bulk_import_service.py": {
+    "mtime": 1777937576.8788428,
+    "seen": 1788697141.7170482,
+    "ast_hash": "f4866fb8e0f7c7f66862e97db8a4ee2e",
+    "semantic_hash": "f4866fb8e0f7c7f66862e97db8a4ee2e"
+  },
+  "app/services/dashboard_service.py": {
+    "mtime": 1778228853.4284942,
+    "seen": 1788697141.71705,
+    "ast_hash": "809bf318b8ea8dacd1460be023e063db",
+    "semantic_hash": "809bf318b8ea8dacd1460be023e063db"
+  },
+  "app/services/enrollment_service.py": {
+    "mtime": 1777308899.0,
+    "seen": 1788697141.7170525,
+    "ast_hash": "ef771f892a01094fd6b017d6417e4a29",
+    "semantic_hash": "ef771f892a01094fd6b017d6417e4a29"
+  },
+  "app/services/legacy_alldata_import_service.py": {
+    "mtime": 1777937563.3156345,
+    "seen": 1788697141.717055,
+    "ast_hash": "4bd95e8cf8bc5c2f37519f2c3ef4e375",
+    "semantic_hash": "4bd95e8cf8bc5c2f37519f2c3ef4e375"
+  },
+  "app/services/payment_service.py": {
+    "mtime": 1777308899.0,
+    "seen": 1788697141.7170568,
+    "ast_hash": "9573c06dff911e0d97e151bc090b0950",
+    "semantic_hash": "9573c06dff911e0d97e151bc090b0950"
+  },
+  "app/services/payroll_service.py": {
+    "mtime": 1777822848.871818,
+    "seen": 1788697141.7170591,
+    "ast_hash": "d6073b446250edc93e170cdd90b4520c",
+    "semantic_hash": "d6073b446250edc93e170cdd90b4520c"
+  },
+  "app/services/reconciliation_service.py": {
+    "mtime": 1777308899.0,
+    "seen": 1788697141.7170608,
+    "ast_hash": "00bec7e117fb331c92f5def8698c3d3a",
+    "semantic_hash": "00bec7e117fb331c92f5def8698c3d3a"
+  },
+  "app/services/reporting_service.py": {
+    "mtime": 1777308899.0,
+    "seen": 1788697141.717063,
+    "ast_hash": "f0fda0893d13a43da927960cdeb7acb8",
+    "semantic_hash": "f0fda0893d13a43da927960cdeb7acb8"
+  },
+  "app/services/tutor_schedule_backfill_service.py": {
+    "mtime": 1783316868.2782156,
+    "seen": 1788697141.7170649,
+    "ast_hash": "6fe1a1889a5a181c1cf9c6370618466f",
+    "semantic_hash": "6fe1a1889a5a181c1cf9c6370618466f"
+  },
+  "app/services/whatsapp_ingest_service.py": {
+    "mtime": 1785998111.679476,
+    "seen": 1788697141.7170668,
+    "ast_hash": "5afcbf60c9ffcd40c316d62d15b101f0",
+    "semantic_hash": "5afcbf60c9ffcd40c316d62d15b101f0"
+  },
+  "app/static/js/persistent-filters.js": {
+    "mtime": 1786063078.7065756,
+    "seen": 1788697141.7170691,
+    "ast_hash": "4a36f7dfd6963785324decc1963f5c42",
+    "semantic_hash": "4a36f7dfd6963785324decc1963f5c42"
+  },
+  "app/static/js/searchable-select.js": {
+    "mtime": 1786012376.3588166,
+    "seen": 1788697141.7170713,
+    "ast_hash": "d1641335031bb99ecd086eaaa277ae02",
+    "semantic_hash": "d1641335031bb99ecd086eaaa277ae02"
+  },
+  "app/utils/__init__.py": {
+    "mtime": 1777803677.614405,
+    "seen": 1788697141.7170737,
+    "ast_hash": "d010696b7e3e2de466f872b2a32d672d",
+    "semantic_hash": "d010696b7e3e2de466f872b2a32d672d"
+  },
+  "app/utils/branding.py": {
+    "mtime": 1777620981.6166542,
+    "seen": 1788697141.7170753,
+    "ast_hash": "63dfc7317293fcb97dd8b3e0896370de",
+    "semantic_hash": "63dfc7317293fcb97dd8b3e0896370de"
+  },
+  "app/utils/decorators.py": {
+    "mtime": 1777308899.0,
+    "seen": 1788697141.7170775,
+    "ast_hash": "ded1f180e20be9be5ccbd7a6d1c9adf3",
+    "semantic_hash": "ded1f180e20be9be5ccbd7a6d1c9adf3"
+  },
+  "app/utils/formatters.py": {
+    "mtime": 1777308899.0,
+    "seen": 1788697141.7170799,
+    "ast_hash": "361e0a2453b91a043c49ab48a92b5974",
+    "semantic_hash": "361e0a2453b91a043c49ab48a92b5974"
+  },
+  "app/utils/pagination.py": {
+    "mtime": 1777803671.2552037,
+    "seen": 1788697141.7170815,
+    "ast_hash": "ad2920a97f25525836db623690faec35",
+    "semantic_hash": "ad2920a97f25525836db623690faec35"
+  },
+  "app/utils/public_ids.py": {
+    "mtime": 1777465473.539985,
+    "seen": 1788697141.7170837,
+    "ast_hash": "f9d4af9a49c5754ff138f362122ff91c",
+    "semantic_hash": "f9d4af9a49c5754ff138f362122ff91c"
+  },
+  "app/utils/validators.py": {
+    "mtime": 1777308899.0,
+    "seen": 1788697141.7170856,
+    "ast_hash": "6f4f2e769ff497ccc85a5f5945f530eb",
+    "semantic_hash": "6f4f2e769ff497ccc85a5f5945f530eb"
+  },
+  "config.py": {
+    "mtime": 1783316868.2892158,
+    "seen": 1788697141.7170877,
+    "ast_hash": "fde810a14d0d987b30dce725e9ef0505",
+    "semantic_hash": "fde810a14d0d987b30dce725e9ef0505"
+  },
+  "create_admin.py": {
+    "mtime": 1777355723.5414584,
+    "seen": 1788697141.71709,
+    "ast_hash": "6ca184dff31012da40712eb65a2c95c9",
+    "semantic_hash": "6ca184dff31012da40712eb65a2c95c9"
+  },
+  "deploy.sh": {
+    "mtime": 1777367069.2761526,
+    "seen": 1788697141.7170918,
+    "ast_hash": "a12d4847606197d094ee15d009f6c80d",
+    "semantic_hash": "a12d4847606197d094ee15d009f6c80d"
+  },
+  "docker/entrypoint.sh": {
+    "mtime": 1783316868.290216,
+    "seen": 1788697141.7170937,
+    "ast_hash": "819dd7cc74c0fe6a64541c3a68a8280d",
+    "semantic_hash": "819dd7cc74c0fe6a64541c3a68a8280d"
+  },
+  "docker/wait_for_db.py": {
+    "mtime": 1777359799.95126,
+    "seen": 1788697141.7170954,
+    "ast_hash": "28943a5bd2cb51d4c2adad7d9ee8391e",
+    "semantic_hash": "28943a5bd2cb51d4c2adad7d9ee8391e"
+  },
+  "git_push_script.ps1": {
+    "mtime": 1777308899.6877706,
+    "seen": 1788697141.7170973,
+    "ast_hash": "adabc0e83a81f075e4366d2fcacb167c",
+    "semantic_hash": "adabc0e83a81f075e4366d2fcacb167c"
+  },
+  "import_februari_2025.py": {
+    "mtime": 1777384744.9628904,
+    "seen": 1788697141.7170994,
+    "ast_hash": "29225de000589143f7988492e5a8eaa4",
+    "semantic_hash": "29225de000589143f7988492e5a8eaa4"
+  },
+  "ops/backup/lembaga-daily-backup-retention.fixture.test.sh": {
+    "mtime": 1786001803.903648,
+    "seen": 1788697141.7171016,
+    "ast_hash": "e2724388c0ec8b13ef6a61c172a205dc",
+    "semantic_hash": "e2724388c0ec8b13ef6a61c172a205dc"
+  },
+  "ops/backup/lembaga-daily-backup.sh": {
+    "mtime": 1786001702.0081878,
+    "seen": 1788697141.7171042,
+    "ast_hash": "fbec4d505511cf22354956faad92318a",
+    "semantic_hash": "fbec4d505511cf22354956faad92318a"
+  },
+  "ops/backup/lembaga-weekly-whatsapp-restart.sh": {
+    "mtime": 1783412168.992019,
+    "seen": 1788697141.7171059,
+    "ast_hash": "6d706f2ad8a774d187cdc890ee146f1b",
+    "semantic_hash": "6d706f2ad8a774d187cdc890ee146f1b"
+  },
+  "ops/cloudflared/run-connector.sh": {
+    "mtime": 1785134395.6829414,
+    "seen": 1788697141.7171082,
+    "ast_hash": "f95395caec5137380b72e8c6d13512ff",
+    "semantic_hash": "f95395caec5137380b72e8c6d13512ff"
+  },
+  "ops/restore/cleanup_whatsapp_fallback_duplicates.py": {
+    "mtime": 1785146226.850905,
+    "seen": 1788697141.71711,
+    "ast_hash": "6eca20c7702ebce8f943e6259152ca87",
+    "semantic_hash": "6eca20c7702ebce8f943e6259152ca87"
+  },
+  "ops/restore/restore-latest-backup.sh": {
+    "mtime": 1785133707.953576,
+    "seen": 1788697141.717112,
+    "ast_hash": "50226340fb8aec8de40c661d805a0180",
+    "semantic_hash": "50226340fb8aec8de40c661d805a0180"
+  },
+  "ops/restore/restore_pre_july_2026_history.py": {
+    "mtime": 1785147672.1214125,
+    "seen": 1788697141.7171142,
+    "ast_hash": "97b599f7c004a5889d992d0fd8362438",
+    "semantic_hash": "97b599f7c004a5889d992d0fd8362438"
+  },
+  "push.ps1": {
+    "mtime": 1777308899.6882484,
+    "seen": 1788697141.717116,
+    "ast_hash": "8f3e23c14e80c59f7f0db296b26ab29d",
+    "semantic_hash": "8f3e23c14e80c59f7f0db296b26ab29d"
+  },
+  "push_to_github.ps1": {
+    "mtime": 1777308899.6887953,
+    "seen": 1788697141.717118,
+    "ast_hash": "81398813f7ecc71df94dd3495001fb84",
+    "semantic_hash": "81398813f7ecc71df94dd3495001fb84"
+  },
+  "push_to_github.py": {
+    "mtime": 1777308899.689308,
+    "seen": 1788697141.7171197,
+    "ast_hash": "8a26c2ab46089f7e178114d4d3ac0c3a",
+    "semantic_hash": "8a26c2ab46089f7e178114d4d3ac0c3a"
+  },
+  "push_to_github.sh": {
+    "mtime": 1777308899.6897504,
+    "seen": 1788697141.717122,
+    "ast_hash": "bb598a37e9b7020f9cd3f17a7da70d97",
+    "semantic_hash": "bb598a37e9b7020f9cd3f17a7da70d97"
+  },
+  "pyrightconfig.json": {
+    "mtime": 1777394029.891034,
+    "seen": 1788697141.7171245,
+    "ast_hash": "36fce0be139e9cb25e932a1c1c5417cb",
+    "semantic_hash": "36fce0be139e9cb25e932a1c1c5417cb"
+  },
+  "railway.json": {
+    "mtime": 1777308899.6905587,
+    "seen": 1788697141.7171264,
+    "ast_hash": "c085a9d483a330707d4333a8e08c8fea",
+    "semantic_hash": "c085a9d483a330707d4333a8e08c8fea"
+  },
+  "run.py": {
+    "mtime": 1783316868.295216,
+    "seen": 1788697141.7171285,
+    "ast_hash": "f959353c3ddab79f038bd5ea0b2d5349",
+    "semantic_hash": "f959353c3ddab79f038bd5ea0b2d5349"
+  },
+  "scripts/create_checkpoint.sh": {
+    "mtime": 1778730142.3274205,
+    "seen": 1788697141.7171304,
+    "ast_hash": "ed3301c7c24ac53414c0b03e3861ad83",
+    "semantic_hash": "ed3301c7c24ac53414c0b03e3861ad83"
+  },
+  "scripts/hermes_github_sync.py": {
+    "mtime": 1777729648.8999374,
+    "seen": 1788697141.7171326,
+    "ast_hash": "144df7e2b037be6d3a474f84a68edac5",
+    "semantic_hash": "144df7e2b037be6d3a474f84a68edac5"
+  },
+  "scripts/import_alldata.py": {
+    "mtime": 1777735633.6318724,
+    "seen": 1788697141.7171345,
+    "ast_hash": "18f85158a4bbd287892a371b73bc4a17",
+    "semantic_hash": "18f85158a4bbd287892a371b73bc4a17"
+  },
+  "scripts/provision_new_server.sh": {
+    "mtime": 1777805929.0098364,
+    "seen": 1788697141.7171397,
+    "ast_hash": "be873284464cddce4b4cc4173b757f10",
+    "semantic_hash": "be873284464cddce4b4cc4173b757f10"
+  },
+  "state/agent-sync/context-mode/project-snapshot.json": {
+    "mtime": 1777731381.7974403,
+    "seen": 1788697141.717142,
+    "ast_hash": "08637c910df5d38f3d8e8ad6f9af44e0",
+    "semantic_hash": "08637c910df5d38f3d8e8ad6f9af44e0"
+  },
+  "state/agent-sync/hermes-state-manifest.json": {
+    "mtime": 1777731381.7887497,
+    "seen": 1788697141.717144,
+    "ast_hash": "d844f7b4113672760b4c5d5f65dbf872",
+    "semantic_hash": "d844f7b4113672760b4c5d5f65dbf872"
+  },
+  "state/agent-sync/version.json": {
+    "mtime": 1777731381.7805867,
+    "seen": 1788697141.7171462,
+    "ast_hash": "6cab89a9df6e2a810acf72daec32cfd7",
+    "semantic_hash": "6cab89a9df6e2a810acf72daec32cfd7"
+  },
+  "test_data_manager.py": {
+    "mtime": 1777802591.0348177,
+    "seen": 1788697141.7171478,
+    "ast_hash": "cdea63df0fab02c64ce10aa8aec6c4d4",
+    "semantic_hash": "cdea63df0fab02c64ce10aa8aec6c4d4"
+  },
+  "test_payroll.py": {
+    "mtime": 1777818270.061726,
+    "seen": 1788697141.7171502,
+    "ast_hash": "72921b768fa9c42e0f5be74464c796e2",
+    "semantic_hash": "72921b768fa9c42e0f5be74464c796e2"
+  },
+  "tests/js/persistent-filters.test.js": {
+    "mtime": 1785150376.000463,
+    "seen": 1788697141.717152,
+    "ast_hash": "b2fcd8ce5f20e648f081297bcd56f190",
+    "semantic_hash": "b2fcd8ce5f20e648f081297bcd56f190"
+  },
+  "tests/test_attendance_calendar.py": {
+    "mtime": 1778254215.2706337,
+    "seen": 1788697141.717154,
+    "ast_hash": "f33ec980aa4226c42fff63f86a110c7d",
+    "semantic_hash": "f33ec980aa4226c42fff63f86a110c7d"
+  },
+  "tests/test_attendance_list_view.py": {
+    "mtime": 1783316868.296216,
+    "seen": 1788697141.7171562,
+    "ast_hash": "14b1ffb693c8d526f2a9a039164fca2d",
+    "semantic_hash": "14b1ffb693c8d526f2a9a039164fca2d"
+  },
+  "tests/test_base_layout.py": {
+    "mtime": 1778730142.2045393,
+    "seen": 1788697141.7171578,
+    "ast_hash": "d756348a53ab9546f33640b842294395",
+    "semantic_hash": "d756348a53ab9546f33640b842294395"
+  },
+  "tests/test_branding.py": {
+    "mtime": 1777630837.1475513,
+    "seen": 1788697141.71716,
+    "ast_hash": "f7f07fb11832e34510d5b2be295e2f9c",
+    "semantic_hash": "f7f07fb11832e34510d5b2be295e2f9c"
+  },
+  "tests/test_bulk_import_service.py": {
+    "mtime": 1777937607.2215831,
+    "seen": 1788697141.7171621,
+    "ast_hash": "d44fe2601762d6e8896e1d12943fcaf4",
+    "semantic_hash": "d44fe2601762d6e8896e1d12943fcaf4"
+  },
+  "tests/test_dashboard_service.py": {
+    "mtime": 1778226981.4535017,
+    "seen": 1788697141.717164,
+    "ast_hash": "52601e65f45914fa4d3d0a908dbe3e71",
+    "semantic_hash": "52601e65f45914fa4d3d0a908dbe3e71"
+  },
+  "tests/test_domain_route_boundaries.py": {
+    "mtime": 1778730142.2049074,
+    "seen": 1788697141.7171662,
+    "ast_hash": "96f8dc23151233f5e18b8a66f951ac24",
+    "semantic_hash": "96f8dc23151233f5e18b8a66f951ac24"
+  },
+  "tests/test_enrollment_form_view.py": {
+    "mtime": 1783316868.296216,
+    "seen": 1788697141.717168,
+    "ast_hash": "a50250a9fd32336b8b42abeaeb805ec3",
+    "semantic_hash": "a50250a9fd32336b8b42abeaeb805ec3"
+  },
+  "tests/test_enrollment_list_view.py": {
+    "mtime": 1783316868.296216,
+    "seen": 1788697141.71717,
+    "ast_hash": "f8d2343163023fb27bf34376db7f5f6a",
+    "semantic_hash": "f8d2343163023fb27bf34376db7f5f6a"
+  },
+  "tests/test_fee_slip_verify_mobile.py": {
+    "mtime": 1777990036.7336788,
+    "seen": 1788697141.717172,
+    "ast_hash": "ae72250f49b585ed22ed8d4356156ee2",
+    "semantic_hash": "ae72250f49b585ed22ed8d4356156ee2"
+  },
+  "tests/test_global_searchable_select.py": {
+    "mtime": 1786012376.3448162,
+    "seen": 1788697141.717174,
+    "ast_hash": "a86c99f09bf5edfdb597e973ad9417b6",
+    "semantic_hash": "a86c99f09bf5edfdb597e973ad9417b6"
+  },
+  "tests/test_legacy_alldata_import_service.py": {
+    "mtime": 1777937592.959466,
+    "seen": 1788697141.717176,
+    "ast_hash": "50f3b239a886a3d2d4c0195594d25f89",
+    "semantic_hash": "50f3b239a886a3d2d4c0195594d25f89"
+  },
+  "tests/test_pagination_controls.py": {
+    "mtime": 1786063078.7075756,
+    "seen": 1788697141.717178,
+    "ast_hash": "e01a7295979feeacb6da87ca3acef3e1",
+    "semantic_hash": "e01a7295979feeacb6da87ca3acef3e1"
+  },
+  "tests/test_payment_form_dropdowns.py": {
+    "mtime": 1783316868.296216,
+    "seen": 1788697141.7171803,
+    "ast_hash": "397a9c74c21eb44a489bc37593bfdea3",
+    "semantic_hash": "397a9c74c21eb44a489bc37593bfdea3"
+  },
+  "tests/test_payroll_fee_slip_proof_aggregation.py": {
+    "mtime": 1786007772.5394452,
+    "seen": 1788697141.7171822,
+    "ast_hash": "ef7a5494e83337a22e840936b9685c04",
+    "semantic_hash": "ef7a5494e83337a22e840936b9685c04"
+  },
+  "tests/test_payroll_fee_slip_whatsapp.py": {
+    "mtime": 1783316868.2972162,
+    "seen": 1788697141.717184,
+    "ast_hash": "0a52cfcc030fff73255ad75bb3a16a20",
+    "semantic_hash": "0a52cfcc030fff73255ad75bb3a16a20"
+  },
+  "tests/test_payroll_payout_detail_form.py": {
+    "mtime": 1778006123.999187,
+    "seen": 1788697141.7171862,
+    "ast_hash": "d6ba07d47278945dc4ebc247bf58b487",
+    "semantic_hash": "d6ba07d47278945dc4ebc247bf58b487"
+  },
+  "tests/test_payroll_tutor_summary_template.py": {
+    "mtime": 1786007902.0365245,
+    "seen": 1788697141.7171886,
+    "ast_hash": "6eeddf2d10b9f4411f7f14db9ab4be31",
+    "semantic_hash": "6eeddf2d10b9f4411f7f14db9ab4be31"
+  },
+  "tests/test_persistent_filters.py": {
+    "mtime": 1785150458.3664382,
+    "seen": 1788697141.7171907,
+    "ast_hash": "976e9ffbfb596dfb759f66ae42c42af2",
+    "semantic_hash": "976e9ffbfb596dfb759f66ae42c42af2"
+  },
+  "tests/test_public_id_routes.py": {
+    "mtime": 1778730142.2055092,
+    "seen": 1788697141.717193,
+    "ast_hash": "d3f0b5b8a433d063b83cc4772db7e0f5",
+    "semantic_hash": "d3f0b5b8a433d063b83cc4772db7e0f5"
+  },
+  "tests/test_quota_total_sessions.py": {
+    "mtime": 1778221458.1862032,
+    "seen": 1788697141.7171953,
+    "ast_hash": "4b2d005b478888849e670ec6fd863044",
+    "semantic_hash": "4b2d005b478888849e670ec6fd863044"
+  },
+  "tests/test_recruitment.py": {
+    "mtime": 1783316868.2972162,
+    "seen": 1788697141.717197,
+    "ast_hash": "37df2f94893bd314190f1203febd0ec1",
+    "semantic_hash": "37df2f94893bd314190f1203febd0ec1"
+  },
+  "tests/test_root_route.py": {
+    "mtime": 1778730142.2065408,
+    "seen": 1788697141.717199,
+    "ast_hash": "171a43521a05126e0cdd85c95aa2db0e",
+    "semantic_hash": "171a43521a05126e0cdd85c95aa2db0e"
+  },
+  "tests/test_searchable_select_component.py": {
+    "mtime": 1786012376.3588166,
+    "seen": 1788697141.7172012,
+    "ast_hash": "539ff5fd972a659408445f955d5e8771",
+    "semantic_hash": "539ff5fd972a659408445f955d5e8771"
+  },
+  "tests/test_static_cache_headers.py": {
+    "mtime": 1786063003.0237913,
+    "seen": 1788697141.7172031,
+    "ast_hash": "18edb7e9d3964ef2e11df79cdee1d837",
+    "semantic_hash": "18edb7e9d3964ef2e11df79cdee1d837"
+  },
+  "tests/test_student_views.py": {
+    "mtime": 1778253356.5753157,
+    "seen": 1788697141.7172053,
+    "ast_hash": "b9b02db842998d606903c68de4f96114",
+    "semantic_hash": "b9b02db842998d606903c68de4f96114"
+  },
+  "tests/test_subject_detail_view.py": {
+    "mtime": 1777789946.382541,
+    "seen": 1788697141.7172072,
+    "ast_hash": "9f538f7edb2e8002a5180c485ced1116",
+    "semantic_hash": "9f538f7edb2e8002a5180c485ced1116"
+  },
+  "tests/test_tutor_detail_view.py": {
+    "mtime": 1783316868.298216,
+    "seen": 1788697141.7172096,
+    "ast_hash": "9f7ab6ecfebf241a3e6fccddd48f3c36",
+    "semantic_hash": "9f7ab6ecfebf241a3e6fccddd48f3c36"
+  },
+  "tests/test_tutor_list_view.py": {
+    "mtime": 1777728601.4489524,
+    "seen": 1788697141.7172117,
+    "ast_hash": "346cf9419ce5419e5a9653dfa6e55d47",
+    "semantic_hash": "346cf9419ce5419e5a9653dfa6e55d47"
+  },
+  "tests/test_tutor_portal.py": {
+    "mtime": 1783316868.298216,
+    "seen": 1788697141.7172134,
+    "ast_hash": "50fe6f14549be8932d4a78c42b3dc873",
+    "semantic_hash": "50fe6f14549be8932d4a78c42b3dc873"
+  },
+  "tests/test_tutor_views.py": {
+    "mtime": 1777998701.3512607,
+    "seen": 1788697141.7172155,
+    "ast_hash": "d16d085573692afc55104d561f156f56",
+    "semantic_hash": "d16d085573692afc55104d561f156f56"
+  },
+  "tests/test_whatsapp_bot_dashboard.py": {
+    "mtime": 1778730142.2079115,
+    "seen": 1788697141.7172172,
+    "ast_hash": "233cab18245bfc8732aa3b220d438e20",
+    "semantic_hash": "233cab18245bfc8732aa3b220d438e20"
+  },
+  "tests/test_whatsapp_fallback_cleanup.py": {
+    "mtime": 1785146237.1691513,
+    "seen": 1788697141.717219,
+    "ast_hash": "abb0ffed32c00da7d1e8367c494caa7a",
+    "semantic_hash": "abb0ffed32c00da7d1e8367c494caa7a"
+  },
+  "tests/test_whatsapp_ingest_service.py": {
+    "mtime": 1785998111.6804762,
+    "seen": 1788697141.717221,
+    "ast_hash": "b37317483657c706f05854d6c1eb3ab1",
+    "semantic_hash": "b37317483657c706f05854d6c1eb3ab1"
+  },
+  "verify_deploy.py": {
+    "mtime": 1777785790.3336425,
+    "seen": 1788697141.7172232,
+    "ast_hash": "68b76334b4359a2a554cb7a25e46c32b",
+    "semantic_hash": "68b76334b4359a2a554cb7a25e46c32b"
+  },
+  "whatsapp-bot/package.json": {
+    "mtime": 1777632084.503727,
+    "seen": 1788697141.7172468,
+    "ast_hash": "37118d14ccea7746e95707fabf2e8ff0",
+    "semantic_hash": "37118d14ccea7746e95707fabf2e8ff0"
+  },
+  "whatsapp-bot/src/chat-loader.js": {
+    "mtime": 1785145534.6114047,
+    "seen": 1788697141.717249,
+    "ast_hash": "1fdfbb84553c6a7a9f13840d8b14920c",
+    "semantic_hash": "1fdfbb84553c6a7a9f13840d8b14920c"
+  },
+  "whatsapp-bot/src/config.js": {
+    "mtime": 1785147556.2856464,
+    "seen": 1788697141.717251,
+    "ast_hash": "f61291880b7cffa67e65e7c7d5f769f2",
+    "semantic_hash": "f61291880b7cffa67e65e7c7d5f769f2"
+  },
+  "whatsapp-bot/src/evaluation/parser.js": {
+    "mtime": 1785144031.0206006,
+    "seen": 1788697141.7172534,
+    "ast_hash": "d2295a075599b7fdd4ef7d1f23ca77e2",
+    "semantic_hash": "d2295a075599b7fdd4ef7d1f23ca77e2"
+  },
+  "whatsapp-bot/src/flask-client.js": {
+    "mtime": 1785139339.169374,
+    "seen": 1788697141.7172554,
+    "ast_hash": "95adf7a91fe075d1c89f889079bd2697",
+    "semantic_hash": "95adf7a91fe075d1c89f889079bd2697"
+  },
+  "whatsapp-bot/src/group-filters.js": {
+    "mtime": 1777648491.07106,
+    "seen": 1788697141.7172575,
+    "ast_hash": "458f12690015dc8301f999aeec090e4b",
+    "semantic_hash": "458f12690015dc8301f999aeec090e4b"
+  },
+  "whatsapp-bot/src/server.js": {
+    "mtime": 1783316868.3002162,
+    "seen": 1788697141.7172594,
+    "ast_hash": "c29b3141e50da61670ac99f3fdb80b81",
+    "semantic_hash": "c29b3141e50da61670ac99f3fdb80b81"
+  },
+  "whatsapp-bot/src/session-backup.js": {
+    "mtime": 1785148838.3495564,
+    "seen": 1788697141.7172613,
+    "ast_hash": "390030c9806c07abf5e6603750e6427a",
+    "semantic_hash": "390030c9806c07abf5e6603750e6427a"
+  },
+  "whatsapp-bot/src/session-runtime.js": {
+    "mtime": 1778730142.21206,
+    "seen": 1788697141.7172635,
+    "ast_hash": "1b43db4a43b289b3103b76228fa5730e",
+    "semantic_hash": "1b43db4a43b289b3103b76228fa5730e"
+  },
+  "whatsapp-bot/src/sync-window.js": {
+    "mtime": 1785147539.174238,
+    "seen": 1788697141.7172654,
+    "ast_hash": "2977d0727b6be6762aae8ef17859b69c",
+    "semantic_hash": "2977d0727b6be6762aae8ef17859b69c"
+  },
+  "whatsapp-bot/src/whatsapp-client.js": {
+    "mtime": 1785147556.2886467,
+    "seen": 1788697141.7172673,
+    "ast_hash": "2ce21e51d6c807404efc0be9f013ec9d",
+    "semantic_hash": "2ce21e51d6c807404efc0be9f013ec9d"
+  },
+  "whatsapp-bot/test/chat-loader.test.js": {
+    "mtime": 1785145549.5457602,
+    "seen": 1788697141.717269,
+    "ast_hash": "7a7f55e10703ee75b366fce1ad813654",
+    "semantic_hash": "7a7f55e10703ee75b366fce1ad813654"
+  },
+  "whatsapp-bot/test/evaluation-parser.test.js": {
+    "mtime": 1785143873.9898593,
+    "seen": 1788697141.7172709,
+    "ast_hash": "18964c335254f42c758abf47e21e767b",
+    "semantic_hash": "18964c335254f42c758abf47e21e767b"
+  },
+  "whatsapp-bot/test/flask-client.test.js": {
+    "mtime": 1785139356.748795,
+    "seen": 1788697141.7172728,
+    "ast_hash": "926721f5017b4d2d35931d091a72eca4",
+    "semantic_hash": "926721f5017b4d2d35931d091a72eca4"
+  },
+  "whatsapp-bot/test/group-filters.test.js": {
+    "mtime": 1777648263.1996458,
+    "seen": 1788697141.717275,
+    "ast_hash": "8676edac7b3b1a2eb067a71927074906",
+    "semantic_hash": "8676edac7b3b1a2eb067a71927074906"
+  },
+  "whatsapp-bot/test/session-runtime.test.js": {
+    "mtime": 1778730142.2139964,
+    "seen": 1788697141.7172766,
+    "ast_hash": "658068b7612176d7237e46d9c815122d",
+    "semantic_hash": "658068b7612176d7237e46d9c815122d"
+  },
+  "whatsapp-bot/test/sync-window.test.js": {
+    "mtime": 1785147565.3388627,
+    "seen": 1788697141.717279,
+    "ast_hash": "3e422ba535189cba0e6a618a2477e44c",
+    "semantic_hash": "3e422ba535189cba0e6a618a2477e44c"
+  }
+}

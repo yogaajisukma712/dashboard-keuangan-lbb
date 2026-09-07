@@ -5,7 +5,7 @@ Last updated: 2026-07-27 Asia/Jakarta
 ## Current Project
 
 - Local path: /home/ubuntu/Documents/lembaga/aplikasi lembaga
-- Server SSH: ec2-user@ec2-98-94-77-55.compute-1.amazonaws.com
+- Server SSH: ec2-user@ec2-34-239-130-246.compute-1.amazonaws.com
 - SSH key: /home/ubuntu/Documents/lembaga/aplikasi lembaga/lembaga.pem
 - Server app path: /opt/apps/lembaga/aplikasi-lembaga
 - Main GitHub repo: https://github.com/yogaajisukma712/dashboard-keuangan-lbb

@@ -984,9 +984,9 @@ def student_detail(student_ref):
     today = date.today()
     month = request.args.get("month", today.month, type=int)
     year = request.args.get("year", today.year, type=int)
-    # Invoice pasca bayar: default 2 bulan terakhir + bulan berjalan;
-    # ?invoice_all_months=1 menampilkan semua bulan berlalu (maks 12 ke belakang).
-    invoice_all_months = request.args.get("invoice_all_months", "0") == "1"
+    # Invoice pasca bayar: tampilkan semua bulan berlalu (maks 12 ke belakang)
+    # + bulan berjalan. Tanpa toggle — langsung penuh.
+    invoice_all_months = True
     service_month = _first_of_month(year, month)
     quota_details = _get_student_quota_details(student.id, service_month)
     quota_summary = _build_quota_summary(quota_details)

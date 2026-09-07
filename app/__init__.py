@@ -53,6 +53,11 @@ def create_app(config_name=None):
     if "whatsapp_api.sync" in app.view_functions:
         csrf.exempt(app.view_functions["whatsapp_api.sync"])
 
+    # Worker VM (heavy-jobs) memanggil endpoint ini dengan auth X-Bot-Token,
+    # bukan session — wajib exempt dari CSRF.
+    if "payroll.api_fee_slip_job" in app.view_functions:
+        csrf.exempt(app.view_functions["payroll.api_fee_slip_job"])
+
     # Exempt data_manager write/API endpoints (JSON only, protected by login_required)
     _dm_exempt = [
         "data_manager.delete_row",

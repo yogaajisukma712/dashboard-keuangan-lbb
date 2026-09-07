@@ -396,6 +396,11 @@ def _proof_file_exists(file_path):
     if not upload_folder:
         return False
     try:
+        # Remote storage (Vercel): file disimpan di bot VM — dianggap ada.
+        from app.services.remote_storage import is_remote_storage_enabled
+
+        if is_remote_storage_enabled():
+            return True
         full_path = os.path.join(upload_folder, "payroll_proofs", os.path.basename(file_path))
         return os.path.isfile(full_path)
     except (OSError, TypeError):

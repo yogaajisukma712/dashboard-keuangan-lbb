@@ -149,6 +149,77 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'whatsapp-bot', session: getSessionState() });
 });
 
+// ===== File storage untuk dashboard serverless (Vercel) =====
+// Dashboard Vercel PUT file mentah ke sini (auth X-Bot-Token); file disimpan
+// di volume bot. Serving via GET (auth sama, dashboard yang mem-broadcast).
+const FILE_ROOT = process.env.FILE_ROOT_PATH || '/app/uploads';
+const FILE_TOKEN = process.env.WHATSAPP_BOT_TOKEN || '';
+
+function _fileSafePath(relativeName) {
+  const path = require('path');
+  const resolved = path.resolve(FILE_ROOT, relativeName);
+  if (!resolved.startsWith(path.resolve(FILE_ROOT) + path.sep)) return null;
+  return resolved;
+}
+
+app.put('/files/*', (req, res) => {
+  if (!FILE_TOKEN || req.get('X-Bot-Token') !== FILE_TOKEN) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized bot token' });
+  }
+  let relativeName;
+  try {
+    relativeName = decodeURIComponent(req.path.replace(/^\/files\//, ''));
+  } catch (err) {
+    return res.status(400).json({ ok: false, error: 'Nama file tidak valid' });
+  }
+  const target = _fileSafePath(relativeName);
+  if (!target) return res.status(400).json({ ok: false, error: 'Path tidak valid' });
+  const fs = require('fs');
+  const path = require('path');
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  const chunks = [];
+  let size = 0;
+  let aborted = false;
+  req.on('data', (chunk) => {
+    if (aborted) return;
+    size += chunk.length;
+    if (size > 25 * 1024 * 1024) {
+      aborted = true;
+      res.status(413).json({ ok: false, error: 'File terlalu besar (maks 25MB)' });
+      req.destroy();
+      return;
+    }
+    chunks.push(chunk);
+  });
+  req.on('end', () => {
+    if (aborted) return;
+    try {
+      fs.writeFileSync(target, Buffer.concat(chunks));
+      res.json({ ok: true, path: relativeName, bytes: size });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+  req.on('error', () => res.status(500).end());
+});
+
+app.get('/files/*', (req, res) => {
+  if (!FILE_TOKEN || req.get('X-Bot-Token') !== FILE_TOKEN) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized bot token' });
+  }
+  let relativeName;
+  try {
+    relativeName = decodeURIComponent(req.path.replace(/^\/files\//, ''));
+  } catch (err) {
+    return res.status(400).json({ ok: false, error: 'Nama file tidak valid' });
+  }
+  const target = _fileSafePath(relativeName);
+  if (!target) return res.status(400).json({ ok: false, error: 'Path tidak valid' });
+  const fs = require('fs');
+  if (!fs.existsSync(target)) return res.status(404).json({ ok: false, error: 'File tidak ditemukan' });
+  res.sendFile(target);
+});
+
 app.get('/session', (_req, res) => {
   res.json({ ok: true, session: getSessionState() });
 });

@@ -23,6 +23,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    Response,
     session,
     send_from_directory,
     url_for,
@@ -964,12 +965,17 @@ def _save_tutor_upload(file_storage, tutor, folder, extensions):
         return None
     if not _allowed_upload(file_storage.filename, extensions):
         raise ValueError("Format file tidak didukung.")
+    from app.services.remote_storage import is_remote_storage_enabled, save_remote_file
+
     filename = secure_filename(file_storage.filename)
     stamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     relative_dir = os.path.join("tutor_portal", folder)
+    relative_path = os.path.join(relative_dir, f"tutor-{tutor.id}-{stamp}-{filename}")
+    if is_remote_storage_enabled():
+        save_remote_file(relative_path, file_storage.read())
+        return relative_path
     target_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], relative_dir)
     os.makedirs(target_dir, exist_ok=True)
-    relative_path = os.path.join(relative_dir, f"tutor-{tutor.id}-{stamp}-{filename}")
     file_storage.save(os.path.join(current_app.config["UPLOAD_FOLDER"], relative_path))
     return relative_path
 
@@ -1630,6 +1636,13 @@ def admin_dashboard_select():
 @tutor_portal_bp.route("/uploads/<path:filename>")
 @tutor_login_required
 def uploaded_file(filename):
+    from app.services.remote_storage import fetch_remote_file, is_remote_storage_enabled
+
+    if is_remote_storage_enabled():
+        content = fetch_remote_file(filename)
+        if content is None:
+            abort(404)
+        return Response(content, mimetype="application/octet-stream")
     return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)
 
 

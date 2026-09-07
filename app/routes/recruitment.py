@@ -882,12 +882,17 @@ def _save_candidate_upload(file_storage, candidate, folder, extensions):
         raise ValueError("Format file tidak didukung.")
     filename = secure_filename(file_storage.filename)
     stamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    from app.services.remote_storage import is_remote_storage_enabled, save_remote_file
+
     relative_dir = os.path.join("recruitment", folder)
-    target_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], relative_dir)
-    os.makedirs(target_dir, exist_ok=True)
     relative_path = os.path.join(
         relative_dir, f"candidate-{candidate.id}-{stamp}-{filename}"
     )
+    if is_remote_storage_enabled():
+        save_remote_file(relative_path, file_storage.read())
+        return relative_path
+    target_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], relative_dir)
+    os.makedirs(target_dir, exist_ok=True)
     file_storage.save(os.path.join(current_app.config["UPLOAD_FOLDER"], relative_path))
     return relative_path
 

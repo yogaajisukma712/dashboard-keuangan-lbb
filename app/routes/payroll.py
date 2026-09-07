@@ -23,6 +23,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    Response,
     send_file,
     url_for,
 )
@@ -1680,8 +1681,16 @@ def upload_proof(payout_ref):
         for index, file in enumerate(files, 1):
             ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
             filename = secure_filename(f"proof_{payout.id}_{timestamp}_{index}.{ext}")
-            file.save(os.path.join(upload_dir, filename))
             file_path = f"payroll_proofs/{filename}"
+            from app.services.remote_storage import (
+                is_remote_storage_enabled,
+                save_remote_file,
+            )
+
+            if is_remote_storage_enabled():
+                save_remote_file(file_path, file.read())
+            else:
+                file.save(os.path.join(upload_dir, filename))
             saved_paths.append(file_path)
             db.session.add(
                 TutorPayoutProof(
@@ -2509,6 +2518,22 @@ def api_tutors_for_ocr():
 @payroll_bp.route("/uploads/payroll_proofs/<path:filename>", methods=["GET"])
 @login_required
 def serve_payroll_proof(filename):
-    """Serve uploaded payment proof files."""
+    """Serve uploaded payment proof files (disk lokal atau remote bot)."""
+    from app.services.remote_storage import fetch_remote_file, is_remote_storage_enabled
+
+    if is_remote_storage_enabled():
+        content = fetch_remote_file(f"payroll_proofs/{filename}")
+        if content is None:
+            abort(404)
+        mimetype = (
+            "application/pdf"
+            if filename.lower().endswith(".pdf")
+            else "image/png"
+            if filename.lower().endswith(".png")
+            else "image/jpeg"
+            if filename.lower().endswith((".jpg", ".jpeg"))
+            else "application/octet-stream"
+        )
+        return Response(content, mimetype=mimetype)
     upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "payroll_proofs")
     return send_file(os.path.join(upload_dir, filename))

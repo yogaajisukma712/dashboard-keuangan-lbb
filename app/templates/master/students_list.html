@@ -48,6 +48,19 @@
         </select>
       </div>
       <div class="col-md-3 col-lg-2">
+        <select name="attendance_month" class="form-select" title="Tampilkan hanya siswa yang tercatat presensi (attended) pada bulan terpilih">
+          <option value="">Semua Bulan</option>
+          {% for m in [
+            ('2026-01','Januari 2026'),('2026-02','Februari 2026'),('2026-03','Maret 2026'),
+            ('2026-04','April 2026'),('2026-05','Mei 2026'),('2026-06','Juni 2026'),
+            ('2026-07','Juli 2026'),('2026-08','Agustus 2026'),('2026-09','September 2026'),
+            ('2026-10','Oktober 2026'),('2026-11','November 2026'),('2026-12','Desember 2026')
+          ] %}
+          <option value="{{ m[0] }}" {% if attendance_month == m[0] %}selected{% endif %}>{{ m[1] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 col-lg-2">
         <select name="sort" class="form-select">
           <option value="name_asc" {% if sort_by == 'name_asc' %}selected{% endif %}>Nama A-Z</option>
           <option value="name_desc" {% if sort_by == 'name_desc' %}selected{% endif %}>Nama Z-A</option>
@@ -60,7 +73,7 @@
       <div class="col-auto">
         <button type="submit" class="btn btn-primary px-4">Cari</button>
       </div>
-      {% if search or active_state != 'active' or sort_by != 'name_asc' %}
+      {% if search or active_state != 'active' or sort_by != 'name_asc' or attendance_month %}
       <div class="col-auto">
         <a
           href="{{ url_for('master.students_list') }}"

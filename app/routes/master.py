@@ -599,6 +599,20 @@ def students_list():
     search = request.args.get("search", "", type=str)
     active_state = request.args.get("active_state", "active", type=str).strip().lower()
     sort_by = request.args.get("sort", "name_asc", type=str).strip().lower()
+    attendance_month = (request.args.get("attendance_month", "", type=str) or "").strip()
+
+    # Filter bulan presensi (format YYYY-MM): tampilkan hanya siswa yang punya
+    # presensi attended pada bulan tersebut.
+    attendance_month_filter = None
+    if attendance_month:
+        parts = attendance_month.split("-")
+        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            f_year, f_month = int(parts[0]), int(parts[1])
+            if 1 <= f_month <= 12 and 2000 <= f_year <= 2100:
+                attendance_month_filter = (f_year, f_month)
+        if attendance_month_filter is None:
+            flash("Filter bulan presensi tidak valid (format YYYY-MM).", "warning")
+            attendance_month = ""
 
     last_attendance_subquery = (
         db.session.query(
@@ -641,6 +655,19 @@ def students_list():
     else:
         active_state = "active"
         query = query.filter(Student.is_active.is_(True))
+
+    if attendance_month_filter is not None:
+        f_year, f_month = attendance_month_filter
+        attended_in_month = (
+            db.session.query(AttendanceSession.student_id)
+            .filter(
+                AttendanceSession.status == "attended",
+                db.extract("year", AttendanceSession.session_date) == f_year,
+                db.extract("month", AttendanceSession.session_date) == f_month,
+            )
+            .subquery()
+        )
+        query = query.filter(Student.id.in_(attended_in_month))
 
     sort_options = {
         "name_asc",
@@ -712,6 +739,7 @@ def students_list():
         search=search,
         active_state=active_state,
         sort_by=sort_by,
+        attendance_month=attendance_month,
         last_attendance_map=last_attendance_map,
         last_payment_map=last_payment_map,
         quota_alert_map=quota_alert_map,

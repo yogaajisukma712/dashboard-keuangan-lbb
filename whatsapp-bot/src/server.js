@@ -222,6 +222,16 @@ app.get('/session/backup/:filename/download', (req, res) => {
 
 app.get('/groups', async (_req, res) => {
   try {
+    // Fail-fast: jika sesi belum authenticated, jangan tunggu ready gate 120s
+    // (menghindari pile-up hang di proxy dashboard/Vercel).
+    const st = getSessionState();
+    if (!st.authenticated && !st.ready) {
+      return res.status(503).json({
+        ok: false,
+        error: 'WhatsApp session belum ready (awaiting QR). Scan QR terlebih dahulu.',
+        status: st.status,
+      });
+    }
     const groups = await listGroups();
     res.json({
       ok: true,

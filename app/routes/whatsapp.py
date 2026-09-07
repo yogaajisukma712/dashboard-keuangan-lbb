@@ -193,7 +193,7 @@ def bot_session_backup_delete(filename):
 @login_required
 @admin_required
 def bot_groups():
-    payload, status_code = _bot_request("GET", "/groups")
+    payload, status_code = _bot_request("GET", "/groups", timeout=15)
     return jsonify(payload), status_code
 
 

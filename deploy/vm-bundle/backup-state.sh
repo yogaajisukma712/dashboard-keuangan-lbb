@@ -24,9 +24,7 @@ CREATE=$(curl -s -X POST "$API/releases" -H "Authorization: Bearer $GH" -H "Cont
   -d "{\"tag_name\":\"$TAG\",\"name\":\"VM state $TS\"}")
 REL_ID=$(echo "$CREATE" | python3 -c "import sys,json;print(json.load(sys.stdin).get('id',''))" 2>/dev/null || true)
 if [ -n "$REL_ID" ]; then
-  curl -s -X POST "$API/releases/$REL_ID/assets?name=vm-state.tar.gz" \
-    -H "Authorization: Bearer $GH" -H "Content-Type: application/gzip" \
-    --data-binary "@$BUNDLE" > /dev/null && echo "[vm-backup] asset terunggah."
+  curl -s -X POST "https://uploads.github.com/repos/$REPO/releases/$REL_ID/assets?name=vm-state.tar.gz" -H "Authorization: Bearer $GH" -H "Content-Type: application/gzip" --data-binary @"$BUNDLE" > /dev/null && echo "[vm-backup] asset terunggah."
 else
   echo "[vm-backup] GAGAL buat release:"; echo "$CREATE" | head -c 200
 fi

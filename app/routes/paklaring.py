@@ -340,20 +340,33 @@ def _render_pdf(row, cfg, verify_url: str, qr_data_uri: str) -> bytes:
     first_id = f"{row['first_session'].day} {MONTHS_ID[row['first_session'].month]} {row['first_session'].year}"
     last_id = f"{row['last_session'].day} {MONTHS_ID[row['last_session'].month]} {row['last_session'].year}"
 
-    body = (
+    intro = (
         f"Yang bertanda tangan di bawah ini, pemilik/kepala Lembaga Bimbingan Belajar "
         f"<b>{inst_name}</b>, menerangkan dengan sesungguhnya bahwa:<br/><br/>"
         f"<b>{row['tutor_name']}</b> telah bekerja sebagai Tutor/Guru Bimbingan Belajar "
-        f"di lembaga kami dalam periode:<br/><br/>"
-        f"<table>"
-        f"<tr><td>Mulai</td><td>:</td><td>{first_id}</td></tr>"
-        f"<tr><td>Sampai dengan</td><td>:</td><td>{last_id}</td></tr>"
-        f"<tr><td>Durasi masa kerja</td><td>:</td><td><b>{row['duration_text']}</b></td></tr>"
-        f"<tr><td>Jumlah sesi mengajar tercatat</td><td>:</td><td>{row['total_sessions']} sesi presensi</td></tr>"
-        f"</table><br/>"
-        f"Selama bekerja di lembaga kami, {row['tutor_name']} {row['appreciation'] or ''}"
+        f"di lembaga kami dalam periode:"
     )
-    story.append(Paragraph(body, style_body))
+    story.append(Paragraph(intro, style_body))
+    story.append(Spacer(1, 0.25 * cm))
+
+    style_ident = ParagraphStyle("ident", parent=styles["Normal"], fontSize=11, leading=17)
+    ident_rows = [
+        ["Mulai", first_id, ""],
+        ["Sampai dengan", last_id, ""],
+        ["Durasi masa kerja", f"<b>{row['duration_text']}</b>", ""],
+        ["Jumlah sesi mengajar tercatat", f"{row['total_sessions']} sesi presensi", ""],
+    ]
+    ident_data = [
+        [Paragraph(lbl, style_ident), Paragraph(":", style_ident), Paragraph(val, style_ident)]
+        for lbl, val, _ in ident_rows
+    ]
+    ident = Table(ident_data, colWidths=[6.5 * cm, 0.6 * cm, 8.2 * cm], hAlign="LEFT")
+    ident.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    story.append(ident)
+    story.append(Spacer(1, 0.3 * cm))
+
+    closing = f"Selama bekerja di lembaga kami, {row['tutor_name']} {row['appreciation'] or ''}"
+    story.append(Paragraph(closing, style_body))
     story.append(Spacer(1, 0.7 * cm))
     story.append(
         Paragraph(
@@ -379,15 +392,15 @@ def _render_pdf(row, cfg, verify_url: str, qr_data_uri: str) -> bytes:
     )
     sign = Table(
         [
-            [Paragraph(f"{city}, {date_id}", style_center), "", ""],
-            [Paragraph(f"{ceo_title} {inst_name}", style_center), "", ""],
-            [Spacer(1, 0.4 * cm), "", ""],
-            [qr_img, "", ""],
-            [Paragraph("<i>(Tanda tangan elektronik — pindai untuk verifikasi)</i>", ParagraphStyle("cap", parent=style_center, fontSize=8, leading=10)), "", ""],
-            [Spacer(1, 0.2 * cm), "", ""],
-            [Paragraph(f"<b><u>{ceo_name}</u></b>", style_center), "", ""],
+            [Paragraph(f"{city}, {date_id}", style_center)],
+            [Paragraph(f"{ceo_title} {inst_name}", style_center)],
+            [Spacer(1, 0.4 * cm)],
+            [qr_img],
+            [Paragraph("<i>(Tanda tangan elektronik — pindai untuk verifikasi)</i>", ParagraphStyle("cap", parent=style_center, fontSize=8, leading=10))],
+            [Spacer(1, 0.2 * cm)],
+            [Paragraph(f"<b><u>{ceo_name}</u></b>", style_center)],
         ],
-        colWidths=[9.5 * cm, 3.0 * cm, 4.5 * cm],
+        colWidths=[7.5 * cm],
         hAlign="RIGHT",
     )
     sign.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))

@@ -69,6 +69,18 @@ install.sh + timer vm-bundle-backup otomatis terpasang di VM baru.
   di repo `yogaajisukma712/lembaga-db-backups` (token di
   `/root/.config/lembaga/github-token`). DB tidak ikut backup VM (sudah di Neon).
 
+## Data bukti bayar payroll (status 2026-09-08)
+
+- **Metadata** (tabel `tutor_payout_proofs`, 67 row): aman di Neon.
+- **File fisik** disimpan di volume `uploads` bot (bukan Neon). Saat ini 15 file
+  ter-restore di VPS#2 (bukti Ags 2026 + Sep 2026) — serve via dashboard OK.
+- **42 file bukti Mei–Juli 2026 hilang** bersama DO#1 (tidak sempat dibackup —
+  backup tar AWS hanya memuat 14 file Ags; file Mei–Juli berada di era AWS lama
+  yang tidak ikut pindah ke DO). Jika DO#1 droplet direstart & bisa diakses,
+  file ada di `/opt/apps/lembaga/aplikasi-lembaga/uploads/payroll_proofs/`
+  (kecuali 14 file Ags yang sudah ter-restore dari tar AWS).
+- Backup harian vm-state kini mencakup `uploads` → tidak akan kehilangan lagi.
+
 ## Deploy dashboard (update versi otomatis)
 
 bash scripts/deploy-vercel.sh

@@ -72,14 +72,26 @@
               {% for l in letters %}
               <tr>
                 <td class="ps-4 fw-semibold small">{{ l.letter_number }}</td>
-                <td class="fw-semibold">{{ l.tutor_name }}</td>
+                <td>
+                  <div class="fw-semibold">{{ l.tutor_name }}</div>
+                  <div class="text-muted small"><i class="bi bi-whatsapp"></i> {{ l.tutor_phone or '—' }}</div>
+                </td>
                 <td class="small">{{ l.duration_text }}<div class="text-muted">{{ l.total_sessions }} sesi</div></td>
                 <td class="small">{{ l.issued_date.strftime('%d/%m/%Y') if l.issued_date else '—' }}</td>
                 <td class="text-center">
-                  <a href="{{ url_for('paklaring.pdf', letter_id=l.id) }}" target="_blank"
-                     class="btn btn-sm btn-outline-danger" title="Buka PDF">
-                    <i class="bi bi-file-earmark-pdf"></i>
-                  </a>
+                  <div class="d-flex gap-1 justify-content-center">
+                    <a href="{{ url_for('paklaring.pdf', letter_id=l.id) }}" target="_blank"
+                       class="btn btn-sm btn-outline-danger" title="Buka PDF">
+                      <i class="bi bi-file-earmark-pdf"></i>
+                    </a>
+                    <form method="POST" action="{{ url_for('paklaring.send_wa', letter_id=l.id) }}"
+                          onsubmit="return confirm('Kirim PDF paklaring ke WhatsApp {{ l.tutor_name }}?');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm btn-outline-success" title="Kirim ke WhatsApp tutor">
+                        <i class="bi bi-whatsapp"></i>
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </tr>
               {% endfor %}

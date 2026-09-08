@@ -39,6 +39,7 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.models.attendance import AttendanceSession
 from app.models.master import Tutor
+from app.services.remote_storage import is_remote_storage_enabled
 from app.utils.decorators import admin_required
 
 paklaring_bp = Blueprint("paklaring", __name__, url_prefix="/paklaring")
@@ -157,10 +158,12 @@ def index():
     rows = (
         db.session.execute(
             text(
-                "SELECT id, sequence_number, letter_number, tutor_name, "
-                "first_session, last_session, duration_text, total_sessions, "
-                "issued_date, public_token FROM paklaring_tutor_letters "
-                "ORDER BY sequence_number DESC LIMIT 100"
+                "SELECT p.id, p.sequence_number, p.letter_number, p.tutor_name, "
+                "p.first_session, p.last_session, p.duration_text, p.total_sessions, "
+                "p.issued_date, p.public_token, tr.phone AS tutor_phone "
+                "FROM paklaring_tutor_letters p "
+                "JOIN tutors tr ON tr.id = p.tutor_id "
+                "ORDER BY p.sequence_number DESC LIMIT 100"
             )
         )
         .mappings()
@@ -419,6 +422,73 @@ def _render_pdf(row, cfg, verify_url: str, qr_data_uri: str) -> bytes:
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes
+
+
+@paklaring_bp.route("/<int:letter_id>/send-wa", methods=["POST"])
+@login_required
+@admin_required
+def send_wa(letter_id: int):
+    """Kirim PDF paklaring ke WhatsApp tutor (bukti via attachment base64)."""
+    row = _get_letter(letter_id)
+    if not row:
+        abort(404)
+
+    tutor = Tutor.query.get(row["tutor_id"])
+    if not tutor or not (tutor.phone or "").strip():
+        flash("Nomor WhatsApp tutor tidak tersedia di data tutor.", "warning")
+        return redirect(url_for("paklaring.index"))
+
+    # Generate ulang PDF (on-demand, selalu konsisten)
+    cfg = current_app.config
+    verify_url = request.host_url.rstrip("/") + "/paklaring/verify/" + row["public_token"]
+    qr_data_uri = _qr_data_uri(verify_url)
+    pdf_bytes = _render_pdf(row, cfg, verify_url, qr_data_uri)
+
+    bot_base = (os.getenv("WHATSAPP_BOT_INTERNAL_URL") or "").rstrip("/")
+    bot_token = os.getenv("WHATSAPP_BOT_TOKEN") or ""
+    if not bot_base:
+        flash("Konfigurasi WhatsApp bot belum lengkap.", "danger")
+        return redirect(url_for("paklaring.index"))
+
+    import base64 as b64
+    import requests as rq
+
+    payload = {
+        "to": tutor.phone.strip(),
+        "message": (
+            f"Assalamualaikum, {row['tutor_name']}. "
+            f"Berikut kami sampaikan Surat Keterangan Pengalaman Kerja "
+            f"(Paklaring) nomor {row['letter_number']} dari "
+            f"{cfg.get('INSTITUTION_NAME', 'LBB Super Smart')}. "
+            f"Terima kasih atas dedikasi dan kerja sama Anda."
+        ),
+        "attachment": {
+            "data": b64.b64encode(pdf_bytes).decode("ascii"),
+            "mimetype": "application/pdf",
+            "filename": f"Paklaring_{row['tutor_name'].replace(' ', '_')}_{row['sequence_number']:03d}.pdf",
+        },
+    }
+    try:
+        resp = rq.post(
+            f"{bot_base}/messages/send",
+            json=payload,
+            headers={"X-Bot-Token": bot_token},
+            timeout=60,
+        )
+        if resp.status_code == 200:
+            flash(
+                f"Paklaring {row['letter_number']} terkirim ke WhatsApp {tutor.phone.strip()}.",
+                "success",
+            )
+        else:
+            try:
+                detail = resp.json().get("error", resp.text[:100])
+            except Exception:
+                detail = resp.text[:100]
+            flash(f"Gagal kirim WhatsApp: {detail}", "danger")
+    except rq.RequestException as exc:
+        flash(f"Gagal terhubung ke WhatsApp bot: {exc}", "danger")
+    return redirect(url_for("paklaring.index"))
 
 
 # ── Halaman verifikasi publik (tanpa login) ─────────────────────────

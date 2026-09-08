@@ -1045,6 +1045,121 @@ def delete_invoice(invoice_ref):
     return redirect(redirect_target)
 
 
+@quota_invoice_bp.route("/invoices/bulk", methods=["POST"])
+@login_required
+def invoice_bulk_action():
+    """Aksi massal dari halaman Riwayat Invoice:
+    action=mark_paid (jadikan Lunas + buat payment) atau action=delete (hapus draft).
+    """
+    action = request.form.get("bulk_action", "").strip()
+    refs = [r for r in request.form.getlist("invoice_ref") if r]
+    back = url_for("quota_invoice.invoice_list",
+                   status=request.form.get("status", ""),
+                   month=request.form.get("month", type=int) or None,
+                   year=request.form.get("year", type=int) or None)
+    # normalisasi None → hilangkan dari query
+    back = back.replace("None", "").rstrip("?&")
+    if not refs or action not in ("mark_paid", "delete"):
+        flash("Tidak ada invoice yang dipilih.", "warning")
+        return redirect(back)
+
+    ok = fail = 0
+    if action == "delete":
+        for ref in refs:
+            try:
+                invoice_id = _decode_invoice_ref_or_404(ref)
+                invoice = _fetch_invoice(invoice_id)
+                if not invoice:
+                    fail += 1
+                    continue
+                if invoice.get("status") == "paid" or invoice.get("completed_payment_id"):
+                    fail += 1
+                    continue
+                db.session.execute(
+                    db.text("DELETE FROM student_invoice_lines WHERE invoice_id = :id"),
+                    {"id": invoice_id},
+                )
+                db.session.execute(
+                    db.text("DELETE FROM student_invoices WHERE id = :id"),
+                    {"id": invoice_id},
+                )
+                db.session.commit()
+                ok += 1
+            except Exception:
+                db.session.rollback()
+                fail += 1
+        flash(f"{ok} invoice dihapus" + (f", {fail} gagal/skip." if fail else "."), "success" if ok else "danger")
+        return redirect(back)
+
+    # mark_paid — reuse logika complete per invoice (loop)
+    from app.models.payment import StudentPayment, StudentPaymentLine
+
+    for ref in refs:
+        try:
+            invoice_id = _decode_invoice_ref_or_404(ref)
+            invoice = _fetch_invoice(invoice_id)
+            if not invoice or invoice.get("status") == "paid" or invoice.get("completed_payment_id"):
+                fail += 1
+                continue
+            invoice_lines = _fetch_invoice_lines(invoice_id) or _build_legacy_invoice_lines(invoice)
+            if not invoice_lines:
+                fail += 1
+                continue
+
+            student = Student.query.get(invoice["student_id"])
+            total_amount = sum(float(l["nominal_amount"] or 0) for l in invoice_lines)
+            total_meetings = sum(int(l["meeting_count"] or 0) for l in invoice_lines)
+            receipt_number = f"INV-{invoice_id:05d}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+            payment = StudentPayment(
+                payment_date=datetime.utcnow(),
+                student_id=invoice["student_id"],
+                receipt_number=receipt_number,
+                payment_method="invoice",
+                total_amount=total_amount,
+                notes=f"Dari Invoice #{invoice_id}" + (f": {invoice.get('notes')}" if invoice.get("notes") else ""),
+                is_verified=True,
+                verified_by=current_user.id,
+                verified_at=datetime.utcnow(),
+            )
+            db.session.add(payment)
+            db.session.flush()
+
+            for line in invoice_lines:
+                db.session.add(
+                    StudentPaymentLine(
+                        student_payment_id=payment.id,
+                        enrollment_id=line["enrollment_id"],
+                        service_month=line["service_month"],
+                        meeting_count=int(line["meeting_count"] or 0),
+                        student_rate_per_meeting=float(line["student_rate_per_meeting"] or 0),
+                        tutor_rate_per_meeting=float(line["tutor_rate_per_meeting"] or 0),
+                        nominal_amount=float(line["nominal_amount"] or 0),
+                        tutor_payable_amount=float(line["tutor_payable_amount"] or 0),
+                        margin_amount=float(line["margin_amount"] or 0),
+                        notes=f"Dari Invoice #{invoice_id}",
+                    )
+                )
+
+            db.session.execute(
+                db.text(
+                    "UPDATE student_invoices SET status='paid', amount=:amount, "
+                    "completed_payment_id=:payment_id, updated_at=NOW() WHERE id=:id"
+                ),
+                {"id": invoice_id, "amount": total_amount, "payment_id": payment.id},
+            )
+            db.session.commit()
+            ok += 1
+        except Exception:
+            db.session.rollback()
+            fail += 1
+
+    flash(
+        f"{ok} invoice ditandai Lunas" + (f", {fail} gagal/skip." if fail else "."),
+        "success" if ok else "danger",
+    )
+    return redirect(back)
+
 @quota_invoice_bp.route("/invoice/<string:invoice_ref>", methods=["GET"])
 @login_required
 def invoice_detail(invoice_ref):

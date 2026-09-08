@@ -99,12 +99,31 @@
     {% include "components/per_page_select.html" %}
   {% endwith %}
 </div>
+<form method="POST" action="{{ url_for('quota_invoice.invoice_bulk_action') }}" id="bulkForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="status" value="{{ filters.status }}">
+  <input type="hidden" name="month" value="{{ filters.month or '' }}">
+  <input type="hidden" name="year" value="{{ filters.year or '' }}">
 <div class="card shadow-sm">
+  <div class="card-header bg-white d-flex flex-wrap align-items-center gap-2 border-bottom">
+    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('.inv-check').forEach(cb=>cb.checked=true)">Pilih Semua</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('.inv-check').forEach(cb=>cb.checked=false)">Bersihkan</button>
+    <select name="bulk_action" class="form-select form-select-sm" style="max-width:230px" required>
+      <option value="">— Pilih aksi massal —</option>
+      <option value="mark_paid">Tandai Lunas (buat pembayaran)</option>
+      <option value="delete">Hapus invoice (draft saja)</option>
+    </select>
+    <button type="submit" class="btn btn-sm btn-primary"
+            onclick="return confirm('Terapkan aksi massal pada invoice terpilih? Tindakan ini tidak dapat dibatalkan.')">
+      Terapkan
+    </button>
+    <span class="text-muted small ms-auto">Centang baris yang ingin diproses.</span>
+  </div>
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
         <tr>
-          <th>#</th>
+          <th><input type="checkbox" onchange="document.querySelectorAll('.inv-check').forEach(cb=>cb.checked=this.checked)"></th>
           <th>Siswa</th>
           <th>Bulan Layanan</th>
           <th class="text-center">Tipe</th>
@@ -118,6 +137,7 @@
       <tbody>
         {% for inv in invoices %}
         <tr>
+          <td><input type="checkbox" class="inv-check" name="invoice_ref" value="{{ inv.public_id }}"></td>
           <td class="text-muted small">{{ inv.id }}</td>
           <td>
             <div class="fw-semibold">{{ inv.student_name }}</div>
@@ -161,6 +181,7 @@
     </table>
   </div>
 </div>
+</form>
 
 {% if total_pages > 1 %}
 <nav class="mt-3">

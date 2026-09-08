@@ -31,6 +31,7 @@
 | VPS#2 | 139.59.99.242 | WA bot aktif (vm-bundle) + Caddy wa-direct + tunnel supersmart-wa | RUNNING |
 | VPS#3 | 206.189.34.41 (bancet712) | STANDBY failover — docker + vm-bundle siap, env/wa.token/GH token ter-copy, image GHCR sudah di-pull, ufw SSH-only | STANDBY |
 | DO#1 | 152.42.246.93 | MATI (unreachable) — asal sesi WA lama | OFF |
+| Helipod | 156.67.24.112 (SSH port 45500, root) | STANDBY #2 — docker + image bot ter-pull + env/wa.token/GH token + backup script siap. Spek: 4 vCPU/4GB/765GB. Akses: `ssh -p 45500 root@156.67.24.112` (key terpasang). Token API: `api key penting/token helipod.key` | STANDBY |
 
 Failover VPS#2 mati -> VPS#3 (menit):
 1. SSH root@206.189.34.41 (SSH key terpasang).
@@ -39,6 +40,9 @@ Failover VPS#2 mati -> VPS#3 (menit):
    bash restore.sh --github-token <ghp_...> --tunnel-token-file ./wa.token
 3. wa.supersmart.click + wa-direct (Caddy) otomatis pindah — tunnel token sama.
 4. DNS wa-direct -> 206.189.34.41 via Cloudflare API (token di .server_lembaga) bila pakai jalur direct.
+
+Failover ke Helipod: sama seperti prosedur VPS#3 — SSH port 45500, restore.sh + wa.token sudah ada di
+/opt/apps/lembaga/vm-bundle. Pembeda: billing harian Helipod (bayar sesuai pemakaian), akses SSH pakai port 45500.
 
 Catatan: backup harian berjalan di VM AKTIF (Sekarang VPS#2). Setelah failover,
 install.sh + timer vm-bundle-backup otomatis terpasang di VM baru.

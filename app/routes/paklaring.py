@@ -405,7 +405,14 @@ def _render_pdf(row, cfg, verify_url: str, qr_data_uri: str) -> bytes:
         colWidths=[7.5 * cm],
         hAlign="RIGHT",
     )
-    sign.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    sign.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ]
+        )
+    )
     story.append(sign)
 
     doc.build(story)

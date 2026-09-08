@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Surat Paklaring | LBB Super Smart{% endblock %}
+{% block title %}Surat Paklaring Tutor | LBB Super Smart{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
   <div>
-    <h1 class="h3 fw-bold mb-1">Surat Paklaring</h1>
-    <div class="text-muted small">Generate surat keterangan siswa dalam format PDF. Nomor surat otomatis (mulai 037).</div>
+    <h1 class="h3 fw-bold mb-1">Surat Paklaring Tutor</h1>
+    <div class="text-muted small">Surat pengalaman kerja tutor (PDF) — masa kerja otomatis dari presensi, tanda tangan QR verifikasi digital. Nomor surat otomatis (mulai 037).</div>
   </div>
 </div>
 
@@ -20,31 +20,22 @@
         <form method="POST" action="{{ url_for('paklaring.generate') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
-            <label class="form-label fw-semibold">Siswa <span class="text-danger">*</span></label>
-            <select name="student_id" class="form-select" required>
-              <option value="">— Pilih siswa aktif —</option>
-              {% for st in students %}
-              <option value="{{ st.id }}">{{ st.name }}</option>
+            <label class="form-label fw-semibold">Tutor <span class="text-danger">*</span></label>
+            <select name="tutor_id" class="form-select" required>
+              <option value="">— Pilih tutor —</option>
+              {% for t in tutors %}
+              <option value="{{ t.id }}">{{ t.name }}</option>
               {% endfor %}
             </select>
-          </div>
-          <div class="row g-2 mb-3">
-            <div class="col-6">
-              <label class="form-label small fw-semibold">Nama (di surat)</label>
-              <input type="text" name="student_name" class="form-control" placeholder="Kosongkan = nama siswa">
-            </div>
-            <div class="col-6">
-              <label class="form-label small fw-semibold">Kelas</label>
-              <input type="text" name="student_class" class="form-control" placeholder="mis. XI IPA 1">
-            </div>
+            <div class="form-text">Masa kerja diambil otomatis dari presensi pertama s.d. terakhir tutor.</div>
           </div>
           <div class="mb-3">
-            <label class="form-label small fw-semibold">Sekolah</label>
-            <input type="text" name="student_school" class="form-control" placeholder="mis. SMA Negeri 1 Surabaya">
+            <label class="form-label small fw-semibold">Apresiasi &amp; Dedikasi</label>
+            <textarea name="appreciation" class="form-control" rows="3" placeholder="Kosongkan untuk pakai teks bawaan">{{ '' }}</textarea>
           </div>
           <div class="mb-3">
             <label class="form-label small fw-semibold">Keperluan</label>
-            <input type="text" name="purpose" class="form-control" placeholder="mis. pendaftaran beasiswa" required>
+            <input type="text" name="purpose" class="form-control" placeholder="mis. melamar pekerjaan (kosongkan = default)">
           </div>
           <div class="mb-3">
             <label class="form-label small fw-semibold">Tanggal Surat</label>
@@ -71,8 +62,8 @@
             <thead class="table-light">
               <tr>
                 <th class="ps-4">Nomor</th>
-                <th>Siswa</th>
-                <th>Keperluan</th>
+                <th>Tutor</th>
+                <th>Masa Kerja</th>
                 <th>Tanggal</th>
                 <th class="text-center">PDF</th>
               </tr>
@@ -81,11 +72,8 @@
               {% for l in letters %}
               <tr>
                 <td class="ps-4 fw-semibold small">{{ l.letter_number }}</td>
-                <td>
-                  <div class="fw-semibold">{{ l.student_name }}</div>
-                  <div class="text-muted small">{{ l.student_class or '' }} {{ l.student_school or '' }}</div>
-                </td>
-                <td class="small">{{ l.purpose or '—' }}</td>
+                <td class="fw-semibold">{{ l.tutor_name }}</td>
+                <td class="small">{{ l.duration_text }}<div class="text-muted">{{ l.total_sessions }} sesi</div></td>
                 <td class="small">{{ l.issued_date.strftime('%d/%m/%Y') if l.issued_date else '—' }}</td>
                 <td class="text-center">
                   <a href="{{ url_for('paklaring.pdf', letter_id=l.id) }}" target="_blank"
@@ -101,7 +89,7 @@
         {% else %}
         <div class="p-4 text-center text-muted">
           <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-          Belum ada surat paklaring. Buat yang pertama dari form di samping.
+          Belum ada surat paklaring tutor. Buat yang pertama dari form di samping.
         </div>
         {% endif %}
       </div>

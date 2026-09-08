@@ -268,6 +268,8 @@ def register_blueprints(app):
     )
     from app.routes.quota_invoice import quota_invoice_bp
 
+    from app.routes.paklaring import paklaring_bp
+    app.register_blueprint(paklaring_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(data_manager_bp)
     app.register_blueprint(master_bp)

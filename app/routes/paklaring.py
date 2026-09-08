@@ -215,13 +215,14 @@ def generate():
 
     seq, number = _next_sequence_and_number(issued)
     token = uuid.uuid4().hex
-    db.session.execute(
+    row = db.session.execute(
         text(
             "INSERT INTO paklaring_tutor_letters "
             "(sequence_number, letter_number, tutor_id, tutor_name, first_session, "
             "last_session, duration_text, total_sessions, appreciation, purpose, "
             "issued_date, public_token) "
-            "VALUES (:seq, :num, :tid, :tname, :first, :last, :dur, :tot, :appr, :purp, :issued, :tok)"
+            "VALUES (:seq, :num, :tid, :tname, :first, :last, :dur, :tot, :appr, :purp, :issued, :tok) "
+            "RETURNING id"
         ),
         {
             "seq": seq,
@@ -237,10 +238,11 @@ def generate():
             "issued": issued.date(),
             "tok": token,
         },
-    )
+    ).mappings().first()
+    letter_id = int(row["id"])
     db.session.commit()
     flash(f"Surat paklaring {number} untuk {tutor.name} berhasil dibuat.", "success")
-    return redirect(url_for("paklaring.tutor_pdf", letter_id=seq) if False else url_for("paklaring.pdf", letter_id=seq))
+    return redirect(url_for("paklaring.pdf", letter_id=letter_id))
 
 
 @paklaring_bp.route("/<int:letter_id>/pdf", methods=["GET"])

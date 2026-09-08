@@ -24,6 +24,25 @@
 - DO#1: `/opt/apps/lembaga/aplikasi-lembaga/.env` (SECRET_KEY, token bot,
   DATABASE_URL_NEON) + `/etc/cloudflared` & `/root/.config/lembaga/` (tunnel WA)
 
+## VM & Failover (status 2026-09-08)
+
+| VM | IP | Peran | Status |
+|---|---|---|---|
+| VPS#2 | 139.59.99.242 | WA bot aktif (vm-bundle) + Caddy wa-direct + tunnel supersmart-wa | RUNNING |
+| VPS#3 | 206.189.34.41 (bancet712) | STANDBY failover — docker + vm-bundle siap, env/wa.token/GH token ter-copy, image GHCR sudah di-pull, ufw SSH-only | STANDBY |
+| DO#1 | 152.42.246.93 | MATI (unreachable) — asal sesi WA lama | OFF |
+
+Failover VPS#2 mati -> VPS#3 (menit):
+1. SSH root@206.189.34.41 (SSH key terpasang).
+2. cd /opt/apps/lembaga/vm-bundle
+   bash backup-state.sh 2>/dev/null || true   # backup terakhir dari VPS2 sudah di GitHub release
+   bash restore.sh --github-token <ghp_...> --tunnel-token-file ./wa.token
+3. wa.supersmart.click + wa-direct (Caddy) otomatis pindah — tunnel token sama.
+4. DNS wa-direct -> 206.189.34.41 via Cloudflare API (token di .server_lembaga) bila pakai jalur direct.
+
+Catatan: backup harian berjalan di VM AKTIF (Sekarang VPS#2). Setelah failover,
+install.sh + timer vm-bundle-backup otomatis terpasang di VM baru.
+
 ## Restorasi VM mati -> VM baru (<=15 menit)
 
 1. VM Ubuntu 22.04+ (2 vCPU/2GB+, SGP), login root.

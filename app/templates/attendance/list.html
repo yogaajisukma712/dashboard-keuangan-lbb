@@ -260,55 +260,6 @@
   </div>
 </div>
 
-{# ── Summary Chips ────────────────────────────────────────────────────────── #}
-<div id="attendanceSummaryChips">
-{% if sessions.total > 0 %}
-<div class="d-flex flex-wrap gap-2 mb-3">
-  <span class="badge bg-light text-dark border px-3 py-2 fw-normal">
-    <i class="bi bi-collection me-1 text-secondary"></i>
-    {{ sessions.total }} sesi ditemukan
-  </span>
-  {% if selected_month %}
-  <span class="badge bg-light text-dark border px-3 py-2 fw-normal">
-    <i class="bi bi-calendar3 me-1 text-primary"></i>
-    {{ MONTHS[selected_month] }}
-  </span>
-  {% endif %}
-  {% if selected_year %}
-  <span class="badge bg-light text-dark border px-3 py-2 fw-normal">
-    <i class="bi bi-calendar-range me-1 text-info"></i>
-    {{ selected_year }}
-  </span>
-  {% endif %}
-  {% if selected_student_name %}
-  <span class="badge bg-light text-dark border px-3 py-2 fw-normal">
-    <i class="bi bi-person me-1 text-primary"></i>
-    {{ selected_student_name }}
-  </span>
-  {% endif %}
-  {% for tutor in selected_tutors or [] %}
-  <span class="badge bg-light text-dark border px-3 py-2 fw-normal">
-    <i class="bi bi-person-badge me-1 text-success"></i>
-    {{ tutor.name }}
-  </span>
-  {% endfor %}
-  {% if selected_date_from or selected_date_to %}
-  <span class="badge bg-light text-dark border px-3 py-2 fw-normal">
-    <i class="bi bi-calendar-week me-1 text-primary"></i>
-    {{ selected_date_from or 'awal' }} s/d {{ selected_date_to or 'akhir' }}
-  </span>
-  {% endif %}
-  {% if attendance_period_lock %}
-  <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 fw-semibold">
-    <i class="bi bi-lock-fill me-1"></i>
-    Terkunci dari scan WA
-  </span>
-  {% endif %}
-</div>
-{% endif %}
-</div>
-
-{# ── Filter Bar ───────────────────────────────────────────────────────────── #}
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body py-3">
     <form method="GET" id="filterForm" class="row g-3 align-items-start">
@@ -395,24 +346,6 @@
         </select>
       </div>
 
-      {# Tombol #}
-      <div id="attendanceFilterActions" class="col-12 d-flex gap-2 flex-wrap justify-content-end border-top pt-3">
-        <button type="submit" class="btn btn-primary btn-sm flex-shrink-0">
-          <i class="bi bi-funnel me-1"></i>Filter
-        </button>
-        <a href="{{ url_for('attendance.list_attendance', reset_filters=1) }}"
-           class="btn btn-outline-secondary btn-sm flex-shrink-0">
-          <i class="bi bi-x-lg me-1"></i>Reset
-        </a>
-        {% if selected_month %}
-        <a href="{{ url_for('attendance.monthly_summary', month=selected_month,
-                            year=selected_year or default_scan_year) }}"
-           class="btn btn-outline-info btn-sm flex-shrink-0">
-          <i class="bi bi-bar-chart-line me-1"></i>Ringkasan
-        </a>
-        {% endif %}
-      </div>
-
     </form>
   </div>
 </div>
@@ -440,8 +373,17 @@
       <div class="fw-semibold small">
         <i class="bi bi-ui-checks-grid me-1 text-primary"></i>Validasi Bulk Presensi WA
       </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="submit" form="filterForm" class="btn btn-primary btn-sm">
+          <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+        <a href="{{ url_for('attendance.list_attendance', reset_filters=1) }}"
+           class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-x-lg me-1"></i>Reset
+        </a>
+      </div>
       <input id="quickAttendanceSearch" type="search" class="form-control form-control-sm"
-             style="max-width:340px" placeholder="Cari cepat di tabel ini (siswa/tutor/mapel/status)..." />
+             style="max-width:280px" placeholder="Cari cepat di tabel ini..." />
     </div>
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
     <div id="attendanceSelectionSummary" class="d-flex align-items-center gap-2 flex-wrap small">
@@ -857,11 +799,6 @@
         {% endif %}
       </p>
       <div class="d-flex gap-2 justify-content-center mt-3">
-        {% if selected_student_ref or selected_tutor_refs or selected_month or selected_year or selected_date_from or selected_date_to %}
-        <a href="{{ url_for('attendance.list_attendance', reset_filters=1) }}" class="btn btn-outline-secondary btn-sm">
-          <i class="bi bi-x-lg me-1"></i>Reset Filter
-        </a>
-        {% endif %}
         <a href="{{ url_for('attendance.add_attendance') }}" class="btn btn-primary btn-sm">
           <i class="bi bi-plus-lg me-1"></i>Catat Presensi Pertama
         </a>
@@ -957,7 +894,7 @@ async function requestAttendanceFilterUpdate(targetUrl) {
     }
     const html = await response.text();
     const doc = new DOMParser().parseFromString(html, "text/html");
-    ["attendanceSummaryChips", "attendanceFilterActions", "attendanceAjaxRegion", "attendancePeriodLockForm", "attendancePeriodLockModal"].forEach(function (id) {
+    ["attendanceFilterActions", "attendanceAjaxRegion", "attendancePeriodLockForm", "attendancePeriodLockModal"].forEach(function (id) {
       const current = document.getElementById(id);
       const next = doc.getElementById(id);
       if (current && next) {

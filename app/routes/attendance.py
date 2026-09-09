@@ -76,6 +76,8 @@ ATTENDANCE_SORT_OPTIONS = {
     "student_asc_date_asc",
     "student_desc_date_desc",
     "student_desc_date_asc",
+    "tutor_asc",
+    "mapel_asc",
 }
 
 
@@ -391,6 +393,18 @@ def _apply_attendance_list_sort(query, sort_by: str | None):
                 date_order,
                 id_order,
             )
+        )
+    if sort_by == "tutor_asc":
+        return (
+            query.join(Tutor, AttendanceSession.tutor_id == Tutor.id)
+            .order_by(Tutor.name.asc(), AttendanceSession.session_date.desc(), AttendanceSession.id.desc())
+        )
+    if sort_by == "mapel_asc":
+        from app.models.master import Subject
+        return (
+            query.join(Enrollment, AttendanceSession.enrollment_id == Enrollment.id)
+            .join(Subject, Enrollment.subject_id == Subject.id)
+            .order_by(Subject.name.asc(), AttendanceSession.session_date.desc(), AttendanceSession.id.desc())
         )
     if sort_by == "date_asc":
         return query.order_by(

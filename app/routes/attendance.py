@@ -976,8 +976,7 @@ def list_attendance():
     )
     whatsapp_review_map = _build_whatsapp_review_map(sessions.items)
 
-    # Get enrollments and tutors for filter dropdowns
-    enrollments = Enrollment.query.filter_by(status="active").all()
+    # Get tutors for filter dropdown (enrollments tidak dipakai di list.html)
     students = Student.query.order_by(Student.name.asc()).all()
     tutors = Tutor.query.filter_by(is_active=True).order_by(Tutor.name.asc()).all()
     selected_tutors = [tutor for tutor in tutors if tutor.id in tutor_ids]
@@ -995,14 +994,12 @@ def list_attendance():
     return render_template(
         "attendance/list.html",
         sessions=sessions,
-        enrollments=enrollments,
         students=students,
         tutors=tutors,
-        attendance_tutor_map=_build_tutor_enrollment_map(enrollments),
         year_options=year_options,
         selected_enrollment_id=enrollment_id,
         selected_enrollment_ref=next(
-            (enr.public_id for enr in enrollments if enr.id == enrollment_id),
+            (enr.public_id for enr in Enrollment.query.filter_by(status="active").all() if enr.id == enrollment_id),
             "",
         ),
         selected_student_id=student_id,
@@ -1544,7 +1541,6 @@ def add_attendance():
         "attendance/form.html",
         form=form,
         enrollments=enrollments,
-        attendance_tutor_map=_build_tutor_enrollment_map(enrollments),
         title="Tambah Presensi",
     )
 
@@ -1600,7 +1596,6 @@ def edit_attendance(session_ref):
         form=form,
         session=session,
         enrollments=enrollments,
-        attendance_tutor_map=_build_tutor_enrollment_map(enrollments),
         title="Edit Presensi",
     )
 

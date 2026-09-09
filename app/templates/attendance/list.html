@@ -325,35 +325,15 @@
         <label class="form-label small fw-semibold mb-1">
           <i class="bi bi-person-badge me-1 text-success"></i>Tutor
         </label>
-        <div id="attendanceTutorHiddenInputs">
-          {% for tutor_ref in selected_tutor_refs or [] %}
-          <input type="hidden" name="tutor_ref" value="{{ tutor_ref }}">
-          {% endfor %}
-        </div>
-        <input
-          type="search"
-          class="form-control form-control-sm"
-          id="attendanceTutorSearch"
-          list="attendanceTutorOptions"
-          placeholder="Ketik nama tutor..."
-          autocomplete="off"
-        >
-        <datalist id="attendanceTutorOptions">
+        <select name="tutor_ref" class="form-select form-select-sm">
+          <option value="">— Semua Tutor —</option>
           {% for t in tutors %}
-          <option value="{{ t.name }}" data-ref="{{ t.public_id }}"></option>
-          {% endfor %}
-        </datalist>
-        <div id="attendanceTutorChips" class="d-flex flex-wrap gap-1 mt-2">
-          {% for t in selected_tutors or [] %}
-          <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"
-                data-tutor-ref="{{ t.public_id }}">
+          <option value="{{ t.public_id }}"
+                  {% if selected_tutor_id == t.id %}selected{% endif %}>
             {{ t.name }}
-            <button type="button"
-                    class="btn btn-link btn-sm p-0 ms-1 text-success text-decoration-none js-remove-tutor-chip"
-                    aria-label="Hapus tutor {{ t.name }}">×</button>
-          </span>
+          </option>
           {% endfor %}
-        </div>
+        </select>
       </div>
 
       {# Bulan #}
@@ -388,40 +368,6 @@
         </select>
       </div>
 
-      {# Rentang Tanggal #}
-      <div class="col-12 col-xl-2 col-lg-4 col-md-6 attendance-date-range" id="attendanceDateRange">
-        <label class="form-label small fw-semibold mb-1">
-          <i class="bi bi-calendar-week me-1 text-primary"></i>Rentang Tanggal
-        </label>
-        <input type="hidden" name="date_from" id="attendanceDateFrom" value="{{ selected_date_from or '' }}">
-        <input type="hidden" name="date_to" id="attendanceDateTo" value="{{ selected_date_to or '' }}">
-        <button type="button"
-                class="form-control form-control-sm text-start bg-white"
-                id="attendanceDateRangeButton"
-                aria-expanded="false">
-          <span id="attendanceDateRangeLabel">Pilih rentang tanggal</span>
-        </button>
-        <div class="attendance-date-range-panel d-none" id="attendanceDateRangePanel">
-          <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="attendanceCalendarPrev" aria-label="Bulan sebelumnya">
-              <i class="bi bi-chevron-left"></i>
-            </button>
-            <div class="fw-semibold small" id="attendanceCalendarTitle"></div>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="attendanceCalendarNext" aria-label="Bulan berikutnya">
-              <i class="bi bi-chevron-right"></i>
-            </button>
-          </div>
-          <div class="attendance-calendar-head">
-            <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
-          </div>
-          <div class="attendance-calendar-grid" id="attendanceCalendarGrid"></div>
-          <div class="d-flex align-items-center justify-content-between gap-2 mt-3">
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="attendanceDateClear">Reset Tanggal</button>
-            <button type="button" class="btn btn-primary btn-sm" id="attendanceDateApply">Terapkan</button>
-          </div>
-        </div>
-      </div>
-
       {# Urutan #}
       <div class="col-12 col-xl-2 col-lg-4 col-md-6">
         <label class="form-label small fw-semibold mb-1">
@@ -430,10 +376,7 @@
         <select name="sort" class="form-select form-select-sm">
           <option value="date_desc" {% if selected_sort == 'date_desc' %}selected{% endif %}>Tanggal terbaru</option>
           <option value="date_asc" {% if selected_sort == 'date_asc' %}selected{% endif %}>Tanggal terlama</option>
-          <option value="student_asc" {% if selected_sort == 'student_asc' %}selected{% endif %}>Siswa A-Z, tanggal terbaru</option>
-          <option value="student_asc_date_asc" {% if selected_sort == 'student_asc_date_asc' %}selected{% endif %}>Siswa A-Z, tanggal terlama</option>
-          <option value="student_desc" {% if selected_sort == 'student_desc' %}selected{% endif %}>Siswa Z-A, tanggal terbaru</option>
-          <option value="student_desc_date_asc" {% if selected_sort == 'student_desc_date_asc' %}selected{% endif %}>Siswa Z-A, tanggal terlama</option>
+          <option value="student_asc" {% if selected_sort == 'student_asc' %}selected{% endif %}>Siswa A-Z</option>
         </select>
       </div>
 
@@ -947,279 +890,7 @@ const attendanceStudentRefByName = new Map(
   }),
 );
 const attendanceFilterForm = document.getElementById("filterForm");
-const attendanceTutorSearch = document.getElementById("attendanceTutorSearch");
-const attendanceTutorHiddenInputs = document.getElementById("attendanceTutorHiddenInputs");
-const attendanceTutorChips = document.getElementById("attendanceTutorChips");
-const attendanceTutorOptions = Array.from(
-  document.querySelectorAll("#attendanceTutorOptions option"),
-);
-const attendanceTutorRefByName = new Map(
-  attendanceTutorOptions.map(function (opt) {
-    return [opt.value.trim().toLowerCase(), opt.dataset.ref || ""];
-  }),
-);
-const attendanceTutorNameByRef = new Map(
-  attendanceTutorOptions.map(function (opt) {
-    return [opt.dataset.ref || "", opt.value || ""];
-  }),
-);
-const attendanceDateRange = document.getElementById("attendanceDateRange");
-const attendanceDateRangeButton = document.getElementById("attendanceDateRangeButton");
-const attendanceDateRangePanel = document.getElementById("attendanceDateRangePanel");
-const attendanceDateRangeLabel = document.getElementById("attendanceDateRangeLabel");
-const attendanceDateFromInput = document.getElementById("attendanceDateFrom");
-const attendanceDateToInput = document.getElementById("attendanceDateTo");
-const attendanceCalendarGrid = document.getElementById("attendanceCalendarGrid");
-const attendanceCalendarTitle = document.getElementById("attendanceCalendarTitle");
-const attendanceCalendarPrev = document.getElementById("attendanceCalendarPrev");
-const attendanceCalendarNext = document.getElementById("attendanceCalendarNext");
-const attendanceDateClear = document.getElementById("attendanceDateClear");
-const attendanceDateApply = document.getElementById("attendanceDateApply");
-const attendanceMonthNames = [
-  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-];
-
-function syncAttendanceStudentRef() {
-  if (!attendanceStudentSearch || !attendanceStudentRef) return;
-  const typedName = attendanceStudentSearch.value.trim();
-  if (!typedName) {
-    attendanceStudentRef.value = "";
-    return;
-  }
-  attendanceStudentRef.value =
-    attendanceStudentRefByName.get(typedName.toLowerCase()) || "";
-}
-
-if (attendanceStudentSearch && attendanceStudentRef) {
-  attendanceStudentSearch.addEventListener("change", function () {
-    const previousRef = attendanceStudentRef.value;
-    syncAttendanceStudentRef();
-    if (attendanceStudentRef.value !== previousRef) {
-      requestAttendanceFilterUpdate();
-    }
-  });
-}
-
-function selectedAttendanceTutorRefs() {
-  if (!attendanceTutorHiddenInputs) return new Set();
-  return new Set(
-    Array.from(attendanceTutorHiddenInputs.querySelectorAll('input[name="tutor_ref"]'))
-      .map(function (input) { return input.value; })
-      .filter(Boolean),
-  );
-}
-
-function renderAttendanceTutorHiddenInputs(refs) {
-  if (!attendanceTutorHiddenInputs) return;
-  attendanceTutorHiddenInputs.innerHTML = "";
-  refs.forEach(function (ref) {
-    const input = document.createElement("input");
-    input.type = "hidden";
-    input.name = "tutor_ref";
-    input.value = ref;
-    attendanceTutorHiddenInputs.appendChild(input);
-  });
-}
-
-function renderAttendanceTutorChips(refs) {
-  if (!attendanceTutorChips) return;
-  attendanceTutorChips.innerHTML = "";
-  refs.forEach(function (ref) {
-    const name = attendanceTutorNameByRef.get(ref) || "Tutor";
-    const chip = document.createElement("span");
-    chip.className = "badge bg-success-subtle text-success border border-success-subtle px-2 py-1";
-    chip.dataset.tutorRef = ref;
-    chip.innerHTML = `${name} <button type="button" class="btn btn-link btn-sm p-0 ms-1 text-success text-decoration-none js-remove-tutor-chip" aria-label="Hapus tutor ${name}">×</button>`;
-    attendanceTutorChips.appendChild(chip);
-  });
-}
-
-function setAttendanceTutorRefs(refs) {
-  renderAttendanceTutorHiddenInputs(refs);
-  renderAttendanceTutorChips(refs);
-}
-
-if (attendanceTutorSearch && attendanceTutorHiddenInputs && attendanceFilterForm) {
-  attendanceTutorSearch.addEventListener("change", function () {
-    const name = attendanceTutorSearch.value.trim().toLowerCase();
-    const ref = attendanceTutorRefByName.get(name);
-    if (!ref) return;
-    const refs = selectedAttendanceTutorRefs();
-    refs.add(ref);
-    setAttendanceTutorRefs(Array.from(refs));
-    attendanceTutorSearch.value = "";
-    requestAttendanceFilterUpdate();
-  });
-}
-
-if (attendanceTutorChips && attendanceFilterForm) {
-  attendanceTutorChips.addEventListener("click", function (event) {
-    const button = event.target.closest(".js-remove-tutor-chip");
-    if (!button) return;
-    const chip = button.closest("[data-tutor-ref]");
-    if (!chip) return;
-    const refs = selectedAttendanceTutorRefs();
-    refs.delete(chip.dataset.tutorRef);
-    setAttendanceTutorRefs(Array.from(refs));
-    requestAttendanceFilterUpdate();
-  });
-}
-
-function parseAttendanceIsoDate(value) {
-  if (!value) return null;
-  const parts = value.split("-").map(Number);
-  if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
-  return new Date(parts[0], parts[1] - 1, parts[2]);
-}
-
-function formatAttendanceIsoDate(date) {
-  if (!date) return "";
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function formatAttendanceDisplayDate(value) {
-  const date = parseAttendanceIsoDate(value);
-  if (!date) return "";
-  return `${String(date.getDate()).padStart(2, "0")} ${attendanceMonthNames[date.getMonth()]} ${date.getFullYear()}`;
-}
-
-function sameAttendanceDate(a, b) {
-  return a && b && formatAttendanceIsoDate(a) === formatAttendanceIsoDate(b);
-}
-
-function updateAttendanceDateRangeLabel() {
-  if (!attendanceDateRangeLabel || !attendanceDateFromInput || !attendanceDateToInput) return;
-  const from = attendanceDateFromInput.value;
-  const to = attendanceDateToInput.value;
-  if (from && to) {
-    attendanceDateRangeLabel.textContent = `${formatAttendanceDisplayDate(from)} s/d ${formatAttendanceDisplayDate(to)}`;
-  } else if (from) {
-    attendanceDateRangeLabel.textContent = `${formatAttendanceDisplayDate(from)} s/d ...`;
-  } else if (to) {
-    attendanceDateRangeLabel.textContent = `... s/d ${formatAttendanceDisplayDate(to)}`;
-  } else {
-    attendanceDateRangeLabel.textContent = "Pilih rentang tanggal";
-  }
-}
-
-function showAttendanceDateRangePanel() {
-  if (!attendanceDateRangePanel || !attendanceDateRangeButton) return;
-  attendanceDateRangePanel.classList.remove("d-none");
-  attendanceDateRangeButton.setAttribute("aria-expanded", "true");
-}
-
-function hideAttendanceDateRangePanel() {
-  if (!attendanceDateRangePanel || !attendanceDateRangeButton) return;
-  attendanceDateRangePanel.classList.add("d-none");
-  attendanceDateRangeButton.setAttribute("aria-expanded", "false");
-}
-
-function renderAttendanceCalendar() {
-  if (!attendanceCalendarGrid || !attendanceCalendarTitle) return;
-  const anchor = renderAttendanceCalendar.anchor || parseAttendanceIsoDate(attendanceDateFromInput.value) || new Date();
-  const month = anchor.getMonth();
-  const year = anchor.getFullYear();
-  attendanceCalendarTitle.textContent = `${attendanceMonthNames[month]} ${year}`;
-  attendanceCalendarGrid.innerHTML = "";
-
-  const first = new Date(year, month, 1);
-  const startOffset = (first.getDay() + 6) % 7;
-  const gridStart = new Date(year, month, 1 - startOffset);
-  const from = parseAttendanceIsoDate(attendanceDateFromInput.value);
-  const to = parseAttendanceIsoDate(attendanceDateToInput.value);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  for (let index = 0; index < 42; index += 1) {
-    const cellDate = new Date(gridStart);
-    cellDate.setDate(gridStart.getDate() + index);
-    const iso = formatAttendanceIsoDate(cellDate);
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "attendance-date-cell";
-    btn.textContent = String(cellDate.getDate());
-    btn.dataset.date = iso;
-    if (cellDate.getMonth() !== month) btn.classList.add("is-muted");
-    if (sameAttendanceDate(cellDate, today)) btn.classList.add("is-today");
-    if (from && sameAttendanceDate(cellDate, from)) btn.classList.add("is-start");
-    if (to && sameAttendanceDate(cellDate, to)) btn.classList.add("is-end");
-    if (from && to && cellDate > from && cellDate < to) btn.classList.add("is-range");
-    attendanceCalendarGrid.appendChild(btn);
-  }
-}
-
-function setAttendanceCalendarAnchor(deltaMonth) {
-  const current = renderAttendanceCalendar.anchor || parseAttendanceIsoDate(attendanceDateFromInput.value) || new Date();
-  renderAttendanceCalendar.anchor = new Date(current.getFullYear(), current.getMonth() + deltaMonth, 1);
-  renderAttendanceCalendar();
-}
-
-function selectAttendanceRangeDate(isoDate) {
-  const selected = parseAttendanceIsoDate(isoDate);
-  if (!selected || !attendanceDateFromInput || !attendanceDateToInput) return;
-  const from = parseAttendanceIsoDate(attendanceDateFromInput.value);
-  const to = parseAttendanceIsoDate(attendanceDateToInput.value);
-
-  if (!from || (from && to)) {
-    attendanceDateFromInput.value = isoDate;
-    attendanceDateToInput.value = "";
-  } else if (selected < from) {
-    attendanceDateToInput.value = attendanceDateFromInput.value;
-    attendanceDateFromInput.value = isoDate;
-  } else {
-    attendanceDateToInput.value = isoDate;
-  }
-  renderAttendanceCalendar.anchor = new Date(selected.getFullYear(), selected.getMonth(), 1);
-  updateAttendanceDateRangeLabel();
-  renderAttendanceCalendar();
-  showAttendanceDateRangePanel();
-}
-
-if (attendanceDateRangeButton && attendanceDateRangePanel) {
-  updateAttendanceDateRangeLabel();
-  renderAttendanceCalendar.anchor = parseAttendanceIsoDate(attendanceDateFromInput.value) || new Date();
-  renderAttendanceCalendar();
-
-  attendanceDateRangeButton.addEventListener("click", function (event) {
-    event.preventDefault();
-    event.stopPropagation();
-    attendanceDateRangePanel.classList.toggle("d-none");
-    attendanceDateRangeButton.setAttribute("aria-expanded", String(!attendanceDateRangePanel.classList.contains("d-none")));
-  });
-  attendanceDateRangePanel.addEventListener("click", function (event) {
-    event.preventDefault();
-    event.stopPropagation();
-  });
-  attendanceCalendarPrev && attendanceCalendarPrev.addEventListener("click", function () { setAttendanceCalendarAnchor(-1); });
-  attendanceCalendarNext && attendanceCalendarNext.addEventListener("click", function () { setAttendanceCalendarAnchor(1); });
-  attendanceCalendarGrid && attendanceCalendarGrid.addEventListener("click", function (event) {
-    event.preventDefault();
-    event.stopPropagation();
-    const btn = event.target.closest("[data-date]");
-    if (!btn) return;
-    selectAttendanceRangeDate(btn.dataset.date);
-  });
-  attendanceDateClear && attendanceDateClear.addEventListener("click", function () {
-    attendanceDateFromInput.value = "";
-    attendanceDateToInput.value = "";
-    updateAttendanceDateRangeLabel();
-    renderAttendanceCalendar();
-  });
-  attendanceDateApply && attendanceDateApply.addEventListener("click", function () {
-    hideAttendanceDateRangePanel();
-    requestAttendanceFilterUpdate();
-  });
-  document.addEventListener("click", function (event) {
-    if (!attendanceDateRange || attendanceDateRange.contains(event.target)) return;
-    hideAttendanceDateRangePanel();
-  });
-}
-
-let attendanceFilterRequest = null;
+const attendanceFilterForm = document.getElementById("filterForm");
 
 function buildAttendanceFilterUrl() {
   const url = new URL(attendanceFilterForm.action || window.location.pathname, window.location.origin);

@@ -48,9 +48,20 @@ def _bot_base_url() -> str:
     return current_app.config["WHATSAPP_BOT_INTERNAL_URL"].rstrip("/")
 
 
+# UA browser agar lolos Cloudflare Browser Integrity Check (error 1010) ketika
+# dashboard backend memanggil bot lewat tunnel proxied Cloudflare.
+_BOT_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+
+
 def _bot_request(method: str, path: str, payload: dict | None = None, timeout: int = 30):
     body = None
-    headers = {}
+    # Browser-like User-Agent: Cloudflare WAF (Browser Integrity Check) memblokir
+    # UA default urllib ("Python-urllib/x.y") dengan error 1010 saat bot diakses
+    # via tunnel proxied. Header ini membuat request backend lolos.
+    headers = {"User-Agent": _BOT_USER_AGENT}
     if payload is not None:
         body = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -78,7 +89,11 @@ def _bot_request(method: str, path: str, payload: dict | None = None, timeout: i
 
 
 def _bot_stream_request(path: str, timeout: int = 300):
-    req = urllib_request.Request(f"{_bot_base_url()}{path}", method="GET")
+    req = urllib_request.Request(
+        f"{_bot_base_url()}{path}",
+        method="GET",
+        headers={"User-Agent": _BOT_USER_AGENT},
+    )
     try:
         upstream = urllib_request.urlopen(req, timeout=timeout)
     except error.HTTPError as exc:

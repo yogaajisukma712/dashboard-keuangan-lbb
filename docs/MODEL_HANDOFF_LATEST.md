@@ -29,7 +29,7 @@ Flask dashboard (Vercel: app.supersmart.click)
 Graphify telah direfresh dari source saat ini:
 
 - Output utama: `graphify-out/graph.json`, `graphify-out/GRAPH_REPORT.md`, `graphify-out/graph.html`.
-- 3.247 nodes, 7.031 edges, 217 communities.
+- 3.265 nodes, 7.048 edges, 233 communities.
 - Extraction: 97% extracted, 3% inferred, 0% ambiguous.
 - File corpus: 219 file.
 - Graphify hubs: `Tutor`, `Enrollment`, `AttendanceSession`, `Student`, `WhatsAppIngestService`, `DashboardService`, `TutorPayout`, `WhatsAppMessage`, `WhatsAppEvaluation`.

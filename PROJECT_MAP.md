@@ -30,7 +30,7 @@ Bot WA production berjalan di VM Sumopod melalui `wa.supersmart.click`; dashboar
 - Audit suite: 15 questions
 - Manual drills completed: `AQ-011` auth gates, `AQ-012` WhatsApp ambiguity
 - Code-fix drills completed: `AQ-013` SS Meet time validation, `AQ-014` tutor schedule source map, `AQ-015` tutor portal payout slip
-- Latest Graphify snapshot: `graphify-out/graph.json` — 3,247 nodes, 7,031 edges, 217 communities; refresh with `graphify update .`.
+- Latest Graphify snapshot: `graphify-out/graph.json` — 3,265 nodes, 7,048 edges, 233 communities; refresh with `graphify update .`.
 - Latest cross-stack handoff: `docs/MODEL_HANDOFF_LATEST.md`.
 
 ## Core Flow Map

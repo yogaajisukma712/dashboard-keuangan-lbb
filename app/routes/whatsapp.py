@@ -61,7 +61,7 @@ def _bot_request(method: str, path: str, payload: dict | None = None, timeout: i
     # Browser-like User-Agent: Cloudflare WAF (Browser Integrity Check) memblokir
     # UA default urllib ("Python-urllib/x.y") dengan error 1010 saat bot diakses
     # via tunnel proxied. Header ini membuat request backend lolos.
-    headers = {"User-Agent": _BOT_USER_AGENT}
+    headers = {"User-Agent": _BOT_USER_AGENT, "X-Bot-Token": os.getenv("WHATSAPP_BOT_TOKEN", "")}
     if payload is not None:
         body = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -92,7 +92,7 @@ def _bot_stream_request(path: str, timeout: int = 300):
     req = urllib_request.Request(
         f"{_bot_base_url()}{path}",
         method="GET",
-        headers={"User-Agent": _BOT_USER_AGENT},
+        headers={"User-Agent": _BOT_USER_AGENT, "X-Bot-Token": os.getenv("WHATSAPP_BOT_TOKEN", "")},
     )
     try:
         upstream = urllib_request.urlopen(req, timeout=timeout)

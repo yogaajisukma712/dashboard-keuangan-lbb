@@ -81,6 +81,7 @@ instance/
 !.codex-workflow/planner_state.json
 !.codex-workflow/task_memory.jsonl
 .playwright-mcp/
+.playwright-cli/
 .repomap.tags.cache.v1/
 .serena/
 
@@ -93,3 +94,7 @@ Server DO/
 api key penting/
 .vercel/
 .server_lembaga
+
+# Graphify generated incremental cache/backups are local recovery state.
+graphify-out/cache/
+graphify-out/20??-??-??/

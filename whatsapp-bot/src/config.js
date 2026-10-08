@@ -28,6 +28,13 @@ module.exports = {
   authBackupPath: process.env.WWEBJS_BACKUP_PATH || path.join(authDataPath, '_backups'),
   clientId: process.env.WWEBJS_CLIENT_ID || 'billing-supersmart',
   chromiumPath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+  webVersionCacheType: process.env.WWEBJS_WEB_VERSION_CACHE_TYPE || 'local',
+  // Pin a specific WhatsApp Web build to avoid incompatible auto-updates that
+  // break media upload ("media entry was not created"). Empty = library default.
+  webVersion: process.env.WWEBJS_WEB_VERSION || '',
+  webVersionRemotePath:
+    process.env.WWEBJS_WEB_VERSION_REMOTE_PATH ||
+    'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html',
   defaultMessageLimit: numberFromEnv('WHATSAPP_SYNC_MESSAGE_LIMIT', 500),
   syncMessageBatchSize: numberFromEnv('WHATSAPP_SYNC_MESSAGE_BATCH_SIZE', 2000),
   syncStartAt: normalizeSyncStartAt(process.env.WHATSAPP_SYNC_START_AT),

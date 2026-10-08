@@ -1,6 +1,6 @@
 services:
   whatsapp_bot:
-    image: ghcr.io/yogaajisukma712/lbb-whatsapp-bot:latest
+    image: ${WHATSAPP_BOT_IMAGE:-ghcr.io/yogaajisukma712/lbb-whatsapp-bot:latest}
     container_name: billing_supersmart_whatsapp_bot
     restart: unless-stopped
     environment:
@@ -12,6 +12,9 @@ services:
       WWEBJS_BACKUP_PATH: /app/.wwebjs_auth/_backups
       WWEBJS_CLIENT_ID: ${WWEBJS_CLIENT_ID:-billing-supersmart}
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+      WWEBJS_WEB_VERSION_CACHE_TYPE: ${WWEBJS_WEB_VERSION_CACHE_TYPE:-none}
+      WWEBJS_WEB_VERSION: ${WWEBJS_WEB_VERSION:-}
+      WWEBJS_WEB_VERSION_REMOTE_PATH: ${WWEBJS_WEB_VERSION_REMOTE_PATH:-https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html}
       WHATSAPP_AUTO_START: "true"
       WHATSAPP_AUTO_SYNC_ENABLED: "true"
       WHATSAPP_AUTO_SYNC_FULL_SYNC: "false"
@@ -25,6 +28,7 @@ services:
     volumes:
       - whatsapp_bot_auth:/app/.wwebjs_auth
       - whatsapp_bot_backups:/app/.wwebjs_backups
+      - whatsapp_bot_uploads:/app/uploads
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))\""]
       interval: 30s
@@ -35,3 +39,4 @@ services:
 volumes:
   whatsapp_bot_auth:
   whatsapp_bot_backups:
+  whatsapp_bot_uploads:

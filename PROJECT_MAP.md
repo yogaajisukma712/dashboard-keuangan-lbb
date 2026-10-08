@@ -7,18 +7,19 @@ The project is a Flask-based operations and finance system for LBB Super Smart. 
 
 ## Infrastruktur VM & Restorasi Instan
 
-Bot WA berjalan di VM (DO#1) sedangkan dashboard di Vercel dan DB di Neon. Panduan lengkap untuk agent: **docs/VM_RESTORATION.md** — arsitektur, lokasi kunci, backup otomatis harian ke GitHub release, dan restorasi VM baru satu perintah (`deploy/vm-bundle/restore.sh`).
+Bot WA production berjalan di VM Sumopod melalui `wa.supersmart.click`; dashboard di Vercel dan DB di Neon. Snapshot aktual: **docs/MODEL_HANDOFF_LATEST.md**. Runbook historis/restorasi: **docs/VM_RESTORATION.md** — verifikasi ulang host aktif sebelum deploy; alamat VPS lama tidak selalu menjadi production.
 
 ## Required Reading Order
 
 1. `AGENTS.md`
 2. `PROJECT_MAP.md`
-3. `docs/architecture/README.md`
-4. `docs/architecture/blueprint-coverage-audit.md`
-5. `docs/architecture/audit-question-suite.md`
-6. Relevant `openspec/specs/*/spec.md`
-7. Relevant `docs/blueprints/*.md`
-8. Relevant `docs/adr/*.md`
+3. `docs/MODEL_HANDOFF_LATEST.md` (runtime/deployment snapshot, Graphify summary, and latest WhatsApp/PDF integration state)
+4. `docs/architecture/README.md`
+5. `docs/architecture/blueprint-coverage-audit.md`
+6. `docs/architecture/audit-question-suite.md`
+7. Relevant `openspec/specs/*/spec.md`
+8. Relevant `docs/blueprints/*.md`
+9. Relevant `docs/adr/*.md`
 
 ## Current Mapping Status
 
@@ -29,6 +30,8 @@ Bot WA berjalan di VM (DO#1) sedangkan dashboard di Vercel dan DB di Neon. Pandu
 - Audit suite: 15 questions
 - Manual drills completed: `AQ-011` auth gates, `AQ-012` WhatsApp ambiguity
 - Code-fix drills completed: `AQ-013` SS Meet time validation, `AQ-014` tutor schedule source map, `AQ-015` tutor portal payout slip
+- Latest Graphify snapshot: `graphify-out/graph.json` — 3,247 nodes, 7,031 edges, 217 communities; refresh with `graphify update .`.
+- Latest cross-stack handoff: `docs/MODEL_HANDOFF_LATEST.md`.
 
 ## Core Flow Map
 

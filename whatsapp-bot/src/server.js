@@ -1,5 +1,6 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
+const { timingSafeEqual } = require('crypto');
 
 const config = require('./config');
 const {
@@ -19,6 +20,16 @@ const {
 const { backupPathFor } = require('./session-backup');
 
 const app = express();
+
+app.use((req, res, next) => {
+  if (req.path === '/health') return next();
+  const expected = Buffer.from(config.flaskBotToken);
+  const provided = Buffer.from(req.get('X-Bot-Token') || '');
+  if (!expected.length || expected.length !== provided.length || !timingSafeEqual(expected, provided)) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized bot token' });
+  }
+  return next();
+});
 
 app.use(express.json({ limit: '25mb' }));
 
@@ -146,7 +157,8 @@ process.on('uncaughtException', (error) => {
 });
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, service: 'whatsapp-bot', session: getSessionState() });
+  const { status, authenticated, ready } = getSessionState();
+  res.json({ ok: true, service: 'whatsapp-bot', session: { status, authenticated, ready } });
 });
 
 // ===== File storage untuk dashboard serverless (Vercel) =====
@@ -319,6 +331,42 @@ app.get('/groups', async (_req, res) => {
 
 app.post('/messages/send', async (req, res) => {
   try {
+    if (req.body?.dryRun === true) {
+      const to = String(req.body?.to || '').trim();
+      const message = String(req.body?.message || '').trim();
+      const attachment = req.body?.attachment || null;
+      if (!to || !message) {
+        res.status(400).json({ ok: false, error: 'to dan message wajib diisi' });
+        return;
+      }
+      if (attachment && (!attachment.data || !attachment.filename)) {
+        res.status(400).json({ ok: false, error: 'attachment data dan filename wajib diisi' });
+        return;
+      }
+      res.json({
+        ok: true,
+        dryRun: true,
+        result: {
+          to,
+          hasAttachment: Boolean(attachment),
+          filename: attachment?.filename || null,
+          attachmentBytes: attachment?.data
+            ? Buffer.from(String(attachment.data), 'base64').length
+            : 0,
+          messageId: 'dry-run-message',
+        },
+      });
+      return;
+    }
+    const state = getSessionState();
+    if (!state.ready || !state.authenticated) {
+      res.status(503).json({
+        ok: false,
+        error: 'WhatsApp session belum siap. Coba lagi setelah status ready.',
+        status: state.status,
+      });
+      return;
+    }
     const result = await sendDirectMessage(req.body?.to, req.body?.message, req.body?.attachment);
     res.json({ ok: true, result });
   } catch (error) {

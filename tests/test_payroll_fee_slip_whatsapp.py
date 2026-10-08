@@ -41,10 +41,37 @@ def test_fee_slip_has_whatsapp_delivery_form_and_bot_guard():
     assert "PDF slip akan dilampirkan otomatis" in template_text
     assert "url_for('whatsapp_bot.management')" in template_text
     assert "app.post('/messages/send'" in bot_server
+    assert "dryRun === true" in bot_server
+    assert "WhatsApp session belum siap" in bot_server
     assert "req.body?.attachment" in bot_server
     assert "MessageMedia" in bot_client
-    assert "{ caption: body, sendMediaAsDocument: true }" in bot_client
+    assert "? await sendMediaWithFallback(bot, contactId, media, body)" in bot_client
+    assert "sendMediaAsDocument: true" in bot_client
+    assert "attempt <= 3" in bot_client
+    assert "payout.whatsapp_last_sent_at = None" in route_text
+    assert "else throw new Error" in (
+        project_root / "whatsapp-bot" / "src" / "heavy-jobs.js"
+    ).read_text(encoding="utf-8")
+    assert 'return jsonify({"ok": False, "sent": False, "error": error}), 502' in route_text
     assert "sendDirectMessage" in bot_client
+
+
+def test_fee_slip_attachment_uses_current_whatsapp_web_media_path():
+    project_root = Path(__file__).resolve().parents[1]
+    bot_client = (
+        project_root / "whatsapp-bot" / "src" / "whatsapp-client.js"
+    ).read_text(encoding="utf-8")
+    bot_config = (
+        project_root / "whatsapp-bot" / "src" / "config.js"
+    ).read_text(encoding="utf-8")
+
+    assert "new MessageMedia(mimetype, data, filename, filesize)" in bot_client
+    assert "webVersionCache: { type: config.webVersionCacheType }" in bot_client
+    assert "webVersionCacheType: process.env.WWEBJS_WEB_VERSION_CACHE_TYPE || 'local'" in bot_config
+    # Pinned WhatsApp Web build via remote cache to keep media upload compatible.
+    assert "webVersion: config.webVersion" in bot_client
+    assert "type: 'remote'" in bot_client
+    assert "webVersion: process.env.WWEBJS_WEB_VERSION || ''" in bot_config
 
 
 def test_fee_slip_pdf_uses_logo_header_and_preserves_proof_aspect_ratio():

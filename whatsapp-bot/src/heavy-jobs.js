@@ -93,7 +93,7 @@ async function runJob(ctx, job) {
         const r = await sendSlip(ctx, { ...slip, baseUrl });
         if (r.skipped) skipped.push(slip.payoutRef);
         else if (r.sent) sent.push(slip.payoutRef);
-        else failed.push(`${slip.payoutRef}: ${r.error}`);
+        else throw new Error(`${slip.payoutRef}: ${r.error || 'fee slip tidak terkirim'}`);
       } catch (e) {
         failed.push(`${slip.payoutRef}: ${e.message}`);
         console.error(`[heavy-jobs] slip gagal ${slip.payoutRef}: ${e.message}`);

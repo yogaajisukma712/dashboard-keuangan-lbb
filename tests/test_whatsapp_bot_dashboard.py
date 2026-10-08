@@ -150,6 +150,17 @@ def test_whatsapp_bot_source_exposes_session_backup_restore_endpoints():
     assert "getSessionManagementState" in client_text
 
 
+def test_public_bot_requires_token_and_dashboard_proxies_send_it():
+    root = Path(__file__).resolve().parents[1]
+    bot = (root / "whatsapp-bot/src/server.js").read_text(encoding="utf-8")
+    assert "timingSafeEqual(expected, provided)" in bot
+    assert "req.path === '/health'" in bot
+    assert "res.status(401)" in bot
+    for path in ("whatsapp.py", "payroll.py", "tutor_portal.py"):
+        route = (root / "app/routes" / path).read_text(encoding="utf-8")
+        assert '"X-Bot-Token": os.getenv("WHATSAPP_BOT_TOKEN", "")' in route
+
+
 def test_whatsapp_bot_source_enables_six_hour_auto_group_message_scan():
     project_root = Path(__file__).resolve().parents[1]
     config_text = (

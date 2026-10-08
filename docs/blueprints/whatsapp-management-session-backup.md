@@ -43,6 +43,7 @@ Map WhatsApp bot management, session lifecycle, backup/restore, group/contact di
 ## Invariants
 
 - Bot token checks must protect bot-to-app sync endpoints.
+- Public bot endpoints except sanitized `/health` require `X-Bot-Token` from the dashboard proxy; never expose session QR, backup, logout, or send-message routes without this check.
 - Backup files and session artifacts must not be dumped to chat, logs, or public templates.
 - Restore must target the intended WhatsApp session storage only.
 - Group/contact validation must not mutate student/tutor identity without explicit validation route action.

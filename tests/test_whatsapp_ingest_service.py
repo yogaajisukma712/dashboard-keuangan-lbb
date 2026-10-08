@@ -12,6 +12,8 @@ from app.models import (
     Student,
     Subject,
     Tutor,
+    TutorPayout,
+    TutorPayoutLine,
     WhatsAppContact,
     WhatsAppEvaluation,
     WhatsAppGroup,
@@ -1557,6 +1559,118 @@ def test_scan_attendance_for_month_is_idempotent_for_existing_links():
         assert second_summary["already_linked"] == 1
         assert AttendanceSession.query.count() == 1
         assert evaluation.attendance_session is not None
+
+
+def test_scan_attendance_for_month_skips_month_with_existing_payout():
+    app = _make_test_app()
+
+    with app.app_context():
+        db.create_all()
+        curriculum = Curriculum(name="Merdeka")
+        level = Level(name="SD")
+        subject = Subject(name="Matematika")
+        student = Student(student_code="STD-PO", name="Dewi", is_active=True)
+        tutor = Tutor(
+            tutor_code="TTR-PO",
+            name="Bu Sari",
+            phone="081200003333",
+            is_active=True,
+        )
+        contact = WhatsAppContact(
+            whatsapp_contact_id="6281200003333@c.us",
+            phone_number="081200003333",
+            display_name="Bu Sari",
+            is_group=False,
+        )
+        group = WhatsAppGroup(
+            whatsapp_group_id="group-dewi@g.us",
+            name="Math Dewi",
+        )
+        enrollment = Enrollment(
+            student=student,
+            tutor=tutor,
+            subject=subject,
+            curriculum=curriculum,
+            level=level,
+            grade="5",
+            student_rate_per_meeting=75000,
+            tutor_rate_per_meeting=40000,
+            status="active",
+            whatsapp_group_id="group-dewi@g.us",
+            whatsapp_group_name="Math Dewi",
+            whatsapp_group_memberships_json=[
+                {
+                    "whatsapp_group_id": "group-dewi@g.us",
+                    "group_name": "Math Dewi",
+                }
+            ],
+        )
+        db.session.add_all(
+            [curriculum, level, subject, student, tutor, contact, group, enrollment]
+        )
+        db.session.flush()
+        db.session.add(
+            WhatsAppTutorValidation(
+                contact_id=contact.id,
+                tutor_id=tutor.id,
+                validated_phone_number="081200003333",
+                group_memberships_json=[
+                    {
+                        "group_id": group.id,
+                        "whatsapp_group_id": "group-dewi@g.us",
+                        "group_name": "Math Dewi",
+                    }
+                ],
+            )
+        )
+        db.session.add(
+            WhatsAppStudentGroupValidation(group_id=group.id, student_id=student.id)
+        )
+        # Payout already exists for this tutor+service month -> month frozen.
+        payout = TutorPayout(tutor_id=tutor.id, amount=40000, status="pending")
+        db.session.add(payout)
+        db.session.flush()
+        db.session.add(
+            TutorPayoutLine(
+                tutor_payout_id=payout.id,
+                service_month=date(2026, 5, 1),
+                amount=40000,
+            )
+        )
+        message = WhatsAppMessage(
+            whatsapp_message_id="wamid-po-1",
+            group=group,
+            author_phone_number="081200003333",
+            author_name="Bu Sari",
+            sent_at=datetime(2026, 5, 12, 18, 0, 0),
+            body="Evaluasi Mei",
+        )
+        evaluation = WhatsAppEvaluation(
+            message=message,
+            group=group,
+            student_name="Dewi",
+            tutor_name="Bu Sari",
+            subject_name="Matematika",
+            attendance_date=date(2026, 5, 12),
+        )
+        db.session.add_all([message, evaluation])
+        db.session.commit()
+
+        assert WhatsAppIngestService.is_tutor_month_payout_locked(
+            tutor.id, date(2026, 5, 12)
+        ) is True
+
+        summary = WhatsAppIngestService.scan_attendance_for_month(5, 2026)
+
+        # Evaluation is processed but no NEW attendance session is created.
+        assert summary["linked_attendance"] == 0
+        assert AttendanceSession.query.count() == 0
+        assert evaluation.attendance_session is None
+
+        # A different month without a payout is still allowed to create sessions.
+        assert WhatsAppIngestService.is_tutor_month_payout_locked(
+            tutor.id, date(2026, 6, 12)
+        ) is False
 
 
 def test_list_groups_with_student_suggestions_includes_message_counts():

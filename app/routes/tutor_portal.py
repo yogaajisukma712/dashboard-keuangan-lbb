@@ -378,7 +378,10 @@ def _fetch_google_userinfo(access_token):
 
 def _bot_request(method: str, path: str, payload: dict | None = None, timeout: int = 10):
     body = None
-    headers = {}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+        "X-Bot-Token": os.getenv("WHATSAPP_BOT_TOKEN", ""),
+    }
     if payload is not None:
         body = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"

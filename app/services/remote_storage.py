@@ -33,7 +33,11 @@ def save_remote_file(relative_path: str, file_bytes: bytes) -> str:
     resp = requests.put(
         url,
         data=file_bytes,
-        headers={"X-Bot-Token": _bot_token(), "Content-Type": "application/octet-stream"},
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+            "X-Bot-Token": _bot_token(),
+            "Content-Type": "application/octet-stream",
+        },
         timeout=30,
     )
     if resp.status_code != 200:
@@ -53,7 +57,10 @@ def fetch_remote_file(relative_path: str) -> bytes | None:
     try:
         resp = requests.get(
             url,
-            headers={"X-Bot-Token": _bot_token()},
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+                "X-Bot-Token": _bot_token(),
+            },
             timeout=30,
         )
     except requests.RequestException:

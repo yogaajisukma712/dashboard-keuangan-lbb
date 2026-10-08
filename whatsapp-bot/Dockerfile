@@ -35,6 +35,12 @@ COPY package.json package-lock.json ./
 
 RUN npm ci --omit=dev
 
+# Apply upstream whatsapp-web.js media-upload fix (commit 064a3d5) that lands
+# after the 1.34.7 release. Without it, media attachments fail with
+# "media entry was not created" / "Data passed to getter must include an id".
+COPY patches ./patches
+RUN node patches/apply-wwebjs-media-fix.js
+
 COPY src ./src
 COPY test ./test
 

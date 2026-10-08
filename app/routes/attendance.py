@@ -1555,6 +1555,7 @@ def add_attendance():
         "attendance/form.html",
         form=form,
         enrollments=enrollments,
+        attendance_tutor_map=_build_tutor_enrollment_map(enrollments),
         title="Tambah Presensi",
     )
 
@@ -1610,6 +1611,7 @@ def edit_attendance(session_ref):
         form=form,
         session=session,
         enrollments=enrollments,
+        attendance_tutor_map=_build_tutor_enrollment_map(enrollments),
         title="Edit Presensi",
     )
 

@@ -419,6 +419,13 @@ def test_attendance_form_template_contains_manual_tutor_selector():
     assert "Tidak harus sama dengan tutor bawaan enrollment" in template_text
 
 
+def test_attendance_form_routes_pass_enrollment_tutor_map():
+    route_text = (Path(__file__).resolve().parents[1] / "app" / "routes" / "attendance.py").read_text(
+        encoding="utf-8"
+    )
+    assert route_text.count("attendance_tutor_map=_build_tutor_enrollment_map(enrollments)") == 2
+
+
 def test_attendance_routes_support_public_ref_filters_in_source():
     project_root = Path(__file__).resolve().parents[1]
     route_text = (project_root / "app" / "routes" / "attendance.py").read_text(

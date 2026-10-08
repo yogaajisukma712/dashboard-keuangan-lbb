@@ -426,6 +426,19 @@ async function startClient() {
         protocolTimeout: config.protocolTimeoutMs,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       },
+      // Avoid stale WhatsApp Web HTML: old cached versions can authenticate while
+      // failing media uploads with "media entry was not created". When a specific
+      // build is pinned (WWEBJS_WEB_VERSION), fetch it from the wa-version remote
+      // store so media upload stays compatible with whatsapp-web.js.
+      ...(config.webVersion
+        ? {
+            webVersion: config.webVersion,
+            webVersionCache: {
+              type: 'remote',
+              remotePath: config.webVersionRemotePath,
+            },
+          }
+        : { webVersionCache: { type: config.webVersionCacheType } }),
     });
 
     client.on('qr', async (qr) => {
@@ -589,7 +602,26 @@ function buildMessageMedia(attachment) {
   const mimetype = String(attachment.mimetype || 'application/pdf');
   const filename = String(attachment.filename || 'attachment.pdf');
   const data = String(attachment.data || '');
-  return new MessageMedia(mimetype, data, filename);
+  const filesize = Buffer.from(data, 'base64').length;
+  return new MessageMedia(mimetype, data, filename, filesize);
+}
+
+async function sendMediaWithFallback(bot, contactId, media, body) {
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await bot.sendMessage(contactId, media, {
+        caption: body,
+        sendMediaAsDocument: true,
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+    }
+  }
+  const failure = new Error(`Lampiran PDF gagal setelah 3 percobaan: ${lastError?.message || 'unknown error'}`);
+  failure.statusCode = lastError?.statusCode || 502;
+  throw failure;
 }
 
 async function sendDirectMessage(to, message, attachment = null) {
@@ -609,13 +641,13 @@ async function sendDirectMessage(to, message, attachment = null) {
   const bot = await ensureReady();
   const media = buildMessageMedia(attachment);
   const sent = media
-    ? await bot.sendMessage(contactId, media, { caption: body, sendMediaAsDocument: true })
+    ? await sendMediaWithFallback(bot, contactId, media, body)
     : await bot.sendMessage(contactId, body);
   return {
     to: contactId,
     hasAttachment: Boolean(media),
     filename: attachment?.filename || null,
-    messageId: sent?.id?._serialized || null,
+    messageId: sent?.id?._serialized || sent?.id?.$1 || null,
     timestamp: sent?.timestamp || null,
   };
 }

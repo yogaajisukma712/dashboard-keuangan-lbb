@@ -20,6 +20,8 @@ from app.models import (
     Student,
     Subject,
     Tutor,
+    TutorPayout,
+    TutorPayoutLine,
     WhatsAppContact,
     WhatsAppEvaluation,
     WhatsAppGroup,
@@ -1775,6 +1777,32 @@ class WhatsAppIngestService:
         )
 
     @staticmethod
+    def is_tutor_month_payout_locked(tutor_id, attendance_date) -> bool:
+        """Report whether a tutor already has a payout for the attendance month.
+
+        Business rule: once a payout exists for a tutor in a given service month,
+        that month's attendance is frozen for the automatic WhatsApp ingest. New
+        sessions can only be added manually by an admin; auto-sync may still relink
+        existing evaluations to existing rows, but must never INSERT new sessions.
+        Any payout (pending/completed) locks the month; cancelled payouts do not.
+        """
+        resolved = as_date(attendance_date)
+        if resolved is None or tutor_id is None:
+            return False
+        return (
+            db.session.query(TutorPayoutLine.id)
+            .join(TutorPayout, TutorPayoutLine.tutor_payout_id == TutorPayout.id)
+            .filter(
+                TutorPayout.tutor_id == tutor_id,
+                TutorPayout.status != "cancelled",
+                db.extract("month", TutorPayoutLine.service_month) == resolved.month,
+                db.extract("year", TutorPayoutLine.service_month) == resolved.year,
+            )
+            .first()
+            is not None
+        )
+
+    @staticmethod
     def find_existing_attendance_for_whatsapp_identity(
         enrollment: Enrollment,
         evaluation: WhatsAppEvaluation,
@@ -1991,6 +2019,13 @@ class WhatsAppIngestService:
                     .first()
                 )
                 if existing is not None:
+                    continue
+
+                # Payout freeze: bulan yang sudah ada payout tutornya tidak boleh
+                # ditambah presensi otomatis; hanya entri manual yang diizinkan.
+                if WhatsAppIngestService.is_tutor_month_payout_locked(
+                    tutor_validation.tutor_id, attendance_date
+                ):
                     continue
 
                 session = AttendanceSession(
@@ -2942,6 +2977,12 @@ class WhatsAppIngestService:
         if not allow_create:
             return None
         if WhatsAppIngestService.is_attendance_date_locked(evaluation.attendance_date):
+            return None
+        # Payout freeze: if the tutor already has a payout for this service month,
+        # the automatic ingest may not add new sessions; only manual entry can.
+        if WhatsAppIngestService.is_tutor_month_payout_locked(
+            actual_tutor_id, evaluation.attendance_date
+        ):
             return None
 
         author_phone_number = normalize_phone_number(

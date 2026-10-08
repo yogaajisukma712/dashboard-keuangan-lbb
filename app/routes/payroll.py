@@ -105,7 +105,10 @@ def _is_previous_shortfall_line(line: TutorPayoutLine) -> bool:
 
 def _bot_request(method: str, path: str, payload: dict | None = None, timeout: int = 10):
     body = None
-    headers = {}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+        "X-Bot-Token": os.getenv("WHATSAPP_BOT_TOKEN", ""),
+    }
     if payload is not None:
         body = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -256,7 +259,7 @@ def _record_fee_slip_whatsapp_failure(
 ) -> None:
     payout.whatsapp_last_contact_id = contact_id
     payout.whatsapp_last_message = message
-    payout.whatsapp_last_sent_at = datetime.utcnow()
+    payout.whatsapp_last_sent_at = None
     payout.whatsapp_last_status = f"failed: {error}"[:50]
 
 
@@ -1988,7 +1991,7 @@ def api_fee_slip_job(payout_ref):
         payout, contacts[0]["value"], message, error or "Bot timeout/error"
     )
     db.session.commit()
-    return jsonify({"ok": True, "sent": False, "error": error}), 200
+    return jsonify({"ok": False, "sent": False, "error": error}), 502
 
 
 @payroll_bp.route("/tutor-summary/send-whatsapp-bulk", methods=["POST"])

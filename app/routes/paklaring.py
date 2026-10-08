@@ -472,7 +472,10 @@ def send_wa(letter_id: int):
         resp = rq.post(
             f"{bot_base}/messages/send",
             json=payload,
-            headers={"X-Bot-Token": bot_token},
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+                "X-Bot-Token": bot_token,
+            },
             timeout=60,
         )
         if resp.status_code == 200:

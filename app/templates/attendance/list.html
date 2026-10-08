@@ -269,21 +269,16 @@
         <label class="form-label small fw-semibold mb-1">
           <i class="bi bi-person me-1 text-primary"></i>Siswa
         </label>
-        <input type="hidden" name="student_ref" id="attendanceStudentRef" value="{{ selected_student_ref or '' }}">
-        <input
-          type="search"
-          class="form-control form-control-sm"
+        <select
+          name="student_ref"
+          class="form-select form-select-sm"
           id="attendanceStudentSearch"
-          list="attendanceStudentOptions"
-          value="{{ selected_student_name or '' }}"
-          placeholder="Ketik nama siswa..."
-          autocomplete="off"
         >
-        <datalist id="attendanceStudentOptions">
+          <option value="">Semua Siswa</option>
           {% for student in students %}
-          <option value="{{ student.name }}" data-ref="{{ student.public_id }}"></option>
+          <option value="{{ student.public_id }}" {% if selected_student_ref == student.public_id %}selected{% endif %}>{{ student.name }}</option>
           {% endfor %}
-        </datalist>
+        </select>
       </div>
 
       {# Tutor #}
@@ -296,19 +291,15 @@
           <input type="hidden" name="tutor_ref" value="{{ tutor_ref }}">
           {% endfor %}
         </div>
-        <input
-          type="search"
-          class="form-control form-control-sm"
+        <select
+          class="form-select form-select-sm"
           id="attendanceTutorSearch"
-          list="attendanceTutorOptions"
-          placeholder="Ketik nama tutor..."
-          autocomplete="off"
         >
-        <datalist id="attendanceTutorOptions">
+          <option value="">Pilih tutor untuk ditambahkan...</option>
           {% for t in tutors %}
-          <option value="{{ t.name }}" data-ref="{{ t.public_id }}"></option>
+          <option value="{{ t.public_id }}">{{ t.name }}</option>
           {% endfor %}
-        </datalist>
+        </select>
         <div id="attendanceTutorChips" class="d-flex flex-wrap gap-1 mt-2">
           {% for t in selected_tutors or [] %}
           <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"
@@ -869,50 +860,17 @@
 
 {% block scripts %}
 <script>
-const attendanceStudentSearch = document.getElementById("attendanceStudentSearch");
-const attendanceStudentRef = document.getElementById("attendanceStudentRef");
-const attendanceStudentOptions = Array.from(
-  document.querySelectorAll("#attendanceStudentOptions option"),
-);
-const attendanceStudentRefByName = new Map(
-  attendanceStudentOptions.map(function (opt) {
-    return [opt.value.trim().toLowerCase(), opt.dataset.ref || ""];
-  }),
-);
+const attendanceTutorSelect = document.getElementById("attendanceTutorSearch");
 const attendanceFilterForm = document.getElementById("filterForm");
 let attendanceFilterRequest = null;
 
-function syncAttendanceStudentRef() {
-  if (!attendanceStudentSearch || !attendanceStudentRef) return;
-  const typedName = attendanceStudentSearch.value.trim();
-  attendanceStudentRef.value = typedName
-    ? attendanceStudentRefByName.get(typedName.toLowerCase()) || ""
-    : "";
-}
-
-if (attendanceStudentSearch && attendanceStudentRef) {
-  attendanceStudentSearch.addEventListener("change", function () {
-    const previousRef = attendanceStudentRef.value;
-    syncAttendanceStudentRef();
-    if (attendanceStudentRef.value !== previousRef) {
-      requestAttendanceFilterUpdate();
-    }
-  });
-}
-
 const attendanceTutorHiddenInputs = document.getElementById("attendanceTutorHiddenInputs");
 const attendanceTutorChips = document.getElementById("attendanceTutorChips");
-const attendanceTutorOptions = Array.from(
-  document.querySelectorAll("#attendanceTutorOptions option"),
-);
-const attendanceTutorRefByName = new Map(
-  attendanceTutorOptions.map(function (opt) {
-    return [opt.value.trim().toLowerCase(), opt.dataset.ref || ""];
-  }),
-);
 const attendanceTutorNameByRef = new Map(
-  attendanceTutorOptions.map(function (opt) {
-    return [opt.dataset.ref || "", opt.value || ""];
+  Array.from(attendanceTutorSelect ? attendanceTutorSelect.options : [])
+    .filter(function (option) { return option.value; })
+    .map(function (option) {
+      return [option.value, option.textContent.trim()];
   }),
 );
 const attendanceDateRange = document.getElementById("attendanceDateRange");
@@ -978,7 +936,6 @@ function updateAttendanceFilterButtonState(isLoading) {
 
 async function requestAttendanceFilterUpdate(targetUrl) {
   if (!attendanceFilterForm) return;
-  syncAttendanceStudentRef();
   syncAttendanceScanFormFields();
   const url = targetUrl ? new URL(targetUrl, window.location.origin) : buildAttendanceFilterUrl();
 
@@ -1028,6 +985,7 @@ if (attendanceFilterForm) {
 
 /* Auto-submit filter on select change (UX improvement) */
 document.querySelectorAll('#filterForm select').forEach(function(sel) {
+  if (sel.id === "attendanceTutorSearch") return;
   sel.addEventListener('change', function() {
     requestAttendanceFilterUpdate();
   });
@@ -1345,15 +1303,17 @@ function setAttendanceTutorRefs(refs) {
   renderAttendanceTutorChips(refs);
 }
 
-if (attendanceTutorSearch && attendanceTutorHiddenInputs && attendanceFilterForm) {
-  attendanceTutorSearch.addEventListener("change", function () {
-    const name = attendanceTutorSearch.value.trim().toLowerCase();
-    const ref = attendanceTutorRefByName.get(name);
+if (attendanceTutorSelect && attendanceTutorHiddenInputs && attendanceFilterForm) {
+  attendanceTutorSelect.addEventListener("change", function () {
+    const ref = attendanceTutorSelect.value;
     if (!ref) return;
     const refs = selectedAttendanceTutorRefs();
     refs.add(ref);
     setAttendanceTutorRefs(Array.from(refs));
-    attendanceTutorSearch.value = "";
+    attendanceTutorSelect.value = "";
+    if (window.LbbSearchableSelect) {
+      window.LbbSearchableSelect.refresh(attendanceTutorSelect);
+    }
     requestAttendanceFilterUpdate();
   });
 }
@@ -1528,4 +1488,3 @@ if (attendanceDateRangeButton && attendanceDateRangePanel) {
 initAttendanceDynamicTable();
 </script>
 {% endblock %}
-

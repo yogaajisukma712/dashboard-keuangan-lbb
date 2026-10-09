@@ -22,7 +22,7 @@
 })(typeof window !== "undefined" ? window : null, function () {
   "use strict";
 
-  var SELECTOR = "select.form-select, select[data-searchable-select]";
+  var SELECTOR = "select.form-select, select.month-form, select[data-searchable-select]";
   var RENDER_CAP = 100;
   var uidCounter = 0;
 

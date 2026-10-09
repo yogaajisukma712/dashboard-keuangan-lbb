@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -29,7 +30,7 @@ def test_base_inline_enhancer_is_fallback_only():
 def test_shared_module_contract():
     js_text = _read("app", "static", "js", "searchable-select.js")
 
-    assert 'select.form-select, select[data-searchable-select]' in js_text
+    assert 'select.form-select, select.month-form, select[data-searchable-select]' in js_text
     assert "function sortSelectOptions(select)" in js_text
     assert 'localeCompare(optionText(right), "id"' in js_text
     assert 'select.dataset.sortOptions === "none"' in js_text
@@ -41,3 +42,17 @@ def test_shared_module_contract():
     assert 'role", "option"' in js_text or 'role="option"' in js_text
     assert "MutationObserver" in js_text
     assert "Hapus pilihan" in js_text
+
+def test_all_project_filter_selects_use_shared_searchable_selector():
+    js_text = _read("app", "static", "js", "searchable-select.js")
+    assert 'var SELECTOR = "select.form-select, select.month-form, select[data-searchable-select]";' in js_text
+
+    reconciliation = _read("app", "templates", "dashboard", "reconciliation_dashboard.html")
+    assert '<select id="reconMonthPicker" class="month-form"' in reconciliation
+    assert '<select id="reconYearPicker" class="month-form"' in reconciliation
+
+    for template in (PROJECT_ROOT / "app" / "templates").rglob("*.html"):
+        for tag in re.findall(r"<select\b[^>]*>", template.read_text(encoding="utf-8"), re.I | re.S):
+            assert re.search(r'class=["\'][^"\']*\b(?:form-select|month-form)\b', tag) or "data-searchable-select" in tag, (
+                f"select without shared searchable enhancement: {template.relative_to(PROJECT_ROOT)}: {tag}"
+            )

@@ -7,7 +7,8 @@
    replacement is inserted. Uses visibility (not display) so layout does not
    shift. The head script removes .lbb-js after ~2s, so if the component fails
    to load the native selects always become visible again (fail-safe). */
-html.lbb-js select.form-select:not([data-lbb-searchable-ready="1"]) {
+html.lbb-js select.form-select:not([data-lbb-searchable-ready="1"]),
+html.lbb-js select.month-form:not([data-lbb-searchable-ready="1"]) {
   visibility: hidden;
 }
 

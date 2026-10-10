@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta
 
 from flask import Blueprint, Response, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import case
 from sqlalchemy.orm import joinedload
 
 from app import db
@@ -17,10 +18,13 @@ from app.forms import AttendanceSessionForm, BulkAttendanceForm
 from app.models import (
     AttendancePeriodLock,
     AttendanceSession,
+    Curriculum,
     DeletedAttendanceSession,
     Enrollment,
     EnrollmentSchedule,
+    Level,
     Student,
+    Subject,
     Tutor,
     WhatsAppEvaluation,
 )
@@ -68,6 +72,7 @@ WHATSAPP_REVIEW_START_DATE = date(2026, 4, 1)
 WHATSAPP_REVIEW_STATUSES = {"pending", "valid", "invalid"}
 ATTENDANCE_LIST_STATE_SESSION_KEY = "attendance_list_state"
 ATTENDANCE_SORT_OPTIONS = {
+    "none",
     "date_desc",
     "date_asc",
     "student_asc",
@@ -77,7 +82,25 @@ ATTENDANCE_SORT_OPTIONS = {
     "student_desc_date_desc",
     "student_desc_date_asc",
     "tutor_asc",
+    "tutor_desc",
     "mapel_asc",
+    "mapel_desc",
+    "curriculum_asc",
+    "curriculum_desc",
+    "level_asc",
+    "level_desc",
+    "fee_asc",
+    "fee_desc",
+    "status_asc",
+    "status_desc",
+    "present_asc",
+    "present_desc",
+}
+ATTENDANCE_SORT_LEGACY_EXPANSIONS = {
+    "student_asc_date_desc": ("student_asc", "date_desc"),
+    "student_asc_date_asc": ("student_asc", "date_asc"),
+    "student_desc_date_desc": ("student_desc", "date_desc"),
+    "student_desc_date_asc": ("student_desc", "date_asc"),
 }
 
 
@@ -146,6 +169,66 @@ def _safe_int(value, default=None):
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def _normalize_attendance_sort(value) -> str:
+    """Return ordered, comma-separated sort tokens for the attendance list."""
+    if hasattr(value, "getlist"):
+        value = value.getlist("sort")
+    if value is None:
+        values = []
+    elif isinstance(value, (list, tuple)):
+        values = value
+    else:
+        values = [value]
+
+    tokens = []
+    for raw_value in values:
+        for raw_token in str(raw_value or "").split(","):
+            token = raw_token.strip()
+            if not token:
+                continue
+            expanded = ATTENDANCE_SORT_LEGACY_EXPANSIONS.get(token, (token,))
+            for expanded_token in expanded:
+                if expanded_token not in ATTENDANCE_SORT_OPTIONS:
+                    continue
+                field = expanded_token.rsplit("_", 1)[0]
+                tokens = [item for item in tokens if item.rsplit("_", 1)[0] != field]
+                tokens.append(expanded_token)
+    return ",".join(tokens) or "none"
+
+
+def _attendance_sort_direction(value, field: str) -> str:
+    for token in _normalize_attendance_sort(value).split(","):
+        if token == "none":
+            continue
+        token_field, direction = token.rsplit("_", 1)
+        if token_field == field:
+            return direction
+    return ""
+
+
+def _attendance_sort_cycle(value, field: str) -> str:
+    tokens = _normalize_attendance_sort(value).split(",")
+    if tokens == ["none"]:
+        tokens = []
+    elif tokens == ["date_desc"] and field != "date":
+        tokens = []
+    current = _attendance_sort_direction(value, field)
+    next_direction = {"": "asc", "asc": "desc", "desc": ""}[current]
+    field_index = next(
+        (index for index, token in enumerate(tokens) if token.rsplit("_", 1)[0] == field),
+        None,
+    )
+    if next_direction:
+        next_token = f"{field}_{next_direction}"
+        if field_index is None:
+            tokens.append(next_token)
+        else:
+            tokens[field_index] = next_token
+    elif field_index is not None:
+        tokens.pop(field_index)
+    return ",".join(tokens) or "none"
 
 
 def _get_attendance_per_page(stored_state: dict | None = None) -> int:
@@ -353,68 +436,51 @@ def _build_attendance_list_query(
 
 
 def _apply_attendance_list_sort(query, sort_by: str | None):
-    if sort_by not in ATTENDANCE_SORT_OPTIONS:
-        sort_by = "date_desc"
+    normalized_sort = _normalize_attendance_sort(sort_by)
+    if normalized_sort == "none":
+        return query.order_by(AttendanceSession.session_date.desc(), AttendanceSession.id.desc())
+    sort_tokens = normalized_sort.split(",")
+    fields = {token.rsplit("_", 1)[0] for token in sort_tokens}
+    order_expressions = []
 
-    if sort_by in {"student_asc", "student_asc_date_desc", "student_asc_date_asc"}:
-        date_order = (
-            AttendanceSession.session_date.asc()
-            if sort_by == "student_asc_date_asc"
-            else AttendanceSession.session_date.desc()
-        )
-        id_order = (
-            AttendanceSession.id.asc()
-            if sort_by == "student_asc_date_asc"
-            else AttendanceSession.id.desc()
-        )
-        return (
-            query.join(Student, AttendanceSession.student_id == Student.id)
-            .order_by(
-                Student.name.asc(),
-                date_order,
-                id_order,
-            )
-        )
-    if sort_by in {"student_desc", "student_desc_date_desc", "student_desc_date_asc"}:
-        date_order = (
-            AttendanceSession.session_date.asc()
-            if sort_by == "student_desc_date_asc"
-            else AttendanceSession.session_date.desc()
-        )
-        id_order = (
-            AttendanceSession.id.asc()
-            if sort_by == "student_desc_date_asc"
-            else AttendanceSession.id.desc()
-        )
-        return (
-            query.join(Student, AttendanceSession.student_id == Student.id)
-            .order_by(
-                Student.name.desc(),
-                date_order,
-                id_order,
-            )
-        )
-    if sort_by == "tutor_asc":
-        return (
-            query.join(Tutor, AttendanceSession.tutor_id == Tutor.id)
-            .order_by(Tutor.name.asc(), AttendanceSession.session_date.desc(), AttendanceSession.id.desc())
-        )
-    if sort_by == "mapel_asc":
-        from app.models.master import Subject
-        return (
-            query.join(Enrollment, AttendanceSession.enrollment_id == Enrollment.id)
-            .join(Subject, Enrollment.subject_id == Subject.id)
-            .order_by(Subject.name.asc(), AttendanceSession.session_date.desc(), AttendanceSession.id.desc())
-        )
-    if sort_by == "date_asc":
-        return query.order_by(
-            AttendanceSession.session_date.asc(),
-            AttendanceSession.id.asc(),
-        )
-    return query.order_by(
-        AttendanceSession.session_date.desc(),
-        AttendanceSession.id.desc(),
-    )
+    if fields & {"student", "tutor", "present"}:
+        query = query.outerjoin(Student, AttendanceSession.student_id == Student.id)
+    if "tutor" in fields:
+        query = query.outerjoin(Tutor, AttendanceSession.tutor_id == Tutor.id)
+    if fields & {"mapel", "curriculum", "level"}:
+        query = query.outerjoin(Enrollment, AttendanceSession.enrollment_id == Enrollment.id)
+    if "mapel" in fields:
+        query = query.outerjoin(Subject, AttendanceSession.subject_id == Subject.id)
+    if "curriculum" in fields:
+        query = query.outerjoin(Curriculum, Enrollment.curriculum_id == Curriculum.id)
+    if "level" in fields:
+        query = query.outerjoin(Level, Enrollment.level_id == Level.id)
+
+    sort_columns = {
+        "date": AttendanceSession.session_date,
+        "student": db.func.lower(db.func.coalesce(Student.name, "")),
+        "tutor": db.func.lower(db.func.coalesce(Tutor.name, "")),
+        "mapel": db.func.lower(db.func.coalesce(Subject.name, "")),
+        "curriculum": db.func.lower(db.func.coalesce(Curriculum.name, "")),
+        "level": db.func.lower(db.func.coalesce(Level.name, "")),
+        "fee": db.func.coalesce(AttendanceSession.tutor_fee_amount, 0),
+        "status": db.func.lower(db.func.coalesce(AttendanceSession.status, "")),
+        "present": (
+            case((AttendanceSession.student_present.is_(True), 2), else_=0)
+            + case((AttendanceSession.tutor_present.is_(True), 1), else_=0)
+        ),
+    }
+    for token in sort_tokens:
+        field, direction = token.rsplit("_", 1)
+        column = sort_columns.get(field)
+        if column is None:
+            continue
+        order_expressions.append(column.asc() if direction == "asc" else column.desc())
+
+    if "date" not in fields:
+        order_expressions.append(AttendanceSession.session_date.desc())
+    order_expressions.append(AttendanceSession.id.desc())
+    return query.order_by(*order_expressions)
 
 
 def _attendance_csv_row(session_item: AttendanceSession, row_number: int) -> list:
@@ -450,10 +516,9 @@ def _attendance_redirect_filters():
         request.args.get("sort")
         or request.form.get("sort")
         or stored_state.get("sort")
-        or "date_desc"
+        or "none"
     )
-    if selected_sort not in ATTENDANCE_SORT_OPTIONS:
-        selected_sort = "date_desc"
+    selected_sort = _normalize_attendance_sort(selected_sort)
     return {
         "page": request.args.get("page", type=int) or stored_state.get("page") or 1,
         "per_page": request.args.get("per_page") or stored_state.get("per_page") or "",
@@ -967,9 +1032,9 @@ def list_attendance():
     date_to = _parse_iso_date(
         request.args.get("date_to") if request.args else stored_state.get("date_to")
     )
-    selected_sort = (request.args.get("sort") if request.args else stored_state.get("sort")) or "date_desc"
-    if selected_sort not in ATTENDANCE_SORT_OPTIONS:
-        selected_sort = "date_desc"
+    selected_sort = _normalize_attendance_sort(
+        (request.args.get("sort") if request.args else stored_state.get("sort"))
+    )
     _remember_attendance_list_state()
 
     query = _build_attendance_list_query(
@@ -1035,6 +1100,8 @@ def list_attendance():
         selected_date_from=date_from.isoformat() if date_from else "",
         selected_date_to=date_to.isoformat() if date_to else "",
         selected_sort=selected_sort,
+        _attendance_sort_direction=_attendance_sort_direction,
+        _attendance_sort_cycle=_attendance_sort_cycle,
         default_scan_month=month or date.today().month,
         default_scan_year=year or date.today().year,
         lock_month=lock_month,
@@ -1070,9 +1137,7 @@ def export_attendance_csv():
     status = None
     date_from = _parse_iso_date(request.args.get("date_from"))
     date_to = _parse_iso_date(request.args.get("date_to"))
-    selected_sort = request.args.get("sort", "date_desc")
-    if selected_sort not in ATTENDANCE_SORT_OPTIONS:
-        selected_sort = "date_desc"
+    selected_sort = _normalize_attendance_sort(request.args.get("sort", "none"))
 
     query = _build_attendance_list_query(
         enrollment_id=enrollment_id,
@@ -1118,9 +1183,7 @@ def scan_whatsapp_attendance():
     """Scan WhatsApp evaluations for one selected month and link to attendance."""
     month = request.form.get("month", type=int)
     year = request.form.get("year", type=int)
-    selected_sort = request.form.get("sort") or "date_desc"
-    if selected_sort not in ATTENDANCE_SORT_OPTIONS:
-        selected_sort = "date_desc"
+    selected_sort = _normalize_attendance_sort(request.form.get("sort") or "none")
     enrollment_ref = (request.form.get("enrollment_ref") or "").strip()
     student_ref = (request.form.get("student_ref") or "").strip()
     tutor_refs = [value for value in request.form.getlist("tutor_ref") if value]
@@ -1190,9 +1253,7 @@ def set_attendance_period_lock():
         "year", type=int
     )
     action = (request.form.get("action") or "lock").strip()
-    selected_sort = request.form.get("sort") or "date_desc"
-    if selected_sort not in ATTENDANCE_SORT_OPTIONS:
-        selected_sort = "date_desc"
+    selected_sort = _normalize_attendance_sort(request.form.get("sort") or "none")
 
     redirect_kwargs = {
         "month": current_month or "",

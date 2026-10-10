@@ -119,7 +119,7 @@
       {% endfor %}
       <input type="hidden" name="date_from" value="{{ selected_date_from or '' }}">
       <input type="hidden" name="date_to" value="{{ selected_date_to or '' }}">
-      <input type="hidden" name="sort" value="{{ selected_sort or 'date_desc' }}">
+      <input type="hidden" name="sort" value="{{ selected_sort or 'none' }}">
       <select name="month" class="form-select form-select-sm w-auto" aria-label="Bulan scan" required>
         {% for m in range(1, 13) %}
         <option value="{{ m }}" {% if default_scan_month == m %}selected{% endif %}>{{ MONTHS[m] }}</option>
@@ -153,7 +153,7 @@
                         tutor_ref=selected_tutor_refs or [],
                         month=selected_month or '',
                         year=selected_year or '',
-                        sort=selected_sort or 'date_desc') }}"
+                        sort=selected_sort or 'none') }}"
        class="btn btn-outline-success btn-sm">
       <i class="bi bi-filetype-csv me-1"></i>Export CSV
     </a>
@@ -188,7 +188,7 @@
         {% endfor %}
         <input type="hidden" name="date_from" value="{{ selected_date_from or '' }}">
         <input type="hidden" name="date_to" value="{{ selected_date_to or '' }}">
-        <input type="hidden" name="sort" value="{{ selected_sort or 'date_desc' }}">
+        <input type="hidden" name="sort" value="{{ selected_sort or 'none' }}">
 
         <div class="d-flex flex-wrap gap-2 mb-3">
           <button type="button" class="btn btn-outline-secondary btn-sm" id="selectVisiblePeriodLocks">
@@ -380,18 +380,6 @@
       </div>
 
 
-      {# Urutan #}
-      <div class="col-12 col-xl-2 col-lg-4 col-md-6">
-        <label class="form-label small fw-semibold mb-1">
-          <i class="bi bi-sort-alpha-down me-1 text-primary"></i>Urutkan
-        </label>
-        <select name="sort" class="form-select form-select-sm">
-          <option value="date_desc" {% if selected_sort == 'date_desc' %}selected{% endif %}>Tanggal terbaru</option>
-          <option value="date_asc" {% if selected_sort == 'date_asc' %}selected{% endif %}>Tanggal terlama</option>
-          <option value="student_asc" {% if selected_sort == 'student_asc' %}selected{% endif %}>Siswa A-Z</option>
-        </select>
-      </div>
-
     </form>
   </div>
 </div>
@@ -410,7 +398,7 @@
                     year=selected_year or '',
                     date_from=selected_date_from or '',
                     date_to=selected_date_to or '',
-                    sort=selected_sort or 'date_desc') }}"
+                    sort=selected_sort or 'none') }}"
   class="card border-0 shadow-sm mb-3"
 >
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -461,7 +449,7 @@
                               year=selected_year or '',
                               date_from=selected_date_from or '',
                               date_to=selected_date_to or '',
-                              sort=selected_sort or 'date_desc') }}"
+                              sort=selected_sort or 'none') }}"
         formmethod="POST"
         id="attendanceBulkDeleteButton"
         class="btn btn-outline-danger btn-sm"
@@ -488,27 +476,27 @@
               >
             </th>
             <th class="ps-3" style="width:48px">No</th>
-            {% set _sort_cols = {
-              'Tanggal': ('date_desc', 'date_asc', 'date'),
-              'Siswa': ('student_asc', 'student_desc', 'student'),
-              'Tutor': ('tutor_asc', 'date_desc', 'tutor'),
-              'Mapel': ('mapel_asc', 'date_desc', 'mapel'),
-            } %}
-            {% for col, (asc, desc, key) in _sort_cols.items() %}
-            {% set _active = selected_sort.startswith(key) or (key=='date' and selected_sort in ('date_desc','date_asc')) %}
-            <th>
-              <a href="{{ url_for('attendance.list_attendance', sort=(asc if _active and selected_sort==asc else desc), student_ref=selected_student_ref or '', tutor_ref=selected_tutor_refs[0] if selected_tutor_refs else '', month=selected_month or '', year=selected_year or '') }}"
-                 class="text-decoration-none text-body fw-semibold">
+            {% set _sort_cols = [
+              ('Tanggal', 'date'), ('Siswa', 'student'), ('Tutor', 'tutor'),
+              ('Mapel', 'mapel'), ('Kurikulum', 'curriculum'), ('Jenjang', 'level'),
+              ('Hadir', 'present'), ('Fee Tutor', 'fee'), ('Status', 'status')
+            ] %}
+            {% for col, key in _sort_cols %}
+            {% set _direction = _attendance_sort_direction(selected_sort, key) %}
+            {% set _next_sort = _attendance_sort_cycle(selected_sort, key) %}
+            <th class="{% if key in ('present', 'status') %}text-center{% elif key == 'fee' %}text-end{% endif %}">
+              <a href="{{ url_for('attendance.list_attendance', sort=_next_sort, student_ref=selected_student_ref or '', tutor_ref=selected_tutor_refs, month=selected_month or '', year=selected_year or '', date_from=selected_date_from or '', date_to=selected_date_to or '') }}"
+                 class="attendance-sort-link text-decoration-none text-body fw-semibold"
+                 data-sort-key="{{ key }}"
+                 aria-label="Urutkan {{ col }}"
+                 title="Klik: A-Z, klik lagi: Z-A, klik lagi: nonaktif">
                 {{ col }}
-                {% if _active %}<i class="bi {{ 'bi-caret-up-fill' if selected_sort==asc else 'bi-caret-down-fill' }} small"></i>{% else %}<i class="bi bi-arrow-down-up small text-muted"></i>{% endif %}
+                {% if _direction == 'asc' %}<i class="bi bi-caret-up-fill small text-primary" aria-hidden="true"></i>
+                {% elif _direction == 'desc' %}<i class="bi bi-caret-down-fill small text-primary" aria-hidden="true"></i>
+                {% else %}<i class="bi bi-arrow-down-up small text-muted" aria-hidden="true"></i>{% endif %}
               </a>
             </th>
             {% endfor %}
-            <th>Kurikulum</th>
-            <th>Jenjang</th>
-            <th class="text-center">Hadir</th>
-            <th class="text-end">Fee Tutor</th>
-            <th class="text-center">Status</th>
             <th class="text-center">Validasi Manual WA</th>
             <th class="text-center pe-3">Aksi</th>
           </tr>
@@ -680,7 +668,7 @@
                                            year=selected_year or '',
                                             date_from=selected_date_from or '',
                                             date_to=selected_date_to or '',
-                                           sort=selected_sort or 'date_desc') }}">
+                                           sort=selected_sort or 'none') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="review_status" value="valid">
                     <button type="submit" class="btn btn-outline-success btn-sm py-0 px-2" title="Tandai sudah benar" data-default-icon="bi-check-lg">
@@ -698,7 +686,7 @@
                                            year=selected_year or '',
                                             date_from=selected_date_from or '',
                                             date_to=selected_date_to or '',
-                                           sort=selected_sort or 'date_desc') }}">
+                                           sort=selected_sort or 'none') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="review_status" value="invalid">
                     <button type="submit" class="btn btn-outline-warning btn-sm py-0 px-2" title="Tandai perlu koreksi" data-default-icon="bi-exclamation-lg">
@@ -716,7 +704,7 @@
                                            year=selected_year or '',
                                       date_from=selected_date_from or '',
                                       date_to=selected_date_to or '',
-                                           sort=selected_sort or 'date_desc') }}">
+                                           sort=selected_sort or 'none') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="review_status" value="pending">
                     <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-2" title="Reset validasi" data-default-icon="bi-arrow-counterclockwise">
@@ -749,7 +737,7 @@
                                      year=selected_year or '',
                                           date_from=selected_date_from or '',
                                           date_to=selected_date_to or '',
-                                     sort=selected_sort or 'date_desc') }}"
+                                      sort=selected_sort or 'none') }}"
                    class="btn btn-outline-secondary btn-sm py-0 px-2" title="Edit">
                   <i class="bi bi-pencil"></i>
                 </a>
@@ -763,7 +751,7 @@
                                           year=selected_year or '',
                                           date_from=selected_date_from or '',
                                           date_to=selected_date_to or '',
-                                          sort=selected_sort or 'date_desc') }}"
+                                          sort=selected_sort or 'none') }}"
                       onsubmit="return confirm('Pindahkan sesi presensi tanggal {{ s.session_date.strftime('%d %b %Y') }} ke tempat sampah?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Hapus">

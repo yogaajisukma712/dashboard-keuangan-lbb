@@ -21,6 +21,7 @@ from app.models import (
 from app.routes.attendance import (
     WHATSAPP_REVIEW_START_DATE,
     _apply_attendance_list_sort,
+    _attendance_sort_cycle,
     _attendance_csv_row,
     _build_attendance_list_query,
     _build_whatsapp_review_map,
@@ -29,6 +30,7 @@ from app.routes.attendance import (
     _set_whatsapp_attendance_manual_review,
     _sync_linked_whatsapp_evaluations,
     _unlink_whatsapp_evaluations_before_attendance_delete,
+    _normalize_attendance_sort,
 )
 
 
@@ -201,6 +203,24 @@ def test_attendance_list_sort_orders_by_student_name_and_date_together():
         ]
 
 
+def test_attendance_sort_cycles_three_states_and_preserves_other_columns():
+    assert _attendance_sort_cycle("date_desc", "student") == "student_asc"
+    assert _attendance_sort_cycle("student_asc", "student") == "student_desc"
+    assert _attendance_sort_cycle("student_desc", "student") == "none"
+    assert _attendance_sort_cycle("student_asc,tutor_desc", "student") == "student_desc,tutor_desc"
+    assert _normalize_attendance_sort("student_asc,tutor_desc") == "student_asc,tutor_desc"
+    assert _normalize_attendance_sort("student_asc_date_desc") == "student_asc,date_desc"
+
+
+def test_attendance_sort_cycles_three_states_and_preserves_other_columns():
+    assert _attendance_sort_cycle("date_desc", "student") == "student_asc"
+    assert _attendance_sort_cycle("student_asc", "student") == "student_desc"
+    assert _attendance_sort_cycle("student_desc", "student") == "none"
+    assert _attendance_sort_cycle("student_asc,tutor_desc", "student") == "student_desc,tutor_desc"
+    assert _normalize_attendance_sort("student_asc,tutor_desc") == "student_asc,tutor_desc"
+    assert _normalize_attendance_sort("student_asc_date_desc") == "student_asc,date_desc"
+
+
 def test_attendance_csv_row_uses_requested_columns_and_indonesian_day():
     app = _make_test_app()
 
@@ -253,7 +273,7 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert 'id="quickAttendanceSearch"' in template_text
     assert 'id="attendanceTableBody"' in template_text
     assert 'id="attendanceAjaxRegion"' in template_text
-    assert 'id="attendanceSummaryChips"' in template_text
+    assert 'id="attendanceSummaryChips"' not in template_text
     assert "async function requestAttendanceFilterUpdate" in template_text
     assert 'window.history.pushState({}, "", url.toString())' in template_text
     assert "initAttendanceDynamicTable();" in template_text
@@ -279,7 +299,7 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert "attendance.bulk_review_whatsapp_attendance" in template_text
     assert 'id="selectAllAttendanceReviews"' in template_text
     assert 'class="form-check-input attendance-bulk-review-checkbox"' in template_text
-    assert "Pilih baris presensi untuk melihat jumlah pilihan dan total fee tutor." in template_text
+    assert 'id="attendanceSelectionSummary"' in template_text
     assert "{% if not (wa_review and wa_review.requires_review) %}disabled{% endif %}" not in template_text
     assert 'id="attendanceSelectedCount"' in template_text
     assert 'id="attendanceSelectedFeeTotal"' in template_text
@@ -300,16 +320,12 @@ def test_attendance_list_template_contains_whatsapp_scan_form_and_year_filter():
     assert "spinner-border spinner-border-sm" in template_text
     assert '"X-Requested-With": "XMLHttpRequest"' in template_text
     assert "updateWaReviewUi(reviewBox, data)" in template_text
-    assert 'name="sort"' in template_text
-    assert 'value="student_asc"' in template_text
-    assert "Siswa A-Z" in template_text
-    assert "Siswa Z-A" in template_text
-    assert 'value="student_asc_date_asc"' in template_text
-    assert 'value="student_desc_date_asc"' in template_text
-    assert "Siswa A-Z, tanggal terlama" in template_text
-    assert "Siswa Z-A, tanggal terbaru" in template_text
-    assert 'name="sort" value="{{ selected_sort or \'date_desc\' }}"' in template_text
-    assert "sort=selected_sort or 'date_desc'" in template_text
+    assert 'data-sort-key="{{ key }}"' in template_text
+    assert "attendance-sort-link" in template_text
+    assert 'data-sort-key="{{ key }}"' in template_text
+    assert "Klik: A-Z, klik lagi: Z-A, klik lagi: nonaktif" in template_text
+    assert 'name="sort" value="{{ selected_sort or \'none\' }}"' in template_text
+    assert "sort=selected_sort or 'none'" in template_text
     assert "reset_filters=1" in template_text
     assert "attendance.delete_attendance" in template_text
     assert "attendance.export_attendance_csv" in template_text

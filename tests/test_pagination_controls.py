@@ -62,6 +62,15 @@ def test_large_table_templates_include_per_page_selector():
         assert "pagination_url(" in template_text
 
 
+def test_invoice_list_calculates_selected_nominal_total():
+    project_root = Path(__file__).resolve().parents[1]
+    template_text = (project_root / "app/templates/quota/invoice_list.html").read_text(encoding="utf-8")
+    assert 'id="invoiceSelectionSummary"' in template_text
+    assert 'data-amount="{{ inv.amount | float }}"' in template_text
+    assert "Intl.NumberFormat('id-ID'" in template_text
+    assert "updateSelectionSummary" in template_text
+
+
 def test_whatsapp_tables_have_client_side_page_size_selectors():
     project_root = Path(__file__).resolve().parents[1]
     template_text = (

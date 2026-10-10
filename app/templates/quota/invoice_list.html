@@ -106,8 +106,8 @@
   <input type="hidden" name="year" value="{{ filters.year or '' }}">
 <div class="card shadow-sm">
   <div class="card-header bg-white d-flex flex-wrap align-items-center gap-2 border-bottom">
-    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('.inv-check').forEach(cb=>cb.checked=true)">Pilih Semua</button>
-    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('.inv-check').forEach(cb=>cb.checked=false)">Bersihkan</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="selectAllInvoices">Pilih Semua</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="clearAllInvoices">Bersihkan</button>
     <select name="bulk_action" class="form-select form-select-sm" style="max-width:230px" required>
       <option value="">— Pilih aksi massal —</option>
       <option value="mark_paid">Tandai Lunas (buat pembayaran)</option>
@@ -117,13 +117,13 @@
             onclick="return confirm('Terapkan aksi massal pada invoice terpilih? Tindakan ini tidak dapat dibatalkan.')">
       Terapkan
     </button>
-    <span class="text-muted small ms-auto">Centang baris yang ingin diproses.</span>
+    <span class="text-muted small ms-auto"><span id="invoiceSelectionSummary">0 invoice dipilih · Rp 0</span></span>
   </div>
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
         <tr>
-          <th><input type="checkbox" onchange="document.querySelectorAll('.inv-check').forEach(cb=>cb.checked=this.checked)"></th>
+          <th><input type="checkbox" id="selectAllInvoicesHeader" aria-label="Pilih semua invoice"></th>
           <th>Siswa</th>
           <th>Bulan Layanan</th>
           <th class="text-center">Tipe</th>
@@ -137,7 +137,7 @@
       <tbody>
         {% for inv in invoices %}
         <tr>
-          <td><input type="checkbox" class="inv-check" name="invoice_ref" value="{{ inv.public_id }}"></td>
+          <td><input type="checkbox" class="inv-check" name="invoice_ref" value="{{ inv.public_id }}" data-amount="{{ inv.amount | float }}" aria-label="Pilih invoice {{ inv.id }}"></td>
           <td class="text-muted small">{{ inv.id }}</td>
           <td>
             <div class="fw-semibold">{{ inv.student_name }}</div>
@@ -205,4 +205,33 @@
 </nav>
 {% endif %}
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(() => {
+  const checks = Array.from(document.querySelectorAll('.inv-check'));
+  const summary = document.getElementById('invoiceSelectionSummary');
+  const selectAll = document.getElementById('selectAllInvoices');
+  const clearAll = document.getElementById('clearAllInvoices');
+  const headerCheck = document.getElementById('selectAllInvoicesHeader');
+  if (!summary) return;
+  const formatRupiah = (amount) => `Rp ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(amount)}`;
+  const updateSelectionSummary = () => {
+    const selected = checks.filter((check) => check.checked);
+    const total = selected.reduce((sum, check) => sum + Number(check.dataset.amount || 0), 0);
+    summary.textContent = `${selected.length} invoice dipilih · ${formatRupiah(total)}`;
+    if (headerCheck) {
+      headerCheck.checked = selected.length === checks.length && checks.length > 0;
+      headerCheck.indeterminate = selected.length > 0 && selected.length < checks.length;
+    }
+  };
+  checks.forEach((check) => check.addEventListener('change', updateSelectionSummary));
+  selectAll?.addEventListener('click', () => { checks.forEach((check) => { check.checked = true; }); updateSelectionSummary(); });
+  clearAll?.addEventListener('click', () => { checks.forEach((check) => { check.checked = false; }); updateSelectionSummary(); });
+  headerCheck?.addEventListener('change', () => { checks.forEach((check) => { check.checked = headerCheck.checked; }); updateSelectionSummary(); });
+  updateSelectionSummary();
+})();
+</script>
 {% endblock %}

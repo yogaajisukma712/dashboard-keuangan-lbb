@@ -24,14 +24,14 @@
       action="{{ url_for('master.students_list') }}"
       class="row g-2 align-items-center"
       data-lbb-filter-form
+      data-lbb-filter-autosubmit="change"
       data-lbb-filter-targets="studentsFilterCard studentsSearchInfo studentsQuickFilterCard studentsFilterResults"
     >
       <div class="col-md-6 col-lg-5">
         <select name="search" class="form-select" aria-label="Cari siswa berdasarkan nama, kode, atau email">
           <option value="">Cari nama, kode siswa, atau email...</option>
           {% for student in student_filter_options %}
-          {% set student_search_label = student.name ~ ' · ' ~ (student.student_code or '') ~ ' · ' ~ (student.email or '') %}
-          <option value="{{ student.name }}" {% if search == student.name %}selected{% endif %}>{{ student_search_label }}</option>
+          <option value="{{ student.name }}" {% if search == student.name %}selected{% endif %}>{{ student.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -64,9 +64,6 @@
           <option value="last_payment_desc" {% if sort_by == 'last_payment_desc' %}selected{% endif %}>Bayar Terbaru</option>
           <option value="last_payment_asc" {% if sort_by == 'last_payment_asc' %}selected{% endif %}>Bayar Terlama</option>
         </select>
-      </div>
-      <div class="col-auto">
-        <button type="submit" class="btn btn-primary px-4">Cari</button>
       </div>
       {% if search or active_state != 'active' or sort_by != 'name_asc' or attendance_month %}
       <div class="col-auto">

@@ -27,6 +27,8 @@ def test_students_list_preserves_shared_searchable_select_scripts():
     assert 'select name="attendance_month" class="form-select"' in template_text
     assert 'select name="search" class="form-select"' in template_text
     assert "student_filter_options" in template_text
+    assert 'data-lbb-filter-autosubmit="change"' in template_text
+    assert '<button type="submit" class="btn btn-primary px-4">Cari</button>' not in template_text
 
 
 def test_students_list_route_only_loads_quota_alerts_for_active_students():

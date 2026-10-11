@@ -16,6 +16,17 @@ def test_students_list_route_supports_active_state_filter():
     assert "active_state=active_state" in route_text
 
 
+def test_students_list_preserves_shared_searchable_select_scripts():
+    project_root = Path(__file__).resolve().parents[1]
+    template_text = (project_root / "app" / "templates" / "master" / "students_list.html").read_text(
+        encoding="utf-8"
+    )
+    assert "{% block scripts %}" in template_text
+    assert "{{ super() }}" in template_text
+    assert 'select name="active_state" class="form-select"' in template_text
+    assert 'select name="attendance_month" class="form-select"' in template_text
+
+
 def test_students_list_route_only_loads_quota_alerts_for_active_students():
     project_root = Path(__file__).resolve().parents[1]
     route_text = (project_root / "app" / "routes" / "master.py").read_text(

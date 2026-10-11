@@ -710,6 +710,7 @@ def students_list():
         query = query.order_by(Student.name.asc(), Student.id.asc())
 
     students = query.paginate(page=page, per_page=per_page)
+    student_filter_options = Student.query.order_by(Student.name.asc(), Student.id.asc()).all()
     student_ids = [student.id for student in students.items]
     last_attendance_map = dict(
         db.session.query(
@@ -736,6 +737,7 @@ def students_list():
     return render_template(
         "master/students_list.html",
         students=students,
+        student_filter_options=student_filter_options,
         search=search,
         active_state=active_state,
         sort_by=sort_by,

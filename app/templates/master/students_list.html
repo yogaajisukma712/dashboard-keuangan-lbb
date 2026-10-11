@@ -27,18 +27,13 @@
       data-lbb-filter-targets="studentsFilterCard studentsSearchInfo studentsQuickFilterCard studentsFilterResults"
     >
       <div class="col-md-6 col-lg-5">
-        <div class="input-group">
-          <span class="input-group-text bg-white border-end-0">
-            <i class="bi bi-search text-muted"></i>
-          </span>
-          <input
-            type="text"
-            name="search"
-            class="form-control border-start-0 ps-0"
-            placeholder="Cari nama, kode siswa, atau email..."
-            value="{{ search or '' }}"
-          />
-        </div>
+        <select name="search" class="form-select" aria-label="Cari siswa berdasarkan nama, kode, atau email">
+          <option value="">Cari nama, kode siswa, atau email...</option>
+          {% for student in student_filter_options %}
+          {% set student_search_label = student.name ~ ' · ' ~ (student.student_code or '') ~ ' · ' ~ (student.email or '') %}
+          <option value="{{ student.name }}" {% if search == student.name %}selected{% endif %}>{{ student_search_label }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="col-md-3 col-lg-3">
         <select name="active_state" class="form-select">

@@ -1270,6 +1270,66 @@ def invoice_verify(invoice_ref):
     )
 
 
+@quota_invoice_bp.route("/missing-invoices", methods=["GET"])
+@login_required
+def missing_invoices():
+    """Siswa aktif yang hadir pada bulan layanan tanpa invoice bulan itu."""
+    today = date.today()
+    period = (request.args.get("period") or "").strip()
+    if period:
+        try:
+            year, month = (int(part) for part in period.split("-", 1))
+        except (TypeError, ValueError):
+            abort(400)
+    else:
+        month = request.args.get("month", today.month, type=int)
+        year = request.args.get("year", today.year, type=int)
+    if not 1 <= month <= 12 or not 2000 <= year <= 2100:
+        abort(400)
+
+    attended_in_month = (
+        db.session.query(AttendanceSession.student_id)
+        .filter(
+            AttendanceSession.status == "attended",
+            db.extract("year", AttendanceSession.session_date) == year,
+            db.extract("month", AttendanceSession.session_date) == month,
+        )
+        .subquery()
+    )
+    next_month = _shift_month(_first_of_month(year, month), 1)
+    invoiced_student_ids = db.session.execute(
+        db.text(
+            "SELECT DISTINCT student_id FROM student_invoices "
+            "WHERE service_month >= :start AND service_month < :end"
+        ),
+        {"start": _first_of_month(year, month), "end": next_month},
+    ).scalars().all()
+    students = (
+        Student.query.filter(
+            Student.is_active.is_(True),
+            Student.id.in_(attended_in_month),
+            ~Student.id.in_(invoiced_student_ids),
+        )
+        .order_by(Student.name.asc(), Student.id.asc())
+        .all()
+    )
+    for student in students:
+        student.active_enrollments = Enrollment.query.filter(
+            Enrollment.student_id == student.id,
+            Enrollment.status == "active",
+            Enrollment.is_active.is_(True),
+        ).order_by(Enrollment.id.asc()).all()
+
+    return render_template(
+        "quota/missing_invoices.html",
+        students=students,
+        month=month,
+        year=year,
+        current_year=today.year,
+        month_label=_month_label(_first_of_month(year, month)),
+    )
+
+
 @quota_invoice_bp.route("/invoices", methods=["GET"])
 @login_required
 def invoice_list():

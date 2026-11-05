@@ -224,7 +224,7 @@ def _send_fee_slip_whatsapp_attachment(
     pdf_bytes = _render_fee_slip_pdf_via_bot(
         payout,
         base_url=base_url,
-        page_mode="standard-a4",
+        page_mode="single-page-native",
     )
     pdf_filename = secure_filename(f"fee_slip_{payout.id}_{tutor.tutor_code}.pdf")
 
@@ -1880,9 +1880,16 @@ def _build_fee_slip_template_context(
 def _render_fee_slip_pdf_via_bot(
     payout,
     base_url: str | None = None,
-    page_mode: str = "single-page-element-screenshot",
+    page_mode: str = "single-page-native",
 ):
-    """Render the same HTML slip with Chromium so PDF matches the web view."""
+    """Render the same HTML slip with Chromium so PDF matches the web view.
+
+    page_mode:
+    - 'single-page-native' (default): satu halaman PDF asli (teks tajam),
+      tinggi halaman mengikuti tinggi konten slip.
+    - 'single-page-element-screenshot': satu halaman dari screenshot PNG (lama).
+    - 'standard-a4': A4 multi-halaman.
+    """
     resolved_base_url = base_url
     if not resolved_base_url and has_request_context():
         resolved_base_url = request.host_url

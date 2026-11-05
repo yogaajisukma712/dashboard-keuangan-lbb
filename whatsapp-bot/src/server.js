@@ -94,6 +94,47 @@ async function renderHtmlToSinglePagePdf(html, options = {}) {
         margin: { top: '0', right: '0', bottom: '0', left: '0' },
       });
     }
+    // Single-page PDF asli (teks tajam, bukan screenshot): satu halaman dengan
+    // tinggi mengikuti konten. Default baru; dipakai bila pageMode bukan
+    // 'standard-a4' atau 'single-page-element-screenshot'.
+    if (options.pageMode !== 'single-page-element-screenshot') {
+      // Ukur elemen target + isolasi agar hanya elemen slip yang dirender,
+      // tanpa whitespace dari body di sekitarnya.
+      const box = await page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return null;
+        // Lepaskan margin/transform yang bisa menambah ruang kosong.
+        el.style.margin = '0';
+        const rect = el.getBoundingClientRect();
+        return {
+          width: Math.ceil(rect.width),
+          // scrollHeight menangkap konten yang melebihi tinggi viewport.
+          height: Math.ceil(Math.max(rect.height, el.scrollHeight)),
+        };
+      }, selector);
+      if (!box || box.width < 1 || box.height < 1) {
+        throw new Error(`PDF target element has no size: ${selector}`);
+      }
+      // Render hanya elemen slip sebagai satu-satunya isi dokumen agar
+      // page.pdf menghasilkan tepat satu halaman seukuran konten.
+      await page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        const clone = el.cloneNode(true);
+        document.body.innerHTML = '';
+        document.body.appendChild(clone);
+        document.body.style.margin = '0';
+        document.body.style.padding = '0';
+      }, selector);
+      await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+      return await page.pdf({
+        printBackground: true,
+        preferCSSPageSize: false,
+        width: pxToInches(box.width),
+        height: pxToInches(box.height),
+        pageRanges: '1',
+        margin: { top: '0', right: '0', bottom: '0', left: '0' },
+      });
+    }
     const screenshot = await target.screenshot({
       type: 'png',
       omitBackground: false,
@@ -389,7 +430,7 @@ app.post('/render/pdf', async (req, res) => {
     res.json({
       ok: true,
       pdf_base64: Buffer.from(pdf).toString('base64'),
-      page_mode: req.body?.pageMode || 'single-page-element-screenshot',
+      page_mode: req.body?.pageMode || 'single-page-native',
     });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });

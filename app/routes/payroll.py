@@ -1773,6 +1773,18 @@ def _proof_image_data_uri(proof_image):
     if not mimetype:
         return None
 
+    # Di Vercel (serverless) file bukti tersimpan di VM bot, bukan disk lokal.
+    # Tanpa cabang ini, embed base64 selalu gagal dan gambar bukti hilang di
+    # PDF fee tutor yang dirender Chromium (lihat #gambar-bukti-hilang).
+    from app.services.remote_storage import fetch_remote_file, is_remote_storage_enabled
+
+    if is_remote_storage_enabled():
+        content = fetch_remote_file(f"payroll_proofs/{filename}")
+        if not content:
+            return None
+        encoded = base64.b64encode(content).decode("ascii")
+        return f"data:{mimetype};base64,{encoded}"
+
     proof_path = os.path.join(
         current_app.config["UPLOAD_FOLDER"],
         "payroll_proofs",

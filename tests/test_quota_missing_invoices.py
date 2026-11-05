@@ -63,25 +63,51 @@ def test_missing_invoice_list_filters_attendance_and_service_month():
         ]
         db.session.add_all(enrollments)
         db.session.flush()
+        # 'missing' hadir 2x di September, 'invoiced' 1x; keduanya hadir September.
         db.session.add_all([
-            AttendanceSession(student_id=s.id, enrollment_id=e.id, subject_id=subject.id,
-                              tutor_id=tutor.id, session_date=date(2026, 9, 12),
-                              status="attended", student_present=True, tutor_present=True)
-            for s, e in zip((missing, invoiced), enrollments[:2])
+            AttendanceSession(student_id=missing.id, enrollment_id=enrollments[0].id,
+                              subject_id=subject.id, tutor_id=tutor.id,
+                              session_date=date(2026, 9, 12), status="attended",
+                              student_present=True, tutor_present=True),
+            AttendanceSession(student_id=missing.id, enrollment_id=enrollments[0].id,
+                              subject_id=subject.id, tutor_id=tutor.id,
+                              session_date=date(2026, 9, 19), status="attended",
+                              student_present=True, tutor_present=True),
+            AttendanceSession(student_id=invoiced.id, enrollment_id=enrollments[1].id,
+                              subject_id=subject.id, tutor_id=tutor.id,
+                              session_date=date(2026, 9, 12), status="attended",
+                              student_present=True, tutor_present=True),
         ])
+        # Invoice layanan September dibuat Oktober => service_month = 2026-10.
+        # 'invoiced' sudah ditagih; 'missing' belum.
         db.session.execute(db.text("""
             INSERT INTO student_invoices (student_id, enrollment_id, service_month, status)
             VALUES (:student_id, :enrollment_id, :service_month, 'draft')
         """), {"student_id": invoiced.id, "enrollment_id": enrollments[1].id,
-              "service_month": "2026-09-01"})
+              "service_month": "2026-10-01"})
         db.session.commit()
 
         response = app.test_client().get("/quota/missing-invoices?month=9&year=2026")
+        body = response.get_data(as_text=True)
         assert response.status_code == 200
-        assert "Belum Invoice" in response.get_data(as_text=True)
-        assert "S-MISS" in response.get_data(as_text=True)
-        assert "Matematika" in response.get_data(as_text=True)
-        assert "Sudah Invoice" not in response.get_data(as_text=True)
-        assert "Tidak Hadir" not in response.get_data(as_text=True)
+        assert "Belum Invoice" in body
+        assert "S-MISS" in body
+        assert "Matematika" in body
+        # Jumlah pertemuan September milik 'missing' = 2.
+        assert ">2<" in body
+        assert "Sudah Invoice" not in body
+        assert "Tidak Hadir" not in body
+
+        # Kontrol balik: invoice bertanda service_month September (bukan bulan tagih)
+        # TIDAK boleh dianggap sebagai sudah-ditagih untuk layanan September.
+        db.session.execute(db.text("""
+            INSERT INTO student_invoices (student_id, enrollment_id, service_month, status)
+            VALUES (:student_id, :enrollment_id, :service_month, 'draft')
+        """), {"student_id": missing.id, "enrollment_id": enrollments[0].id,
+              "service_month": "2026-09-01"})
+        db.session.commit()
+        body2 = app.test_client().get("/quota/missing-invoices?month=9&year=2026").get_data(as_text=True)
+        assert "S-MISS" in body2  # tetap muncul: invoice Sept bukan bulan tagih (Okt)
+
         db.session.remove()
         db.drop_all()

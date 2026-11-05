@@ -4,9 +4,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0">Siswa Belum Invoice</h4>
-        <div class="text-muted small mt-1">Siswa aktif dengan presensi attended, tanpa invoice bulan layanan terpilih.</div>
+        <div class="text-muted small mt-1">Siswa dengan presensi attended di bulan layanan, yang belum punya invoice di bulan tagih (bulan layanan + 1).</div>
     </div>
-    <span class="text-muted small">Bulan layanan: <strong>{{ month_label }}</strong></span>
+    <span class="text-muted small">Bulan layanan: <strong>{{ month_label }}</strong> · Bulan tagih: <strong>{{ billing_month_label }}</strong></span>
 </div>
 
 <form method="get" class="card card-body shadow-sm mb-3">
@@ -22,17 +22,18 @@
 {% if not students %}
 <div class="alert alert-success">Tidak ada siswa aktif yang memenuhi kriteria belum memiliki invoice pada {{ month_label }}.</div>
 {% else %}
-<div class="alert alert-warning">Ditemukan <strong>{{ students|length }}</strong> siswa aktif yang hadir, tetapi belum memiliki invoice untuk {{ month_label }}.</div>
+<div class="alert alert-warning">Ditemukan <strong>{{ students|length }}</strong> siswa dengan presensi di {{ month_label }} ({{ total_sessions }} total pertemuan) yang belum punya invoice di bulan tagih {{ billing_month_label }}.</div>
 <div class="card shadow-sm">
-    <div class="card-header bg-danger text-white fw-semibold">Siswa Belum Ditagih — {{ month_label }}</div>
+    <div class="card-header bg-danger text-white fw-semibold">Siswa Belum Ditagih — Layanan {{ month_label }}</div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead class="table-light"><tr><th>#</th><th>Siswa</th><th>Mapel Aktif</th><th class="text-center">Aksi</th></tr></thead>
+            <thead class="table-light"><tr><th>#</th><th>Siswa</th><th class="text-center">Pertemuan</th><th>Mapel Aktif</th><th class="text-center">Aksi</th></tr></thead>
             <tbody>
             {% for student in students %}
                 <tr>
                     <td class="text-muted small">{{ loop.index }}</td>
                     <td><div class="fw-semibold">{{ student.name }}</div><div class="text-muted small">{{ student.student_code or '—' }}</div></td>
+                    <td class="text-center"><span class="badge bg-dark fs-6">{{ student.attended_sessions }}</span></td>
                     <td><div class="d-flex flex-wrap gap-1">
                         {% for enrollment in student.active_enrollments %}
                             <span class="badge bg-primary">{{ enrollment.subject.name if enrollment.subject else 'Mapel tidak tersedia' }}{% if enrollment.tutor %} · {{ enrollment.tutor.name }}{% endif %}</span>

@@ -1273,7 +1273,13 @@ def invoice_verify(invoice_ref):
 @quota_invoice_bp.route("/missing-invoices", methods=["GET"])
 @login_required
 def missing_invoices():
-    """Siswa aktif yang hadir pada bulan layanan tanpa invoice bulan itu."""
+    """Siswa dengan presensi bulan layanan X yang belum dibuatkan invoice.
+
+    Konvensi penandaan di sistem: invoice untuk layanan bulan X biasanya dibuat
+    pada bulan X+1, dan ``service_month`` invoice mengikuti bulan pembuatan.
+    Jadi seorang siswa yang hadir (attended) di bulan X dianggap SUDAH ditagih
+    bila ia punya invoice dengan ``service_month`` di bulan X+1 (bulan tagih).
+    """
     today = date.today()
     period = (request.args.get("period") or "").strip()
     if period:
@@ -1287,38 +1293,59 @@ def missing_invoices():
     if not 1 <= month <= 12 or not 2000 <= year <= 2100:
         abort(400)
 
-    attended_in_month = (
-        db.session.query(AttendanceSession.student_id)
+    service_month_date = _first_of_month(year, month)
+    # Bulan tagih = bulan layanan + 1 (invoice September dibuat Oktober).
+    billing_month_start = _shift_month(service_month_date, 1)
+    billing_month_end = _shift_month(service_month_date, 2)
+
+    # Jumlah sesi attended per siswa pada bulan layanan terpilih — ini jumlah
+    # pertemuan yang perlu ditagihkan. Pakai db.extract agar portabel
+    # (SQLite di test, PostgreSQL di produksi).
+    attended_rows = (
+        db.session.query(
+            AttendanceSession.student_id,
+            db.func.count().label("sesi"),
+        )
         .filter(
             AttendanceSession.status == "attended",
             db.extract("year", AttendanceSession.session_date) == year,
             db.extract("month", AttendanceSession.session_date) == month,
         )
-        .subquery()
+        .group_by(AttendanceSession.student_id)
+        .all()
     )
-    next_month = _shift_month(_first_of_month(year, month), 1)
+    attended_sessions = {row.student_id: int(row.sesi) for row in attended_rows}
+
+    # Siswa yang sudah punya invoice di bulan tagih (bulan layanan + 1).
     invoiced_student_ids = db.session.execute(
         db.text(
             "SELECT DISTINCT student_id FROM student_invoices "
             "WHERE service_month >= :start AND service_month < :end"
         ),
-        {"start": _first_of_month(year, month), "end": next_month},
+        {"start": billing_month_start, "end": billing_month_end},
     ).scalars().all()
-    students = (
-        Student.query.filter(
-            Student.is_active.is_(True),
-            Student.id.in_(attended_in_month),
-            ~Student.id.in_(invoiced_student_ids),
+
+    attended_ids = list(attended_sessions.keys())
+    students = []
+    if attended_ids:
+        students = (
+            Student.query.filter(
+                Student.is_active.is_(True),
+                Student.id.in_(attended_ids),
+                ~Student.id.in_(invoiced_student_ids),
+            )
+            .order_by(Student.name.asc(), Student.id.asc())
+            .all()
         )
-        .order_by(Student.name.asc(), Student.id.asc())
-        .all()
-    )
     for student in students:
+        student.attended_sessions = attended_sessions.get(student.id, 0)
         student.active_enrollments = Enrollment.query.filter(
             Enrollment.student_id == student.id,
             Enrollment.status == "active",
             Enrollment.is_active.is_(True),
         ).order_by(Enrollment.id.asc()).all()
+
+    total_sessions = sum(s.attended_sessions for s in students)
 
     return render_template(
         "quota/missing_invoices.html",
@@ -1326,7 +1353,9 @@ def missing_invoices():
         month=month,
         year=year,
         current_year=today.year,
-        month_label=_month_label(_first_of_month(year, month)),
+        month_label=_month_label(service_month_date),
+        billing_month_label=_month_label(billing_month_start),
+        total_sessions=total_sessions,
     )
 
 

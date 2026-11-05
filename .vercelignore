@@ -3,6 +3,18 @@ api key penting
 Server DO
 graphify-out
 .git
+.venv
+venv
+env
+__pycache__
+.vercel/cache
+node_modules
+.codex-workflow
+.gitnexus
+.serena
+.repomap.tags.cache.v1
+.agents
+.codex
 .claude
 .kilo
 .gitnexus
@@ -23,7 +35,6 @@ audit_output
 Data Input Februari 2025
 DataBulanFebruari2025.xlsx
 Data Fee.csv
-docs
 *.pem
 *.sql
 *.sql.gz
@@ -33,7 +44,6 @@ docs
 *.md
 *.png
 *.pdf
-*.html
 ops
 docker
 scripts

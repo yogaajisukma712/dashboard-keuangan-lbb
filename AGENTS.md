@@ -1,5 +1,37 @@
 # LBB Web App Agent Setup
 
+## ⚠️ DEPLOYMENT — WAJIB BACA SEBELUM UBAH KODE PRODUKSI
+
+Aplikasi produksi ini **di-host di Vercel**, domain: `https://app.supersmart.click`.
+
+### Fakta penting (jangan ulangi kesalahan lama)
+- **Auto-deploy dari GitHub TIDAK AKTIF / tidak reliabel.** Push ke `main` saja TIDAK membuat perubahan tampil. Deploy terakhir via Git bisa tertinggal berjam-jam. SETIAP perubahan produksi HARUS deploy manual via Vercel CLI.
+- App ini **tidak jalan** sebagai proses lokal di server dev ini. Proses gunicorn di port 4500 (`admin_app:app`) dan container Docker (Portainer port 8000, generator-*) adalah aplikasi LAIN — bukan dashboard ini. Jangan bingung.
+- Entrypoint Vercel: `api/index.py` (import `app` dari `run.py`). Config: `vercel.json` (rewrite semua ke `api/index.py`, region `sin1`).
+
+### Cara deploy ke Vercel (produksi)
+```bash
+cd "/home/ubuntu/Documents/lembaga/aplikasi lembaga"
+TOK=$(tr -d ' \n\r' < "api key penting/vercel.key")
+vercel --prod --yes --token "$TOK"
+```
+- Token Vercel ada di: `api key penting/vercel.key` (JANGAN tempel isinya ke chat/commit).
+- Project Vercel: `lbb-dashboard` (id `prj_Fvlx3HeQBQ6FONGxitY5LSo7eMZR`, team `lbbsupersmart-1572`). Sudah ter-link di `.vercel/project.json`.
+- Cek status: `vercel ls --token "$TOK"` atau `vercel inspect <url> --token "$TOK"`.
+- Setelah deploy sukses akan muncul `Aliased: https://app.supersmart.click`. Lalu minta user hard-refresh (Ctrl+Shift+R).
+
+### `.vercelignore` — HATI-HATI
+- Saat deploy CLI, bundle function dibatasi **500 MB**. Folder berat WAJIB ada di `.vercelignore`: `.codex-workflow` (~646MB), `.venv`, `.gitnexus`, `.serena`, `backups`, `graphify-out`, `node_modules`, `.repomap.tags.cache.v1`. Kalau deploy gagal "Total bundle size exceeds 500 MB", cari folder besar baru dengan `du -sh */ .[!.]*/ | sort -rh | head` lalu tambahkan ke `.vercelignore`.
+- **JANGAN** masukkan `*.html` ke `.vercelignore` — itu membuang semua template Jinja dan app rusak saat deploy CLI. (Pernah terjadi; sudah diperbaiki.)
+
+### GitHub
+- Remote: `https://github.com/yogaajisukma712/dashboard-keuangan-lbb.git`, branch `main`.
+- Commit + push tetap dilakukan untuk histori kode, TAPI ingat: push ≠ deploy. Deploy tetap manual via CLI di atas.
+
+### Database (produksi)
+- PostgreSQL **Neon** (bukan Postgres Docker lokal). Koneksi asli: `api key penting/neon-direct-conn.txt` (host `ep-ancient-mountain-b3vwbagh.c-4.ap-southeast-1.aws.neon.tech`, db `neondb`).
+- Query manual pakai `python3` + `psycopg2` (sudah terpasang); `psql` tidak tersedia di server ini.
+
 ## Primary Project Map
 
 Before changing this project, read `PROJECT_MAP.md`.

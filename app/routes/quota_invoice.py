@@ -1371,6 +1371,8 @@ def invoice_list():
     billing_type = request.args.get("billing_type", "").strip()
     month = request.args.get("month", type=int)
     year = request.args.get("year", type=int)
+    created_month = request.args.get("created_month", type=int)
+    created_year = request.args.get("created_year", type=int)
 
     if student_ref:
         try:
@@ -1389,6 +1391,8 @@ def invoice_list():
                     billing_type=billing_type,
                     month=month,
                     year=year,
+                    created_month=created_month,
+                    created_year=created_year,
                 )
             )
 
@@ -1404,12 +1408,25 @@ def invoice_list():
     if billing_type:
         where_parts.append("COALESCE(si.billing_type,'prepaid') = :billing_type")
         params["billing_type"] = billing_type
-    if month:
-        where_parts.append("EXTRACT(MONTH FROM si.service_month) = :month")
-        params["month"] = month
-    if year:
-        where_parts.append("EXTRACT(YEAR FROM si.service_month) = :year")
-        params["year"] = year
+    if month or year:
+        line_conditions = ["sil.invoice_id = si.id"]
+        if month:
+            line_conditions.append("EXTRACT(MONTH FROM sil.service_month) = :month")
+            params["month"] = month
+        if year:
+            line_conditions.append("EXTRACT(YEAR FROM sil.service_month) = :year")
+            params["year"] = year
+        where_parts.append(
+            "EXISTS (SELECT 1 FROM student_invoice_lines sil WHERE "
+            + " AND ".join(line_conditions)
+            + ")"
+        )
+    if created_month:
+        where_parts.append("EXTRACT(MONTH FROM si.created_at) = :created_month")
+        params["created_month"] = created_month
+    if created_year:
+        where_parts.append("EXTRACT(YEAR FROM si.created_at) = :created_year")
+        params["created_year"] = created_year
 
     where_sql = " AND ".join(where_parts)
 
@@ -1440,17 +1457,48 @@ def invoice_list():
     )
 
     invoices = [dict(r) for r in rows]
+    invoice_ids = [inv["id"] for inv in invoices]
 
-    # Hitung jumlah line per invoice
+    # Hitung jumlah line dan kumpulkan bulan layanan (bisa lebih dari satu
+    # bulan per invoice untuk tagihan pasca bayar yang merangkum beberapa
+    # bulan tertunggak sekaligus) per invoice dalam satu query batch.
+    line_summary: dict[int, dict] = {}
+    if invoice_ids:
+        line_rows = (
+            db.session.execute(
+                db.text(
+                    """
+                SELECT invoice_id, service_month, COUNT(*) AS cnt
+                FROM student_invoice_lines
+                WHERE invoice_id = ANY(:invoice_ids)
+                GROUP BY invoice_id, service_month
+                ORDER BY invoice_id, service_month
+                """
+                ),
+                {"invoice_ids": invoice_ids},
+            )
+            .mappings()
+            .all()
+        )
+        for row in line_rows:
+            bucket = line_summary.setdefault(
+                row["invoice_id"], {"line_count": 0, "service_months": []}
+            )
+            bucket["line_count"] += int(row["cnt"])
+            bucket["service_months"].append(row["service_month"])
+
     for inv in invoices:
         inv["public_id"] = _encode_invoice_public_id(inv["id"])
-        cnt = db.session.execute(
-            db.text(
-                "SELECT COUNT(*) FROM student_invoice_lines WHERE invoice_id = :id"
-            ),
-            {"id": inv["id"]},
-        ).scalar()
-        inv["line_count"] = int(cnt or 0)
+        summary = line_summary.get(inv["id"], {"line_count": 0, "service_months": []})
+        inv["line_count"] = summary["line_count"]
+        months = sorted(set(summary["service_months"]))
+        inv["service_months_label"] = (
+            ", ".join(_month_label(m) for m in months)
+            if months
+            else (
+                _month_label(inv["service_month"]) if inv.get("service_month") else "—"
+            )
+        )
 
     students = Student.query.filter_by(is_active=True).order_by(Student.name).all()
 
@@ -1485,6 +1533,8 @@ def invoice_list():
             "billing_type": billing_type,
             "month": month,
             "year": year,
+            "created_month": created_month,
+            "created_year": created_year,
         },
         status_summary=status_summary,
         BILLING_TYPE_LABELS=BILLING_TYPE_LABELS,

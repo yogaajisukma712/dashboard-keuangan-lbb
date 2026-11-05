@@ -38,7 +38,7 @@
         </select>
       </div>
       <div class="col-sm-2">
-        <label class="form-label muted-label mb-1">Bulan</label>
+        <label class="form-label muted-label mb-1">Bulan Layanan</label>
         <select name="month" class="form-select form-select-sm">
           <option value="">— Semua —</option>
           {% set bulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'] %}
@@ -48,15 +48,32 @@
         </select>
       </div>
       <div class="col-sm-2">
-        <label class="form-label muted-label mb-1">Tahun</label>
+        <label class="form-label muted-label mb-1">Tahun Layanan</label>
         <input type="number" name="year" class="form-control form-control-sm"
                value="{{ filters.year or current_year }}" min="2020" max="2099">
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label muted-label mb-1">Bulan Dibuat</label>
+        <select name="created_month" class="form-select form-select-sm">
+          <option value="">— Semua —</option>
+          {% for m in range(1,13) %}
+          <option value="{{ m }}"{% if filters.created_month == m %} selected{% endif %}>{{ bulan[m-1] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label muted-label mb-1">Tahun Dibuat</label>
+        <input type="number" name="created_year" class="form-control form-control-sm"
+               value="{{ filters.created_year or '' }}" min="2020" max="2099" placeholder="— Semua —">
       </div>
       <div class="col-sm-1">
         <button type="submit" class="btn btn-primary btn-sm w-100">🔍</button>
       </div>
     </form>
   </div>
+</div>
+<div class="text-muted small mb-3">
+  "Bulan Layanan" = periode sesi yang ditagih dalam invoice (invoice pasca bayar bisa merangkum lebih dari satu bulan sekaligus). "Bulan Dibuat" = kapan invoice ini dibuat di sistem, terpisah dari periode layanan.
 </div>
 
 <!-- Ringkasan status -->
@@ -104,6 +121,8 @@
   <input type="hidden" name="status" value="{{ filters.status }}">
   <input type="hidden" name="month" value="{{ filters.month or '' }}">
   <input type="hidden" name="year" value="{{ filters.year or '' }}">
+  <input type="hidden" name="created_month" value="{{ filters.created_month or '' }}">
+  <input type="hidden" name="created_year" value="{{ filters.created_year or '' }}">
 <div class="card shadow-sm">
   <div class="card-header bg-white d-flex flex-wrap align-items-center gap-2 border-bottom">
     <button type="button" class="btn btn-sm btn-outline-secondary" id="selectAllInvoices">Pilih Semua</button>
@@ -143,7 +162,7 @@
             <div class="fw-semibold">{{ inv.student_name }}</div>
             <div class="text-muted small">{{ inv.student_code }}</div>
           </td>
-          <td>{{ inv.service_month.strftime('%B %Y') if inv.service_month else '—' }}</td>
+          <td>{{ inv.service_months_label }}</td>
           <td class="text-center">
             {% if inv.billing_type == 'postpaid' %}
             <span class="badge bg-warning text-dark">Pasca Bayar</span>

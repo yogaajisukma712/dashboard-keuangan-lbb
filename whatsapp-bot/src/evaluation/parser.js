@@ -30,6 +30,13 @@ function normalizeWhitespace(value) {
     .trim();
 }
 
+function stripInvisibleMarks(value) {
+  // WhatsApp iOS/export often prefixes lines with LRM/RLM/BOM/zero-width
+  // marks, which break line-start regex anchors used throughout this
+  // parser even though they render as nothing to a human reader.
+  return String(value || '').replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, '');
+}
+
 function parseIndonesianDate(value) {
   const match = normalizeWhitespace(value).match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
   if (!match) return null;
@@ -213,7 +220,7 @@ function hasLikelyTimeRange(value) {
 }
 
 function classifyEvaluationMessage(body) {
-  const text = String(body || '');
+  const text = stripInvisibleMarks(body);
   const titleMatch = findTitleMatch(text);
   const dateMatch = matchFirstLabel(text, ['Tanggal', 'Tgl', 'Hari/Tanggal', 'Date', 'Lesson Date', 'Class Date']);
   const timeMatch = matchFirstLabel(text, ['Waktu', 'Jam', 'Pukul', 'Waktu Les', 'Time', 'Class Time', 'Lesson Time']);
@@ -276,7 +283,7 @@ function classifyEvaluationMessage(body) {
 }
 
 function parseEvaluationMessage(body) {
-  const text = String(body || '');
+  const text = stripInvisibleMarks(body);
   const classification = classifyEvaluationMessage(text);
   if (!classification.shouldStore) return null;
 

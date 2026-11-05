@@ -117,10 +117,16 @@ async function renderHtmlToSinglePagePdf(html, options = {}) {
       }
       // Render hanya elemen slip sebagai satu-satunya isi dokumen agar
       // page.pdf menghasilkan tepat satu halaman seukuran konten.
+      // PENTING: semua <style> template fee slip ada di {% block scripts %},
+      // yaitu anak <body> juga (bukan <head>) — jadi document.body.innerHTML=''
+      // ikut menghapusnya. Simpan dulu semua <style>, baru wipe body, lalu
+      // pasang kembali style + clone agar CSS slip tetap berlaku.
       await page.evaluate((sel) => {
         const el = document.querySelector(sel);
         const clone = el.cloneNode(true);
+        const styleTags = Array.from(document.querySelectorAll('style')).map(s => s.cloneNode(true));
         document.body.innerHTML = '';
+        styleTags.forEach(s => document.body.appendChild(s));
         document.body.appendChild(clone);
         document.body.style.margin = '0';
         document.body.style.padding = '0';

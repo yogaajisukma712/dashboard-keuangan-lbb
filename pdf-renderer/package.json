@@ -1,0 +1,15 @@
+{
+  "name": "lbb-pdf-renderer",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "puppeteer-core": "^24.15.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

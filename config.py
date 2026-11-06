@@ -73,6 +73,8 @@ class Config:
     WHATSAPP_BOT_INTERNAL_URL = os.environ.get(
         "WHATSAPP_BOT_INTERNAL_URL", "http://whatsapp_bot:3000"
     )
+    PDF_RENDERER_INTERNAL_URL = os.environ.get("PDF_RENDERER_INTERNAL_URL", "")
+    PDF_RENDERER_TOKEN = os.environ.get("PDF_RENDERER_TOKEN", "")
     WHATSAPP_EXCLUDED_GROUP_NAMES = os.environ.get(
         "WHATSAPP_EXCLUDED_GROUP_NAMES", "VPS / RDP MURAH III"
     )

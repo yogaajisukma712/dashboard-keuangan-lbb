@@ -114,4 +114,7 @@ sleep 12
 CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://localhost:6002/health || echo 000)
 [[ "$CODE" == "200" ]] && log "bot /health 200 OK" || log "PERINGATAN: /health = $CODE (cek: docker logs billing_supersmart_whatsapp_bot)"
 
+PDF_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:6005/health || echo 000)
+[[ "$PDF_CODE" == "200" ]] && log "pdf_renderer /health 200 OK" || log "PERINGATAN: pdf_renderer /health = $PDF_CODE (cek: docker logs billing_supersmart_pdf_renderer)"
+
 log "SELESAI — cek https://wa.supersmart.click/health (propagasi ~1mnt)"

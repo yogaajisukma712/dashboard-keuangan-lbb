@@ -36,6 +36,23 @@ services:
       retries: 5
       start_period: 90s
 
+  pdf_renderer:
+    image: ${PDF_RENDERER_IMAGE:-ghcr.io/yogaajisukma712/lbb-pdf-renderer:latest}
+    container_name: billing_supersmart_pdf_renderer
+    restart: unless-stopped
+    environment:
+      PDF_RENDERER_PORT: "3001"
+      PDF_RENDERER_TOKEN: ${PDF_RENDERER_TOKEN}
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+    ports:
+      - "127.0.0.1:6005:3001"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
 volumes:
   whatsapp_bot_auth:
   whatsapp_bot_backups:

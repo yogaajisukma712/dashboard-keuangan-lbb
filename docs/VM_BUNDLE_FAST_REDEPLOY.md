@@ -64,3 +64,7 @@ F  Cutover DNS → Vercel; decommission tunnel web lama; AWS terminate
 ```
 
 E bisa dikerjakan setelah D (VM dulu jalan, koordinasi menyusul) — bulk kirim tetap bisa dipicu manual dari UI bot VM sementara.
+
+## Service pdf_renderer (container kedua, terpisah dari bot)
+
+Compose VM menjalankan service `pdf_renderer` kedua: image `ghcr.io/yogaajisukma712/lbb-pdf-renderer:latest`, container `billing_supersmart_pdf_renderer`, port `127.0.0.1:6005` → `3001` (bot tetap 6002), token sendiri `PDF_RENDERER_TOKEN` (auth header `X-Bot-Token`), **stateless** (tanpa volume, chromium `/usr/bin/chromium`, healthcheck `/health`). Build & push: `docker build -t ghcr.io/yogaajisukma712/lbb-pdf-renderer:latest ./pdf-renderer && docker push ghcr.io/yogaajisukma712/lbb-pdf-renderer:latest`. Catatan: dashboard Vercel perlu env `PDF_RENDERER_INTERNAL_URL` + `PDF_RENDERER_TOKEN` (diakses lewat tunnel ke `127.0.0.1:6005`); kalau kosong, fitur render PDF fallback ke bot.

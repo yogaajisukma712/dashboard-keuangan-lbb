@@ -134,6 +134,39 @@ def _bot_request(method: str, path: str, payload: dict | None = None, timeout: i
         return {"ok": False, "error": str(exc)}, 502
 
 
+def _renderer_request(method: str, path: str, payload: dict | None = None, timeout: int = 10):
+    # Empty renderer settings retain legacy routing through the WhatsApp bot.
+    renderer_url = current_app.config.get("PDF_RENDERER_INTERNAL_URL") or current_app.config["WHATSAPP_BOT_INTERNAL_URL"]
+    renderer_token = current_app.config.get("PDF_RENDERER_TOKEN") or os.getenv("WHATSAPP_BOT_TOKEN", "")
+    body = None
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+        "X-Bot-Token": renderer_token,
+    }
+    if payload is not None:
+        body = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+
+    req = urllib_request.Request(
+        f"{renderer_url.rstrip('/')}{path}",
+        data=body,
+        method=method.upper(),
+        headers=headers,
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=timeout) as response:
+            text = response.read().decode("utf-8")
+            return (json.loads(text) if text else {}), response.status
+    except urllib_error.HTTPError as exc:
+        text = exc.read().decode("utf-8")
+        try:
+            response_payload = json.loads(text) if text else {}
+        except json.JSONDecodeError:
+            response_payload = {"ok": False, "error": text or str(exc)}
+        return response_payload, exc.code
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 502
+
 def _get_whatsapp_session_status() -> dict:
     payload, status_code = _bot_request("GET", "/session", timeout=5)
     session = payload.get("session") if isinstance(payload, dict) else {}
@@ -1910,7 +1943,7 @@ def _render_fee_slip_pdf_via_bot(
         with current_app.test_request_context(base_url=context_base_url):
             html = render_pdf_html()
 
-    payload, status_code = _bot_request(
+    payload, status_code = _renderer_request(
         "POST",
         "/render/pdf",
         {

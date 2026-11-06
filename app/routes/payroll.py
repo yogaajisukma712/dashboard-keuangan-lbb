@@ -6,6 +6,7 @@ Handles tutor payment and payroll management
 import base64
 import os
 import json
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO
@@ -68,6 +69,17 @@ PREVIOUS_SHORTFALL_NOTE_PREFIX = "Kekurangan bulan sebelumnya"
 # Prefix written by tutor_summary_settle_shortfall for a supplemental (kekurangan)
 # payment. Used to detect settlement payouts when aggregating slip proofs.
 SETTLEMENT_NOTE_PREFIX = "Pembayaran kekurangan lunas"
+
+def _normalize_wa_number(value: str) -> str:
+    """Normalisasi nomor Indonesia: 08xx -> 628xx, +62 -> 62, spasi/strip dibuang."""
+    digits = re.sub(r"\D", "", value or "")
+    if not digits:
+        return ""
+    if digits.startswith("0"):
+        digits = "62" + digits[1:]
+    elif digits.startswith("620"):
+        digits = "62" + digits[2:]
+    return digits
 
 
 def _format_rupiah(value) -> str:
@@ -265,7 +277,7 @@ def _send_fee_slip_whatsapp_attachment(
         "POST",
         "/messages/send",
         {
-            "to": contact_id,
+            "to": _normalize_wa_number(contact_id),
             "message": message,
             "attachment": {
                 "filename": pdf_filename,
@@ -1864,6 +1876,14 @@ def _build_fee_slip_template_context(
                 embedded_image = _proof_image_data_uri(proof.get("file_path"))
                 if embedded_image:
                     proof["image_url"] = embedded_image
+                else:
+                    proof["image_url"] = None
+                    proof["embed_failed"] = True
+                    current_app.logger.warning(
+                        "proof embed failed payout=%s file=%s",
+                        payout.id,
+                        proof.get("file_path"),
+                    )
 
     ceo_name = current_app.config.get("INSTITUTION_CEO_NAME", "")
     whatsapp_session = _get_whatsapp_session_status()

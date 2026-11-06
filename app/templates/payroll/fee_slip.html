@@ -317,6 +317,11 @@
             <i class="bi bi-exclamation-triangle text-warning me-2"></i>
             Berkas bukti tidak ditemukan di server.
           </div>
+          {% elif proof.is_image and proof.embed_failed and pdf_mode %}
+          <div class="slip-proof-file text-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Bukti pembayaran gagal dimuat saat render.
+          </div>
           {% elif proof.is_image %}
           <div class="slip-proof-card">
             <img src="{{ proof.image_url }}" alt="Bukti Pembayaran" class="slip-proof-image">

@@ -130,6 +130,70 @@
         </div>
     </section>
 
+    <section class="card border-0 shadow-sm">
+        <div class="card-body">
+            <h2 class="h6 fw-bold mb-2">
+                <i class="bi bi-filetype-pdf me-1"></i>Uji Jalur PDF Terpisah (2 container)
+            </h2>
+            <p class="text-muted small mb-3">
+                Render PDF fee slip lewat service <strong>pdf_renderer</strong> (container terpisah),
+                lalu kirim ke WhatsApp lewat <strong>bot</strong>. Jika berhasil, kedua image terbukti bekerja.
+            </p>
+            <div class="row g-2 align-items-start">
+                <div class="col-lg-5">
+                    <label class="form-label small fw-semibold mb-1">Payout Ref (public_id)</label>
+                    <input id="testPayoutRef" class="form-control form-control-sm"
+                           value="eyJrIjoidHV0b3JfcGF5b3V0IiwiaWQiOjY2N30.PA4HJ2bi293xQV5IdPZrlFkN1e4"
+                           placeholder="payout_ref">
+                </div>
+                <div class="col-lg-3">
+                    <label class="form-label small fw-semibold mb-1">Nomor WA</label>
+                    <input id="testNumber" class="form-control form-control-sm"
+                           value="082177373118" placeholder="08xx / 62xx">
+                </div>
+                <div class="col-lg-4">
+                    <label class="form-label small fw-semibold mb-1">&nbsp;</label>
+                    <button id="btnTestSend" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-send me-1"></i>Kirim Test
+                    </button>
+                </div>
+            </div>
+            <pre id="testResult" class="small bg-light border rounded p-2 mt-2 mb-0"
+                 style="display:none;white-space:pre-wrap;word-break:break-word"></pre>
+        </div>
+    </section>
+    <script>
+    (function () {
+        const btn = document.getElementById('btnTestSend');
+        if (!btn) return;
+        const csrf = {{ csrf_token() | tojson }};
+        btn.addEventListener('click', async () => {
+            const out = document.getElementById('testResult');
+            out.style.display = 'block';
+            out.textContent = 'Mengirim... (render via renderer -> kirim via bot)';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Mengirim...';
+            try {
+                const resp = await fetch("{{ url_for('payroll.fee_slip_test_send') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                    body: JSON.stringify({
+                        payout_ref: document.getElementById('testPayoutRef').value.trim(),
+                        number: document.getElementById('testNumber').value.trim(),
+                    }),
+                });
+                const j = await resp.json();
+                out.textContent = (j.ok ? 'BERHASIL \u2705 (kedua image bekerja)\n' : 'GAGAL \u274c\n') +
+                    JSON.stringify(j, null, 2);
+            } catch (e) {
+                out.textContent = 'Error: ' + e;
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send me-1"></i>Kirim Test';
+        });
+    })();
+    </script>
+
     <section class="row g-4">
         <div class="col-xl-8">
             <div class="card wa-panel h-100">

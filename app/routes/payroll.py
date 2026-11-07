@@ -2044,6 +2044,52 @@ def api_fee_slip_job(payout_ref):
         payout = TutorPayout.query.get(payout_id)
     except Exception as exc:
         return jsonify({"ok": False, "error": f"Slip {payout_ref}: {exc}"}), 400
+
+
+
+@payroll_bp.route("/fee-slip/test-send", methods=["POST"])
+@login_required
+@admin_required
+def fee_slip_test_send():
+    """Jalur test 2 container: render PDF via pdf_renderer (image terpisah),
+    lalu kirim ke WhatsApp via bot. Balas JSON yang menyebut URL renderer & bot
+    yang dipakai, supaya terbukti kedua image bekerja end-to-end.
+
+    Auth: admin login + CSRF (header X-CSRFToken via AJAX). Nomor bebas (tidak
+    dibatasi kontak tervalidasi) karena ini jalur uji.
+    """
+    data = request.get_json(silent=True) or {}
+    ref = (data.get("payout_ref") or "").strip()
+    number = (data.get("number") or "").strip()
+    if not ref or not number:
+        return jsonify({"ok": False, "error": "payout_ref dan number wajib diisi"}), 400
+
+    try:
+        payout = _get_payout_by_ref_or_404(ref)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"payout_ref tidak valid: {exc}"}), 400
+
+    message = (data.get("message") or "").strip() or f"TEST slip fee - {payout.tutor.name}"
+
+    renderer_url = (
+        current_app.config.get("PDF_RENDERER_INTERNAL_URL")
+        or current_app.config.get("WHATSAPP_BOT_INTERNAL_URL")
+    )
+    bot_url = current_app.config.get("WHATSAPP_BOT_INTERNAL_URL")
+
+    sent, error = _send_fee_slip_whatsapp_attachment(payout, number, message)
+    if sent:
+        db.session.commit()
+
+    return jsonify({
+        "ok": sent,
+        "error": error or None,
+        "normalized_to": _normalize_wa_number(number),
+        "renderer_url": renderer_url,
+        "bot_url": bot_url,
+        "payout_id": payout.id,
+        "tutor": payout.tutor.name,
+    }), (200 if sent else 502)
     if not payout:
         return jsonify({"ok": False, "error": f"Slip {payout_ref}: tidak ditemukan"}), 404
 

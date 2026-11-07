@@ -55,5 +55,8 @@ services:
 
 volumes:
   whatsapp_bot_auth:
+    name: aplikasilembaga_whatsapp_bot_auth
   whatsapp_bot_backups:
+    name: aplikasilembaga_whatsapp_bot_backups
   whatsapp_bot_uploads:
+    name: aplikasilembaga_whatsapp_bot_uploads

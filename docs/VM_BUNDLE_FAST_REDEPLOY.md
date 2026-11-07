@@ -73,7 +73,7 @@ Compose VM menjalankan service `pdf_renderer` kedua: image `ghcr.io/yogaajisukma
 
 - Container: `billing_supersmart_pdf_renderer` (image `ghcr.io/yogaajisukma712/lbb-pdf-renderer:latest`), port host `127.0.0.1:6005`.
 - Ekspos publik: tunnel Cloudflare `supersmart-wa` (connector di VM, host-network) ingress:
-  `pdf.itera.institute -> http://127.0.0.1:6005` (zona `itera.institute`; `supersmart.click` di luar scope token CF).
-- Vercel env: `PDF_RENDERER_INTERNAL_URL=https://pdf.itera.institute`, `PDF_RENDERER_TOKEN=<PDF_RENDERER_TOKEN di .env VM>`.
+  `pdf.supersmart.click -> http://127.0.0.1:6005` (zona `supersmart.click`, token CF all-in).
+- Vercel env: `PDF_RENDERER_INTERNAL_URL=https://pdf.supersmart.click`, `PDF_RENDERER_TOKEN=<PDF_RENDERER_TOKEN di .env VM>`.
 - Deploy: `docker compose -p aplikasilembaga -f docker-compose.vm.yml up -d` (project name LAMA wajib agar volume `aplikasilembaga_whatsapp_bot_auth/_uploads` terpakai — sesi WA + bukti bayar).
 - Rollback bot: `WHATSAPP_BOT_IMAGE=lbb-whatsapp-bot:native-test`.

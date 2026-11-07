@@ -141,10 +141,9 @@
             </p>
             <div class="row g-2 align-items-start">
                 <div class="col-lg-5">
-                    <label class="form-label small fw-semibold mb-1">Payout Ref (public_id)</label>
-                    <input id="testPayoutRef" class="form-control form-control-sm"
-                           value="eyJrIjoidHV0b3JfcGF5b3V0IiwiaWQiOjY2N30.PA4HJ2bi293xQV5IdPZrlFkN1e4"
-                           placeholder="payout_ref">
+                    <label class="form-label small fw-semibold mb-1">Payout ID (angka)</label>
+                    <input id="testPayoutId" type="number" class="form-control form-control-sm"
+                           value="667" placeholder="mis. 667">
                 </div>
                 <div class="col-lg-3">
                     <label class="form-label small fw-semibold mb-1">Nomor WA</label>
@@ -178,7 +177,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
                     body: JSON.stringify({
-                        payout_ref: document.getElementById('testPayoutRef').value.trim(),
+                        payout_id: document.getElementById('testPayoutId').value.trim(),
                         number: document.getElementById('testNumber').value.trim(),
                     }),
                 });

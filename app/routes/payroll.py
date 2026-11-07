@@ -2060,14 +2060,28 @@ def fee_slip_test_send():
     """
     data = request.get_json(silent=True) or {}
     ref = (data.get("payout_ref") or "").strip()
+    raw_id = data.get("payout_id")
     number = (data.get("number") or "").strip()
-    if not ref or not number:
-        return jsonify({"ok": False, "error": "payout_ref dan number wajib diisi"}), 400
+    if not number:
+        return jsonify({"ok": False, "error": "number wajib diisi"}), 400
+    if not ref and raw_id in (None, ""):
+        return jsonify({"ok": False, "error": "payout_ref atau payout_id wajib diisi"}), 400
 
-    try:
-        payout = _get_payout_by_ref_or_404(ref)
-    except Exception as exc:
-        return jsonify({"ok": False, "error": f"payout_ref tidak valid: {exc}"}), 400
+    # Admin-only test: terima payout_id integer langsung (anti-fragile terhadap
+    # rotasi SECRET_KEY) ATAU payout_ref opaque. payout_id diprioritaskan.
+    payout = None
+    if raw_id not in (None, ""):
+        try:
+            payout = TutorPayout.query.get(int(raw_id))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": f"payout_id tidak valid: {raw_id!r}"}), 400
+    elif ref:
+        try:
+            payout = TutorPayout.query.get(decode_public_id(ref, "tutor_payout"))
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": f"payout_ref tidak valid: {exc}"}), 400
+    if not payout:
+        return jsonify({"ok": False, "error": "payout tidak ditemukan"}), 404
 
     message = (data.get("message") or "").strip() or f"TEST slip fee - {payout.tutor.name}"
 

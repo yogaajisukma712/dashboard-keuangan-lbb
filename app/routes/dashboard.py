@@ -50,7 +50,6 @@ def _parse_month_year(default_today=True):
     return month, year
 
 
-@dashboard_bp.route("/", methods=["GET"])
 @dashboard_bp.route("/api/system/heartbeat", methods=["POST"])
 def api_system_heartbeat():
     """VM bot melapor rutin. Auth: X-Bot-Token. Upsert status komponen."""
@@ -128,6 +127,7 @@ def _get_vm_heartbeat(max_age_seconds=180):
     }
 
 
+@dashboard_bp.route("/", methods=["GET"])
 @dashboard_bp.route("/owner", methods=["GET"])
 @login_required
 def owner_dashboard():
